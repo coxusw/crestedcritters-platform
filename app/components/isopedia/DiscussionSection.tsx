@@ -1,10 +1,17 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import {
   createDiscussionComment,
   deleteDiscussionComment,
   editDiscussionComment,
+  reportDiscussionComment,
 } from "@/app/components/isopedia/discussion-actions";
 
 type DiscussionComment = {
@@ -23,14 +30,20 @@ type DiscussionComment = {
   } | null;
 };
 
+type DiscussionBan = {
+  reason: string | null;
+  expires_at: string | null;
+};
+
 type Props = {
-  entityType: "species";
+  entityType: "species" | "expo" | "guide";
   entityId: string;
   entityPath: string;
   comments: DiscussionComment[];
   isLoggedIn: boolean;
   currentUserId: string | null;
   canModerate: boolean;
+  activeDiscussionBan: DiscussionBan | null;
 };
 
 function getAuthorName(comment: DiscussionComment) {
@@ -46,6 +59,16 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString();
 }
 
+function formatBanMessage(activeDiscussionBan: DiscussionBan) {
+  const until = activeDiscussionBan.expires_at
+    ? ` until ${new Date(activeDiscussionBan.expires_at).toLocaleString()}`
+    : "";
+
+  return `You are currently banned from discussions${until}.${
+    activeDiscussionBan.reason ? ` Reason: ${activeDiscussionBan.reason}` : ""
+  }`;
+}
+
 export default function DiscussionSection({
   entityType,
   entityId,
@@ -54,13 +77,21 @@ export default function DiscussionSection({
   isLoggedIn,
   currentUserId,
   canModerate,
+  activeDiscussionBan,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [body, setBody] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [reportingCommentId, setReportingCommentId] = useState<string | null>(
+    null
+  );
   const [editBodies, setEditBodies] = useState<Record<string, string>>({});
   const [replyBodies, setReplyBodies] = useState<Record<string, string>>({});
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportReason, setReportReason] = useState("Spam");
+
+  const isDiscussionBanned = Boolean(activeDiscussionBan);
 
   const { topLevelComments, repliesByParent } = useMemo(() => {
     const topLevel: DiscussionComment[] = [];
@@ -130,6 +161,15 @@ export default function DiscussionSection({
     });
   }
 
+  function submitReport(formData: FormData) {
+    startTransition(async () => {
+      await reportDiscussionComment(formData);
+      setReportingCommentId(null);
+      setReportDetails("");
+      setReportReason("Spam");
+    });
+  }
+
   return (
     <section className="mt-8 rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-xl shadow-black/20 sm:p-8">
       <div className="mb-6">
@@ -147,7 +187,11 @@ export default function DiscussionSection({
         </p>
       </div>
 
-      {isLoggedIn ? (
+      {isLoggedIn && activeDiscussionBan ? (
+        <div className="mb-8 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm leading-6 text-red-100">
+          {formatBanMessage(activeDiscussionBan)}
+        </div>
+      ) : isLoggedIn ? (
         <form action={submitTopLevelComment} className="mb-8">
           <input type="hidden" name="entity_type" value={entityType} />
           <input type="hidden" name="entity_id" value={entityId} />
@@ -197,12 +241,21 @@ export default function DiscussionSection({
                   entityPath={entityPath}
                   currentUserId={currentUserId}
                   canModerate={canModerate}
+                  isDiscussionBanned={isDiscussionBanned}
                   isPending={isPending}
                   editingCommentId={editingCommentId}
+                  reportingCommentId={reportingCommentId}
                   editBody={editBodies[comment.id] ?? comment.body}
+                  reportReason={reportReason}
+                  reportDetails={reportDetails}
                   setEditingCommentId={setEditingCommentId}
+                  setReportingCommentId={setReportingCommentId}
                   setEditBodies={setEditBodies}
+                  setReportReason={setReportReason}
+                  setReportDetails={setReportDetails}
                   submitEdit={submitEdit}
+                  submitReport={submitReport}
+                  isLoggedIn={isLoggedIn}
                 />
 
                 <div className="ml-0 space-y-3 border-l border-white/10 pl-4 sm:ml-6 sm:pl-5">
@@ -213,27 +266,45 @@ export default function DiscussionSection({
                       entityPath={entityPath}
                       currentUserId={currentUserId}
                       canModerate={canModerate}
+                      isDiscussionBanned={isDiscussionBanned}
                       isPending={isPending}
                       editingCommentId={editingCommentId}
+                      reportingCommentId={reportingCommentId}
                       editBody={editBodies[reply.id] ?? reply.body}
+                      reportReason={reportReason}
+                      reportDetails={reportDetails}
                       setEditingCommentId={setEditingCommentId}
+                      setReportingCommentId={setReportingCommentId}
                       setEditBodies={setEditBodies}
+                      setReportReason={setReportReason}
+                      setReportDetails={setReportDetails}
                       submitEdit={submitEdit}
+                      submitReport={submitReport}
+                      isLoggedIn={isLoggedIn}
                       isReply
                     />
                   ))}
 
                   {comment.status === "active" &&
                   isLoggedIn &&
+                  !isDiscussionBanned &&
                   replyingTo === comment.id ? (
                     <form
                       action={(formData) => submitReply(formData, comment.id)}
                       className="rounded-2xl border border-white/10 bg-slate-950/70 p-4"
                     >
-                      <input type="hidden" name="entity_type" value={entityType} />
+                      <input
+                        type="hidden"
+                        name="entity_type"
+                        value={entityType}
+                      />
                       <input type="hidden" name="entity_id" value={entityId} />
                       <input type="hidden" name="parent_id" value={comment.id} />
-                      <input type="hidden" name="return_path" value={entityPath} />
+                      <input
+                        type="hidden"
+                        name="return_path"
+                        value={entityPath}
+                      />
 
                       <textarea
                         name="body"
@@ -269,7 +340,9 @@ export default function DiscussionSection({
                         </button>
                       </div>
                     </form>
-                  ) : comment.status === "active" && isLoggedIn ? (
+                  ) : comment.status === "active" &&
+                    isLoggedIn &&
+                    !isDiscussionBanned ? (
                     <button
                       type="button"
                       onClick={() => setReplyingTo(comment.id)}
@@ -299,31 +372,52 @@ function CommentCard({
   entityPath,
   currentUserId,
   canModerate,
+  isDiscussionBanned,
   isPending,
   editingCommentId,
+  reportingCommentId,
   editBody,
+  reportReason,
+  reportDetails,
   setEditingCommentId,
+  setReportingCommentId,
   setEditBodies,
+  setReportReason,
+  setReportDetails,
   submitEdit,
+  submitReport,
+  isLoggedIn,
   isReply = false,
 }: {
   comment: DiscussionComment;
   entityPath: string;
   currentUserId: string | null;
   canModerate: boolean;
+  isDiscussionBanned: boolean;
   isPending: boolean;
   editingCommentId: string | null;
+  reportingCommentId: string | null;
   editBody: string;
+  reportReason: string;
+  reportDetails: string;
   setEditingCommentId: (id: string | null) => void;
-  setEditBodies: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setReportingCommentId: (id: string | null) => void;
+  setEditBodies: Dispatch<SetStateAction<Record<string, string>>>;
+  setReportReason: (value: string) => void;
+  setReportDetails: (value: string) => void;
   submitEdit: (formData: FormData, commentId: string) => void;
+  submitReport: (formData: FormData) => void;
+  isLoggedIn: boolean;
   isReply?: boolean;
 }) {
   const author = getAuthorName(comment);
   const isOwner = currentUserId === comment.user_id;
-  const canEdit = comment.status === "active" && isOwner;
+  const canEdit = comment.status === "active" && isOwner && !isDiscussionBanned;
   const canDelete = comment.status === "active" && (isOwner || canModerate);
+  const canReport =
+    comment.status === "active" && isLoggedIn && !isOwner && !isDiscussionBanned;
   const isEditing = editingCommentId === comment.id;
+  const isReporting = reportingCommentId === comment.id;
 
   if (comment.status === "deleted") {
     return (
@@ -407,7 +501,7 @@ function CommentCard({
         </div>
       )}
 
-      {(canEdit || canDelete) && !isEditing && (
+      {(canEdit || canDelete || canReport) && !isEditing && (
         <div className="mt-4 flex flex-wrap gap-2">
           {canEdit && (
             <button
@@ -432,7 +526,9 @@ function CommentCard({
               <input
                 type="hidden"
                 name="reason"
-                value={canModerate && !isOwner ? "Moderator removed" : "User removed"}
+                value={
+                  canModerate && !isOwner ? "Moderator removed" : "User removed"
+                }
               />
 
               <button
@@ -444,7 +540,79 @@ function CommentCard({
               </button>
             </form>
           )}
+
+          {canReport && (
+            <button
+              type="button"
+              onClick={() => setReportingCommentId(comment.id)}
+              className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs font-bold text-amber-200 transition hover:bg-amber-400/20"
+            >
+              Report
+            </button>
+          )}
         </div>
+      )}
+
+      {isReporting && (
+        <form
+          action={submitReport}
+          className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4"
+        >
+          <input type="hidden" name="comment_id" value={comment.id} />
+          <input type="hidden" name="return_path" value={entityPath} />
+
+          <label className="grid gap-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-amber-100/70">
+              Report Reason
+            </span>
+
+            <select
+              name="reason"
+              value={reportReason}
+              onChange={(event) => setReportReason(event.target.value)}
+              className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none"
+            >
+              <option value="Spam">Spam</option>
+              <option value="Harassment">Harassment</option>
+              <option value="Misinformation">Misinformation</option>
+              <option value="Off-topic">Off-topic</option>
+              <option value="Inappropriate content">Inappropriate content</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+
+          <label className="mt-3 grid gap-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-amber-100/70">
+              Details Optional
+            </span>
+
+            <textarea
+              name="details"
+              value={reportDetails}
+              onChange={(event) => setReportDetails(event.target.value)}
+              placeholder="Add context for moderators..."
+              className="min-h-[90px] rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none"
+            />
+          </label>
+
+          <div className="mt-3 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setReportingCommentId(null)}
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/10"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={isPending}
+              className="rounded-xl bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-amber-200 disabled:opacity-50"
+            >
+              Submit Report
+            </button>
+          </div>
+        </form>
       )}
     </article>
   );

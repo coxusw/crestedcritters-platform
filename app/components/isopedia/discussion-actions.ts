@@ -42,8 +42,43 @@ async function getAuthContext() {
   };
 }
 
+async function requireNotDiscussionBanned(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  userId: string
+) {
+  const { data: activeBan, error } = await supabase
+    .from("isopedia_discussion_bans")
+    .select("id, reason, expires_at")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+    .maybeSingle<{
+      id: string;
+      reason: string | null;
+      expires_at: string | null;
+    }>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (activeBan) {
+    const until = activeBan.expires_at
+      ? ` until ${new Date(activeBan.expires_at).toLocaleString()}`
+      : "";
+
+    throw new Error(
+      `You are currently banned from discussions${until}.${
+        activeBan.reason ? ` Reason: ${activeBan.reason}` : ""
+      }`
+    );
+  }
+}
+
 export async function createDiscussionComment(formData: FormData) {
   const { supabase, user } = await getAuthContext();
+
+  await requireNotDiscussionBanned(supabase, user.id);
 
   const entityType = cleanText(formData.get("entity_type"));
   const entityId = cleanText(formData.get("entity_id"));
@@ -110,6 +145,8 @@ export async function createDiscussionComment(formData: FormData) {
 
 export async function editDiscussionComment(formData: FormData) {
   const { supabase, user } = await getAuthContext();
+
+  await requireNotDiscussionBanned(supabase, user.id);
 
   const commentId = cleanText(formData.get("comment_id"));
   const body = cleanText(formData.get("body"));
@@ -208,6 +245,64 @@ export async function deleteDiscussionComment(formData: FormData) {
   });
 
   if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath(returnPath);
+}
+
+export async function reportDiscussionComment(formData: FormData) {
+  const { supabase, user } = await getAuthContext();
+
+  await requireNotDiscussionBanned(supabase, user.id);
+
+  const commentId = cleanText(formData.get("comment_id"));
+  const reason = cleanText(formData.get("reason"));
+  const details = cleanText(formData.get("details")) || null;
+  const returnPath = cleanText(formData.get("return_path")) || "/isopedia";
+
+  if (!commentId) {
+    throw new Error("Missing comment.");
+  }
+
+  if (!reason) {
+    throw new Error("Please choose a report reason.");
+  }
+
+  const { data: comment, error: commentError } = await supabase
+    .from("isopedia_discussions")
+    .select("id, user_id, status")
+    .eq("id", commentId)
+    .maybeSingle<{
+      id: string;
+      user_id: string;
+      status: string;
+    }>();
+
+  if (commentError) {
+    throw new Error(commentError.message);
+  }
+
+  if (!comment || comment.status !== "active") {
+    throw new Error("Comment not found.");
+  }
+
+  if (comment.user_id === user.id) {
+    throw new Error("You cannot report your own comment.");
+  }
+
+  const { error } = await supabase.from("isopedia_discussion_reports").insert({
+    comment_id: commentId,
+    reporter_user_id: user.id,
+    reason,
+    details,
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error("You already reported this comment.");
+    }
+
     throw new Error(error.message);
   }
 

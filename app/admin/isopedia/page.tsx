@@ -49,6 +49,7 @@ export default async function AdminIsopediaPage() {
     moderatorsCount,
     adminsByRoleCount,
     adminProfilesCount,
+    discussionReportsCount,
   ] = await Promise.all([
     supabase
       .from("isopedia_species")
@@ -97,6 +98,11 @@ export default async function AdminIsopediaPage() {
     supabase
       .from("admin_profiles")
       .select("id", { count: "exact", head: true }),
+
+    supabase
+      .from("isopedia_discussion_reports")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "open"),
   ]);
 
   if (speciesResult.error) {
@@ -111,6 +117,7 @@ export default async function AdminIsopediaPage() {
   const totalBadges = badgesCount.count || 0;
   const totalUsers = usersCount.count || 0;
   const totalModerators = moderatorsCount.count || 0;
+  const totalDiscussionReports = discussionReportsCount.count || 0;
 
   const totalAdmins = Math.max(
     adminsByRoleCount.count || 0,
@@ -141,7 +148,8 @@ export default async function AdminIsopediaPage() {
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/65">
               Manage species, review community contributions, assign badges,
-              and prepare Isopedia for a polished public launch.
+              moderate discussions, and prepare Isopedia for a polished public
+              launch.
             </p>
           </div>
 
@@ -182,9 +190,10 @@ export default async function AdminIsopediaPage() {
           />
 
           <DashboardStat
-            label="Badges"
-            value={totalBadges}
-            description="Available profile badges"
+            label="Discussion Reports"
+            value={totalDiscussionReports}
+            description="Open community reports"
+            alert={totalDiscussionReports > 0}
           />
         </section>
 
@@ -211,6 +220,20 @@ export default async function AdminIsopediaPage() {
               />
 
               <AdminActionCard
+                href="/admin/isopedia/discussions"
+                title="Discussion Moderation"
+                description={
+                  totalDiscussionReports > 0
+                    ? `${totalDiscussionReports} open report${
+                        totalDiscussionReports === 1 ? "" : "s"
+                      } need review.`
+                    : "Review reported comments and community discussions."
+                }
+                icon="⚠️"
+                alert={totalDiscussionReports > 0}
+              />
+
+              <AdminActionCard
                 href="/admin/isopedia/badges"
                 title="Manage Badges"
                 description="Create badges and assign them to contributors."
@@ -218,17 +241,38 @@ export default async function AdminIsopediaPage() {
               />
 
               <AdminActionCard
-                href="/admin/isopedia/review"
-                title="Review Queue"
-                description="Review species submissions and suggested edits."
-                icon="✓"
-              />
-
-              <AdminActionCard
                 href="/admin/isopedia/roles"
                 title="Role Management"
                 description="Manage moderators and admins."
                 icon="🛡️"
+              />
+
+              <AdminActionCard
+                href="/isopedia/verify"
+                title="Submission Queue"
+                description="Review submitted species entries."
+                icon="✓"
+              />
+
+              <AdminActionCard
+                href="/isopedia/verify-edits"
+                title="Suggested Edits"
+                description="Review community edit suggestions."
+                icon="✎"
+              />
+
+              <AdminActionCard
+                href="/isopedia/verify-images"
+                title="Image Queue"
+                description="Review submitted gallery images."
+                icon="🖼️"
+              />
+
+              <AdminActionCard
+                href="/isopedia/review"
+                title="Public Review Feed"
+                description="Open the public-facing review area."
+                icon="👁️"
               />
             </div>
           </div>
@@ -246,6 +290,7 @@ export default async function AdminIsopediaPage() {
               <MiniStat label="Registered Profiles" value={totalUsers} />
               <MiniStat label="Moderators" value={totalModerators} />
               <MiniStat label="Admins" value={totalAdmins} />
+              <MiniStat label="Profile Badges" value={totalBadges} />
             </div>
           </div>
         </section>
@@ -401,20 +446,36 @@ function DashboardStat({
   label,
   value,
   description,
+  alert = false,
 }: {
   label: string;
   value: number;
   description: string;
+  alert?: boolean;
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-[#142318] p-5 shadow-xl shadow-black/20">
-      <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-100/40">
+    <div
+      className={`rounded-3xl border p-5 shadow-xl shadow-black/20 ${
+        alert
+          ? "border-red-400/30 bg-red-400/10"
+          : "border-white/10 bg-[#142318]"
+      }`}
+    >
+      <p
+        className={`text-xs font-black uppercase tracking-[0.25em] ${
+          alert ? "text-red-200" : "text-emerald-100/40"
+        }`}
+      >
         {label}
       </p>
 
       <p className="mt-3 text-4xl font-black text-white">{value}</p>
 
-      <p className="mt-2 text-sm leading-5 text-emerald-50/55">
+      <p
+        className={`mt-2 text-sm leading-5 ${
+          alert ? "text-red-100/70" : "text-emerald-50/55"
+        }`}
+      >
         {description}
       </p>
     </div>
@@ -426,28 +487,48 @@ function AdminActionCard({
   title,
   description,
   icon,
+  alert = false,
 }: {
   href: string;
   title: string;
   description: string;
   icon: string;
+  alert?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className="group rounded-3xl border border-white/10 bg-[#0b140d] p-5 transition hover:border-emerald-400/40 hover:bg-[#102016]"
+      className={`group rounded-3xl border p-5 transition ${
+        alert
+          ? "border-red-400/30 bg-red-400/10 hover:bg-red-400/20"
+          : "border-white/10 bg-[#0b140d] hover:border-emerald-400/40 hover:bg-[#102016]"
+      }`}
     >
       <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-xl">
+        <div
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border text-xl ${
+            alert
+              ? "border-red-400/30 bg-red-400/10"
+              : "border-emerald-400/20 bg-emerald-400/10"
+          }`}
+        >
           {icon}
         </div>
 
         <div>
-          <h3 className="font-black text-white group-hover:text-emerald-200">
+          <h3
+            className={`font-black ${
+              alert ? "text-red-100" : "text-white group-hover:text-emerald-200"
+            }`}
+          >
             {title}
           </h3>
 
-          <p className="mt-2 text-sm leading-6 text-emerald-50/55">
+          <p
+            className={`mt-2 text-sm leading-6 ${
+              alert ? "text-red-100/70" : "text-emerald-50/55"
+            }`}
+          >
             {description}
           </p>
         </div>

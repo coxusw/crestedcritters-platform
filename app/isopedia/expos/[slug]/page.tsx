@@ -23,7 +23,6 @@ type Expo = {
   starts_at: string;
   ends_at: string | null;
   description: string | null;
-  flyer_image_url: string | null;
   status: "pending" | "approved" | "rejected";
 };
 
@@ -155,7 +154,6 @@ export default async function ExpoDetailPage({ params }: PageProps) {
       starts_at,
       ends_at,
       description,
-      flyer_image_url,
       status
     `
     )
@@ -258,17 +256,6 @@ export default async function ExpoDetailPage({ params }: PageProps) {
         )}
 
         <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#142318] shadow-2xl shadow-black/30">
-          {expo.flyer_image_url && (
-            <div className="border-b border-white/10 bg-black/30">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={expo.flyer_image_url}
-                alt={`${expo.name} flyer`}
-                className="max-h-[720px] w-full object-contain"
-              />
-            </div>
-          )}
-
           <div className="bg-gradient-to-br from-emerald-500/20 via-[#142318] to-[#0c1710] p-6 sm:p-10">
             <p className="text-sm font-black uppercase tracking-[0.35em] text-emerald-300">
               Expo Details
