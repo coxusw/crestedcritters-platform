@@ -1,0 +1,8 @@
+{
+  "crons": [
+    { "path": "/api/content-agent/cron/generate?secret=$CONTENT_AGENT_CRON_SECRET", "schedule": "0 * * * *" },
+    { "path": "/api/content-agent/cron/post-due?secret=$CONTENT_AGENT_CRON_SECRET", "schedule": "*/30 * * * *" },
+    { "path": "/api/content-agent/cron/generate-image?secret=$CONTENT_AGENT_CRON_SECRET", "schedule": "15 * * * *" },
+    { "path": "/api/content-agent/cron/isopedia?secret=$CONTENT_AGENT_CRON_SECRET", "schedule": "0 10 * * *" }
+  ]
+}
