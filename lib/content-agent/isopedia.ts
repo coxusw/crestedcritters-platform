@@ -3,12 +3,63 @@ import { getPage, insertGeneratedPost, logContentAgent } from "./db";
 import { generatePostText } from "./openai";
 import type { ContentAgentTopic, NextSlot } from "./types";
 
+type ProfileLite = {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  business_name: string | null;
+};
+
+type SubmissionLite = {
+  id: string;
+  common_name: string | null;
+  scientific_name: string | null;
+  genus: string | null;
+  species: string | null;
+  morph: string | null;
+  image_url: string | null;
+  submitted_by: string | null;
+  verified_by: string | null;
+  verified_at: string | null;
+  created_at: string | null;
+};
+
 function siteUrl() {
   return (process.env.NEXT_PUBLIC_SITE_URL || "https://isopedia.crestedcritters.com").replace(/\/$/, "");
 }
 
 function safeIso(value: Date) {
   return value.toISOString();
+}
+
+function profileName(profile: ProfileLite | null | undefined, fallback: string) {
+  return (
+    profile?.display_name ||
+    profile?.business_name ||
+    profile?.username ||
+    fallback
+  );
+}
+
+function appendCreditToCaption(
+  caption: string,
+  submitterName: string,
+  verifierName: string
+) {
+  const cleanCaption = caption.trim();
+  const cleanSubmitter = submitterName.trim() || "the contributing keeper";
+  const cleanVerifier = verifierName.trim() || "the Isopedia verification team";
+
+  const credit =
+    cleanSubmitter === cleanVerifier
+      ? `Thank you to ${cleanSubmitter} for helping add and verify this entry for the community.`
+      : `Thank you to ${cleanSubmitter} for submitting this entry and ${cleanVerifier} for verifying it for the community.`;
+
+  if (cleanCaption.toLowerCase().includes(cleanSubmitter.toLowerCase())) {
+    return cleanCaption;
+  }
+
+  return `${cleanCaption}\n\n${credit}`;
 }
 
 async function safeCount(
@@ -22,6 +73,7 @@ async function safeCount(
     if (build) query = build(query);
 
     const { count, error } = await query;
+
     if (error) {
       await logContentAgent("isopedia_safe_count", "ERROR", `${table}: ${error.message}`);
       return 0;
@@ -33,6 +85,96 @@ async function safeCount(
     await logContentAgent("isopedia_safe_count", "ERROR", `${table}: ${message}`);
     return 0;
   }
+}
+
+function speciesMatchesSubmission(species: any, submission: SubmissionLite) {
+  const speciesCommon = String(species.common_name || "").trim().toLowerCase();
+  const subCommon = String(submission.common_name || "").trim().toLowerCase();
+
+  if (speciesCommon && subCommon && speciesCommon === subCommon) return true;
+
+  const speciesScientific = String(species.scientific_name || "").trim().toLowerCase();
+  const subScientific = String(submission.scientific_name || "").trim().toLowerCase();
+
+  if (speciesScientific && subScientific && speciesScientific === subScientific) {
+    return true;
+  }
+
+  if (species.image_url && submission.image_url && species.image_url === submission.image_url) {
+    return true;
+  }
+
+  const speciesParts = [species.genus, species.species, species.morph]
+    .filter(Boolean)
+    .join(" ")
+    .trim()
+    .toLowerCase();
+
+  const subParts = [submission.genus, submission.species, submission.morph]
+    .filter(Boolean)
+    .join(" ")
+    .trim()
+    .toLowerCase();
+
+  return Boolean(speciesParts && subParts && speciesParts === subParts);
+}
+
+async function findMatchingVerifiedSubmission(species: any) {
+  const supabase = createSupabaseAdminClient();
+
+  const { data, error } = await supabase
+    .from("isopedia_submissions")
+    .select(
+      `
+      id,
+      common_name,
+      scientific_name,
+      genus,
+      species,
+      morph,
+      image_url,
+      submitted_by,
+      verified_by,
+      verified_at,
+      created_at
+      `
+    )
+    .eq("status", "verified")
+    .order("verified_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    await logContentAgent(
+      "find_matching_verified_submission",
+      "ERROR",
+      error.message
+    );
+    return null;
+  }
+
+  const submissions = (data || []) as SubmissionLite[];
+  return submissions.find((item) => speciesMatchesSubmission(species, item)) || null;
+}
+
+async function getProfilesByIds(ids: Array<string | null | undefined>) {
+  const cleanIds = Array.from(new Set(ids.filter(Boolean))) as string[];
+
+  if (!cleanIds.length) return new Map<string, ProfileLite>();
+
+  const supabase = createSupabaseAdminClient();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, business_name")
+    .in("id", cleanIds);
+
+  if (error) {
+    await logContentAgent("get_profiles_by_ids", "ERROR", error.message);
+    return new Map<string, ProfileLite>();
+  }
+
+  return new Map((data || []).map((profile) => [profile.id, profile as ProfileLite]));
 }
 
 export async function createLatestSpeciesAnnouncement() {
@@ -78,6 +220,23 @@ export async function createLatestSpeciesAnnouncement() {
     return `Latest species already has a content post: ${species.common_name || species.slug}.`;
   }
 
+  const matchingSubmission = await findMatchingVerifiedSubmission(species);
+  const profilesById = await getProfilesByIds([
+    matchingSubmission?.submitted_by,
+    matchingSubmission?.verified_by,
+  ]);
+
+  const submitterProfile = matchingSubmission?.submitted_by
+    ? profilesById.get(matchingSubmission.submitted_by)
+    : null;
+
+  const verifierProfile = matchingSubmission?.verified_by
+    ? profilesById.get(matchingSubmission.verified_by)
+    : null;
+
+  const submitterName = profileName(submitterProfile, "the contributing keeper");
+  const verifierName = profileName(verifierProfile, "the Isopedia verification team");
+
   const speciesUrl = `${siteUrl()}/isopedia/${species.slug}`;
 
   const topic: ContentAgentTopic = {
@@ -94,6 +253,9 @@ export async function createLatestSpeciesAnnouncement() {
       species.morph ? `Morph: ${species.morph}` : "",
       species.difficulty ? `Difficulty: ${species.difficulty}` : "",
       `URL: ${speciesUrl}`,
+      `Submitted by: ${submitterName}`,
+      `Verified by: ${verifierName}`,
+      "IMPORTANT: Include a short thank-you/shoutout to both the submitter and verifier in the caption.",
       "Mention that this species is now live in the Isopedia database.",
       "Invite keepers to view the entry, discuss, and contribute knowledge.",
     ]
@@ -112,6 +274,11 @@ export async function createLatestSpeciesAnnouncement() {
   };
 
   const generated = await generatePostText({ page, slot, topic });
+  const captionWithCredit = appendCreditToCaption(
+    generated.caption,
+    submitterName,
+    verifierName
+  );
 
   const post = await insertGeneratedPost({
     pageKey: "isopedia",
@@ -119,13 +286,22 @@ export async function createLatestSpeciesAnnouncement() {
     postType: slot.postType,
     topicId: null,
     topic: generated.topic || topic.topic,
-    caption: generated.caption,
+    caption: captionWithCredit,
     hashtags: generated.hashtags || page.default_hashtags || "",
     imagePrompt: generated.imagePrompt || "",
     status: "Draft",
     sourceType: "isopedia_species_verified",
     sourceRefId: String(species.id),
-    rawPayload: { species, speciesUrl, generated },
+    rawPayload: {
+      species,
+      speciesUrl,
+      matchingSubmission,
+      credits: {
+        submitterName,
+        verifierName,
+      },
+      generated,
+    },
   });
 
   if (species.image_url) {
@@ -143,7 +319,7 @@ export async function createLatestSpeciesAnnouncement() {
   await logContentAgent(
     "isopedia_species_announcement",
     "OK",
-    `Created post for ${species.common_name || species.slug}`,
+    `Created post for ${species.common_name || species.slug} with submitter=${submitterName}, verifier=${verifierName}`,
     "post",
     post.id
   );
@@ -166,7 +342,7 @@ export async function createIsopediaStatsPost() {
     openDiscussionReports,
   ] = await Promise.all([
     safeCount("isopedia_species"),
-    safeCount("isopedia_submissions"),
+    safeCount("isopedia_submissions", (query) => query.eq("status", "unverified")),
     safeCount("isopedia_suggested_edits"),
     safeCount("profiles"),
     safeCount("isopedia_expos", (query) => query.eq("status", "pending")),
