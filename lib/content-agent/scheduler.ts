@@ -33,3 +33,23 @@ export async function findNextMissingSlot(page: ContentAgentPage) {
   }
   return null;
 }
+
+export function isImagePostTypeForPage(
+  pageKey: string,
+  postType: string | null | undefined
+) {
+  const cleanPageKey = String(pageKey || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const cleanPostType = String(postType || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  if (cleanPageKey === "crested") {
+    return cleanPostType === "meme";
+  }
+
+  if (cleanPageKey === "povertyfinance") {
+    return cleanPostType === "brokememe";
+  }
+
+  // Isopedia verified species announcements can have uploaded images,
+  // but they do not need to wait for generated image creation.
+  return false;
+}
