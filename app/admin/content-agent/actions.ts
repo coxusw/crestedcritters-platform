@@ -7,6 +7,7 @@ import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
   generateNextPostsForActivePages,
   postApprovedDueContent,
+  publishSingleContentPost,
 } from "@/lib/content-agent/generator";
 import { generateImageForNextPost } from "@/lib/content-agent/media";
 import {
@@ -107,6 +108,20 @@ export async function rejectContentPost(postId: string) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/admin/content-agent");
+}
+
+export async function publishContentPostNow(postId: string) {
+  await requireContentAgentAdmin();
+
+  let message = "Post published.";
+
+  try {
+    message = await publishSingleContentPost(postId);
+  } catch (error) {
+    redirectWithError(error);
+  }
+
+  redirectWithNotice(message);
 }
 
 export async function createLatestSpeciesAnnouncementAction() {
