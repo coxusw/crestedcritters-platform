@@ -187,28 +187,28 @@ export default async function PublicProfilePage({ params }: PageProps) {
       : null;
 
   return (
-    <main className="min-h-screen bg-[#07130c] px-4 py-6 text-white sm:py-10">
+    <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
       <div className="mx-auto max-w-6xl">
         <IsopediaNav active="profile" />
 
         <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#102016] shadow-2xl shadow-black/30">
-          <div className="bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.16),transparent_38%),linear-gradient(135deg,rgba(6,78,59,0.55),rgba(7,19,12,0.95))] p-6 sm:p-10">
+          <div className="bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.16),transparent_38%),linear-gradient(135deg,rgba(6,78,59,0.55),rgba(7,19,12,0.95))] px-4 py-8 sm:px-8 sm:py-10 lg:px-10">
             <div className="mx-auto max-w-5xl text-center">
-              <p className="text-sm font-black uppercase tracking-[0.35em] text-emerald-300">
-                
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300 sm:text-xs sm:tracking-[0.35em]">
+                Isopedia Contributor
               </p>
 
-              <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-6xl">
+              <h1 className="mt-3 break-words text-4xl font-black tracking-tight text-white sm:mt-4 sm:text-5xl lg:text-6xl">
                 {publicName}
               </h1>
 
               {businessName && (
-                <p className="mt-4 text-lg font-bold text-emerald-300">
+                <p className="mx-auto mt-4 max-w-3xl break-words text-base font-bold leading-7 text-emerald-300 sm:text-lg">
                   Business: {businessName}
                 </p>
               )}
 
-              <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <div className="mt-5 flex flex-wrap justify-center gap-2 sm:mt-6">
                 <div className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-black text-emerald-200">
                   {trustLevel}
                 </div>
@@ -219,25 +219,25 @@ export default async function PublicProfilePage({ params }: PageProps) {
               </div>
 
               {profile.bio ? (
-                <p className="mx-auto mt-8 max-w-3xl whitespace-pre-wrap text-lg leading-8 text-emerald-50/80">
+                <p className="mx-auto mt-6 max-w-3xl whitespace-pre-wrap text-sm leading-7 text-emerald-50/80 sm:mt-8 sm:text-base lg:text-lg">
                   {profile.bio}
                 </p>
               ) : (
-                <p className="mx-auto mt-8 max-w-3xl text-lg leading-8 text-emerald-50/50">
+                <p className="mx-auto mt-6 max-w-3xl text-sm leading-7 text-emerald-50/50 sm:mt-8 sm:text-base lg:text-lg">
                   This contributor has not added a bio yet.
                 </p>
               )}
 
               <div
-                className={`mx-auto mt-10 grid max-w-5xl gap-4 ${
-                  isOwner ? "md:grid-cols-3" : "md:max-w-3xl md:grid-cols-2"
+                className={`mx-auto mt-7 grid max-w-5xl gap-3 sm:gap-4 ${
+                  isOwner ? "sm:grid-cols-3" : "sm:max-w-3xl sm:grid-cols-2"
                 }`}
               >
                 <ProfileQrButton title={publicName} username={usernameForLinks} />
 
                 <Link
                   href={`/isopedia/collection/${usernameForLinks}`}
-                  className="rounded-2xl bg-emerald-400 px-5 py-4 text-center text-base font-black text-slate-950 transition hover:bg-emerald-300"
+                  className="flex min-h-12 items-center justify-center rounded-2xl bg-emerald-400 px-5 py-3 text-center text-sm font-black text-slate-950 transition hover:bg-emerald-300 sm:py-4 sm:text-base"
                 >
                   View Collection
                 </Link>
@@ -245,14 +245,14 @@ export default async function PublicProfilePage({ params }: PageProps) {
                 {isOwner && (
                   <Link
                     href="/account"
-                    className="rounded-2xl border border-white/10 bg-black/20 px-5 py-4 text-center text-base font-black text-white transition hover:bg-black/30"
+                    className="flex min-h-12 items-center justify-center rounded-2xl border border-white/10 bg-black/20 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-black/30 sm:py-4 sm:text-base"
                   >
                     Edit Profile
                   </Link>
                 )}
               </div>
 
-              <div className="mx-auto mt-8 grid max-w-5xl gap-4 sm:grid-cols-2">
+              <div className="mx-auto mt-7 grid max-w-5xl gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
                 <StatHighlight label="Total Credits" value={totalCredits} />
                 <StatHighlight label="Images Added" value={imageEditsCount} />
               </div>
@@ -260,10 +260,12 @@ export default async function PublicProfilePage({ params }: PageProps) {
           </div>
         </section>
 
-        <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-6 shadow-xl shadow-black/20 sm:p-8">
-          <h2 className="text-3xl font-black text-white">Contributor Stats</h2>
+        <section className="mt-6 rounded-3xl border border-white/10 bg-[#102016] p-4 shadow-xl shadow-black/20 sm:mt-8 sm:p-6 lg:p-8">
+          <h2 className="text-center text-2xl font-black text-white sm:text-left sm:text-3xl">
+            Contributor Stats
+          </h2>
 
-          <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-[#07130c]/70">
+          <div className="mt-5 overflow-hidden rounded-3xl border border-white/10 bg-[#07130c]/70 sm:mt-6">
             <InlineStat
               icon="🪲"
               label="Species Submitted"
@@ -292,7 +294,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
           </div>
         </section>
 
-        <p className="mt-8 text-center text-sm text-emerald-100/60">
+        <p className="mt-6 text-center text-sm leading-6 text-emerald-100/60 sm:mt-8">
           ♡ Thank you for helping build and improve Isopedia!
         </p>
       </div>
@@ -319,12 +321,14 @@ function BadgeChip({ badge }: { badge: Badge }) {
 
 function StatHighlight({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-black/20 p-6 text-center shadow-xl shadow-black/20">
-      <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300/80">
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-center shadow-xl shadow-black/20 sm:rounded-3xl sm:p-6">
+      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/80 sm:text-xs sm:tracking-[0.25em]">
         {label}
       </p>
 
-      <p className="mt-4 text-5xl font-black text-white">{value}</p>
+      <p className="mt-2 text-4xl font-black text-white sm:mt-4 sm:text-5xl">
+        {value}
+      </p>
     </div>
   );
 }
@@ -339,14 +343,14 @@ function InlineStat({
   value: number;
 }) {
   return (
-    <div className="grid grid-cols-[48px_1fr_auto] items-center gap-4 border-b border-white/10 px-5 py-5 last:border-b-0 sm:px-7">
-      <div className="text-2xl text-emerald-300">{icon}</div>
+    <div className="grid grid-cols-[36px_1fr_auto] items-center gap-3 border-b border-white/10 px-4 py-4 last:border-b-0 sm:grid-cols-[48px_1fr_auto] sm:gap-4 sm:px-7 sm:py-5">
+      <div className="text-xl text-emerald-300 sm:text-2xl">{icon}</div>
 
-      <p className="text-base font-bold text-emerald-50/80 sm:text-lg">
+      <p className="text-sm font-bold leading-5 text-emerald-50/80 sm:text-lg">
         {label}
       </p>
 
-      <p className="text-3xl font-black text-white">{value}</p>
+      <p className="text-2xl font-black text-white sm:text-3xl">{value}</p>
     </div>
   );
 }

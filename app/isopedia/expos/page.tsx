@@ -229,28 +229,28 @@ export default async function ExposPage({ searchParams }: PageProps) {
   const hasFilters = Boolean(searchQuery || stateFilter);
 
   return (
-    <main className="min-h-screen bg-[#07130c] px-4 py-6 text-white sm:py-10">
+    <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
       <div className="mx-auto max-w-7xl">
         <IsopediaNav active="expos" />
 
         {params?.submitted === "true" && (
-          <div className="mx-auto mb-6 max-w-5xl rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-200">
+          <div className="mx-auto mb-5 max-w-5xl rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-200 sm:mb-6">
             Expo submitted for review.
           </div>
         )}
 
         <section className="mx-auto max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-[#102016] shadow-2xl shadow-black/30">
-          <div className="bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.14),transparent_36%),linear-gradient(135deg,rgba(6,78,59,0.48),rgba(7,19,12,0.95))] px-6 py-8 sm:px-10 sm:py-10">
+          <div className="bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.14),transparent_36%),linear-gradient(135deg,rgba(6,78,59,0.48),rgba(7,19,12,0.95))] px-4 py-7 sm:px-8 sm:py-9 lg:px-10 lg:py-10">
             <div className="mx-auto max-w-4xl text-center">
-              <p className="text-xs font-black uppercase tracking-[0.35em] text-emerald-300 sm:text-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300 sm:text-xs sm:tracking-[0.35em]">
                 Isopedia Community
               </p>
 
-              <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-6xl">
+              <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
                 Expo Calendar
               </h1>
 
-              <p className="mx-auto mt-4 max-w-3xl text-base leading-7 text-emerald-50/80 sm:text-lg">
+              <p className="mx-auto mt-4 max-w-3xl text-sm leading-7 text-emerald-50/80 sm:text-base lg:text-lg">
                 Discover USA expos, see who is attending or vending, and join
                 expo-specific discussions after approval.
               </p>
@@ -288,14 +288,17 @@ export default async function ExposPage({ searchParams }: PageProps) {
           </div>
         </section>
 
-        <section className="mx-auto mt-6 max-w-5xl rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20">
-          <form className="grid gap-4 md:grid-cols-[1fr_180px_auto]" action="/isopedia/expos">
+        <section className="mx-auto mt-5 max-w-5xl rounded-3xl border border-white/10 bg-[#102016] p-4 shadow-xl shadow-black/20 sm:mt-6 sm:p-5">
+          <form
+            className="grid gap-4 lg:grid-cols-[1fr_180px_auto]"
+            action="/isopedia/expos"
+          >
             {view !== "upcoming" && (
               <input type="hidden" name="view" value={view} />
             )}
 
             <label className="grid gap-2">
-              <span className="text-xs font-black uppercase tracking-[0.25em] text-emerald-100/45">
+              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-100/45 sm:text-xs">
                 Search
               </span>
 
@@ -303,19 +306,19 @@ export default async function ExposPage({ searchParams }: PageProps) {
                 name="q"
                 defaultValue={searchQuery}
                 placeholder="Search expo name, city, or venue..."
-                className="rounded-2xl border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none transition placeholder:text-emerald-50/30 focus:border-emerald-400/40"
+                className="min-h-12 rounded-2xl border border-white/10 bg-[#07130c] px-4 py-3 text-base text-white outline-none transition placeholder:text-emerald-50/30 focus:border-emerald-400/40"
               />
             </label>
 
             <label className="grid gap-2">
-              <span className="text-xs font-black uppercase tracking-[0.25em] text-emerald-100/45">
+              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-100/45 sm:text-xs">
                 State
               </span>
 
               <select
                 name="state"
                 defaultValue={stateFilter}
-                className="rounded-2xl border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none transition focus:border-emerald-400/40"
+                className="min-h-12 rounded-2xl border border-white/10 bg-[#07130c] px-4 py-3 text-base text-white outline-none transition focus:border-emerald-400/40"
               >
                 <option value="">All States</option>
 
@@ -327,10 +330,10 @@ export default async function ExposPage({ searchParams }: PageProps) {
               </select>
             </label>
 
-            <div className="flex items-end gap-2">
+            <div className="grid gap-2 sm:grid-cols-2 lg:flex lg:items-end">
               <button
                 type="submit"
-                className="rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
+                className="min-h-12 rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
               >
                 Filter
               </button>
@@ -338,7 +341,7 @@ export default async function ExposPage({ searchParams }: PageProps) {
               {hasFilters && (
                 <Link
                   href={buildViewHref(view)}
-                  className="rounded-2xl border border-white/10 bg-[#07130c] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#102016]"
+                  className="flex min-h-12 items-center justify-center rounded-2xl border border-white/10 bg-[#07130c] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#102016]"
                 >
                   Clear
                 </Link>
@@ -347,7 +350,7 @@ export default async function ExposPage({ searchParams }: PageProps) {
           </form>
 
           {hasFilters && (
-            <p className="mt-4 text-sm text-emerald-50/55">
+            <p className="mt-4 text-sm leading-6 text-emerald-50/55">
               Showing {allExpos.length} result{allExpos.length === 1 ? "" : "s"}
               {stateFilter ? ` in ${stateFilter}` : ""}
               {searchQuery ? ` matching “${searchQuery}”` : ""}.
@@ -355,23 +358,25 @@ export default async function ExposPage({ searchParams }: PageProps) {
           )}
         </section>
 
-        <section className="mx-auto mt-8 grid max-w-5xl gap-6">
+        <section className="mx-auto mt-6 grid max-w-5xl gap-5 sm:mt-8 sm:gap-6">
           {grouped.length > 0 ? (
             grouped.map(([month, monthExpos]) => (
               <div
                 key={month}
-                className="rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20"
+                className="rounded-3xl border border-white/10 bg-[#102016] p-4 shadow-xl shadow-black/20 sm:p-5"
               >
-                <h2 className="text-2xl font-black text-white">{month}</h2>
+                <h2 className="text-xl font-black text-white sm:text-2xl">
+                  {month}
+                </h2>
 
-                <div className="mt-5 grid gap-4">
+                <div className="mt-4 grid gap-4 sm:mt-5">
                   {monthExpos.map((expo) => (
                     <Link
                       key={expo.id}
                       href={`/isopedia/expos/${expo.slug}`}
-                      className="grid gap-4 rounded-2xl border border-white/10 bg-[#07130c]/70 p-5 transition hover:border-emerald-400/40 hover:bg-[#102016] md:grid-cols-[120px_180px_1fr_auto] md:items-center"
+                      className="grid gap-4 rounded-2xl border border-white/10 bg-[#07130c]/70 p-4 transition hover:border-emerald-400/40 hover:bg-[#102016] sm:p-5 md:grid-cols-[120px_180px_1fr_auto] md:items-center"
                     >
-                      <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#102016] md:w-28">
+                      <div className="flex h-32 w-full items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#102016] sm:h-36 md:h-24 md:w-28">
                         {expo.flyer_image_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -387,7 +392,7 @@ export default async function ExposPage({ searchParams }: PageProps) {
                       </div>
 
                       <div>
-                        <p className="text-sm font-black uppercase tracking-widest text-emerald-300">
+                        <p className="text-xs font-black uppercase tracking-widest text-emerald-300 sm:text-sm">
                           {formatDate(expo.starts_at)}
                         </p>
 
@@ -397,23 +402,23 @@ export default async function ExposPage({ searchParams }: PageProps) {
                       </div>
 
                       <div>
-                        <h3 className="text-2xl font-black text-white">
+                        <h3 className="text-xl font-black text-white sm:text-2xl">
                           {expo.name}
                         </h3>
 
-                        <p className="mt-1 text-sm text-emerald-50/65">
+                        <p className="mt-1 text-sm leading-6 text-emerald-50/65">
                           {expo.city}, {expo.state}
                           {expo.venue ? ` · ${expo.venue}` : ""}
                         </p>
 
                         {expo.description && (
-                          <p className="mt-2 line-clamp-2 text-sm leading-6 text-emerald-50/50">
+                          <p className="mt-2 line-clamp-3 text-sm leading-6 text-emerald-50/50 sm:line-clamp-2">
                             {expo.description}
                           </p>
                         )}
                       </div>
 
-                      <span className="text-sm font-black text-emerald-300">
+                      <span className="text-sm font-black text-emerald-300 md:text-right">
                         View →
                       </span>
                     </Link>
@@ -422,32 +427,34 @@ export default async function ExposPage({ searchParams }: PageProps) {
               </div>
             ))
           ) : (
-            <div className="rounded-3xl border border-white/10 bg-[#102016] p-8 text-center shadow-xl shadow-black/20">
-              <h2 className="text-2xl font-black text-white">
+            <div className="rounded-3xl border border-white/10 bg-[#102016] p-6 text-center shadow-xl shadow-black/20 sm:p-8">
+              <h2 className="text-xl font-black text-white sm:text-2xl">
                 {copy.emptyTitle}
               </h2>
 
-              <p className="mt-3 text-emerald-50/60">{copy.emptyText}</p>
+              <p className="mt-3 text-sm leading-6 text-emerald-50/60 sm:text-base">
+                {copy.emptyText}
+              </p>
 
               <div className="mt-6 flex justify-center">
                 {hasFilters ? (
                   <Link
                     href={buildViewHref(view)}
-                    className="inline-flex rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-6 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/20"
+                    className="inline-flex min-h-12 items-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-6 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/20"
                   >
                     Clear Filters
                   </Link>
                 ) : view === "upcoming" ? (
                   <Link
                     href="/isopedia/expos?view=future"
-                    className="inline-flex rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-6 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/20"
+                    className="inline-flex min-h-12 items-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-6 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/20"
                   >
                     View All Future Expos
                   </Link>
                 ) : (
                   <Link
                     href="/isopedia/expos/submit"
-                    className="inline-flex rounded-2xl bg-emerald-400 px-6 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
+                    className="inline-flex min-h-12 items-center rounded-2xl bg-emerald-400 px-6 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
                   >
                     Submit Expo
                   </Link>
@@ -473,7 +480,7 @@ function ViewButton({
   return (
     <Link
       href={href}
-      className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${
+      className={`rounded-xl border px-4 py-2 text-sm font-black transition ${
         active
           ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
           : "border-white/10 bg-[#07130c] text-white hover:bg-[#102016]"

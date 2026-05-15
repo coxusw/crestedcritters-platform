@@ -86,28 +86,28 @@ export default async function IsopediaPage() {
   const approvedExpos = exposResult.count || 0;
 
   return (
-    <main className="min-h-screen bg-[#07130c] px-4 py-6 text-white sm:py-10">
+    <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
       <div className="mx-auto max-w-7xl">
         <IsopediaNav active="database" />
 
         <section className="mx-auto max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-[#102016] shadow-2xl shadow-black/30">
-          <div className="bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.14),transparent_36%),linear-gradient(135deg,rgba(6,78,59,0.48),rgba(7,19,12,0.95))] px-6 py-8 sm:px-10 sm:py-10">
+          <div className="bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.14),transparent_36%),linear-gradient(135deg,rgba(6,78,59,0.48),rgba(7,19,12,0.95))] px-4 py-7 sm:px-8 sm:py-9 lg:px-10 lg:py-10">
             <div className="mx-auto max-w-4xl text-center">
-              <p className="text-xs font-black uppercase tracking-[0.35em] text-emerald-300 sm:text-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300 sm:text-xs sm:tracking-[0.35em]">
                 Community Care Database
               </p>
 
-              <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-6xl">
+              <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
                 Isopedia
               </h1>
 
-              <p className="mx-auto mt-4 max-w-3xl text-base leading-7 text-emerald-50/80 sm:text-lg">
+              <p className="mx-auto mt-4 max-w-3xl text-sm leading-7 text-emerald-50/80 sm:text-base lg:text-lg">
                 A community-verified care guide database for isopods,
                 springtails, millipedes, beetles, and other bioactive cleanup
                 crew species.
               </p>
 
-              <div className="mx-auto mt-8 grid max-w-4xl gap-4 sm:grid-cols-3">
+              <div className="mx-auto mt-7 grid max-w-4xl gap-3 sm:grid-cols-3 sm:gap-4">
                 <SmallStatCard label="Verified Entries" value={totalSpecies} />
 
                 <SmallStatCard label="Approved Expos" value={approvedExpos} />
@@ -134,12 +134,14 @@ function SmallStatCard({
   value: number;
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-black/20 p-5 text-center shadow-xl shadow-black/20">
-      <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300/80">
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-center shadow-xl shadow-black/20 sm:rounded-3xl sm:p-5">
+      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/80 sm:text-xs sm:tracking-[0.25em]">
         {label}
       </p>
 
-      <p className="mt-3 text-4xl font-black text-white">{value}</p>
+      <p className="mt-2 text-4xl font-black text-white sm:mt-3 sm:text-5xl">
+        {value}
+      </p>
     </div>
   );
 }

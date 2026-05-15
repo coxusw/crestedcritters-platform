@@ -24,7 +24,7 @@ const mainNavItems = [
     key: "expos",
   },
   {
-    label: "Submit Species",
+    label: "Submit",
     href: "/isopedia/submit",
     key: "submit",
   },
@@ -74,29 +74,24 @@ export default async function IsopediaNav({
       profile?.role === "moderator";
   }
 
-  const profileHref = username
-    ? `/profile/${username}`
-    : "/account";
+  const profileHref = username ? `/profile/${username}` : "/account";
 
   return (
-    <header className="mb-8 rounded-3xl border border-white/10 bg-[#142318]/95 p-4 shadow-2xl shadow-black/25 backdrop-blur">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div className="min-w-0">
-          <Link
-            href="/isopedia"
-            className="group inline-flex flex-col"
-          >
-            <span className="text-2xl font-black tracking-tight text-white transition group-hover:text-emerald-200">
+    <header className="mb-6 rounded-3xl border border-white/10 bg-[#102016]/95 p-4 shadow-2xl shadow-black/25 backdrop-blur sm:mb-8 sm:p-5">
+      <div className="flex flex-col gap-4">
+        <div className="text-center">
+          <Link href="/isopedia" className="group inline-flex flex-col">
+            <span className="text-3xl font-black tracking-tight text-white transition group-hover:text-emerald-200 sm:text-4xl">
               Isopedia
             </span>
 
-            <span className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-100/40">
+            <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-100/40 sm:text-xs">
               Bioactive Community Database
             </span>
           </Link>
         </div>
 
-        <nav className="flex flex-wrap gap-2">
+        <nav className="flex flex-wrap items-center justify-center gap-2">
           {mainNavItems.map((item) => {
             const isActive = active === item.key;
 
@@ -104,10 +99,10 @@ export default async function IsopediaNav({
               <Link
                 key={item.key}
                 href={item.href}
-                className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${
+                className={`rounded-xl border px-4 py-2 text-sm font-black transition ${
                   isActive
                     ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
-                    : "border-white/10 bg-[#0b140d] text-emerald-50/80 hover:border-emerald-400/30 hover:bg-[#102016] hover:text-emerald-200"
+                    : "border-white/10 bg-[#07130c] text-white hover:bg-[#18291d]"
                 }`}
               >
                 {item.label}
@@ -115,42 +110,40 @@ export default async function IsopediaNav({
             );
           })}
 
-          {user && (
-            <Link
-              href={profileHref}
-              className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${
-                active === "profile"
-                  ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
-                  : "border-white/10 bg-[#0b140d] text-emerald-50/80 hover:border-emerald-400/30 hover:bg-[#102016] hover:text-emerald-200"
-              }`}
-            >
-              My Profile
-            </Link>
-          )}
+          <Link
+            href={profileHref}
+            className={`rounded-xl border px-4 py-2 text-sm font-black transition ${
+              active === "profile"
+                ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+                : "border-white/10 bg-[#07130c] text-white hover:bg-[#18291d]"
+            }`}
+          >
+            My Profile
+          </Link>
 
           {canAccessAdmin && (
             <Link
               href="/admin/isopedia"
               className={`rounded-xl border px-4 py-2 text-sm font-black transition ${
                 active === "admin"
-                  ? "border-amber-300/40 bg-amber-300/15 text-amber-100"
-                  : "border-amber-300/25 bg-amber-300/10 text-amber-100 hover:bg-amber-300/20"
+                  ? "border-amber-400/30 bg-amber-400/10 text-amber-200"
+                  : "border-amber-400/20 bg-amber-400/5 text-amber-100 hover:bg-amber-400/10"
               }`}
             >
-              Admin Panel
+              Admin
             </Link>
           )}
 
           {user ? (
             <Link
               href="/logout"
-              className="rounded-xl border border-red-400/25 bg-red-400/10 px-4 py-2 text-sm font-black text-red-100 transition hover:bg-red-400/20"
+              className="rounded-xl border border-red-400/20 bg-red-400/5 px-4 py-2 text-sm font-black text-red-100 transition hover:bg-red-400/10"
             >
               Logout
             </Link>
           ) : (
             <Link
-              href="/login"
+              href="/login?next=/isopedia"
               className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
             >
               Login
