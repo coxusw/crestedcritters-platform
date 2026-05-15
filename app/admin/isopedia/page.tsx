@@ -50,6 +50,8 @@ export default async function AdminIsopediaPage() {
     adminsByRoleCount,
     adminProfilesCount,
     discussionReportsCount,
+    expoCount,
+    pendingExpoCount,
   ] = await Promise.all([
     supabase
       .from("isopedia_species")
@@ -103,6 +105,15 @@ export default async function AdminIsopediaPage() {
       .from("isopedia_discussion_reports")
       .select("id", { count: "exact", head: true })
       .eq("status", "open"),
+
+    supabase
+      .from("isopedia_expos")
+      .select("id", { count: "exact", head: true }),
+
+    supabase
+      .from("isopedia_expos")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending"),
   ]);
 
   if (speciesResult.error) {
@@ -118,6 +129,8 @@ export default async function AdminIsopediaPage() {
   const totalUsers = usersCount.count || 0;
   const totalModerators = moderatorsCount.count || 0;
   const totalDiscussionReports = discussionReportsCount.count || 0;
+  const totalExpos = expoCount.count || 0;
+  const totalPendingExpos = pendingExpoCount.count || 0;
 
   const totalAdmins = Math.max(
     adminsByRoleCount.count || 0,
@@ -147,9 +160,8 @@ export default async function AdminIsopediaPage() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/65">
-              Manage species, review community contributions, assign badges,
-              moderate discussions, and prepare Isopedia for a polished public
-              launch.
+              Manage species, expo systems, community contributions, badges,
+              discussions, moderation tools, and public Isopedia infrastructure.
             </p>
           </div>
 
@@ -190,10 +202,35 @@ export default async function AdminIsopediaPage() {
           />
 
           <DashboardStat
+            label="Badges"
+            value={totalBadges}
+            description="Available profile badges"
+          />
+
+          <DashboardStat
+            label="Expo Entries"
+            value={totalExpos}
+            description="Submitted expo calendar entries"
+          />
+
+          <DashboardStat
+            label="Pending Expos"
+            value={totalPendingExpos}
+            description="Expo submissions needing review"
+            alert={totalPendingExpos > 0}
+          />
+
+          <DashboardStat
             label="Discussion Reports"
             value={totalDiscussionReports}
-            description="Open community reports"
+            description="Open discussion reports"
             alert={totalDiscussionReports > 0}
+          />
+
+          <DashboardStat
+            label="Users"
+            value={totalUsers}
+            description="Registered community profiles"
           />
         </section>
 
@@ -217,6 +254,20 @@ export default async function AdminIsopediaPage() {
                 title="Add Species"
                 description="Create a new Isopedia species entry."
                 icon="＋"
+              />
+
+              <AdminActionCard
+                href="/admin/isopedia/expos"
+                title="Expo Manager"
+                description={
+                  totalPendingExpos > 0
+                    ? `${totalPendingExpos} pending expo${
+                        totalPendingExpos === 1 ? "" : "s"
+                      } need review.`
+                    : "Approve, edit, delete, and manage expo calendar entries."
+                }
+                icon="📅"
+                alert={totalPendingExpos > 0}
               />
 
               <AdminActionCard
@@ -269,10 +320,17 @@ export default async function AdminIsopediaPage() {
               />
 
               <AdminActionCard
-                href="/isopedia/review"
-                title="Public Review Feed"
-                description="Open the public-facing review area."
-                icon="👁️"
+                href="/isopedia/expos"
+                title="Public Expo Calendar"
+                description="Open the public expo calendar."
+                icon="🌎"
+              />
+
+              <AdminActionCard
+                href="/isopedia/expos/submit"
+                title="Submit Expo"
+                description="Open the community expo submission form."
+                icon="📌"
               />
             </div>
           </div>
@@ -291,6 +349,7 @@ export default async function AdminIsopediaPage() {
               <MiniStat label="Moderators" value={totalModerators} />
               <MiniStat label="Admins" value={totalAdmins} />
               <MiniStat label="Profile Badges" value={totalBadges} />
+              <MiniStat label="Expo Entries" value={totalExpos} />
             </div>
           </div>
         </section>
@@ -409,7 +468,7 @@ export default async function AdminIsopediaPage() {
                         </Link>
 
                         <form
-                          action={deleteSpecies.bind(null, item.id, item.slug)}
+                          action={deleteSpecies.bind(null, String(item.id), item.slug)}
                         >
                           <button
                             type="submit"

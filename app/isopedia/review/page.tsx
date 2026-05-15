@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 
 type Profile = {
   id: string;
@@ -51,41 +52,41 @@ export default async function IsopediaReviewPage() {
   const totalCount = submissionCount + editCount + imageCount;
 
   return (
-    <main className="min-h-screen bg-[#0c1710] px-4 py-10 text-slate-100">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6">
-          <Link
-            href="/isopedia"
-            className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
-          >
-            ← Back to Isopedia
-          </Link>
-        </div>
+    <main className="min-h-screen bg-[#07130c] px-4 py-6 text-slate-100 sm:py-10">
+      <div className="mx-auto max-w-7xl">
+        <IsopediaNav active="review" />
 
-        <section className="mb-8 rounded-3xl border border-white/10 bg-[#142318] p-6 shadow-xl shadow-black/20 sm:p-8">
-          <p className="text-sm font-semibold uppercase tracking-widest text-emerald-300">
-            Community Review
-          </p>
+        <section className="mx-auto max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-[#102016] shadow-2xl shadow-black/30">
+          <div className="bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.14),transparent_36%),linear-gradient(135deg,rgba(6,78,59,0.48),rgba(7,19,12,0.95))] px-6 py-8 sm:px-10 sm:py-10">
+            <div className="mx-auto max-w-4xl text-center">
+              <p className="text-xs font-black uppercase tracking-[0.35em] text-emerald-300 sm:text-sm">
+                Community Review
+              </p>
 
-          <h1 className="mt-2 text-4xl font-black text-white">
-            Isopedia Review Queue
-          </h1>
+              <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-6xl">
+                Isopedia Review Queue
+              </h1>
 
-          <p className="mt-3 max-w-3xl text-slate-300">
-            Review new species submissions, suggested edits, and gallery images
-            from other contributors. You cannot verify your own submissions,
-            edits, or images.
-          </p>
+              <p className="mx-auto mt-4 max-w-3xl text-base leading-7 text-emerald-50/80 sm:text-lg">
+                Review new species submissions, suggested edits, and gallery
+                images from other contributors. You cannot verify your own
+                submissions, edits, or images.
+              </p>
 
-          <div className="mt-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-5">
-            <p className="text-sm font-semibold uppercase tracking-widest text-slate-400">
-              Total Items Waiting
-            </p>
-            <p className="mt-2 text-5xl font-black text-white">{totalCount}</p>
+              <div className="mx-auto mt-8 max-w-sm rounded-3xl border border-white/10 bg-black/20 p-5 text-center shadow-xl shadow-black/20">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300/80">
+                  Total Items Waiting
+                </p>
+
+                <p className="mt-3 text-5xl font-black text-white">
+                  {totalCount}
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <section className="mx-auto mt-8 grid max-w-5xl gap-6 lg:grid-cols-3">
           <ReviewCard
             href="/isopedia/verify"
             label="New Species"
@@ -112,27 +113,6 @@ export default async function IsopediaReviewPage() {
             count={imageCount}
             buttonText="Open image queue →"
           />
-        </div>
-
-        <section className="mt-8 rounded-3xl border border-white/10 bg-[#142318] p-6 shadow-xl shadow-black/20">
-          <h2 className="text-2xl font-bold text-white">Review Rules</h2>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
-            <RuleCard
-              title="Second-user verification"
-              text="A submission, edit, or image must be verified by someone other than the original contributor."
-            />
-
-            <RuleCard
-              title="Give credit"
-              text="The original contributor receives credit, and the verifier receives review credit."
-            />
-
-            <RuleCard
-              title="Check carefully"
-              text="Only verify content you believe is accurate, useful, appropriate, and relevant to the species page."
-            />
-          </div>
         </section>
       </div>
     </main>
@@ -157,17 +137,19 @@ function ReviewCard({
   return (
     <Link
       href={href}
-      className="group rounded-3xl border border-white/10 bg-[#142318] p-6 shadow-xl shadow-black/20 transition hover:border-emerald-400/40 hover:bg-[#18291d]"
+      className="group rounded-3xl border border-white/10 bg-[#102016] p-6 shadow-xl shadow-black/20 transition hover:border-emerald-400/40 hover:bg-[#14311f]"
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-widest text-emerald-300">
+          <p className="text-sm font-black uppercase tracking-[0.25em] text-emerald-300">
             {label}
           </p>
 
-          <h2 className="mt-2 text-3xl font-bold text-white">{title}</h2>
+          <h2 className="mt-3 text-3xl font-black text-white">{title}</h2>
 
-          <p className="mt-3 text-slate-400">{description}</p>
+          <p className="mt-4 text-sm leading-6 text-emerald-50/60">
+            {description}
+          </p>
         </div>
 
         <div className="rounded-2xl bg-emerald-400 px-4 py-3 text-2xl font-black text-slate-950">
@@ -175,18 +157,9 @@ function ReviewCard({
         </div>
       </div>
 
-      <p className="mt-6 text-sm font-bold text-emerald-300 group-hover:text-emerald-200">
+      <p className="mt-6 text-sm font-black text-emerald-300 group-hover:text-emerald-200">
         {buttonText}
       </p>
     </Link>
-  );
-}
-
-function RuleCard({ title, text }: { title: string; text: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-[#0b140d]/70 p-5">
-      <h3 className="font-bold text-white">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-slate-400">{text}</p>
-    </div>
   );
 }

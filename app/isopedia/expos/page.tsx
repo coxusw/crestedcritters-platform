@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 
 type Expo = {
   id: string;
@@ -68,31 +69,22 @@ function groupByMonth(expos: Expo[]) {
 function getViewCopy(view: "upcoming" | "future" | "archive") {
   if (view === "future") {
     return {
-      title: "All Future Expos",
-      statLabel: "Future Expos",
       emptyTitle: "No future approved expos yet",
       emptyText: "Approved expos up to 5 years out will appear here.",
-      helperText: "Showing all approved future expos up to 5 years out.",
     };
   }
 
   if (view === "archive") {
     return {
-      title: "Expo Archive",
-      statLabel: "Archived Expos",
       emptyTitle: "No archived expos yet",
       emptyText: "Past approved expos from the last two years will appear here.",
-      helperText: "Showing approved past expos from the last 2 years.",
     };
   }
 
   return {
-    title: "Upcoming Expos",
-    statLabel: "Upcoming Expos",
     emptyTitle: "No upcoming approved expos in the next 3 weeks",
     emptyText:
       "Use All Future to see farther-out approved expos, or submit an expo to help build the calendar.",
-    helperText: "Showing approved expos happening within the next 3 weeks.",
   };
 }
 
@@ -159,77 +151,71 @@ export default async function ExposPage({ searchParams }: PageProps) {
   const grouped = groupByMonth(allExpos);
 
   return (
-    <main className="min-h-screen bg-[#0c1710] px-4 py-10 text-white">
+    <main className="min-h-screen bg-[#07130c] px-4 py-6 text-white sm:py-10">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href="/isopedia"
-            className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
-          >
-            ← Back to Isopedia
-          </Link>
-
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/isopedia/expos/submit"
-              className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
-            >
-              Submit Expo
-            </Link>
-
-            <ViewButton href="/isopedia/expos" active={view === "upcoming"}>
-              Upcoming
-            </ViewButton>
-
-            <ViewButton
-              href="/isopedia/expos?view=future"
-              active={view === "future"}
-            >
-              All Future
-            </ViewButton>
-
-            <ViewButton
-              href="/isopedia/expos?view=archive"
-              active={view === "archive"}
-            >
-              Archive
-            </ViewButton>
-          </div>
-        </div>
+        <IsopediaNav active="expos" />
 
         {params?.submitted === "true" && (
-          <div className="mb-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-200">
+          <div className="mx-auto mb-6 max-w-5xl rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-200">
             Expo submitted for review.
           </div>
         )}
 
-        <section className="rounded-3xl border border-white/10 bg-[#142318] p-6 shadow-2xl shadow-black/30 sm:p-8">
-          <p className="text-sm font-black uppercase tracking-[0.35em] text-emerald-300">
-            Isopedia Community
-          </p>
+        <section className="mx-auto max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-[#102016] shadow-2xl shadow-black/30">
+          <div className="bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.14),transparent_36%),linear-gradient(135deg,rgba(6,78,59,0.48),rgba(7,19,12,0.95))] px-6 py-8 sm:px-10 sm:py-10">
+            <div className="mx-auto max-w-4xl text-center">
+              <p className="text-xs font-black uppercase tracking-[0.35em] text-emerald-300 sm:text-sm">
+                Isopedia Community
+              </p>
 
-          <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">
-            Expo Calendar
-          </h1>
+              <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-6xl">
+                Expo Calendar
+              </h1>
 
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-50/65">
-            Discover USA expos, see who is attending or vending, and join
-            expo-specific discussions after approval.
-          </p>
+              <p className="mx-auto mt-4 max-w-3xl text-base leading-7 text-emerald-50/80 sm:text-lg">
+                Discover USA expos, see who is attending or vending, and join
+                expo-specific discussions after approval.
+              </p>
 
-          <div className="mt-6 max-w-sm">
-            <MiniStat label={copy.statLabel} value={allExpos.length} />
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
+                <ViewButton
+                  href="/isopedia/expos"
+                  active={view === "upcoming"}
+                >
+                  Upcoming
+                </ViewButton>
+
+                <ViewButton
+                  href="/isopedia/expos?view=future"
+                  active={view === "future"}
+                >
+                  All Future
+                </ViewButton>
+
+                <ViewButton
+                  href="/isopedia/expos?view=archive"
+                  active={view === "archive"}
+                >
+                  Archive
+                </ViewButton>
+
+                <Link
+                  href="/isopedia/expos/submit"
+                  className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
+                >
+                  Submit Expo
+                </Link>
+              </div>
+            </div>
           </div>
-
-          <p className="mt-4 text-sm text-emerald-50/50">{copy.helperText}</p>
         </section>
 
-        <section className="mt-8 grid gap-6">
+        <section className="mx-auto mt-8 grid max-w-5xl gap-6">
           {grouped.length > 0 ? (
             grouped.map(([month, monthExpos]) => (
               <div
                 key={month}
-                className="rounded-3xl border border-white/10 bg-[#142318] p-5 shadow-xl shadow-black/20"
+                className="rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20"
               >
                 <h2 className="text-2xl font-black text-white">{month}</h2>
 
@@ -238,9 +224,9 @@ export default async function ExposPage({ searchParams }: PageProps) {
                     <Link
                       key={expo.id}
                       href={`/isopedia/expos/${expo.slug}`}
-                      className="grid gap-4 rounded-2xl border border-white/10 bg-[#0b140d] p-5 transition hover:border-emerald-400/40 hover:bg-[#102016] md:grid-cols-[120px_180px_1fr_auto] md:items-center"
+                      className="grid gap-4 rounded-2xl border border-white/10 bg-[#07130c]/70 p-5 transition hover:border-emerald-400/40 hover:bg-[#102016] md:grid-cols-[120px_180px_1fr_auto] md:items-center"
                     >
-                      <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#142318] md:w-28">
+                      <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#102016] md:w-28">
                         {expo.flyer_image_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -291,30 +277,30 @@ export default async function ExposPage({ searchParams }: PageProps) {
               </div>
             ))
           ) : (
-            <div className="rounded-3xl border border-white/10 bg-[#142318] p-8 text-center shadow-xl shadow-black/20">
+            <div className="rounded-3xl border border-white/10 bg-[#102016] p-8 text-center shadow-xl shadow-black/20">
               <h2 className="text-2xl font-black text-white">
                 {copy.emptyTitle}
               </h2>
 
               <p className="mt-3 text-emerald-50/60">{copy.emptyText}</p>
 
-              {view !== "archive" && (
-                <Link
-                  href="/isopedia/expos/submit"
-                  className="mt-5 inline-flex rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
-                >
-                  Submit Expo
-                </Link>
-              )}
-
-              {view === "upcoming" && (
-                <Link
-                  href="/isopedia/expos?view=future"
-                  className="ml-0 mt-3 inline-flex rounded-2xl border border-white/10 bg-[#0b140d] px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-[#18291d] sm:ml-3"
-                >
-                  View All Future Expos
-                </Link>
-              )}
+              <div className="mt-6 flex justify-center">
+                {view === "upcoming" ? (
+                  <Link
+                    href="/isopedia/expos?view=future"
+                    className="inline-flex rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-6 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/20"
+                  >
+                    View All Future Expos
+                  </Link>
+                ) : (
+                  <Link
+                    href="/isopedia/expos/submit"
+                    className="inline-flex rounded-2xl bg-emerald-400 px-6 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
+                  >
+                    Submit Expo
+                  </Link>
+                )}
+              </div>
             </div>
           )}
         </section>
@@ -338,22 +324,10 @@ function ViewButton({
       className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${
         active
           ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
-          : "border-white/10 bg-[#142318] text-white hover:bg-[#18291d]"
+          : "border-white/10 bg-[#07130c] text-white hover:bg-[#102016]"
       }`}
     >
       {children}
     </Link>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-[#0b140d] p-4">
-      <p className="text-xs font-black uppercase tracking-widest text-emerald-100/40">
-        {label}
-      </p>
-
-      <p className="mt-2 text-3xl font-black text-white">{value}</p>
-    </div>
   );
 }
