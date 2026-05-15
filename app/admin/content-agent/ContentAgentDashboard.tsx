@@ -78,6 +78,23 @@ function StatCard({ label, value, alert = false }: { label: string; value: numbe
   return <div className={`rounded-3xl border p-4 ${alert ? "border-amber-400/40 bg-amber-400/10" : "border-white/10 bg-white/5"}`}><div className="text-2xl font-bold">{value}</div><div className="mt-1 text-xs uppercase tracking-wide text-slate-400">{label}</div></div>;
 }
 
-function ActionButton({ action, label }: { action: () => Promise<string>; label: string }) {
-  return <form action={action}><button className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-bold text-slate-950 shadow-lg transition hover:bg-emerald-300">{label}</button></form>;
+function ActionButton({
+  action,
+  label,
+}: {
+  action: () => Promise<string>;
+  label: string;
+}) {
+  async function runAction() {
+    "use server";
+    await action();
+  }
+
+  return (
+    <form action={runAction}>
+      <button className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-300">
+        {label}
+      </button>
+    </form>
+  );
 }
