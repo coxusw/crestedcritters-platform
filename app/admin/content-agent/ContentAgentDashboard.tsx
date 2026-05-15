@@ -98,7 +98,7 @@ export default function ContentAgentDashboard({
             <div>
               <h2 className="text-xl font-semibold">Recent Queue</h2>
               <p className="text-sm text-slate-400">
-                Newest scheduled rows from content_agent_posts.
+                Newest scheduled rows from content_agent_posts. Tap “View full post” to expand long captions.
               </p>
             </div>
           </div>
@@ -124,14 +124,61 @@ export default function ContentAgentDashboard({
                     </td>
                     <td className="px-3 py-3">{post.page_key}</td>
                     <td className="px-3 py-3">{post.post_type}</td>
-                    <td className="max-w-xl px-3 py-3">
-                      <div className="font-semibold text-slate-100">{post.topic || "Untitled"}</div>
-                      <div className="mt-1 line-clamp-3 text-slate-400">{post.caption || ""}</div>
-                      {post.error && (
-                        <div className="mt-2 rounded-xl bg-red-500/10 p-2 text-red-200">
-                          {post.error}
+                    <td className="min-w-[280px] max-w-2xl px-3 py-3">
+                      <div className="font-semibold text-slate-100">
+                        {post.topic || "Untitled"}
+                      </div>
+
+                      <p className="mt-1 line-clamp-3 text-slate-400">
+                        {post.caption || "No caption yet."}
+                      </p>
+
+                      <details className="mt-3 rounded-2xl border border-white/10 bg-slate-950/70 p-3">
+                        <summary className="cursor-pointer select-none text-sm font-semibold text-emerald-300">
+                          View full post
+                        </summary>
+
+                        <div className="mt-3 space-y-4 text-slate-300">
+                          <DetailBlock label="Topic" value={post.topic} />
+                          <DetailBlock label="Caption" value={post.caption} preserve />
+                          <DetailBlock label="Hashtags" value={post.hashtags} preserve />
+
+                          {(post.meme_top_text || post.meme_bottom_text) && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <DetailBlock label="Meme Top Text" value={post.meme_top_text} />
+                              <DetailBlock label="Meme Bottom Text" value={post.meme_bottom_text} />
+                            </div>
+                          )}
+
+                          <DetailBlock label="Image Prompt" value={post.image_prompt} preserve />
+                          <DetailBlock label="Source Type" value={post.source_type} />
+                          <DetailBlock label="Source Ref ID" value={post.source_ref_id} />
+
+                          {post.facebook_post_url && (
+                            <div>
+                              <div className="text-xs uppercase tracking-wide text-slate-500">
+                                Facebook Post
+                              </div>
+                              <a
+                                className="mt-1 inline-block text-emerald-300 underline"
+                                href={post.facebook_post_url}
+                                target="_blank"
+                              >
+                                Open Facebook post
+                              </a>
+                            </div>
+                          )}
+
+                          {post.error && (
+                            <div className="rounded-xl bg-red-500/10 p-3 text-red-200">
+                              <div className="text-xs uppercase tracking-wide text-red-300">
+                                Error
+                              </div>
+                              <pre className="mt-1 whitespace-pre-wrap text-sm">{post.error}</pre>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </details>
                     </td>
                     <td className="px-3 py-3">
                       <span className="rounded-full border border-white/10 bg-white/10 px-2 py-1 text-xs">
@@ -178,6 +225,29 @@ export default function ContentAgentDashboard({
         </section>
       </div>
     </main>
+  );
+}
+
+function DetailBlock({
+  label,
+  value,
+  preserve = false,
+}: {
+  label: string;
+  value?: string | null;
+  preserve?: boolean;
+}) {
+  if (!value) return null;
+
+  return (
+    <div>
+      <div className="text-xs uppercase tracking-wide text-slate-500">
+        {label}
+      </div>
+      <div className={`mt-1 rounded-xl bg-slate-900/80 p-3 text-sm text-slate-200 ${preserve ? "whitespace-pre-wrap" : ""}`}>
+        {value}
+      </div>
+    </div>
   );
 }
 
