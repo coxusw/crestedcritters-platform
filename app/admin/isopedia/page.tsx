@@ -17,6 +17,15 @@ type SpeciesRow = {
   created_at: string | null;
 };
 
+async function deleteSpeciesFromForm(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") || "");
+  const slug = String(formData.get("slug") || "");
+
+  await deleteSpecies(id, slug);
+}
+
 export default async function AdminIsopediaPage() {
   const supabase = await createSupabaseServerClient();
 
@@ -339,12 +348,13 @@ export default async function AdminIsopediaPage() {
                     <Link className="text-sky-300 underline" href={`/admin/isopedia/${item.id}/edit`}>
                       Edit
                     </Link>
-                    <form action={deleteSpecies}>
-                      <input type="hidden" name="id" value={String(item.id)} />
-                      <button className="text-red-300 underline" type="submit">
-                        Delete
-                      </button>
-                    </form>
+                    <form action={deleteSpeciesFromForm}>
+  <input type="hidden" name="id" value={String(item.id)} />
+  <input type="hidden" name="slug" value={item.slug} />
+  <button className="text-red-300 underline" type="submit">
+    Delete
+  </button>
+</form>
                   </div>
                 </article>
               ))
