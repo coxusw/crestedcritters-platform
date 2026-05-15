@@ -6,6 +6,7 @@ import {
   generateNextContentAction,
   generateNextImageAction,
   postDueAction,
+  publishContentPostNow,
   rejectContentPost,
 } from "./actions";
 import type { ContentAgentPost } from "@/lib/content-agent/types";
@@ -202,6 +203,15 @@ export default function ContentAgentDashboard({
                           </button>
                         </form>
                       )}
+
+                      {post.status !== "Rejected" && post.status !== "Posted" && (
+                        <form action={publishContentPostNow.bind(null, post.id)}>
+                          <button className="rounded-xl bg-sky-400 px-3 py-1.5 text-xs font-semibold text-slate-950">
+                            Publish Now
+                          </button>
+                        </form>
+                      )}
+
                       {post.status !== "Rejected" && post.status !== "Posted" && (
                         <form action={rejectContentPost.bind(null, post.id)}>
                           <button className="rounded-xl bg-red-500/90 px-3 py-1.5 text-xs font-semibold text-white">
