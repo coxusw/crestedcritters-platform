@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createLatestSpeciesAnnouncement } from "@/lib/content-agent/isopedia";
 
 type Profile = {
   id: string;
@@ -59,9 +60,6 @@ async function verifySubmission(formData: FormData) {
     );
   }
 
-  // Track who verified it for future Isopedia Facebook credit posts.
-  // This is intentionally done after the existing RPC so we do not have to rewrite
-  // your current database verification function.
   const { error: creditError } = await supabase
     .from("isopedia_submissions")
     .update({
@@ -78,10 +76,17 @@ async function verifySubmission(formData: FormData) {
     );
   }
 
+  try {
+    await createLatestSpeciesAnnouncement();
+  } catch (autoPostError) {
+    console.error("Failed to auto-create Isopedia species announcement:", autoPostError);
+  }
+
   revalidatePath("/isopedia/review");
   revalidatePath("/isopedia/verify");
   revalidatePath("/isopedia");
   revalidatePath("/admin/isopedia");
+  revalidatePath("/admin/content-agent");
   redirect("/isopedia/verify?verified=true");
 }
 
@@ -215,7 +220,7 @@ export default async function VerifySubmissionsPage({
 
         {params.verified === "true" && (
           <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-emerald-100">
-            Submission verified and published.
+            Submission verified, published, and queued for an Isopedia Facebook draft.
           </div>
         )}
 
