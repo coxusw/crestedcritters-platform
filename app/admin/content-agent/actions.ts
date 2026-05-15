@@ -34,36 +34,46 @@ async function requireAdminAndSupabase() {
 export async function generateNextContentAction() {
   await requireContentAgentAdmin();
 
+  let message = "Generate Next Posts finished.";
+
   try {
     const results = await generateNextPostsForActivePages();
-    redirectWithNotice(results.length ? results.join(" | ") : "Generate Next Posts finished.");
+    message = results.length ? results.join(" | ") : message;
   } catch (error) {
     redirectWithError(error);
   }
+
+  redirectWithNotice(message);
 }
 
 export async function generateNextImageAction() {
   await requireContentAgentAdmin();
 
+  let message = "Generate Next Image finished.";
+
   try {
     const result = await generateImageForNextPost();
-    redirectWithNotice(
-      typeof result === "string" ? result : JSON.stringify(result)
-    );
+    message = typeof result === "string" ? result : JSON.stringify(result);
   } catch (error) {
     redirectWithError(error);
   }
+
+  redirectWithNotice(message);
 }
 
 export async function postDueAction() {
   await requireContentAgentAdmin();
 
+  let message = "Post Approved Due finished.";
+
   try {
     const results = await postApprovedDueContent();
-    redirectWithNotice(results.length ? results.join(" | ") : "Post Approved Due finished.");
+    message = results.length ? results.join(" | ") : message;
   } catch (error) {
     redirectWithError(error);
   }
+
+  redirectWithNotice(message);
 }
 
 export async function approveContentPost(postId: string) {
@@ -102,32 +112,41 @@ export async function rejectContentPost(postId: string) {
 export async function createLatestSpeciesAnnouncementAction() {
   await requireContentAgentAdmin();
 
+  let message = "Latest Species Post finished.";
+
   try {
-    const result = await createLatestSpeciesAnnouncement();
-    redirectWithNotice(result);
+    message = await createLatestSpeciesAnnouncement();
   } catch (error) {
     redirectWithError(error);
   }
+
+  redirectWithNotice(message);
 }
 
 export async function createIsopediaStatsPostAction() {
   await requireContentAgentAdmin();
 
+  let message = "Stats Recap finished.";
+
   try {
-    const result = await createIsopediaStatsPost();
-    redirectWithNotice(result);
+    message = await createIsopediaStatsPost();
   } catch (error) {
     redirectWithError(error);
   }
+
+  redirectWithNotice(message);
 }
 
 export async function createExpoRoundupPostAction() {
   await requireContentAgentAdmin();
 
+  let message = "Expo Roundup finished.";
+
   try {
-    const result = await createExpoRoundupPost();
-    redirectWithNotice(result);
+    message = await createExpoRoundupPost();
   } catch (error) {
     redirectWithError(error);
   }
+
+  redirectWithNotice(message);
 }
