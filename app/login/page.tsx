@@ -65,16 +65,16 @@ export default async function LoginPage({
   const next = safeNextPath(params.next || "/isopedia");
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
+    <main className="min-h-screen bg-[#07130c] px-4 py-10 text-white">
       <div className="mx-auto max-w-md">
         <div className="mb-8 text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-emerald-300">
+          <p className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">
             Isopedia
           </p>
 
-          <h1 className="mt-2 text-4xl font-bold text-white">Sign In</h1>
+          <h1 className="mt-3 text-4xl font-black text-white">Sign In</h1>
 
-          <p className="mt-3 text-slate-300">
+          <p className="mt-4 text-base leading-7 text-emerald-50/70">
             Sign in or create an account to contribute to Isopedia.
           </p>
         </div>
@@ -107,34 +107,45 @@ export default async function LoginPage({
 
         <form
           action={loginOrSignUp}
-          className="rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-xl shadow-black/20"
+          className="rounded-3xl border border-white/10 bg-[#102016] p-6 shadow-2xl shadow-black/30"
         >
           <input type="hidden" name="next" value={next} />
 
           <div className="grid gap-5">
             <label className="grid gap-2">
-              <span className="text-sm font-medium text-slate-200">Email</span>
+              <span className="text-sm font-bold text-emerald-100">Email</span>
+
               <input
                 type="email"
                 name="email"
                 placeholder="you@example.com"
-                className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+                className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none ring-emerald-400/30 transition placeholder:text-emerald-50/30 focus:ring-4"
                 required
               />
             </label>
 
             <label className="grid gap-2">
-              <span className="text-sm font-medium text-slate-200">
+              <span className="text-sm font-bold text-emerald-100">
                 Password
               </span>
+
               <input
                 type="password"
                 name="password"
                 placeholder="Your password"
-                className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+                className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none ring-emerald-400/30 transition placeholder:text-emerald-50/30 focus:ring-4"
                 required
               />
             </label>
+          </div>
+
+          <div className="mt-3 text-right">
+            <Link
+              href="/reset-password"
+              className="text-sm font-semibold text-emerald-300 hover:text-emerald-200"
+            >
+              Forgot password?
+            </Link>
           </div>
 
           <div className="mt-8 grid gap-3">
@@ -142,7 +153,7 @@ export default async function LoginPage({
               type="submit"
               name="mode"
               value="login"
-              className="rounded-xl bg-emerald-400 px-6 py-3 font-bold text-slate-950 transition hover:bg-emerald-300"
+              className="rounded-2xl bg-emerald-400 px-6 py-3 font-black text-slate-950 transition hover:bg-emerald-300"
             >
               Sign In
             </button>
@@ -151,7 +162,7 @@ export default async function LoginPage({
               type="submit"
               name="mode"
               value="signup"
-              className="rounded-xl border border-white/10 bg-slate-950 px-6 py-3 font-bold text-slate-100 transition hover:bg-slate-800"
+              className="rounded-2xl border border-white/10 bg-black/20 px-6 py-3 font-black text-white transition hover:bg-black/30"
             >
               Create Account
             </button>
@@ -161,14 +172,14 @@ export default async function LoginPage({
         <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm">
           <Link
             href="/isopedia"
-            className="font-medium text-emerald-300 hover:text-emerald-200"
+            className="font-bold text-emerald-300 hover:text-emerald-200"
           >
             ← Back to Isopedia
           </Link>
 
           <Link
             href="/account"
-            className="font-medium text-emerald-300 hover:text-emerald-200"
+            className="font-bold text-emerald-300 hover:text-emerald-200"
           >
             Edit profile
           </Link>
