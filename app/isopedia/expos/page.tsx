@@ -19,8 +19,63 @@ type PageProps = {
   searchParams?: Promise<{
     submitted?: string;
     view?: string;
+    q?: string;
+    state?: string;
   }>;
 };
+
+const STATES = [
+  "AL",
+  "AK",
+  "AZ",
+  "AR",
+  "CA",
+  "CO",
+  "CT",
+  "DE",
+  "FL",
+  "GA",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "WA",
+  "WV",
+  "WI",
+  "WY",
+];
 
 function addDays(date: Date, days: number) {
   const copy = new Date(date);
@@ -69,23 +124,31 @@ function groupByMonth(expos: Expo[]) {
 function getViewCopy(view: "upcoming" | "future" | "archive") {
   if (view === "future") {
     return {
-      emptyTitle: "No future approved expos yet",
-      emptyText: "Approved expos up to 5 years out will appear here.",
+      emptyTitle: "No future approved expos found",
+      emptyText:
+        "Approved expos up to 5 years out will appear here. Try clearing filters if you searched by state or keyword.",
     };
   }
 
   if (view === "archive") {
     return {
-      emptyTitle: "No archived expos yet",
-      emptyText: "Past approved expos from the last two years will appear here.",
+      emptyTitle: "No archived expos found",
+      emptyText:
+        "Past approved expos from the last two years will appear here. Try clearing filters if you searched by state or keyword.",
     };
   }
 
   return {
-    emptyTitle: "No upcoming approved expos in the next 3 weeks",
+    emptyTitle: "No upcoming approved expos found in the next 3 weeks",
     emptyText:
-      "Use All Future to see farther-out approved expos, or submit an expo to help build the calendar.",
+      "Use All Future to see farther-out approved expos, or clear filters if you searched by state or keyword.",
   };
+}
+
+function buildViewHref(view: "upcoming" | "future" | "archive") {
+  if (view === "future") return "/isopedia/expos?view=future";
+  if (view === "archive") return "/isopedia/expos?view=archive";
+  return "/isopedia/expos";
 }
 
 export default async function ExposPage({ searchParams }: PageProps) {
@@ -97,6 +160,10 @@ export default async function ExposPage({ searchParams }: PageProps) {
       : params?.view === "archive"
         ? "archive"
         : "upcoming";
+
+  const searchQuery = String(params?.q || "").trim();
+  const selectedState = String(params?.state || "").trim().toUpperCase();
+  const stateFilter = STATES.includes(selectedState) ? selectedState : "";
 
   const copy = getViewCopy(view);
 
@@ -139,6 +206,16 @@ export default async function ExposPage({ searchParams }: PageProps) {
       .lte("starts_at", threeWeeksFuture.toISOString());
   }
 
+  if (stateFilter) {
+    query = query.eq("state", stateFilter);
+  }
+
+  if (searchQuery) {
+    query = query.or(
+      `name.ilike.%${searchQuery}%,city.ilike.%${searchQuery}%,venue.ilike.%${searchQuery}%`
+    );
+  }
+
   const { data: expos, error } = await query
     .order("starts_at", { ascending: view !== "archive" })
     .returns<Expo[]>();
@@ -149,6 +226,7 @@ export default async function ExposPage({ searchParams }: PageProps) {
 
   const allExpos = expos || [];
   const grouped = groupByMonth(allExpos);
+  const hasFilters = Boolean(searchQuery || stateFilter);
 
   return (
     <main className="min-h-screen bg-[#07130c] px-4 py-6 text-white sm:py-10">
@@ -179,21 +257,21 @@ export default async function ExposPage({ searchParams }: PageProps) {
 
               <div className="mt-6 flex flex-wrap justify-center gap-2">
                 <ViewButton
-                  href="/isopedia/expos"
+                  href={buildViewHref("upcoming")}
                   active={view === "upcoming"}
                 >
                   Upcoming
                 </ViewButton>
 
                 <ViewButton
-                  href="/isopedia/expos?view=future"
+                  href={buildViewHref("future")}
                   active={view === "future"}
                 >
                   All Future
                 </ViewButton>
 
                 <ViewButton
-                  href="/isopedia/expos?view=archive"
+                  href={buildViewHref("archive")}
                   active={view === "archive"}
                 >
                   Archive
@@ -208,6 +286,73 @@ export default async function ExposPage({ searchParams }: PageProps) {
               </div>
             </div>
           </div>
+        </section>
+
+        <section className="mx-auto mt-6 max-w-5xl rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20">
+          <form className="grid gap-4 md:grid-cols-[1fr_180px_auto]" action="/isopedia/expos">
+            {view !== "upcoming" && (
+              <input type="hidden" name="view" value={view} />
+            )}
+
+            <label className="grid gap-2">
+              <span className="text-xs font-black uppercase tracking-[0.25em] text-emerald-100/45">
+                Search
+              </span>
+
+              <input
+                name="q"
+                defaultValue={searchQuery}
+                placeholder="Search expo name, city, or venue..."
+                className="rounded-2xl border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none transition placeholder:text-emerald-50/30 focus:border-emerald-400/40"
+              />
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-xs font-black uppercase tracking-[0.25em] text-emerald-100/45">
+                State
+              </span>
+
+              <select
+                name="state"
+                defaultValue={stateFilter}
+                className="rounded-2xl border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none transition focus:border-emerald-400/40"
+              >
+                <option value="">All States</option>
+
+                {STATES.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="flex items-end gap-2">
+              <button
+                type="submit"
+                className="rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
+              >
+                Filter
+              </button>
+
+              {hasFilters && (
+                <Link
+                  href={buildViewHref(view)}
+                  className="rounded-2xl border border-white/10 bg-[#07130c] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#102016]"
+                >
+                  Clear
+                </Link>
+              )}
+            </div>
+          </form>
+
+          {hasFilters && (
+            <p className="mt-4 text-sm text-emerald-50/55">
+              Showing {allExpos.length} result{allExpos.length === 1 ? "" : "s"}
+              {stateFilter ? ` in ${stateFilter}` : ""}
+              {searchQuery ? ` matching “${searchQuery}”` : ""}.
+            </p>
+          )}
         </section>
 
         <section className="mx-auto mt-8 grid max-w-5xl gap-6">
@@ -285,7 +430,14 @@ export default async function ExposPage({ searchParams }: PageProps) {
               <p className="mt-3 text-emerald-50/60">{copy.emptyText}</p>
 
               <div className="mt-6 flex justify-center">
-                {view === "upcoming" ? (
+                {hasFilters ? (
+                  <Link
+                    href={buildViewHref(view)}
+                    className="inline-flex rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-6 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/20"
+                  >
+                    Clear Filters
+                  </Link>
+                ) : view === "upcoming" ? (
                   <Link
                     href="/isopedia/expos?view=future"
                     className="inline-flex rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-6 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/20"
