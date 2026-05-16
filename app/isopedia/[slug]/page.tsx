@@ -528,41 +528,6 @@ export default async function SpeciesPage({ params }: PageProps) {
             activeDiscussionBan={null}
           />
 
-          <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-8">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-black uppercase tracking-[0.25em] text-emerald-300">
-                  Species Gallery
-                </p>
-
-                <h2 className="mt-2 text-3xl font-black text-white">
-                  Photos
-                </h2>
-
-                <p className="mt-2 max-w-3xl text-emerald-50/60">
-                  Verified community-submitted photos now appear in the main
-                  image viewer above. Use the arrows or thumbnails to slide
-                  through available images.
-                </p>
-              </div>
-
-              <Link
-                href={`/isopedia/${species.slug}/submit-image`}
-                className="rounded-xl bg-amber-300 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-amber-200"
-              >
-                Add Image
-              </Link>
-            </div>
-
-            <div className="mt-5 rounded-2xl border border-white/10 bg-[#07130c]/70 p-4 text-sm text-emerald-50/60">
-              {carouselImages.length > 0
-                ? `${carouselImages.length} verified image${
-                    carouselImages.length === 1 ? "" : "s"
-                  } available in the carousel.`
-                : "No verified gallery images have been added yet."}
-            </div>
-          </section>
-
           {relatedSpecies && relatedSpecies.length > 0 && (
             <section className="mt-8">
               <div className="mb-5">
