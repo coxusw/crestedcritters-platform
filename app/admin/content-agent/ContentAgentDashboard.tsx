@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   approveContentPost,
   createExpoRoundupPostAction,
@@ -45,6 +46,27 @@ export default function ContentAgentDashboard({
             drafts, create missing images, approve posts, and publish due
             approved content.
           </p>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              href="/admin/content-agent/settings"
+              className="rounded-2xl bg-sky-400 px-4 py-2 text-sm font-bold text-slate-950 shadow-lg shadow-sky-950/30 transition hover:bg-sky-300"
+            >
+              Settings & Schedule
+            </Link>
+            <Link
+              href="/admin/content-agent/topics"
+              className="rounded-2xl bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-300"
+            >
+              TopicBank Editor
+            </Link>
+            <Link
+              href="/admin/isopedia"
+              className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/10"
+            >
+              Isopedia Admin
+            </Link>
+          </div>
         </header>
 
         {notice && (
@@ -69,6 +91,35 @@ export default function ContentAgentDashboard({
           <StatCard label="Pages" value={counts.pages} />
           <StatCard label="Topics" value={counts.topics} />
           <StatCard label="Need Images" value={counts.pendingImages} alert={counts.pendingImages > 0} />
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-2">
+          <Link
+            href="/admin/content-agent/settings"
+            className="rounded-3xl border border-sky-400/30 bg-sky-400/10 p-5 transition hover:-translate-y-0.5 hover:border-sky-300"
+          >
+            <p className="text-sm uppercase tracking-[0.25em] text-sky-300">
+              Control Center
+            </p>
+            <h2 className="mt-2 text-xl font-bold">Settings & Schedule</h2>
+            <p className="mt-2 text-sm text-slate-300">
+              Edit auto approve, auto publish, buffer days, schedules, hashtags,
+              brand rules, and page settings.
+            </p>
+          </Link>
+
+          <Link
+            href="/admin/content-agent/topics"
+            className="rounded-3xl border border-emerald-400/30 bg-emerald-400/10 p-5 transition hover:-translate-y-0.5 hover:border-emerald-300"
+          >
+            <p className="text-sm uppercase tracking-[0.25em] text-emerald-300">
+              Content Ideas
+            </p>
+            <h2 className="mt-2 text-xl font-bold">TopicBank Editor</h2>
+            <p className="mt-2 text-sm text-slate-300">
+              Add, edit, deactivate, and rotate topics for each Facebook page.
+            </p>
+          </Link>
         </section>
 
         <section className="grid gap-4 lg:grid-cols-2">
