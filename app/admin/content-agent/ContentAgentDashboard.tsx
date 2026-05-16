@@ -247,6 +247,13 @@ export default function ContentAgentDashboard({
                       )}
                     </td>
                     <td className="space-y-2 px-3 py-3">
+                      <Link
+                        href={`/admin/content-agent/edit/${post.id}`}
+                        className="inline-block rounded-xl border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-white/10"
+                      >
+                        Edit
+                      </Link>
+
                       {post.status !== "Approved" && post.status !== "Posted" && (
                         <form action={approveContentPost.bind(null, post.id)}>
                           <button className="rounded-xl bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950">
