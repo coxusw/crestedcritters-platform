@@ -61,10 +61,11 @@ async function saveProfile(formData: FormData) {
 
   revalidatePath("/account");
   revalidatePath("/isopedia");
+  revalidatePath(`/profile/${username}`);
   revalidatePath(`/isopedia/profile/${username}`);
   revalidatePath(`/isopedia/collection/${username}`);
 
-  redirect("/account?saved=true");
+  redirect(`/profile/${username}`);
 }
 
 export default async function AccountPage({
@@ -108,7 +109,7 @@ export default async function AccountPage({
             {username && (
               <>
                 <Link
-                  href={`/isopedia/profile/${username}`}
+                  href={`/profile/${username}`}
                   className="rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-800"
                 >
                   View Profile

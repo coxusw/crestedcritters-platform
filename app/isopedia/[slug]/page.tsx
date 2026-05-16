@@ -7,6 +7,9 @@ import CollectionButtons from "@/app/components/isopedia/CollectionButtons";
 import DiscussionSection from "@/app/components/isopedia/DiscussionSection";
 import SpeciesQrButton from "@/app/components/isopedia/SpeciesQrButton";
 import SpeciesStructuredData from "@/app/components/isopedia/SpeciesStructuredData";
+import SpeciesImageCarousel, {
+  type SpeciesCarouselImage,
+} from "@/app/components/isopedia/SpeciesImageCarousel";
 
 type PageProps = {
   params: Promise<{
@@ -138,6 +141,15 @@ function stripHtml(value: string | null) {
     .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function galleryCreditName(image: GalleryImage) {
+  return (
+    image.profiles?.display_name ||
+    image.profiles?.business_name ||
+    image.profiles?.username ||
+    "Community contributor"
+  );
 }
 
 export async function generateMetadata({
@@ -340,6 +352,29 @@ export default async function SpeciesPage({ params }: PageProps) {
   const { data: relatedSpecies } =
     await relatedQuery.returns<RelatedSpecies[]>();
 
+  const carouselImages: SpeciesCarouselImage[] = [
+    ...(species.image_url
+      ? [
+          {
+            id: "primary",
+            imageUrl: species.image_url,
+            alt: species.common_name,
+            caption: "Primary species image.",
+            creditName: "Isopedia",
+            isPrimary: true,
+          },
+        ]
+      : []),
+    ...((galleryImages || []).map((image) => ({
+      id: image.id,
+      imageUrl: image.image_url,
+      alt: image.caption || species.common_name,
+      caption: image.caption,
+      creditName: galleryCreditName(image),
+      isPrimary: false,
+    })) satisfies SpeciesCarouselImage[]),
+  ];
+
   return (
     <>
       <SpeciesStructuredData
@@ -400,20 +435,10 @@ export default async function SpeciesPage({ params }: PageProps) {
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#102016] shadow-2xl shadow-black/30">
             <div className="grid gap-0 lg:grid-cols-[420px_1fr]">
               <div className="border-b border-white/10 bg-[#07130c]/70 p-4 lg:border-b-0 lg:border-r">
-                <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl bg-black/20">
-                  {species.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={species.image_url}
-                      alt={species.common_name}
-                      className="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <div className="px-6 text-center text-sm text-emerald-50/45">
-                      No image has been added yet.
-                    </div>
-                  )}
-                </div>
+                <SpeciesImageCarousel
+                  images={carouselImages}
+                  speciesName={species.common_name}
+                />
 
                 <div className="mt-4">
                   <CollectionButtons
@@ -493,29 +518,31 @@ export default async function SpeciesPage({ params }: PageProps) {
           </section>
 
           <DiscussionSection
-  entityType="species"
-  entityId={String(species.id)}
-  entityPath={`/isopedia/${species.slug}`}
-  comments={discussionComments || []}
-  isLoggedIn={Boolean(user)}
-  currentUserId={user?.id || null}
-  canModerate={false}
-  activeDiscussionBan={null}
-/>
+            entityType="species"
+            entityId={String(species.id)}
+            entityPath={`/isopedia/${species.slug}`}
+            comments={discussionComments || []}
+            isLoggedIn={Boolean(user)}
+            currentUserId={user?.id || null}
+            canModerate={false}
+            activeDiscussionBan={null}
+          />
 
-          <section className="mt-8">
-            <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+          <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.25em] text-emerald-300">
                   Species Gallery
                 </p>
 
                 <h2 className="mt-2 text-3xl font-black text-white">
-                  Gallery Images
+                  Photos
                 </h2>
 
-                <p className="mt-2 text-emerald-50/60">
-                  Verified community-submitted photos for this species.
+                <p className="mt-2 max-w-3xl text-emerald-50/60">
+                  Verified community-submitted photos now appear in the main
+                  image viewer above. Use the arrows or thumbnails to slide
+                  through available images.
                 </p>
               </div>
 
@@ -527,65 +554,13 @@ export default async function SpeciesPage({ params }: PageProps) {
               </Link>
             </div>
 
-            {galleryImages && galleryImages.length > 0 ? (
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {galleryImages.map((image) => {
-                  const creditName =
-                    image.profiles?.display_name ||
-                    image.profiles?.business_name ||
-                    image.profiles?.username ||
-                    "Community contributor";
-
-                  return (
-                    <a
-                      key={image.id}
-                      href={image.image_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group overflow-hidden rounded-3xl border border-white/10 bg-[#102016] shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-emerald-400/50"
-                    >
-                      <div className="flex h-64 items-center justify-center bg-[#07130c]/70 p-3">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={image.image_url}
-                          alt={image.caption || species.common_name}
-                          className="h-full w-full object-contain transition group-hover:scale-[1.03]"
-                        />
-                      </div>
-
-                      <div className="p-5">
-                        {image.caption ? (
-                          <p className="line-clamp-3 text-sm text-emerald-50/70">
-                            {image.caption}
-                          </p>
-                        ) : (
-                          <p className="text-sm text-emerald-50/40">
-                            No caption provided.
-                          </p>
-                        )}
-
-                        <p className="mt-3 text-xs font-black uppercase tracking-widest text-emerald-300">
-                          Credit: {creditName}
-                        </p>
-                      </div>
-                    </a>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="rounded-3xl border border-white/10 bg-[#102016] p-8 text-center shadow-xl shadow-black/20">
-                <p className="text-emerald-50/55">
-                  No verified gallery images have been added yet.
-                </p>
-
-                <Link
-                  href={`/isopedia/${species.slug}/submit-image`}
-                  className="mt-5 inline-flex rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200"
-                >
-                  Submit the first gallery image
-                </Link>
-              </div>
-            )}
+            <div className="mt-5 rounded-2xl border border-white/10 bg-[#07130c]/70 p-4 text-sm text-emerald-50/60">
+              {carouselImages.length > 0
+                ? `${carouselImages.length} verified image${
+                    carouselImages.length === 1 ? "" : "s"
+                  } available in the carousel.`
+                : "No verified gallery images have been added yet."}
+            </div>
           </section>
 
           {relatedSpecies && relatedSpecies.length > 0 && (

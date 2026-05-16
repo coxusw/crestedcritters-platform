@@ -8,6 +8,81 @@ type Profile = {
   username: string | null;
 };
 
+const DIFFICULTY_OPTIONS = ["Beginner", "Intermediate", "Expert"] as const;
+
+function cleanText(value: FormDataEntryValue | null) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function slugifyFilePart(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function getSafeImageExtension(file: File) {
+  const nameExtension = file.name.split(".").pop()?.toLowerCase() || "";
+  const mimeExtension = file.type.split("/").pop()?.toLowerCase() || "";
+
+  const extension = nameExtension || mimeExtension || "jpg";
+
+  if (extension === "jpeg") return "jpg";
+
+  if (["jpg", "png", "webp", "gif"].includes(extension)) {
+    return extension;
+  }
+
+  return "jpg";
+}
+
+async function uploadSubmissionImage({
+  supabase,
+  userId,
+  commonName,
+  imageFile,
+}: {
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+  userId: string;
+  commonName: string;
+  imageFile: File;
+}) {
+  if (!imageFile || imageFile.size === 0) return null;
+
+  if (!imageFile.type.startsWith("image/")) {
+    throw new Error("Uploaded file must be an image.");
+  }
+
+  const maxBytes = 10 * 1024 * 1024;
+
+  if (imageFile.size > maxBytes) {
+    throw new Error("Image must be under 10MB.");
+  }
+
+  const extension = getSafeImageExtension(imageFile);
+  const safeName = slugifyFilePart(commonName) || "species-submission";
+  const filePath = `species-submissions/${userId}/${Date.now()}-${safeName}.${extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("isopedia-images")
+    .upload(filePath, imageFile, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: imageFile.type || "image/jpeg",
+    });
+
+  if (uploadError) {
+    throw new Error(uploadError.message);
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from("isopedia-images")
+    .getPublicUrl(filePath);
+
+  return publicUrlData.publicUrl || null;
+}
+
 async function submitSpecies(formData: FormData) {
   "use server";
 
@@ -21,24 +96,42 @@ async function submitSpecies(formData: FormData) {
     redirect("/login?next=/isopedia/submit");
   }
 
-  const organismType = String(formData.get("organism_type") || "").trim();
-  const genus = String(formData.get("genus") || "").trim();
-  const species = String(formData.get("species") || "").trim();
-  const morph = String(formData.get("morph") || "").trim();
-  const commonName = String(formData.get("common_name") || "").trim();
-  const scientificName = String(formData.get("scientific_name") || "").trim();
-  const tradeNames = String(formData.get("trade_names") || "").trim();
-  const difficulty = String(formData.get("difficulty") || "").trim();
-  const origin = String(formData.get("origin") || "").trim();
-  const temperature = String(formData.get("temperature") || "").trim();
-  const humidity = String(formData.get("humidity") || "").trim();
-  const diet = String(formData.get("diet") || "").trim();
-  const substrate = String(formData.get("substrate") || "").trim();
-  const notes = String(formData.get("notes") || "").trim();
-  const imageUrl = String(formData.get("image_url") || "").trim();
+  const organismType = cleanText(formData.get("organism_type"));
+  const genus = cleanText(formData.get("genus"));
+  const species = cleanText(formData.get("species"));
+  const morph = cleanText(formData.get("morph"));
+  const commonName = cleanText(formData.get("common_name"));
+  const scientificName = cleanText(formData.get("scientific_name"));
+  const tradeNames = cleanText(formData.get("trade_names"));
+  const difficulty = cleanText(formData.get("difficulty"));
+  const origin = cleanText(formData.get("origin"));
+  const temperature = cleanText(formData.get("temperature"));
+  const humidity = cleanText(formData.get("humidity"));
+  const diet = cleanText(formData.get("diet"));
+  const substrate = cleanText(formData.get("substrate"));
+  const notes = cleanText(formData.get("notes"));
+  const imageFile = formData.get("image_file");
 
   if (!commonName) {
     throw new Error("Common name is required.");
+  }
+
+  if (
+    difficulty &&
+    !DIFFICULTY_OPTIONS.includes(difficulty as (typeof DIFFICULTY_OPTIONS)[number])
+  ) {
+    throw new Error("Difficulty must be Beginner, Intermediate, or Expert.");
+  }
+
+  let imageUrl: string | null = null;
+
+  if (imageFile instanceof File && imageFile.size > 0) {
+    imageUrl = await uploadSubmissionImage({
+      supabase,
+      userId: user.id,
+      commonName,
+      imageFile,
+    });
   }
 
   const { error } = await supabase.from("isopedia_submissions").insert({
@@ -56,7 +149,7 @@ async function submitSpecies(formData: FormData) {
     diet: diet || null,
     substrate: substrate || null,
     notes: notes || null,
-    image_url: imageUrl || null,
+    image_url: imageUrl,
     submitted_by: user.id,
     status: "unverified",
   });
@@ -113,7 +206,11 @@ export default async function SubmitSpeciesPage() {
             </div>
           </div>
 
-          <form action={submitSpecies} className="grid gap-6 p-6 sm:p-8">
+          <form
+            action={submitSpecies}
+            encType="multipart/form-data"
+            className="grid gap-6 p-6 sm:p-8"
+          >
             <section className="grid gap-5 rounded-3xl border border-white/10 bg-[#07130c]/70 p-5">
               <div className="text-center">
                 <p className="text-sm font-black uppercase tracking-[0.25em] text-emerald-300">
@@ -165,11 +262,7 @@ export default async function SubmitSpeciesPage() {
                   placeholder="Rubber Ducky, Dairy Cow, Orange..."
                 />
 
-                <Field
-                  label="Difficulty"
-                  name="difficulty"
-                  placeholder="Beginner, Intermediate, Advanced..."
-                />
+                <DifficultyField />
               </div>
             </section>
 
@@ -215,11 +308,7 @@ export default async function SubmitSpeciesPage() {
                   placeholder="Organic soil, leaf litter, rotting wood..."
                 />
 
-                <Field
-                  label="Image URL Optional"
-                  name="image_url"
-                  placeholder="Optional image URL for review"
-                />
+                <ImageUploadField />
               </div>
 
               <label className="grid gap-2">
@@ -260,6 +349,52 @@ export default async function SubmitSpeciesPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function DifficultyField() {
+  return (
+    <label className="grid gap-2">
+      <span className="text-xs font-black uppercase tracking-widest text-emerald-100/50">
+        Difficulty
+      </span>
+
+      <select
+        name="difficulty"
+        defaultValue=""
+        className="rounded-2xl border border-white/10 bg-[#102016] px-4 py-3 text-white outline-none transition focus:border-emerald-400/40"
+      >
+        <option value="" className="bg-[#102016] text-white">
+          Select difficulty
+        </option>
+        {DIFFICULTY_OPTIONS.map((option) => (
+          <option key={option} value={option} className="bg-[#102016] text-white">
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function ImageUploadField() {
+  return (
+    <label className="grid gap-2">
+      <span className="text-xs font-black uppercase tracking-widest text-emerald-100/50">
+        Upload Image Optional
+      </span>
+
+      <input
+        type="file"
+        name="image_file"
+        accept="image/*"
+        className="rounded-2xl border border-white/10 bg-[#102016] px-4 py-3 text-white outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:text-sm file:font-black file:text-slate-950 hover:file:bg-emerald-300"
+      />
+
+      <span className="text-xs text-emerald-50/45">
+        Optional. JPG, PNG, WEBP, or GIF. Max 10MB.
+      </span>
+    </label>
   );
 }
 
