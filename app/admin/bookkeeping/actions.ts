@@ -78,9 +78,10 @@ export async function pullSquareBookkeepingTransactions() {
   let notice = "";
 
   try {
-    const squareTransactions = await fetchSquareBookkeepingTransactions();
+    const squarePull = await fetchSquareBookkeepingTransactions();
+    const squareTransactions = squarePull.transactions;
     if (squareTransactions.length === 0) {
-      notice = "Square pull finished. No completed payments were found for 2026.";
+      notice = `Square pull finished. No completed payments were found for 2026. Checked ${squarePull.locations.length} location(s).`;
     } else {
       const supabase = createSupabaseAdminClient();
       const sourceKeys = squareTransactions.map((transaction) => transaction.source_key);
@@ -106,8 +107,9 @@ export async function pullSquareBookkeepingTransactions() {
 
       notice = `Square pull finished. Added ${newTransactions.length} new payment rows. Skipped ${
         squareTransactions.length - newTransactions.length
-      } already imported rows.`;
+      } already imported rows. Checked ${squarePull.locations.length} location(s).`;
     }
+    if (squarePull.warning) notice += `\n\nWarning: ${squarePull.warning}`;
   } catch (error) {
     redirectWithError(error);
   }

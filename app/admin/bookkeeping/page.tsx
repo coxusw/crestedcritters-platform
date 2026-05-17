@@ -136,8 +136,8 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
             <h2 className="font-bold">Square Pull</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Pulls 2026 completed payments from all Square locations and skips
-              anything already in the ledger.
+              Pulls 2026 completed payments from every available Square location
+              and skips anything already in the ledger.
             </p>
             <form action={pullSquareBookkeepingTransactions} className="mt-4">
               <button className="w-full rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">

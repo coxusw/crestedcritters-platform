@@ -23,6 +23,12 @@ type SquarePayment = {
   }>;
 };
 
+type SquareLocation = {
+  id?: string;
+  name?: string;
+  status?: string;
+};
+
 export type SquareBookkeepingTransaction = {
   transaction_date: string;
   type: "income";
@@ -46,6 +52,12 @@ export type SquareBookkeepingTransaction = {
   raw_payload: SquarePayment;
 };
 
+export type SquareBookkeepingPull = {
+  transactions: SquareBookkeepingTransaction[];
+  locations: string[];
+  warning: string | null;
+};
+
 const DEFAULT_API_VERSION = "2026-04-16";
 const MAX_PAYMENT_PAGES = 250;
 
@@ -67,12 +79,92 @@ function requireSquareEnv() {
   return {
     accessToken,
     apiVersion: process.env.SQUARE_API_VERSION || DEFAULT_API_VERSION,
-    bookkeepingLocationId: process.env.SQUARE_BOOKKEEPING_LOCATION_ID || "",
+    fallbackLocationId: process.env.SQUARE_LOCATION_ID || "",
+    bookkeepingLocationIds: (
+      process.env.SQUARE_BOOKKEEPING_LOCATION_IDS ||
+      process.env.SQUARE_BOOKKEEPING_LOCATION_ID ||
+      ""
+    )
+      .split(",")
+      .map((locationId) => locationId.trim())
+      .filter(Boolean),
   };
 }
 
 export async function fetchSquareBookkeepingTransactions() {
-  const { accessToken, apiVersion, bookkeepingLocationId } = requireSquareEnv();
+  const { accessToken, apiVersion, fallbackLocationId, bookkeepingLocationIds } = requireSquareEnv();
+  const { locationIds, warning } = await resolveLocationIds({
+    accessToken,
+    apiVersion,
+    fallbackLocationId,
+    bookkeepingLocationIds,
+  });
+  const imported: SquareBookkeepingTransaction[] = [];
+
+  for (const locationId of locationIds) {
+    imported.push(...(await fetchPaymentsForLocation({ accessToken, apiVersion, locationId })));
+  }
+
+  return { transactions: imported, locations: locationIds, warning };
+}
+
+async function resolveLocationIds({
+  accessToken,
+  apiVersion,
+  fallbackLocationId,
+  bookkeepingLocationIds,
+}: {
+  accessToken: string;
+  apiVersion: string;
+  fallbackLocationId: string;
+  bookkeepingLocationIds: string[];
+}) {
+  if (bookkeepingLocationIds.length > 0) {
+    return { locationIds: bookkeepingLocationIds, warning: null };
+  }
+
+  const response = await fetch(`${squareApiBase()}/v2/locations`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Square-Version": apiVersion,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (response.ok) {
+    const locationIds = ((payload.locations || []) as SquareLocation[])
+      .filter((location) => location.id && location.status !== "INACTIVE")
+      .map((location) => location.id as string);
+
+    if (locationIds.length > 0) return { locationIds, warning: null };
+  }
+
+  if (fallbackLocationId) {
+    const detail = Array.isArray(payload?.errors)
+      ? payload.errors.map((error: { detail?: string }) => error.detail).filter(Boolean).join(" ")
+      : "";
+    return {
+      locationIds: [fallbackLocationId],
+      warning:
+        "Could not list all Square locations, so only SQUARE_LOCATION_ID was pulled. " +
+        `${detail || "Add MERCHANT_PROFILE_READ permission or set SQUARE_BOOKKEEPING_LOCATION_IDS."}`,
+    };
+  }
+
+  throw new Error("Could not find Square locations. Set SQUARE_BOOKKEEPING_LOCATION_IDS or SQUARE_LOCATION_ID.");
+}
+
+async function fetchPaymentsForLocation({
+  accessToken,
+  apiVersion,
+  locationId,
+}: {
+  accessToken: string;
+  apiVersion: string;
+  locationId: string;
+}) {
   const imported: SquareBookkeepingTransaction[] = [];
   let cursor: string | undefined;
   let page = 0;
@@ -82,12 +174,12 @@ export async function fetchSquareBookkeepingTransactions() {
 
   do {
     const params = new URLSearchParams({
+      location_id: locationId,
       begin_time: beginTime.toISOString(),
       end_time: endTime.toISOString(),
       limit: "100",
       sort_order: "DESC",
     });
-    if (bookkeepingLocationId) params.set("location_id", bookkeepingLocationId);
     if (cursor) params.set("cursor", cursor);
 
     const response = await fetch(`${squareApiBase()}/v2/payments?${params.toString()}`, {
