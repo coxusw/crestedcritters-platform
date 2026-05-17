@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   createContentAgentTopic,
   deleteContentAgentTopic,
+  seedRequestedTopicPack,
   setContentAgentTopicActive,
   updateContentAgentTopic,
 } from "./actions";
@@ -114,6 +115,25 @@ export default function ContentAgentTopicsDashboard({
           </form>
         </section>
 
+        <section className="rounded-3xl border border-sky-400/30 bg-sky-400/10 p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-sky-100">
+                Requested Topic Pack
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-sky-100/80">
+                Add fresh topics for Poverty Finance, Tap-Deck, and Crested
+                Critters. Existing matching topics are skipped automatically.
+              </p>
+            </div>
+            <form action={seedRequestedTopicPack}>
+              <button className="rounded-2xl bg-sky-300 px-5 py-2 font-bold text-slate-950 hover:bg-sky-200">
+                Add Requested Topics
+              </button>
+            </form>
+          </div>
+        </section>
+
         <AddTopicCard pages={pages} activePageFilter={activePageFilter} />
 
         <section className="grid gap-5">
@@ -122,7 +142,6 @@ export default function ContentAgentTopicsDashboard({
               <TopicCard
                 key={topic.id}
                 topic={topic}
-                pages={pages}
                 pageName={pageMap.get(topic.page_key) || topic.page_key}
               />
             ))
@@ -198,11 +217,9 @@ function AddTopicCard({
 
 function TopicCard({
   topic,
-  pages,
   pageName,
 }: {
   topic: TopicRow;
-  pages: PageRow[];
   pageName: string;
 }) {
   return (
