@@ -74,8 +74,10 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoDataUrl, setLogoDataUrl] = useState("");
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [replay, setReplay] = useState<{
     entries: string[];
@@ -153,6 +155,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
       }
 
       setTemplates((current) => [payload.template!, ...current]);
+      setSelectedTemplateId(payload.template.id);
       setTemplateName("");
       setStatus({ tone: "good", message: "Template saved." });
     } catch (error) {
@@ -176,6 +179,49 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
     setLogoDataUrl(template.logo_data_url || "");
     setLogoFile(null);
     setStatus({ tone: "good", message: `Loaded template: ${template.name}` });
+  }
+
+  async function deleteTemplate() {
+    if (!selectedTemplateId) {
+      setStatus({ tone: "bad", message: "Choose a template to delete." });
+      return;
+    }
+
+    const template = templates.find((item) => item.id === selectedTemplateId);
+
+    if (!template) {
+      setStatus({ tone: "bad", message: "Choose a template to delete." });
+      return;
+    }
+
+    if (!window.confirm(`Delete template "${template.name}"?`)) return;
+
+    setIsDeletingTemplate(true);
+    setStatus({ tone: "idle", message: "Deleting template..." });
+
+    try {
+      const response = await fetch("/api/randomizer/templates", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selectedTemplateId }),
+      });
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Could not delete template.");
+      }
+
+      setTemplates((current) => current.filter((item) => item.id !== selectedTemplateId));
+      setSelectedTemplateId("");
+      setStatus({ tone: "good", message: `Deleted template: ${template.name}` });
+    } catch (error) {
+      setStatus({
+        tone: "bad",
+        message: error instanceof Error ? error.message : "Could not delete template.",
+      });
+    } finally {
+      setIsDeletingTemplate(false);
+    }
   }
 
   async function generateResult() {
@@ -519,8 +565,11 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
             <label className="mt-3 grid gap-2">
               <span className="text-sm font-bold text-emerald-50/70">Load Template</span>
               <select
-                defaultValue=""
-                onChange={(event) => loadTemplate(event.target.value)}
+                value={selectedTemplateId}
+                onChange={(event) => {
+                  setSelectedTemplateId(event.target.value);
+                  loadTemplate(event.target.value);
+                }}
                 className="rounded-xl border border-white/10 bg-[#08150e] px-4 py-3 text-white outline-none focus:ring-4 focus:ring-emerald-400/20"
               >
                 <option value="">Choose a template</option>
@@ -548,20 +597,31 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
               disabled={isSavingTemplate}
               className="mt-3 w-full rounded-xl bg-emerald-300 px-5 py-3 font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSavingTemplate ? "Saving..." : "Save Current Setup"}
+              {isSavingTemplate ? "Saving..." : "Save current as template"}
+            </button>
+
+            <button
+              type="button"
+              onClick={deleteTemplate}
+              disabled={!selectedTemplateId || isDeletingTemplate}
+              className="mt-3 w-full rounded-xl border border-red-300/30 bg-red-400/10 px-5 py-3 font-black text-red-100 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isDeletingTemplate ? "Deleting..." : "Delete selected template"}
             </button>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
             <button
               type="button"
               onClick={generateResult}
               disabled={isSubmitting}
-              className="rounded-xl bg-emerald-300 px-5 py-3 font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
+              className="w-full rounded-xl bg-emerald-300 px-5 py-3 font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? "Randomizing..." : "Randomize"}
             </button>
+          </div>
 
+          <div className="grid gap-3 sm:grid-cols-2">
             <button
               type="button"
               onClick={loadDemo}

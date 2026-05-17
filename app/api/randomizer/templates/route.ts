@@ -68,3 +68,40 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ template: data });
 }
+
+export async function DELETE(request: Request) {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Sign in to delete templates." }, { status: 401 });
+  }
+
+  let body: Record<string, unknown>;
+
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON payload." }, { status: 400 });
+  }
+
+  const templateId = typeof body.id === "string" ? body.id : "";
+
+  if (!templateId) {
+    return NextResponse.json({ error: "Choose a template to delete." }, { status: 400 });
+  }
+
+  const { error } = await supabase
+    .from("randomizer_templates")
+    .delete()
+    .eq("id", templateId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
