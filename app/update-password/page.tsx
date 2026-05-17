@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 
@@ -12,8 +12,60 @@ export default function UpdatePasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function prepareRecoverySession() {
+      setError("");
+
+      try {
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get("code");
+        const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+
+        if (code) {
+          const { error: exchangeError } =
+            await supabase.auth.exchangeCodeForSession(code);
+
+          if (exchangeError) throw exchangeError;
+
+          url.searchParams.delete("code");
+          window.history.replaceState({}, "", url.pathname + url.search);
+        } else if (accessToken && refreshToken) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (sessionError) throw sessionError;
+
+          window.history.replaceState({}, "", url.pathname);
+        }
+      } catch (sessionError) {
+        if (mounted) {
+          setError(
+            sessionError instanceof Error
+              ? sessionError.message
+              : "Password reset link could not be verified. Request a fresh reset email."
+          );
+        }
+      } finally {
+        if (mounted) setSessionLoading(false);
+      }
+    }
+
+    prepareRecoverySession();
+
+    return () => {
+      mounted = false;
+    };
+  }, [supabase.auth]);
 
   async function handleUpdate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -116,10 +168,14 @@ export default function UpdatePasswordPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || sessionLoading}
             className="mt-6 w-full rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Updating Password..." : "Update Password"}
+            {sessionLoading
+              ? "Verifying Reset Link..."
+              : loading
+                ? "Updating Password..."
+                : "Update Password"}
           </button>
         </form>
       </div>
