@@ -257,8 +257,8 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           <div className="border-b border-white/10 p-4">
             <h2 className="text-lg font-bold">Transaction Ledger</h2>
             <p className="mt-1 text-sm text-slate-400">
-              Mark personal/non-business spending as Owner Draw / Personal. That
-              keeps it out of expenses and subtracts it from owner equity.
+              Newest transactions show first. Mark personal/non-business spending
+              as Owner Draw / Personal so it stays out of expenses.
             </p>
           </div>
 

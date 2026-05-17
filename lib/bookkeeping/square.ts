@@ -47,6 +47,7 @@ export type SquareBookkeepingTransaction = {
 };
 
 const DEFAULT_API_VERSION = "2026-04-16";
+const MAX_PAYMENT_PAGES = 250;
 
 function squareApiBase() {
   return process.env.SQUARE_ENVIRONMENT === "production"
@@ -84,7 +85,7 @@ export async function fetchSquareBookkeepingTransactions() {
       begin_time: beginTime.toISOString(),
       end_time: endTime.toISOString(),
       limit: "100",
-      sort_order: "ASC",
+      sort_order: "DESC",
     });
     if (bookkeepingLocationId) params.set("location_id", bookkeepingLocationId);
     if (cursor) params.set("cursor", cursor);
@@ -113,7 +114,13 @@ export async function fetchSquareBookkeepingTransactions() {
 
     cursor = payload.cursor;
     page += 1;
-  } while (cursor && page < 10);
+  } while (cursor && page < MAX_PAYMENT_PAGES);
+
+  if (cursor) {
+    throw new Error(
+      `Square returned more than ${MAX_PAYMENT_PAGES * 100} payments for 2026. Narrow the import window before pulling more.`
+    );
+  }
 
   return imported;
 }
