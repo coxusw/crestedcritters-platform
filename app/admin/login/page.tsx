@@ -28,19 +28,29 @@ export default function AdminLogin() {
 
     setMessage('Login successful.')
 
-    router.push('/admin')
+    const isAdminSubdomain =
+      typeof window !== 'undefined' &&
+      window.location.hostname === 'admin.crestedcritters.com'
+
+    router.push(isAdminSubdomain ? '/' : '/admin')
     router.refresh()
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-2xl bg-slate-900 p-8">
-        <h1 className="text-3xl font-bold mb-4">Admin Login</h1>
+    <main className="min-h-screen bg-[#08110d] text-white flex items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-lg border border-white/10 bg-slate-950/80 p-8 shadow-2xl shadow-black/40">
+        <p className="mb-2 text-sm font-black uppercase tracking-[0.28em] text-emerald-300">
+          Crested Critters
+        </p>
+        <h1 className="text-3xl font-bold mb-2">Admin Login</h1>
+        <p className="mb-6 text-sm leading-6 text-slate-300">
+          Sign in with an account that exists in the admin profile table.
+        </p>
 
         <input
           type="email"
           placeholder="Email"
-          className="w-full mb-4 p-3 rounded bg-slate-800"
+          className="w-full mb-4 rounded-md border border-white/10 bg-slate-900 p-3 outline-none ring-emerald-400/30 focus:ring-4"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -48,14 +58,14 @@ export default function AdminLogin() {
         <input
           type="password"
           placeholder="Password"
-          className="w-full mb-4 p-3 rounded bg-slate-800"
+          className="w-full mb-4 rounded-md border border-white/10 bg-slate-900 p-3 outline-none ring-emerald-400/30 focus:ring-4"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
 
         <button
           onClick={handleLogin}
-          className="w-full bg-emerald-500 text-black font-bold py-3 rounded"
+          className="w-full rounded-md bg-emerald-400 py-3 font-black text-slate-950 hover:bg-emerald-300"
         >
           Login
         </button>

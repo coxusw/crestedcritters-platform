@@ -3,6 +3,32 @@ import { NextRequest, NextResponse } from "next/server";
 export function proxy(request: NextRequest) {
   const host = request.headers.get("host")?.toLowerCase().split(":")[0] || "";
   const isRandomizerHost = host === "randomizer.crestedcritters.com";
+  const isAdminHost = host === "admin.crestedcritters.com";
+
+  if (isAdminHost) {
+    const url = request.nextUrl.clone();
+
+    if (url.pathname === "/") {
+      url.pathname = "/admin";
+      return NextResponse.rewrite(url);
+    }
+
+    if (url.pathname === "/login") {
+      url.pathname = "/admin/login";
+      return NextResponse.rewrite(url);
+    }
+
+    if (url.pathname === "/logout") {
+      return NextResponse.next();
+    }
+
+    if (!url.pathname.startsWith("/admin")) {
+      url.pathname = `/admin${url.pathname}`;
+      return NextResponse.rewrite(url);
+    }
+
+    return NextResponse.next();
+  }
 
   if (!isRandomizerHost) return NextResponse.next();
 
