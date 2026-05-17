@@ -122,13 +122,16 @@ export async function pullSquareBookkeepingTransactions() {
 
 export async function diagnoseSquareBookkeepingTransactions() {
   await requireContentAgentAdmin();
+  let notice = "";
 
   try {
     const diagnostic = await diagnoseSquareBookkeepingPull();
-    redirectWithNotice(`Square diagnostic:\n${diagnostic}`);
+    notice = `Square diagnostic:\n${diagnostic}`;
   } catch (error) {
     redirectWithError(error);
   }
+
+  redirectWithNotice(notice);
 }
 
 export async function rebalanceBookkeepingBalances(formData: FormData) {
