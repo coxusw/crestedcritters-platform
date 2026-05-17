@@ -56,11 +56,13 @@ export default function WheelReplay({
   );
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentSpinIndex, setCurrentSpinIndex] = useState(-1);
+  const [landedSpinIndex, setLandedSpinIndex] = useState(-1);
   const [wheelEntries, setWheelEntries] = useState(initialWheelEntries);
   const [rotation, setRotation] = useState(0);
   const [finished, setFinished] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const currentSpin = currentSpinIndex >= 0 ? spinHistory[currentSpinIndex] : null;
+  const landedSpin = landedSpinIndex >= 0 ? spinHistory[landedSpinIndex] : null;
   const visibleEntries = wheelEntries.slice(0, 12);
 
   useEffect(() => {
@@ -139,9 +141,11 @@ export default function WheelReplay({
     setIsPlaying(true);
     setFinished(false);
     setCurrentSpinIndex(-1);
+    setLandedSpinIndex(-1);
     setWheelEntries(initialWheelEntries);
     setRotation(0);
     let activeEntries = [...initialWheelEntries];
+    let rotationPosition = 0;
 
     for (let index = 0; index < spinHistory.length; index += 1) {
       const spin = spinHistory[index];
@@ -150,17 +154,30 @@ export default function WheelReplay({
         activeEntries.findIndex((entry) => entry.entryIndex === spin.entryIndex)
       );
       const segment = 360 / Math.max(activeEntries.length, 1);
-      const target = 360 * (index + 4) + (360 - activeIndex * segment) + segment / 2;
+      const selectedCenter = -90 + activeIndex * segment + segment / 2;
+      const pointerAngle = 0;
+      const currentNormalizedRotation = ((rotationPosition % 360) + 360) % 360;
+      const desiredRotation = pointerAngle - selectedCenter;
+      const deltaToTarget =
+        ((desiredRotation - currentNormalizedRotation + 540) % 360) - 180;
+      const extraTurns = 360 * 5;
+      const target = extraTurns + deltaToTarget;
+      rotationPosition += target;
 
       setCurrentSpinIndex(index);
+      setLandedSpinIndex(-1);
       setRotation((previous) => previous + target);
 
-      await new Promise((resolve) => setTimeout(resolve, index === spinHistory.length - 1 ? 1700 : 900));
+      await new Promise((resolve) => setTimeout(resolve, 2600));
+      setLandedSpinIndex(index);
 
       if (mode === "last-name-spun" && !spin.isWinner) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
         activeEntries = activeEntries.filter((entry) => entry.entryIndex !== spin.entryIndex);
         setWheelEntries(activeEntries);
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 900));
+      } else if (index < spinHistory.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
     }
 
@@ -196,7 +213,7 @@ export default function WheelReplay({
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full">
             <div className="flex h-[38%] w-[38%] items-center justify-center rounded-full border border-white/20 bg-[#07130c] p-4 text-center shadow-xl">
               <span className="text-sm font-black text-emerald-100">
-                {currentSpin?.name || "Ready"}
+                {landedSpin?.name || (currentSpin ? "Spinning..." : "Ready")}
               </span>
             </div>
           </div>
@@ -210,10 +227,10 @@ export default function WheelReplay({
             <h2 className="mt-2 text-3xl font-black">
               {finished
                 ? winners.map((winner) => winner.name).join(", ")
-                : currentSpin?.name || "Replay the official saved spin"}
+                : landedSpin?.name || (currentSpin ? "Spinning..." : "Replay the official saved spin")}
             </h2>
-            {currentSpin?.prize && (
-              <p className="mt-2 font-bold text-yellow-100">{currentSpin.prize}</p>
+            {landedSpin?.prize && (
+              <p className="mt-2 font-bold text-yellow-100">{landedSpin.prize}</p>
             )}
           </div>
 
