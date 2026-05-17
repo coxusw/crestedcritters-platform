@@ -164,8 +164,10 @@ export default function WheelReplay({
       const target = extraTurns + deltaToTarget;
       rotationPosition += target;
 
+      await new Promise((resolve) => requestAnimationFrame(resolve));
       setCurrentSpinIndex(index);
       setLandedSpinIndex(-1);
+      await new Promise((resolve) => requestAnimationFrame(resolve));
       setRotation((previous) => previous + target);
 
       await new Promise((resolve) => setTimeout(resolve, 2600));
@@ -205,7 +207,7 @@ export default function WheelReplay({
           <div className="absolute -right-2 top-1/2 z-10 h-0 w-0 -translate-y-1/2 border-y-[16px] border-r-[28px] border-y-transparent border-r-white drop-shadow-lg" />
           <canvas
             ref={canvasRef}
-            className="h-full w-full rounded-full shadow-2xl shadow-black/40 transition-transform duration-1000 ease-out"
+            className="h-full w-full rounded-full shadow-2xl shadow-black/40 transition-transform duration-[2600ms] ease-out will-change-transform"
             style={{
               transform: `rotate(${rotation}deg)`,
             }}
