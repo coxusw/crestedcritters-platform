@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
-  importCurrentGoogleSheetBookkeeping,
+  createManualBookkeepingTransaction,
   updateBookkeepingTransaction,
 } from "./actions";
 
@@ -12,6 +12,7 @@ type PageProps = {
     error?: string;
     type?: string;
     classification?: string;
+    review?: string;
   }>;
 };
 
@@ -53,10 +54,11 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
   const params = await searchParams;
   const typeFilter = params?.type || "all";
   const classificationFilter = params?.classification || "all";
+  const reviewFilter = params?.review || "all";
 
   const supabase = createSupabaseAdminClient();
   const [transactionsResult, categoriesResult] = await Promise.all([
-    buildTransactionsQuery(supabase, typeFilter, classificationFilter),
+    buildTransactionsQuery(supabase, typeFilter, classificationFilter, reviewFilter),
     supabase
       .from("bookkeeping_categories")
       .select("name, type")
@@ -96,9 +98,9 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           </p>
           <h1 className="mt-2 text-3xl font-black">Bookkeeping</h1>
           <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-300">
-            Import the current Google Sheet, review Square/bank-style
-            transactions, and classify anything personal as owner draw instead
-            of a business expense.
+            Review Square/bank-style transactions, manually add cash or
+            personal purchases, and classify anything personal as owner draw
+            instead of a business expense.
           </p>
         </header>
 
@@ -124,10 +126,57 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           <StatCard label="Needs Review" value={summary.needsReview} alert={summary.needsReview > 0} />
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-[1fr_24rem]">
+        <section className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
+          <h2 className="font-bold">Add Manual Entry</h2>
+          <form action={createManualBookkeepingTransaction} className="mt-3 grid gap-3 lg:grid-cols-[9rem_8rem_12rem_12rem_1fr_8rem_10rem_auto]">
+            <input
+              type="date"
+              name="transaction_date"
+              className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+            />
+            <SelectBox name="type" defaultValue="expense" options={["income", "expense", "equity", "tax", "mileage", "transfer"]} />
+            <SelectBox name="classification" defaultValue="business" options={["business", "owner_contribution", "owner_draw", "sales_tax", "ignore"]} />
+            <input
+              name="category"
+              placeholder="Category"
+              list="bookkeeping-categories"
+              className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+            />
+            <input
+              name="description"
+              placeholder="Description"
+              className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+            />
+            <input
+              name="amount"
+              placeholder="Amount"
+              className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+            />
+            <input
+              name="payment_method"
+              placeholder="cash/personal"
+              className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+            />
+            <label className="flex items-center gap-2 text-xs text-slate-300">
+              <input type="checkbox" name="reviewed" defaultChecked />
+              Reviewed
+            </label>
+            <textarea
+              name="notes"
+              placeholder="Notes"
+              rows={2}
+              className="lg:col-span-7 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+            />
+            <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
+              Add
+            </button>
+          </form>
+        </section>
+
+        <section className="grid gap-4">
           <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
             <div className="flex flex-wrap gap-2">
-              <FilterLink href="/admin/bookkeeping" active={typeFilter === "all" && classificationFilter === "all"}>
+              <FilterLink href="/admin/bookkeeping" active={typeFilter === "all" && classificationFilter === "all" && reviewFilter === "all"}>
                 All
               </FilterLink>
               {["income", "expense", "equity", "mileage"].map((type) => (
@@ -141,19 +190,11 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
               <FilterLink href="/admin/bookkeeping?classification=owner_contribution" active={classificationFilter === "owner_contribution"}>
                 Owner Contributions
               </FilterLink>
+              <FilterLink href="/admin/bookkeeping?review=needs" active={reviewFilter === "needs"}>
+                Needs Review
+              </FilterLink>
             </div>
           </div>
-
-          <form action={importCurrentGoogleSheetBookkeeping} className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4">
-            <h2 className="font-bold text-emerald-100">Import Current Sheet</h2>
-            <p className="mt-1 text-sm leading-6 text-emerald-100/80">
-              Pulls the Expenses and Sales tabs from your Google Sheet and
-              upserts them by source row.
-            </p>
-            <button className="mt-3 rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
-              Import Google Sheet Rows
-            </button>
-          </form>
         </section>
 
         <section className="rounded-lg border border-white/10 bg-white/[0.05]">
@@ -166,7 +207,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-[1400px] w-full text-left text-sm">
+            <table className="min-w-[1180px] w-full text-left text-sm">
               <thead className="border-b border-white/10 bg-slate-950/70 text-xs uppercase tracking-wide text-slate-400">
                 <tr>
                   <th className="px-3 py-2">Date</th>
@@ -176,7 +217,6 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                   <th className="px-3 py-2">Description</th>
                   <th className="px-3 py-2">Amount</th>
                   <th className="px-3 py-2">Payment</th>
-                  <th className="px-3 py-2">Receipt</th>
                   <th className="px-3 py-2">Notes</th>
                   <th className="px-3 py-2">Reviewed</th>
                   <th className="px-3 py-2">Actions</th>
@@ -193,7 +233,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                 {transactions.length === 0 && (
                   <tr>
                     <td colSpan={11} className="px-3 py-10 text-center text-slate-400">
-                      No transactions yet. Import the Google Sheet to load the current rows.
+                      No transactions found for this filter.
                     </td>
                   </tr>
                 )}
@@ -209,7 +249,8 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
 function buildTransactionsQuery(
   supabase: ReturnType<typeof createSupabaseAdminClient>,
   typeFilter: string,
-  classificationFilter: string
+  classificationFilter: string,
+  reviewFilter: string
 ) {
   let query = supabase
     .from("bookkeeping_transactions")
@@ -222,6 +263,7 @@ function buildTransactionsQuery(
   if (classificationFilter && classificationFilter !== "all") {
     query = query.eq("classification", classificationFilter);
   }
+  if (reviewFilter === "needs") query = query.eq("reviewed", false);
 
   return query;
 }
@@ -256,30 +298,30 @@ function TransactionRowEditor({
   const formId = `bookkeeping-${transaction.id}`;
 
   return (
-    <tr className="border-b border-white/5 align-top">
-      <td className="w-36 px-3 py-3">
+    <tr className={`border-b align-top ${transaction.reviewed ? "border-white/5" : "border-red-400/25 bg-red-500/10"}`}>
+      <td className="w-32 px-2 py-2">
         <input
           form={formId}
           type="date"
           name="transaction_date"
           defaultValue={transaction.transaction_date || ""}
-          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-slate-100"
+          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
         />
         <div className="mt-1 text-xs text-slate-500">{transaction.imported_from || transaction.source}</div>
       </td>
-      <td className="w-32 px-3 py-3">
+      <td className="w-24 px-2 py-2">
         <SelectInput form={formId} name="type" defaultValue={transaction.type} options={["income", "expense", "equity", "tax", "mileage", "transfer"]} />
       </td>
-      <td className="w-48 px-3 py-3">
+      <td className="w-40 px-2 py-2">
         <SelectInput form={formId} name="classification" defaultValue={transaction.classification} options={["business", "owner_contribution", "owner_draw", "sales_tax", "ignore"]} />
       </td>
-      <td className="w-56 px-3 py-3">
+      <td className="w-44 px-2 py-2">
         <input
           form={formId}
           name="category"
           defaultValue={transaction.category || ""}
           list="bookkeeping-categories"
-          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-slate-100"
+          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
         />
         <datalist id="bookkeeping-categories">
           {categories.map((category) => (
@@ -287,12 +329,12 @@ function TransactionRowEditor({
           ))}
         </datalist>
       </td>
-      <td className="min-w-[22rem] px-3 py-3">
+      <td className="min-w-[18rem] px-2 py-2">
         <input
           form={formId}
           name="description"
           defaultValue={transaction.description || ""}
-          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-slate-100"
+          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
         />
         {(transaction.customer_name || transaction.product_name) && (
           <div className="mt-1 text-xs text-slate-500">
@@ -300,54 +342,43 @@ function TransactionRowEditor({
           </div>
         )}
       </td>
-      <td className="w-32 px-3 py-3">
+      <td className="w-24 px-2 py-2">
         <input
           form={formId}
           name="amount"
           defaultValue={Number(transaction.amount || 0).toFixed(2)}
-          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-right text-slate-100"
+          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-right text-sm text-slate-100"
         />
       </td>
-      <td className="w-40 px-3 py-3">
+      <td className="w-32 px-2 py-2">
         <input
           form={formId}
           name="payment_method"
           defaultValue={transaction.payment_method || transaction.money_destination || ""}
-          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-slate-100"
+          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
         />
       </td>
-      <td className="w-44 px-3 py-3">
-        <input
-          form={formId}
-          name="receipt_status"
-          defaultValue={transaction.receipt_status || ""}
-          placeholder="yes/no"
-          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-slate-100"
-        />
-        <input
-          form={formId}
-          name="receipt_location"
-          defaultValue={transaction.receipt_location || ""}
-          placeholder="email/folder"
-          className="mt-2 w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-slate-100"
-        />
-      </td>
-      <td className="min-w-[20rem] px-3 py-3">
+      <td className="min-w-[16rem] px-2 py-2">
         <textarea
           form={formId}
           name="notes"
           defaultValue={transaction.notes || ""}
-          rows={3}
-          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-slate-100"
+          rows={2}
+          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
         />
+        {(transaction.receipt_status || transaction.receipt_location) && (
+          <div className="mt-1 text-xs text-slate-500">
+            Receipt: {[transaction.receipt_status, transaction.receipt_location].filter(Boolean).join(" / ")}
+          </div>
+        )}
       </td>
-      <td className="w-28 px-3 py-3">
+      <td className="w-24 px-2 py-2">
         <label className="flex items-center gap-2">
           <input form={formId} type="checkbox" name="reviewed" defaultChecked={transaction.reviewed} />
           <span className="text-xs">Reviewed</span>
         </label>
       </td>
-      <td className="w-28 px-3 py-3">
+      <td className="w-20 px-2 py-2">
         <form id={formId} action={updateBookkeepingTransaction}>
           <input type="hidden" name="transaction_id" value={transaction.id} />
           <button className="w-full rounded-md bg-emerald-400 px-3 py-2 text-xs font-bold text-slate-950">
@@ -356,6 +387,30 @@ function TransactionRowEditor({
         </form>
       </td>
     </tr>
+  );
+}
+
+function SelectBox({
+  name,
+  defaultValue,
+  options,
+}: {
+  name: string;
+  defaultValue: string;
+  options: string[];
+}) {
+  return (
+    <select
+      name={name}
+      defaultValue={defaultValue}
+      className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+    >
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -375,7 +430,7 @@ function SelectInput({
       form={form}
       name={name}
       defaultValue={defaultValue}
-      className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-slate-100"
+      className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
     >
       {options.map((option) => (
         <option key={option} value={option}>
@@ -442,7 +497,7 @@ function BookkeepingSetupMessage({ error }: { error: string }) {
         <h1 className="text-2xl font-black text-amber-100">Bookkeeping setup needed</h1>
         <p className="mt-3 text-sm leading-6 text-amber-50/90">
           The bookkeeping database tables are not available yet. Apply the new
-          Supabase migration, then come back and import the Google Sheet rows.
+          Supabase migration, then come back and connect Square or add manual rows.
         </p>
         <p className="mt-4 rounded-md bg-black/20 p-3 text-xs text-amber-50/80">
           Migration: supabase/migrations/20260517_bookkeeping.sql

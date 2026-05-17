@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { requireContentAgentAdmin } from "@/lib/content-agent/security";
-import { fetchCurrentBookkeepingSheetTransactions } from "@/lib/bookkeeping/sheet-import";
 
 const CLASSIFICATIONS = new Set([
   "business",
@@ -36,24 +35,36 @@ function redirectWithError(error: unknown): never {
   redirect(`/admin/bookkeeping?error=${encodeURIComponent(message.slice(0, 1400))}`);
 }
 
-export async function importCurrentGoogleSheetBookkeeping() {
+export async function createManualBookkeepingTransaction(formData: FormData) {
   await requireContentAgentAdmin();
 
   try {
+    const type = textValue(formData, "type");
+    const classification = textValue(formData, "classification");
+
+    if (!TYPES.has(type)) throw new Error("Invalid transaction type.");
+    if (!CLASSIFICATIONS.has(classification)) throw new Error("Invalid classification.");
+
     const supabase = createSupabaseAdminClient();
-    const transactions = await fetchCurrentBookkeepingSheetTransactions();
-
-    if (!transactions.length) {
-      redirectWithNotice("No transactions found in the Google Sheet.");
-    }
-
     const { error } = await supabase
       .from("bookkeeping_transactions")
-      .upsert(transactions, { onConflict: "source_key" });
+      .insert({
+        transaction_date: textValue(formData, "transaction_date") || null,
+        type,
+        classification,
+        category: textValue(formData, "category") || null,
+        description: textValue(formData, "description") || null,
+        amount: numberValue(formData, "amount"),
+        payment_method: textValue(formData, "payment_method") || null,
+        source: "manual",
+        imported_from: "Manual",
+        notes: textValue(formData, "notes") || null,
+        reviewed: formData.get("reviewed") === "on",
+      });
 
     if (error) throw new Error(error.message);
 
-    redirectWithNotice(`Imported ${transactions.length} rows from Expenses and Sales.`);
+    redirectWithNotice("Added manual bookkeeping entry.");
   } catch (error) {
     redirectWithError(error);
   }
