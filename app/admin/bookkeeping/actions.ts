@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { parseSquareBankingCsv } from "@/lib/bookkeeping/banking-csv";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import {
@@ -127,6 +128,49 @@ export async function diagnoseSquareBookkeepingTransactions() {
   try {
     const diagnostic = await diagnoseSquareBookkeepingPull();
     notice = `Square diagnostic:\n${diagnostic}`;
+  } catch (error) {
+    redirectWithError(error);
+  }
+
+  redirectWithNotice(notice);
+}
+
+export async function importSquareBankingCsv(formData: FormData) {
+  await requireContentAgentAdmin();
+  let notice = "";
+
+  try {
+    const file = formData.get("banking_csv");
+    if (!(file instanceof File)) throw new Error("Choose a Square Banking CSV file.");
+
+    const csvText = await file.text();
+    const parsed = parseSquareBankingCsv(csvText, file.name);
+    if (parsed.transactions.length === 0) {
+      notice = `Square Banking CSV parsed, but no 2026 importable rows were found. Skipped ${parsed.skippedOld} old rows and ${parsed.skippedInvalid} invalid rows. Headers: ${parsed.headers.join(", ")}`;
+    } else {
+      const supabase = createSupabaseAdminClient();
+      const sourceKeys = parsed.transactions.map((transaction) => transaction.source_key);
+      const { data: existingRows, error: existingError } = await supabase
+        .from("bookkeeping_transactions")
+        .select("source_key")
+        .in("source_key", sourceKeys);
+
+      if (existingError) throw new Error(existingError.message);
+
+      const existingKeys = new Set((existingRows || []).map((row) => row.source_key));
+      const newTransactions = parsed.transactions.filter(
+        (transaction) => !existingKeys.has(transaction.source_key)
+      );
+
+      if (newTransactions.length > 0) {
+        const { error } = await supabase.from("bookkeeping_transactions").insert(newTransactions);
+        if (error) throw new Error(error.message);
+      }
+
+      notice = `Square Banking CSV import finished. Added ${newTransactions.length} rows. Skipped ${
+        parsed.transactions.length - newTransactions.length
+      } duplicate rows, ${parsed.skippedOld} pre-2026 rows, and ${parsed.skippedInvalid} invalid rows.`;
+    }
   } catch (error) {
     redirectWithError(error);
   }

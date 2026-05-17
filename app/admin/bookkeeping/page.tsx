@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
   createManualBookkeepingTransaction,
   diagnoseSquareBookkeepingTransactions,
+  importSquareBankingCsv,
   pullSquareBookkeepingTransactions,
   rebalanceBookkeepingBalances,
   updateBookkeepingTransaction,
@@ -133,7 +134,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           <StatCard label="Needs Review" value={summary.needsReview} alert={summary.needsReview > 0} />
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[22rem_22rem_1fr]">
+        <section className="grid gap-4 xl:grid-cols-3">
           <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
             <h2 className="font-bold">Square Pull</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
@@ -148,6 +149,25 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
             <form action={diagnoseSquareBookkeepingTransactions} className="mt-2">
               <button className="w-full rounded-md border border-white/10 bg-slate-950/80 px-4 py-2 text-sm font-bold text-slate-100 hover:border-emerald-300/50">
                 Diagnose Square Pull
+              </button>
+            </form>
+          </div>
+
+          <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
+            <h2 className="font-bold">Banking CSV</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              Import Square Banking activity that does not appear in Square
+              Payments. New rows import as Needs Review.
+            </p>
+            <form action={importSquareBankingCsv} className="mt-4 grid gap-3">
+              <input
+                type="file"
+                name="banking_csv"
+                accept=".csv,text/csv"
+                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100 file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-slate-100"
+              />
+              <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
+                Import Banking CSV
               </button>
             </form>
           </div>
@@ -176,10 +196,11 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
               </button>
             </form>
           </div>
+        </section>
 
-          <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
-            <h2 className="font-bold">Add Manual Entry</h2>
-            <form action={createManualBookkeepingTransaction} className="mt-3 grid gap-3 lg:grid-cols-[9rem_8rem_12rem_12rem_1fr_8rem_10rem_6rem_7rem_auto]">
+        <section className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
+          <h2 className="font-bold">Add Manual Entry</h2>
+          <form action={createManualBookkeepingTransaction} className="mt-3 grid gap-3 lg:grid-cols-[9rem_8rem_12rem_12rem_1fr_8rem_10rem_6rem_7rem_auto]">
               <input
                 type="date"
                 name="transaction_date"
@@ -231,8 +252,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
               <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
                 Add
               </button>
-            </form>
-          </div>
+          </form>
         </section>
 
         <section className="grid gap-4">
