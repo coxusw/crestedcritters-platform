@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { requireContentAgentAdmin } from "@/lib/content-agent/security";
-import { fetchSquareBookkeepingTransactions } from "@/lib/bookkeeping/square";
+import {
+  diagnoseSquareBookkeepingPull,
+  fetchSquareBookkeepingTransactions,
+} from "@/lib/bookkeeping/square";
 
 const CLASSIFICATIONS = new Set([
   "business",
@@ -115,6 +118,17 @@ export async function pullSquareBookkeepingTransactions() {
   }
 
   redirectWithNotice(notice);
+}
+
+export async function diagnoseSquareBookkeepingTransactions() {
+  await requireContentAgentAdmin();
+
+  try {
+    const diagnostic = await diagnoseSquareBookkeepingPull();
+    redirectWithNotice(`Square diagnostic:\n${diagnostic}`);
+  } catch (error) {
+    redirectWithError(error);
+  }
 }
 
 export async function rebalanceBookkeepingBalances(formData: FormData) {

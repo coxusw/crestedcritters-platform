@@ -108,6 +108,34 @@ export async function fetchSquareBookkeepingTransactions() {
   return { transactions: imported, locations: locationIds, warning };
 }
 
+export async function diagnoseSquareBookkeepingPull() {
+  const { accessToken, apiVersion, fallbackLocationId, bookkeepingLocationIds } = requireSquareEnv();
+  const { locationIds, warning } = await resolveLocationIds({
+    accessToken,
+    apiVersion,
+    fallbackLocationId,
+    bookkeepingLocationIds,
+  });
+
+  const lines = [
+    `Square env: ${process.env.SQUARE_ENVIRONMENT || "not set"} (${squareApiBase()})`,
+    `Square API version: ${apiVersion}`,
+    `Location IDs checked: ${locationIds.length ? locationIds.join(", ") : "none"}`,
+  ];
+  if (warning) lines.push(`Warning: ${warning}`);
+
+  for (const locationId of locationIds) {
+    const diagnostic = await fetchPaymentDiagnosticForLocation({
+      accessToken,
+      apiVersion,
+      locationId,
+    });
+    lines.push("", diagnostic);
+  }
+
+  return lines.join("\n");
+}
+
 async function resolveLocationIds({
   accessToken,
   apiVersion,
@@ -217,6 +245,68 @@ async function fetchPaymentsForLocation({
   return imported;
 }
 
+async function fetchPaymentDiagnosticForLocation({
+  accessToken,
+  apiVersion,
+  locationId,
+}: {
+  accessToken: string;
+  apiVersion: string;
+  locationId: string;
+}) {
+  const beginTime = new Date("2026-01-01T00:00:00.000Z");
+  const endTime = new Date();
+  const params = new URLSearchParams({
+    location_id: locationId,
+    begin_time: beginTime.toISOString(),
+    end_time: endTime.toISOString(),
+    limit: "10",
+    sort_order: "DESC",
+  });
+
+  const response = await fetch(`${squareApiBase()}/v2/payments?${params.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Square-Version": apiVersion,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = Array.isArray(payload?.errors)
+      ? payload.errors.map((error: { detail?: string }) => error.detail).filter(Boolean).join(" ")
+      : response.statusText;
+    return `Location ${locationId}: Square payment diagnostic failed: ${detail}`;
+  }
+
+  const payments = ((payload.payments || []) as SquarePayment[]).filter(Boolean);
+  const statusCounts = payments.reduce<Record<string, number>>((counts, payment) => {
+    const status = payment.status || "UNKNOWN";
+    counts[status] = (counts[status] || 0) + 1;
+    return counts;
+  }, {});
+  const latestAny = payments[0]?.created_at || "none";
+  const latestCompleted = payments.find((payment) => payment.status === "COMPLETED")?.created_at || "none";
+  const samples = payments.slice(0, 5).map((payment) => {
+    const amount = centsToDollars(payment.total_money?.amount || payment.approved_money?.amount);
+    return `  - ${payment.created_at || "no date"} ${payment.status || "UNKNOWN"} ${formatDollars(amount)} ${payment.source_type || "source?"} ${payment.id || "no id"}`;
+  });
+
+  return [
+    `Location ${locationId}`,
+    `Latest payment Square returned: ${latestAny}`,
+    `Latest COMPLETED payment Square returned: ${latestCompleted}`,
+    `First page status counts: ${Object.entries(statusCounts)
+      .map(([status, count]) => `${status}=${count}`)
+      .join(", ") || "none"}`,
+    `Has another page: ${payload.cursor ? "yes" : "no"}`,
+    samples.length ? "Newest sample payments:" : "No payments returned for 2026 on this location.",
+    ...samples,
+  ].join("\n");
+}
+
 function mapSquarePayment(payment: SquarePayment): SquareBookkeepingTransaction | null {
   if (!payment.id || !payment.created_at || payment.status !== "COMPLETED") return null;
 
@@ -252,4 +342,11 @@ function mapSquarePayment(payment: SquarePayment): SquareBookkeepingTransaction 
     reviewed: false,
     raw_payload: payment,
   };
+}
+
+function formatDollars(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(value);
 }

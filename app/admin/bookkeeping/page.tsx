@@ -3,6 +3,7 @@ import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
   createManualBookkeepingTransaction,
+  diagnoseSquareBookkeepingTransactions,
   pullSquareBookkeepingTransactions,
   rebalanceBookkeepingBalances,
   updateBookkeepingTransaction,
@@ -142,6 +143,11 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
             <form action={pullSquareBookkeepingTransactions} className="mt-4">
               <button className="w-full rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
                 Pull Square Transactions
+              </button>
+            </form>
+            <form action={diagnoseSquareBookkeepingTransactions} className="mt-2">
+              <button className="w-full rounded-md border border-white/10 bg-slate-950/80 px-4 py-2 text-sm font-bold text-slate-100 hover:border-emerald-300/50">
+                Diagnose Square Pull
               </button>
             </form>
           </div>
