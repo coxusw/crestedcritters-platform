@@ -33,11 +33,14 @@ export default async function RandomizerPage() {
           </div>
 
           <nav className="flex flex-wrap gap-2 text-sm font-black">
-            <Link className="rounded-full border border-white/10 px-4 py-2 text-emerald-100 hover:bg-white/10" href="/isopedia">
-              Isopedia
-            </Link>
             <Link className="rounded-full border border-white/10 px-4 py-2 text-emerald-100 hover:bg-white/10" href="/account">
               Account
+            </Link>
+            <Link className="rounded-full border border-white/10 px-4 py-2 text-emerald-100 hover:bg-white/10" href="/verify">
+              Verify Result
+            </Link>
+            <Link className="rounded-full border border-white/10 px-4 py-2 text-emerald-100 hover:bg-white/10" href="/faq">
+              FAQ
             </Link>
             <Link className="rounded-full border border-white/10 px-4 py-2 text-emerald-100 hover:bg-white/10" href="/billing">
               Billing

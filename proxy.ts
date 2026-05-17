@@ -13,8 +13,43 @@ export function proxy(request: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
+  if (url.pathname === "/login") {
+    url.searchParams.set("app", "randomizer");
+
+    if (!url.searchParams.has("next")) {
+      url.searchParams.set("next", "/");
+    }
+
+    return NextResponse.rewrite(url);
+  }
+
+  if (url.pathname === "/reset-password") {
+    url.searchParams.set("app", "randomizer");
+    return NextResponse.rewrite(url);
+  }
+
+  if (url.pathname === "/update-password") {
+    url.searchParams.set("app", "randomizer");
+    return NextResponse.rewrite(url);
+  }
+
+  if (url.pathname === "/isopedia") {
+    url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
+
   if (url.pathname === "/billing") {
     url.pathname = "/randomizer/billing";
+    return NextResponse.rewrite(url);
+  }
+
+  if (url.pathname === "/verify") {
+    url.pathname = "/randomizer/verify";
+    return NextResponse.rewrite(url);
+  }
+
+  if (url.pathname === "/faq") {
+    url.pathname = "/randomizer/faq";
     return NextResponse.rewrite(url);
   }
 

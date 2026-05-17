@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type { RandomizerSpin, RandomizerWinner } from "@/lib/randomizer";
+import WheelReplay from "../../WheelReplay";
 
 type RandomizerRow = {
   public_code: string;
@@ -91,6 +92,14 @@ export default async function RandomizerResultPage({
           )}
         </section>
 
+        <div className="mt-5">
+          <WheelReplay
+            entries={data.entries}
+            spinHistory={data.spin_history}
+            winners={data.winners}
+          />
+        </div>
+
         <section className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-6">
           <h2 className="text-2xl font-black">Winner{data.winners.length === 1 ? "" : "s"}</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -145,10 +154,7 @@ export default async function RandomizerResultPage({
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Link className="rounded-xl bg-emerald-300 px-5 py-3 font-black text-slate-950 hover:bg-emerald-200" href="/randomizer">
-            Create Another Result
-          </Link>
-          <Link className="rounded-xl border border-white/10 bg-white/10 px-5 py-3 font-black text-white hover:bg-white/15" href="/isopedia">
-            Back to Isopedia
+            Back to Randomizer
           </Link>
         </div>
       </div>

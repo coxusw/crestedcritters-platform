@@ -7,6 +7,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase";
 export default function UpdatePasswordPage() {
   const supabase = createSupabaseBrowserClient();
   const router = useRouter();
+  const [isRandomizer, setIsRandomizer] = useState(false);
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -24,6 +25,10 @@ export default function UpdatePasswordPage() {
 
       try {
         const url = new URL(window.location.href);
+        const randomizerContext =
+          url.searchParams.get("app") === "randomizer" ||
+          url.hostname.toLowerCase().startsWith("randomizer.");
+        if (mounted) setIsRandomizer(randomizerContext);
         const code = url.searchParams.get("code");
         const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
         const accessToken = hashParams.get("access_token");
@@ -99,7 +104,7 @@ export default function UpdatePasswordPage() {
     setMessage("Password updated successfully.");
 
     setTimeout(() => {
-      router.push("/login");
+      router.push(isRandomizer ? "/login?app=randomizer&next=/" : "/login");
     }, 2000);
   }
 
@@ -108,7 +113,7 @@ export default function UpdatePasswordPage() {
       <div className="mx-auto max-w-md">
         <div className="mb-8 text-center">
           <p className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">
-            Isopedia
+            {isRandomizer ? "Randomizer" : "Isopedia"}
           </p>
 
           <h1 className="mt-3 text-4xl font-black text-white">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import WheelReplay, { type WheelSpin, type WheelWinner } from "./WheelReplay";
 
 type Status = {
   tone: "idle" | "good" | "bad";
@@ -62,6 +63,12 @@ export default function RandomizerClient() {
   const [preventDuplicateWinners, setPreventDuplicateWinners] = useState(true);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [replay, setReplay] = useState<{
+    entries: string[];
+    spinHistory: WheelSpin[];
+    winners: WheelWinner[];
+    redirectUrl: string;
+  } | null>(null);
   const [status, setStatus] = useState<Status>({
     tone: "idle",
     message: "Waiting for randomizer details.",
@@ -112,6 +119,9 @@ export default function RandomizerClient() {
         resultUrl?: string;
         publicCode?: string;
         billingUrl?: string;
+        entries?: string[];
+        spinHistory?: WheelSpin[];
+        winners?: WheelWinner[];
       };
 
       if (!response.ok) {
@@ -135,9 +145,21 @@ export default function RandomizerClient() {
         const isRandomizerHost = window.location.hostname
           .toLowerCase()
           .startsWith("randomizer.");
-        window.location.href = isRandomizerHost
+        const redirectUrl = isRandomizerHost
           ? `/results/${payload.publicCode}`
           : payload.resultUrl || `/randomizer/results/${payload.publicCode}`;
+
+        if (payload.entries && payload.spinHistory && payload.winners) {
+          setReplay({
+            entries: payload.entries,
+            spinHistory: payload.spinHistory,
+            winners: payload.winners,
+            redirectUrl,
+          });
+          return;
+        }
+
+        window.location.href = redirectUrl;
       }
     } catch (error) {
       setStatus({
@@ -167,6 +189,24 @@ export default function RandomizerClient() {
         : "border-white/10 bg-white/5 text-emerald-50/70";
 
   return (
+    <>
+    {replay && (
+      <div className="fixed inset-0 z-50 overflow-auto bg-[#07130c]/95 p-4 backdrop-blur">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-emerald-50">
+            <p className="font-black">Official result saved. The wheel is replaying the server-generated result.</p>
+          </div>
+          <WheelReplay
+            entries={replay.entries}
+            spinHistory={replay.spinHistory}
+            winners={replay.winners}
+            autoPlay
+            redirectUrl={replay.redirectUrl}
+          />
+        </div>
+      </div>
+    )}
+
     <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
       <section className="rounded-2xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/20">
         <div className="grid gap-4">
@@ -337,5 +377,6 @@ export default function RandomizerClient() {
         </div>
       </aside>
     </div>
+    </>
   );
 }

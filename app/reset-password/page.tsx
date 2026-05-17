@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 export default function ResetPasswordPage() {
   const supabase = createSupabaseBrowserClient();
+  const [isRandomizer, setIsRandomizer] = useState(false);
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setIsRandomizer(
+      params.get("app") === "randomizer" ||
+        window.location.hostname.toLowerCase().startsWith("randomizer.")
+    );
+  }, []);
 
   async function handleReset(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -21,7 +30,9 @@ export default function ResetPasswordPage() {
 
     const redirectTo =
       typeof window !== "undefined"
-        ? `${window.location.origin}/auth/confirm?next=/update-password`
+        ? `${window.location.origin}/auth/confirm?next=${encodeURIComponent(
+            `/update-password${isRandomizer ? "?app=randomizer" : ""}`
+          )}`
         : undefined;
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -45,7 +56,7 @@ export default function ResetPasswordPage() {
       <div className="mx-auto max-w-md">
         <div className="mb-8 text-center">
           <p className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">
-            Isopedia
+            {isRandomizer ? "Randomizer" : "Isopedia"}
           </p>
 
           <h1 className="mt-3 text-4xl font-black text-white">
@@ -100,7 +111,7 @@ export default function ResetPasswordPage() {
 
           <div className="mt-6 text-center">
             <Link
-              href="/login"
+              href={isRandomizer ? "/login?app=randomizer&next=/" : "/login"}
               className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
             >
               Back to Login
