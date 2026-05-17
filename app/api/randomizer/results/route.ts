@@ -118,6 +118,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         publicCode: data.public_code,
         resultUrl: `/randomizer/results/${data.public_code}`,
+        mode,
         entries,
         spinHistory: generated.spinHistory,
         winners: generated.winners,

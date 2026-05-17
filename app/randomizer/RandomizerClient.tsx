@@ -59,7 +59,7 @@ async function compressLogo(file: File | null) {
   });
 }
 
-export default function RandomizerClient() {
+export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [rules, setRules] = useState("");
@@ -80,6 +80,7 @@ export default function RandomizerClient() {
     entries: string[];
     spinHistory: WheelSpin[];
     winners: WheelWinner[];
+    mode: string;
     redirectUrl: string;
   } | null>(null);
   const [status, setStatus] = useState<Status>({
@@ -92,6 +93,8 @@ export default function RandomizerClient() {
 
   useEffect(() => {
     async function loadTemplates() {
+      if (!isLoggedIn) return;
+
       const response = await fetch("/api/randomizer/templates");
 
       if (!response.ok) return;
@@ -101,7 +104,7 @@ export default function RandomizerClient() {
     }
 
     void loadTemplates();
-  }, []);
+  }, [isLoggedIn]);
 
   async function selectedLogoDataUrl() {
     if (logoFile) {
@@ -114,6 +117,14 @@ export default function RandomizerClient() {
   }
 
   async function saveTemplate() {
+    if (!isLoggedIn) {
+      setStatus({
+        tone: "bad",
+        message: "Please log in before saving templates.",
+      });
+      return;
+    }
+
     setIsSavingTemplate(true);
     setStatus({ tone: "idle", message: "Saving template..." });
 
@@ -166,6 +177,21 @@ export default function RandomizerClient() {
   }
 
   async function generateResult() {
+    if (!isLoggedIn) {
+      setStatus({
+        tone: "bad",
+        message: "Please log in before randomizing an official result.",
+      });
+
+      const isRandomizerHost = window.location.hostname
+        .toLowerCase()
+        .startsWith("randomizer.");
+      window.location.href = isRandomizerHost
+        ? "/login?next=/"
+        : "/login?app=randomizer&next=/randomizer";
+      return;
+    }
+
     if (entries.length < 2) {
       setStatus({ tone: "bad", message: "Enter at least 2 names." });
       return;
@@ -210,6 +236,7 @@ export default function RandomizerClient() {
         entries?: string[];
         spinHistory?: WheelSpin[];
         winners?: WheelWinner[];
+        mode?: string;
       };
 
       if (!response.ok) {
@@ -242,6 +269,7 @@ export default function RandomizerClient() {
             entries: payload.entries,
             spinHistory: payload.spinHistory,
             winners: payload.winners,
+            mode: payload.mode || mode,
             redirectUrl,
           });
           return;
@@ -295,6 +323,7 @@ export default function RandomizerClient() {
             entries={replay.entries}
             spinHistory={replay.spinHistory}
             winners={replay.winners}
+            mode={replay.mode}
             autoPlay
             redirectUrl={replay.redirectUrl}
           />
@@ -321,7 +350,7 @@ export default function RandomizerClient() {
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               className="min-h-24 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:ring-4 focus:ring-emerald-400/20"
-              placeholder="Example: Winner receives one free isopod culture."
+              placeholder="Example: Winner receives $500"
             />
           </label>
 
@@ -337,12 +366,20 @@ export default function RandomizerClient() {
 
           <label className="grid gap-2">
             <span className="text-sm font-black text-emerald-100">Logo</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => setLogoFile(event.target.files?.[0] || null)}
-              className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-300 file:px-3 file:py-2 file:font-black file:text-slate-950"
-            />
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-3">
+              <label className="cursor-pointer rounded-lg bg-emerald-300 px-3 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-200">
+                Browse
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => setLogoFile(event.target.files?.[0] || null)}
+                  className="sr-only"
+                />
+              </label>
+              <span className="text-sm text-emerald-50/70">
+                {logoFile?.name || (logoDataUrl ? "Template logo loaded" : "No file selected")}
+              </span>
+            </div>
             {logoDataUrl && !logoFile && (
               <span className="text-sm text-emerald-50/60">
                 Template logo loaded.
@@ -376,7 +413,6 @@ export default function RandomizerClient() {
             >
               <option value="spin-count">Spin Count - final winner is the last spin</option>
               <option value="last-name-spun">Last Name Spun - remove names until one remains</option>
-              <option value="multi-prize">Multiple Winners / Prize List</option>
             </select>
           </label>
 
@@ -501,7 +537,7 @@ export default function RandomizerClient() {
               type="button"
               onClick={saveTemplate}
               disabled={isSavingTemplate}
-              className="mt-3 w-full rounded-xl border border-white/10 bg-white/10 px-5 py-3 font-black text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-3 w-full rounded-xl bg-emerald-300 px-5 py-3 font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSavingTemplate ? "Saving..." : "Save Current Setup"}
             </button>
@@ -514,7 +550,7 @@ export default function RandomizerClient() {
               disabled={isSubmitting}
               className="rounded-xl bg-emerald-300 px-5 py-3 font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
             >
-              {isSubmitting ? "Generating..." : "Generate Official Result"}
+              {isSubmitting ? "Randomizing..." : "Randomize"}
             </button>
 
             <button

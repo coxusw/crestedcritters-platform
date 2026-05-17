@@ -12,7 +12,7 @@ const sections = [
   },
   {
     title: "How winners are determined",
-    body: "The Randomizer uses server-side cryptographic randomness. Each entry line is treated as one entry, so duplicate names count as extra chances when the rules allow multiple entries. For Spin Count mode, the final spin is the official winner. For Last Name Spun mode, names are removed until one remains. For Multiple Winners mode, one winner is selected for each prize or requested winner slot. The selected names, spin order, winners, and original entry list are saved together.",
+    body: "The Randomizer uses server-side cryptographic randomness. Each entry line is treated as one entry, so duplicate names count as extra chances when the rules allow multiple entries. For Spin Count mode, the final spin is the official winner. For Last Name Spun mode, names are removed until one remains. The selected names, spin order, winner, and original entry list are saved together.",
   },
   {
     title: "Why the result is harder to fake",

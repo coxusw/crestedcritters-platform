@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import RandomizerClient from "./RandomizerClient";
 
@@ -13,10 +12,6 @@ export default async function RandomizerPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login?next=/randomizer");
-  }
 
   return (
     <main className="min-h-screen bg-[#07130c] px-4 py-8 text-white">
@@ -45,7 +40,7 @@ export default async function RandomizerPage() {
           </nav>
         </header>
 
-        <RandomizerClient />
+        <RandomizerClient isLoggedIn={Boolean(user)} />
       </div>
     </main>
   );

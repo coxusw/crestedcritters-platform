@@ -94,6 +94,7 @@ export default async function RandomizerResultPage({
 
         <div className="mt-5">
           <WheelReplay
+            mode={data.mode}
             entries={data.entries}
             spinHistory={data.spin_history}
             winners={data.winners}
