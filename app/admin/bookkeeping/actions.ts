@@ -57,6 +57,8 @@ export async function createManualBookkeepingTransaction(formData: FormData) {
         description: textValue(formData, "description") || null,
         amount: numberValue(formData, "amount"),
         payment_method: textValue(formData, "payment_method") || null,
+        mileage: numberValue(formData, "mileage"),
+        mileage_deduction: numberValue(formData, "mileage_deduction"),
         source: "manual",
         imported_from: "Manual",
         notes: textValue(formData, "notes") || null,
@@ -112,6 +114,33 @@ export async function pullSquareBookkeepingTransactions() {
   }
 }
 
+export async function deletePre2026BookkeepingTransactions() {
+  await requireContentAgentAdmin();
+
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { count, error: countError } = await supabase
+      .from("bookkeeping_transactions")
+      .select("id", { count: "exact", head: true })
+      .lt("transaction_date", "2026-01-01");
+
+    if (countError) throw new Error(countError.message);
+
+    if (count && count > 0) {
+      const { error } = await supabase
+        .from("bookkeeping_transactions")
+        .delete()
+        .lt("transaction_date", "2026-01-01");
+
+      if (error) throw new Error(error.message);
+    }
+
+    redirectWithNotice(`Removed ${count || 0} bookkeeping rows dated before 01/01/2026.`);
+  } catch (error) {
+    redirectWithError(error);
+  }
+}
+
 export async function updateBookkeepingTransaction(formData: FormData) {
   await requireContentAgentAdmin();
 
@@ -136,6 +165,8 @@ export async function updateBookkeepingTransaction(formData: FormData) {
         description: textValue(formData, "description") || null,
         amount: numberValue(formData, "amount"),
         payment_method: textValue(formData, "payment_method") || null,
+        mileage: numberValue(formData, "mileage"),
+        mileage_deduction: numberValue(formData, "mileage_deduction"),
         receipt_status: textValue(formData, "receipt_status") || null,
         receipt_location: textValue(formData, "receipt_location") || null,
         notes: textValue(formData, "notes") || null,

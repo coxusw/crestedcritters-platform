@@ -3,6 +3,7 @@ import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
   createManualBookkeepingTransaction,
+  deletePre2026BookkeepingTransactions,
   pullSquareBookkeepingTransactions,
   updateBookkeepingTransaction,
 } from "./actions";
@@ -119,15 +120,19 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           </div>
         )}
 
-        <section className="grid gap-3 md:grid-cols-5">
+        <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+          <StatCard label="Square Ledger Balance" value={summary.squareBalance} money alert={summary.squareBalance < 0} />
+          <StatCard label="Cash On Hand" value={summary.cashOnHand} money alert={summary.cashOnHand < 0} />
           <StatCard label="Income" value={summary.income} money />
           <StatCard label="Expenses" value={summary.expenses} money />
           <StatCard label="Owner Contributions" value={summary.ownerContributions} money />
           <StatCard label="Owner Draw / Personal" value={summary.ownerDraws} money alert={summary.ownerDraws > 0} />
+          <StatCard label="Miles" value={summary.miles} />
+          <StatCard label="Mileage Deduction" value={summary.mileageDeduction} money />
           <StatCard label="Needs Review" value={summary.needsReview} alert={summary.needsReview > 0} />
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[22rem_1fr]">
+        <section className="grid gap-4 xl:grid-cols-[22rem_22rem_1fr]">
           <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
             <h2 className="font-bold">Square Pull</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
@@ -141,9 +146,21 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
             </form>
           </div>
 
+          <div className="rounded-lg border border-red-400/20 bg-red-500/[0.06] p-4">
+            <h2 className="font-bold">Clean Old Rows</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              Removes bookkeeping rows dated before 01/01/2026 from this ledger.
+            </p>
+            <form action={deletePre2026BookkeepingTransactions} className="mt-4">
+              <button className="w-full rounded-md border border-red-300/40 bg-red-500/20 px-4 py-2 text-sm font-bold text-red-100 hover:bg-red-500/30">
+                Remove Pre-2026 Rows
+              </button>
+            </form>
+          </div>
+
           <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
             <h2 className="font-bold">Add Manual Entry</h2>
-            <form action={createManualBookkeepingTransaction} className="mt-3 grid gap-3 lg:grid-cols-[9rem_8rem_12rem_12rem_1fr_8rem_10rem_auto]">
+            <form action={createManualBookkeepingTransaction} className="mt-3 grid gap-3 lg:grid-cols-[9rem_8rem_12rem_12rem_1fr_8rem_10rem_6rem_7rem_auto]">
               <input
                 type="date"
                 name="transaction_date"
@@ -172,6 +189,16 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                 placeholder="cash/personal"
                 className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
               />
+              <input
+                name="mileage"
+                placeholder="Miles"
+                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+              />
+              <input
+                name="mileage_deduction"
+                placeholder="Mileage $"
+                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+              />
               <label className="flex items-center gap-2 text-xs text-slate-300">
                 <input type="checkbox" name="reviewed" defaultChecked />
                 Reviewed
@@ -180,7 +207,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                 name="notes"
                 placeholder="Notes"
                 rows={2}
-                className="lg:col-span-7 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+                className="lg:col-span-9 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
               />
               <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
                 Add
@@ -223,7 +250,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-[1180px] w-full text-left text-sm">
+            <table className="min-w-[1380px] w-full text-left text-sm">
               <thead className="border-b border-white/10 bg-slate-950/70 text-xs uppercase tracking-wide text-slate-400">
                 <tr>
                   <th className="px-3 py-2">Date</th>
@@ -233,6 +260,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                   <th className="px-3 py-2">Description</th>
                   <th className="px-3 py-2">Amount</th>
                   <th className="px-3 py-2">Payment</th>
+                  <th className="px-3 py-2">Mileage</th>
                   <th className="px-3 py-2">Notes</th>
                   <th className="px-3 py-2">Reviewed</th>
                   <th className="px-3 py-2">Actions</th>
@@ -289,19 +317,51 @@ function summarizeTransactions(transactions: TransactionRow[]) {
     (totals, transaction) => {
       if (!transaction.reviewed) totals.needsReview += 1;
       if (transaction.classification === "ignore") return totals;
+      const amount = Number(transaction.amount || 0);
+      const paymentLabel = `${transaction.payment_method || ""} ${transaction.money_destination || ""}`.toLowerCase();
+
       if (transaction.classification === "owner_contribution") {
-        totals.ownerContributions += Number(transaction.amount || 0);
+        totals.ownerContributions += amount;
       } else if (transaction.classification === "owner_draw") {
-        totals.ownerDraws += Number(transaction.amount || 0);
+        totals.ownerDraws += amount;
       } else if (transaction.type === "income") {
-        totals.income += Number(transaction.amount || 0);
+        totals.income += amount;
       } else if (transaction.type === "expense" || transaction.type === "mileage") {
-        totals.expenses += Number(transaction.amount || 0);
+        totals.expenses += amount;
       }
+
+      if (paymentLabel.includes("square")) {
+        totals.squareBalance += balanceEffect(transaction, amount);
+      }
+      if (paymentLabel.includes("cash")) {
+        totals.cashOnHand += balanceEffect(transaction, amount);
+      }
+      totals.miles += Number(transaction.mileage || 0);
+      totals.mileageDeduction += Number(transaction.mileage_deduction || 0);
       return totals;
     },
-    { income: 0, expenses: 0, ownerContributions: 0, ownerDraws: 0, needsReview: 0 }
+    {
+      income: 0,
+      expenses: 0,
+      ownerContributions: 0,
+      ownerDraws: 0,
+      squareBalance: 0,
+      cashOnHand: 0,
+      miles: 0,
+      mileageDeduction: 0,
+      needsReview: 0,
+    }
   );
+}
+
+function balanceEffect(transaction: TransactionRow, amount: number) {
+  if (transaction.classification === "owner_draw") return -amount;
+  if (transaction.classification === "owner_contribution") return amount;
+  if (transaction.type === "income") return amount;
+  if (transaction.type === "expense" || transaction.type === "tax" || transaction.type === "transfer") {
+    return -amount;
+  }
+  return 0;
 }
 
 function TransactionRowEditor({
@@ -373,6 +433,25 @@ function TransactionRowEditor({
           defaultValue={transaction.payment_method || transaction.money_destination || ""}
           className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
         />
+      </td>
+      <td className="w-40 px-2 py-2">
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            form={formId}
+            name="mileage"
+            defaultValue={transaction.mileage ? Number(transaction.mileage).toFixed(2) : ""}
+            placeholder="Miles"
+            className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-right text-sm text-slate-100"
+          />
+          <input
+            form={formId}
+            name="mileage_deduction"
+            defaultValue={transaction.mileage_deduction ? Number(transaction.mileage_deduction).toFixed(2) : ""}
+            placeholder="$"
+            className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-right text-sm text-slate-100"
+          />
+        </div>
+        <div className="mt-1 text-xs text-slate-500">miles / deduction</div>
       </td>
       <td className="min-w-[16rem] px-2 py-2">
         <textarea

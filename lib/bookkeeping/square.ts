@@ -78,8 +78,7 @@ export async function fetchSquareBookkeepingTransactions() {
   let cursor: string | undefined;
   let page = 0;
 
-  const beginTime = new Date();
-  beginTime.setFullYear(beginTime.getFullYear() - 1);
+  const beginTime = new Date("2026-01-01T00:00:00.000Z");
 
   do {
     const params = new URLSearchParams({
