@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type { RandomizerSpin, RandomizerWinner } from "@/lib/randomizer";
 import WheelReplay from "../../WheelReplay";
+import CopyResultUrlButton from "./CopyResultUrlButton";
 
 type RandomizerRow = {
   public_code: string;
@@ -16,6 +17,12 @@ type RandomizerRow = {
   winners: RandomizerWinner[];
   logo_data_url: string | null;
 };
+
+function resultRetentionCutoff() {
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 1);
+  return cutoff;
+}
 
 function formatCentralTime(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -55,6 +62,7 @@ export default async function RandomizerResultPage({
       "public_code, created_at, title, description, rules, mode, entries, spin_history, winners, logo_data_url"
     )
     .eq("public_code", code.toUpperCase())
+    .gte("created_at", resultRetentionCutoff().toISOString())
     .maybeSingle<RandomizerRow>();
 
   if (!data) notFound();
@@ -73,12 +81,15 @@ export default async function RandomizerResultPage({
                 Code <span className="font-black text-emerald-200">{data.public_code}</span> ·{" "}
                 {formatCentralTime(data.created_at)}
               </p>
-              <Link
-                className="mt-4 inline-flex rounded-xl border border-emerald-300/30 bg-emerald-300/10 px-4 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-300/15"
-                href={`/verify?code=${encodeURIComponent(data.public_code)}`}
-              >
-                Verify this code
-              </Link>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  className="mt-4 inline-flex rounded-xl border border-emerald-300/30 bg-emerald-300/10 px-4 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-300/15"
+                  href={`/verify?code=${encodeURIComponent(data.public_code)}`}
+                >
+                  Verify this code
+                </Link>
+                <CopyResultUrlButton />
+              </div>
             </div>
 
             {data.logo_data_url && (

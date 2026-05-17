@@ -20,7 +20,7 @@ const sections = [
   },
   {
     title: "How to verify a result",
-    body: "Ask the Randomizer user for the result link or verification code. Open the result link directly, or go to the Verify Result page and enter the code. If the code exists, you will see the official saved result page. If the code does not exist, it is not a saved official result.",
+    body: "Ask the Randomizer user for the result link or verification code. Open the result link directly, or go to the Verify Result page and enter the code. If the code exists and is still within the one-year storage period, you will see the official saved result page. If the code does not exist, it is not a saved official result.",
   },
   {
     title: "What the wheel replay means",
@@ -33,6 +33,14 @@ const sections = [
   {
     title: "Credits and access",
     body: "Users can buy time-based access for unlimited results during the active period, or buy credits for occasional use. Credits do not expire. If a user has no active access plan, one official result costs one credit.",
+  },
+  {
+    title: "How long results are stored",
+    body: "Official results are stored for one year. After one year, result records are deleted to keep the Randomizer database clean and limit long-term storage of old entry lists, logos, and spin history.",
+  },
+  {
+    title: "Template limits",
+    body: "Each user can save up to 5 templates. Users with lifetime access can save up to 10 templates. These limits help keep uploaded template logos from using excessive storage.",
   },
   {
     title: "What players should check",
