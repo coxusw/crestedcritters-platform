@@ -66,79 +66,95 @@ export async function createManualBookkeepingTransaction(formData: FormData) {
       });
 
     if (error) throw new Error(error.message);
-
-    redirectWithNotice("Added manual bookkeeping entry.");
   } catch (error) {
     redirectWithError(error);
   }
+
+  redirectWithNotice("Added manual bookkeeping entry.");
 }
 
 export async function pullSquareBookkeepingTransactions() {
   await requireContentAgentAdmin();
+  let notice = "";
 
   try {
     const squareTransactions = await fetchSquareBookkeepingTransactions();
     if (squareTransactions.length === 0) {
-      redirectWithNotice("Square pull finished. No completed payments were found in the last year.");
-    }
-
-    const supabase = createSupabaseAdminClient();
-    const sourceKeys = squareTransactions.map((transaction) => transaction.source_key);
-    const { data: existingRows, error: existingError } = await supabase
-      .from("bookkeeping_transactions")
-      .select("source_key")
-      .in("source_key", sourceKeys);
-
-    if (existingError) throw new Error(existingError.message);
-
-    const existingKeys = new Set((existingRows || []).map((row) => row.source_key));
-    const newTransactions = squareTransactions.filter(
-      (transaction) => !existingKeys.has(transaction.source_key)
-    );
-
-    if (newTransactions.length > 0) {
-      const { error } = await supabase
+      notice = "Square pull finished. No completed payments were found for 2026.";
+    } else {
+      const supabase = createSupabaseAdminClient();
+      const sourceKeys = squareTransactions.map((transaction) => transaction.source_key);
+      const { data: existingRows, error: existingError } = await supabase
         .from("bookkeeping_transactions")
-        .insert(newTransactions);
+        .select("source_key")
+        .in("source_key", sourceKeys);
 
-      if (error) throw new Error(error.message);
-    }
+      if (existingError) throw new Error(existingError.message);
 
-    redirectWithNotice(
-      `Square pull finished. Added ${newTransactions.length} new payment rows. Skipped ${
+      const existingKeys = new Set((existingRows || []).map((row) => row.source_key));
+      const newTransactions = squareTransactions.filter(
+        (transaction) => !existingKeys.has(transaction.source_key)
+      );
+
+      if (newTransactions.length > 0) {
+        const { error } = await supabase
+          .from("bookkeeping_transactions")
+          .insert(newTransactions);
+
+        if (error) throw new Error(error.message);
+      }
+
+      notice = `Square pull finished. Added ${newTransactions.length} new payment rows. Skipped ${
         squareTransactions.length - newTransactions.length
-      } already imported rows.`
-    );
+      } already imported rows.`;
+    }
   } catch (error) {
     redirectWithError(error);
   }
+
+  redirectWithNotice(notice);
 }
 
-export async function deletePre2026BookkeepingTransactions() {
+export async function rebalanceBookkeepingBalances(formData: FormData) {
   await requireContentAgentAdmin();
+  let notice = "";
 
   try {
+    const squareTarget = numberValue(formData, "square_balance");
+    const cashTarget = numberValue(formData, "cash_on_hand");
     const supabase = createSupabaseAdminClient();
-    const { count, error: countError } = await supabase
+
+    const { data, error: fetchError } = await supabase
       .from("bookkeeping_transactions")
-      .select("id", { count: "exact", head: true })
-      .lt("transaction_date", "2026-01-01");
+      .select("type, classification, amount, payment_method, money_destination, source")
+      .gte("transaction_date", "2026-01-01")
+      .limit(2000);
 
-    if (countError) throw new Error(countError.message);
+    if (fetchError) throw new Error(fetchError.message);
 
-    if (count && count > 0) {
-      const { error } = await supabase
-        .from("bookkeeping_transactions")
-        .delete()
-        .lt("transaction_date", "2026-01-01");
+    const current = summarizeBalancesForAction(data || []);
+    const squareDelta = Number((squareTarget - current.squareBalance).toFixed(2));
+    const cashDelta = Number((cashTarget - current.cashOnHand).toFixed(2));
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = [
+      buildRebalanceRow("Square", squareTarget, squareDelta, today),
+      buildRebalanceRow("Cash", cashTarget, cashDelta, today),
+    ].filter((row) => Math.abs(row.amount) >= 0.01);
 
+    if (rows.length > 0) {
+      const { error } = await supabase.from("bookkeeping_transactions").insert(rows);
       if (error) throw new Error(error.message);
     }
 
-    redirectWithNotice(`Removed ${count || 0} bookkeeping rows dated before 01/01/2026.`);
+    notice =
+      rows.length > 0
+        ? `Rebalanced books. Square adjustment: ${formatSignedMoney(squareDelta)}. Cash adjustment: ${formatSignedMoney(cashDelta)}.`
+        : "Books already match those Square and cash balances.";
   } catch (error) {
     redirectWithError(error);
   }
+
+  redirectWithNotice(notice);
 }
 
 export async function updateBookkeepingTransaction(formData: FormData) {
@@ -176,9 +192,68 @@ export async function updateBookkeepingTransaction(formData: FormData) {
       .eq("id", id);
 
     if (error) throw new Error(error.message);
-
-    redirectWithNotice("Saved bookkeeping transaction.");
   } catch (error) {
     redirectWithError(error);
   }
+
+  redirectWithNotice("Saved bookkeeping transaction.");
+}
+
+type BalanceActionRow = {
+  type: string;
+  classification: string;
+  amount: number;
+  payment_method: string | null;
+  money_destination: string | null;
+  source: string;
+};
+
+function summarizeBalancesForAction(rows: BalanceActionRow[]) {
+  return rows.reduce(
+    (totals, row) => {
+      const label = `${row.payment_method || ""} ${row.money_destination || ""}`.toLowerCase();
+      const amount = Number(row.amount || 0);
+      if (label.includes("square")) totals.squareBalance += balanceEffectForAction(row, amount);
+      if (label.includes("cash")) totals.cashOnHand += balanceEffectForAction(row, amount);
+      return totals;
+    },
+    { squareBalance: 0, cashOnHand: 0 }
+  );
+}
+
+function balanceEffectForAction(row: BalanceActionRow, amount: number) {
+  if (row.source === "rebalance") return amount;
+  if (row.classification === "ignore") return 0;
+  if (row.classification === "owner_draw") return -amount;
+  if (row.classification === "owner_contribution") return amount;
+  if (row.type === "income") return amount;
+  if (row.type === "expense" || row.type === "tax" || row.type === "transfer") return -amount;
+  return 0;
+}
+
+function buildRebalanceRow(destination: "Square" | "Cash", target: number, amount: number, date: string) {
+  return {
+    transaction_date: date,
+    type: "transfer",
+    classification: "ignore",
+    category: "Balance Rebalance",
+    description: `Rebalanced available ${destination} balance to ${formatSignedMoney(target).replace("+", "")} on ${date}`,
+    amount,
+    payment_method: destination,
+    source: "rebalance",
+    source_key: `rebalance-${destination.toLowerCase()}-${date}-${Date.now()}`,
+    imported_from: "Balance Rebalance",
+    money_destination: destination,
+    notes: "Opening 2026 balance correction so the ledger matches available funds going forward.",
+    reviewed: true,
+  };
+}
+
+function formatSignedMoney(value: number) {
+  const formatted = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    signDisplay: "always",
+  }).format(value);
+  return formatted.replace("+-$", "-$");
 }

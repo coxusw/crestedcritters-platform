@@ -60,32 +60,33 @@ function centsToDollars(value?: number) {
 
 function requireSquareEnv() {
   const accessToken = process.env.SQUARE_ACCESS_TOKEN;
-  const locationId = process.env.SQUARE_LOCATION_ID;
 
   if (!accessToken) throw new Error("Missing SQUARE_ACCESS_TOKEN.");
-  if (!locationId) throw new Error("Missing SQUARE_LOCATION_ID.");
 
   return {
     accessToken,
-    locationId,
     apiVersion: process.env.SQUARE_API_VERSION || DEFAULT_API_VERSION,
+    bookkeepingLocationId: process.env.SQUARE_BOOKKEEPING_LOCATION_ID || "",
   };
 }
 
 export async function fetchSquareBookkeepingTransactions() {
-  const { accessToken, locationId, apiVersion } = requireSquareEnv();
+  const { accessToken, apiVersion, bookkeepingLocationId } = requireSquareEnv();
   const imported: SquareBookkeepingTransaction[] = [];
   let cursor: string | undefined;
   let page = 0;
 
   const beginTime = new Date("2026-01-01T00:00:00.000Z");
+  const endTime = new Date();
 
   do {
     const params = new URLSearchParams({
-      location_id: locationId,
       begin_time: beginTime.toISOString(),
+      end_time: endTime.toISOString(),
       limit: "100",
+      sort_order: "ASC",
     });
+    if (bookkeepingLocationId) params.set("location_id", bookkeepingLocationId);
     if (cursor) params.set("cursor", cursor);
 
     const response = await fetch(`${squareApiBase()}/v2/payments?${params.toString()}`, {

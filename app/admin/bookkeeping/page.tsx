@@ -3,8 +3,8 @@ import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
   createManualBookkeepingTransaction,
-  deletePre2026BookkeepingTransactions,
   pullSquareBookkeepingTransactions,
+  rebalanceBookkeepingBalances,
   updateBookkeepingTransaction,
 } from "./actions";
 
@@ -136,8 +136,8 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
             <h2 className="font-bold">Square Pull</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Uses the same Square environment variables as Randomizer. New
-              completed payments import as red Needs Review rows.
+              Pulls 2026 completed payments from all Square locations and skips
+              anything already in the ledger.
             </p>
             <form action={pullSquareBookkeepingTransactions} className="mt-4">
               <button className="w-full rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
@@ -146,14 +146,27 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
             </form>
           </div>
 
-          <div className="rounded-lg border border-red-400/20 bg-red-500/[0.06] p-4">
-            <h2 className="font-bold">Clean Old Rows</h2>
+          <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
+            <h2 className="font-bold">Rebalance</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Removes bookkeeping rows dated before 01/01/2026 from this ledger.
+              Adds reviewed adjustment rows so the 2026 ledger starts from your
+              real available funds.
             </p>
-            <form action={deletePre2026BookkeepingTransactions} className="mt-4">
-              <button className="w-full rounded-md border border-red-300/40 bg-red-500/20 px-4 py-2 text-sm font-bold text-red-100 hover:bg-red-500/30">
-                Remove Pre-2026 Rows
+            <form action={rebalanceBookkeepingBalances} className="mt-4 grid gap-3">
+              <input
+                name="square_balance"
+                defaultValue="69.50"
+                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+                aria-label="Square balance"
+              />
+              <input
+                name="cash_on_hand"
+                defaultValue="100.00"
+                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+                aria-label="Cash on hand"
+              />
+              <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
+                Set Current Balances
               </button>
             </form>
           </div>
@@ -316,10 +329,17 @@ function summarizeTransactions(transactions: TransactionRow[]) {
   return transactions.reduce(
     (totals, transaction) => {
       if (!transaction.reviewed) totals.needsReview += 1;
-      if (transaction.classification === "ignore") return totals;
       const amount = Number(transaction.amount || 0);
       const paymentLabel = `${transaction.payment_method || ""} ${transaction.money_destination || ""}`.toLowerCase();
 
+      if (paymentLabel.includes("square")) {
+        totals.squareBalance += balanceEffect(transaction, amount);
+      }
+      if (paymentLabel.includes("cash")) {
+        totals.cashOnHand += balanceEffect(transaction, amount);
+      }
+
+      if (transaction.classification === "ignore") return totals;
       if (transaction.classification === "owner_contribution") {
         totals.ownerContributions += amount;
       } else if (transaction.classification === "owner_draw") {
@@ -330,12 +350,6 @@ function summarizeTransactions(transactions: TransactionRow[]) {
         totals.expenses += amount;
       }
 
-      if (paymentLabel.includes("square")) {
-        totals.squareBalance += balanceEffect(transaction, amount);
-      }
-      if (paymentLabel.includes("cash")) {
-        totals.cashOnHand += balanceEffect(transaction, amount);
-      }
       totals.miles += Number(transaction.mileage || 0);
       totals.mileageDeduction += Number(transaction.mileage_deduction || 0);
       return totals;
@@ -355,6 +369,8 @@ function summarizeTransactions(transactions: TransactionRow[]) {
 }
 
 function balanceEffect(transaction: TransactionRow, amount: number) {
+  if (transaction.source === "rebalance") return amount;
+  if (transaction.classification === "ignore") return 0;
   if (transaction.classification === "owner_draw") return -amount;
   if (transaction.classification === "owner_contribution") return amount;
   if (transaction.type === "income") return amount;
