@@ -12,18 +12,21 @@ function safeNextPath(value: string | null) {
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const tokenHash = requestUrl.searchParams.get("token_hash");
+  const code = requestUrl.searchParams.get("code");
   const type = requestUrl.searchParams.get("type") as EmailOtpType | null;
   const next = safeNextPath(requestUrl.searchParams.get("next"));
 
-  if (!tokenHash || !type) {
+  if (!tokenHash && !code) {
     return NextResponse.redirect(new URL("/login?error=invalid-auth-link", request.url));
   }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.verifyOtp({
-    token_hash: tokenHash,
-    type,
-  });
+  const { error } = code
+    ? await supabase.auth.exchangeCodeForSession(code)
+    : await supabase.auth.verifyOtp({
+        token_hash: tokenHash!,
+        type: type || "recovery",
+      });
 
   if (error) {
     return NextResponse.redirect(new URL("/login?error=invalid-auth-link", request.url));
