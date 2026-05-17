@@ -37,6 +37,8 @@ const colors = [
   "#e879f9",
 ];
 
+const confettiColors = ["#34d399", "#facc15", "#60a5fa", "#fb7185", "#a78bfa", "#f97316"];
+
 type WheelEntry = {
   name: string;
   entryIndex: number;
@@ -63,6 +65,7 @@ export default function WheelReplay({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const currentSpin = currentSpinIndex >= 0 ? spinHistory[currentSpinIndex] : null;
   const landedSpin = landedSpinIndex >= 0 ? spinHistory[landedSpinIndex] : null;
+  const showConfetti = Boolean(landedSpin?.isWinner);
   const visibleEntries = wheelEntries.slice(0, 12);
 
   useEffect(() => {
@@ -202,6 +205,74 @@ export default function WheelReplay({
 
   return (
     <section className="rounded-2xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/20">
+      <style jsx>{`
+        @keyframes randomizer-confetti-fall {
+          0% {
+            transform: translate3d(0, -20vh, 0) rotate(0deg);
+            opacity: 1;
+          }
+          100% {
+            transform: translate3d(var(--x-drift), 110vh, 0) rotate(720deg);
+            opacity: 0;
+          }
+        }
+
+        @keyframes randomizer-pop {
+          0% {
+            transform: translate(-50%, -50%) scale(0.9);
+            opacity: 0;
+          }
+          100% {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+          }
+        }
+      `}</style>
+
+      {landedSpin && (
+        <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
+          {showConfetti &&
+            Array.from({ length: 90 }, (_, index) => {
+              const left = (index * 37) % 100;
+              const delay = (index % 18) * 0.08;
+              const duration = 2.4 + (index % 7) * 0.18;
+              const drift = `${((index % 11) - 5) * 18}px`;
+
+              return (
+                <span
+                  key={index}
+                  className="absolute top-0 h-3 w-2 rounded-sm"
+                  style={{
+                    left: `${left}%`,
+                    backgroundColor: confettiColors[index % confettiColors.length],
+                    animation: `randomizer-confetti-fall ${duration}s linear ${delay}s forwards`,
+                    "--x-drift": drift,
+                  } as React.CSSProperties}
+                />
+              );
+            })}
+
+          <div
+            className={`absolute left-1/2 top-1/2 w-[min(92vw,560px)] rounded-3xl border p-6 text-center shadow-2xl shadow-black/50 ${
+              showConfetti
+                ? "border-yellow-300/50 bg-yellow-300 text-slate-950"
+                : "border-emerald-300/40 bg-[#102016] text-white"
+            }`}
+            style={{ animation: "randomizer-pop 180ms ease-out forwards" }}
+          >
+            <p className="text-sm font-black uppercase tracking-[0.25em]">
+              {showConfetti ? "Winner" : `Spin ${landedSpin.spinNumber}`}
+            </p>
+            <h2 className="mt-2 text-4xl font-black">{landedSpin.name}</h2>
+            {showConfetti && (
+              <p className="mt-2 text-lg font-black">
+                Official winning spin
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[minmax(260px,420px)_1fr] lg:items-center">
         <div className="relative mx-auto aspect-square w-full max-w-[420px]">
           <div className="absolute -right-2 top-1/2 z-10 h-0 w-0 -translate-y-1/2 border-y-[16px] border-r-[28px] border-y-transparent border-r-white drop-shadow-lg" />
