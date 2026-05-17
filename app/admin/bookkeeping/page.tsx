@@ -3,6 +3,7 @@ import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
   createManualBookkeepingTransaction,
+  pullSquareBookkeepingTransactions,
   updateBookkeepingTransaction,
 } from "./actions";
 
@@ -126,51 +127,66 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           <StatCard label="Needs Review" value={summary.needsReview} alert={summary.needsReview > 0} />
         </section>
 
-        <section className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
-          <h2 className="font-bold">Add Manual Entry</h2>
-          <form action={createManualBookkeepingTransaction} className="mt-3 grid gap-3 lg:grid-cols-[9rem_8rem_12rem_12rem_1fr_8rem_10rem_auto]">
-            <input
-              type="date"
-              name="transaction_date"
-              className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-            />
-            <SelectBox name="type" defaultValue="expense" options={["income", "expense", "equity", "tax", "mileage", "transfer"]} />
-            <SelectBox name="classification" defaultValue="business" options={["business", "owner_contribution", "owner_draw", "sales_tax", "ignore"]} />
-            <input
-              name="category"
-              placeholder="Category"
-              list="bookkeeping-categories"
-              className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-            />
-            <input
-              name="description"
-              placeholder="Description"
-              className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-            />
-            <input
-              name="amount"
-              placeholder="Amount"
-              className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-            />
-            <input
-              name="payment_method"
-              placeholder="cash/personal"
-              className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-            />
-            <label className="flex items-center gap-2 text-xs text-slate-300">
-              <input type="checkbox" name="reviewed" defaultChecked />
-              Reviewed
-            </label>
-            <textarea
-              name="notes"
-              placeholder="Notes"
-              rows={2}
-              className="lg:col-span-7 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-            />
-            <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
-              Add
-            </button>
-          </form>
+        <section className="grid gap-4 xl:grid-cols-[22rem_1fr]">
+          <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
+            <h2 className="font-bold">Square Pull</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              Uses the same Square environment variables as Randomizer. New
+              completed payments import as red Needs Review rows.
+            </p>
+            <form action={pullSquareBookkeepingTransactions} className="mt-4">
+              <button className="w-full rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
+                Pull Square Transactions
+              </button>
+            </form>
+          </div>
+
+          <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
+            <h2 className="font-bold">Add Manual Entry</h2>
+            <form action={createManualBookkeepingTransaction} className="mt-3 grid gap-3 lg:grid-cols-[9rem_8rem_12rem_12rem_1fr_8rem_10rem_auto]">
+              <input
+                type="date"
+                name="transaction_date"
+                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+              />
+              <SelectBox name="type" defaultValue="expense" options={["income", "expense", "equity", "tax", "mileage", "transfer"]} />
+              <SelectBox name="classification" defaultValue="business" options={["business", "owner_contribution", "owner_draw", "sales_tax", "ignore"]} />
+              <input
+                name="category"
+                placeholder="Category"
+                list="bookkeeping-categories"
+                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+              />
+              <input
+                name="description"
+                placeholder="Description"
+                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+              />
+              <input
+                name="amount"
+                placeholder="Amount"
+                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+              />
+              <input
+                name="payment_method"
+                placeholder="cash/personal"
+                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+              />
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input type="checkbox" name="reviewed" defaultChecked />
+                Reviewed
+              </label>
+              <textarea
+                name="notes"
+                placeholder="Notes"
+                rows={2}
+                className="lg:col-span-7 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+              />
+              <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
+                Add
+              </button>
+            </form>
+          </div>
         </section>
 
         <section className="grid gap-4">

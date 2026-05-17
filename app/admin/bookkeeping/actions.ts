@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { requireContentAgentAdmin } from "@/lib/content-agent/security";
+import { fetchSquareBookkeepingTransactions } from "@/lib/bookkeeping/square";
 
 const CLASSIFICATIONS = new Set([
   "business",
@@ -65,6 +66,47 @@ export async function createManualBookkeepingTransaction(formData: FormData) {
     if (error) throw new Error(error.message);
 
     redirectWithNotice("Added manual bookkeeping entry.");
+  } catch (error) {
+    redirectWithError(error);
+  }
+}
+
+export async function pullSquareBookkeepingTransactions() {
+  await requireContentAgentAdmin();
+
+  try {
+    const squareTransactions = await fetchSquareBookkeepingTransactions();
+    if (squareTransactions.length === 0) {
+      redirectWithNotice("Square pull finished. No completed payments were found in the last year.");
+    }
+
+    const supabase = createSupabaseAdminClient();
+    const sourceKeys = squareTransactions.map((transaction) => transaction.source_key);
+    const { data: existingRows, error: existingError } = await supabase
+      .from("bookkeeping_transactions")
+      .select("source_key")
+      .in("source_key", sourceKeys);
+
+    if (existingError) throw new Error(existingError.message);
+
+    const existingKeys = new Set((existingRows || []).map((row) => row.source_key));
+    const newTransactions = squareTransactions.filter(
+      (transaction) => !existingKeys.has(transaction.source_key)
+    );
+
+    if (newTransactions.length > 0) {
+      const { error } = await supabase
+        .from("bookkeeping_transactions")
+        .insert(newTransactions);
+
+      if (error) throw new Error(error.message);
+    }
+
+    redirectWithNotice(
+      `Square pull finished. Added ${newTransactions.length} new payment rows. Skipped ${
+        squareTransactions.length - newTransactions.length
+      } already imported rows.`
+    );
   } catch (error) {
     redirectWithError(error);
   }
