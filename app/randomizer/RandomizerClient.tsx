@@ -66,6 +66,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
   const [names, setNames] = useState("");
   const [mode, setMode] = useState("spin-count");
   const [spinCount, setSpinCount] = useState(1);
+  const [pauseBetweenSpins, setPauseBetweenSpins] = useState(false);
   const [winnerCount, setWinnerCount] = useState(1);
   const [prizeList, setPrizeList] = useState("");
   const [preventDuplicateWinners, setPreventDuplicateWinners] = useState(true);
@@ -81,6 +82,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
     spinHistory: WheelSpin[];
     winners: WheelWinner[];
     mode: string;
+    manualAdvance: boolean;
     redirectUrl: string;
   } | null>(null);
   const [status, setStatus] = useState<Status>({
@@ -270,6 +272,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
             spinHistory: payload.spinHistory,
             winners: payload.winners,
             mode: payload.mode || mode,
+            manualAdvance: pauseBetweenSpins,
             redirectUrl,
           });
           return;
@@ -325,6 +328,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
             winners={replay.winners}
             mode={replay.mode}
             autoPlay
+            manualAdvance={replay.manualAdvance}
             redirectUrl={replay.redirectUrl}
           />
         </div>
@@ -458,6 +462,16 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
               </div>
             </>
           )}
+
+          <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-4 text-sm font-bold text-emerald-50">
+            <input
+              type="checkbox"
+              checked={pauseBetweenSpins}
+              onChange={(event) => setPauseBetweenSpins(event.target.checked)}
+              className="h-5 w-5"
+            />
+            Pause between spins until the Spin button is clicked
+          </label>
 
           {mode === "multi-prize" && (
             <>

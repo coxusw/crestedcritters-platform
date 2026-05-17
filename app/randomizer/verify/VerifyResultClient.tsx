@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function cleanCode(value: string) {
   return value.replace(/[^a-z0-9]/gi, "").toUpperCase();
@@ -8,6 +8,13 @@ function cleanCode(value: string) {
 
 export default function VerifyResultClient() {
   const [code, setCode] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const initialCode = cleanCode(params.get("code") || "");
+
+    if (initialCode) setCode(initialCode);
+  }, []);
 
   function verify(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -23,6 +23,7 @@ type Props = {
   spinHistory: WheelSpin[];
   winners: WheelWinner[];
   autoPlay?: boolean;
+  manualAdvance?: boolean;
   redirectUrl?: string;
 };
 
@@ -50,6 +51,7 @@ export default function WheelReplay({
   spinHistory,
   winners,
   autoPlay = false,
+  manualAdvance = false,
   redirectUrl,
 }: Props) {
   const initialWheelEntries = useMemo(
@@ -59,10 +61,12 @@ export default function WheelReplay({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentSpinIndex, setCurrentSpinIndex] = useState(-1);
   const [landedSpinIndex, setLandedSpinIndex] = useState(-1);
+  const [awaitingAdvance, setAwaitingAdvance] = useState<"spin" | "result" | null>(null);
   const [wheelEntries, setWheelEntries] = useState(initialWheelEntries);
   const [rotation, setRotation] = useState(0);
   const [finished, setFinished] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const advanceResolverRef = useRef<(() => void) | null>(null);
   const currentSpin = currentSpinIndex >= 0 ? spinHistory[currentSpinIndex] : null;
   const landedSpin = landedSpinIndex >= 0 ? spinHistory[landedSpinIndex] : null;
   const showConfetti = Boolean(landedSpin?.isWinner);
@@ -71,6 +75,21 @@ export default function WheelReplay({
   useEffect(() => {
     setWheelEntries(initialWheelEntries);
   }, [initialWheelEntries]);
+
+  function waitForAdvance(kind: "spin" | "result") {
+    setAwaitingAdvance(kind);
+
+    return new Promise<void>((resolve) => {
+      advanceResolverRef.current = resolve;
+    });
+  }
+
+  function continueReplay() {
+    const resolver = advanceResolverRef.current;
+    advanceResolverRef.current = null;
+    setAwaitingAdvance(null);
+    resolver?.();
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -145,6 +164,7 @@ export default function WheelReplay({
     setFinished(false);
     setCurrentSpinIndex(-1);
     setLandedSpinIndex(-1);
+    setAwaitingAdvance(null);
     setWheelEntries(initialWheelEntries);
     setRotation(0);
     let activeEntries = [...initialWheelEntries];
@@ -173,16 +193,25 @@ export default function WheelReplay({
       await new Promise((resolve) => requestAnimationFrame(resolve));
       setRotation((previous) => previous + target);
 
-      await new Promise((resolve) => setTimeout(resolve, 2600));
+      await new Promise((resolve) => setTimeout(resolve, 3900));
       setLandedSpinIndex(index);
 
       if (mode === "last-name-spun" && !spin.isWinner) {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        if (manualAdvance && index < spinHistory.length - 1) {
+          await waitForAdvance("spin");
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, 2250));
+        }
+
         activeEntries = activeEntries.filter((entry) => entry.entryIndex !== spin.entryIndex);
         setWheelEntries(activeEntries);
-        await new Promise((resolve) => setTimeout(resolve, 900));
+        await new Promise((resolve) => setTimeout(resolve, 1350));
       } else if (index < spinHistory.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        if (manualAdvance) {
+          await waitForAdvance("spin");
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, 2250));
+        }
       }
     }
 
@@ -190,9 +219,14 @@ export default function WheelReplay({
     setIsPlaying(false);
 
     if (redirectUrl) {
-      setTimeout(() => {
+      if (manualAdvance) {
+        await waitForAdvance("result");
         window.location.href = redirectUrl;
-      }, 1200);
+      } else {
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 1800);
+      }
     }
   }
 
@@ -230,7 +264,7 @@ export default function WheelReplay({
       `}</style>
 
       {landedSpin && (
-        <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
+        <div className={`${awaitingAdvance ? "pointer-events-auto" : "pointer-events-none"} fixed inset-0 z-50 overflow-hidden`}>
           {showConfetti &&
             Array.from({ length: 90 }, (_, index) => {
               const left = (index * 37) % 100;
@@ -269,6 +303,19 @@ export default function WheelReplay({
                 Official winning spin
               </p>
             )}
+            {awaitingAdvance && (
+              <button
+                type="button"
+                onClick={continueReplay}
+                className={`mt-5 rounded-xl px-6 py-3 font-black shadow-lg transition ${
+                  showConfetti
+                    ? "bg-slate-950 text-yellow-100 hover:bg-slate-800"
+                    : "bg-emerald-300 text-slate-950 hover:bg-emerald-200"
+                }`}
+              >
+                {awaitingAdvance === "result" ? "View Result" : "Spin"}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -278,7 +325,7 @@ export default function WheelReplay({
           <div className="absolute -right-2 top-1/2 z-10 h-0 w-0 -translate-y-1/2 border-y-[16px] border-r-[28px] border-y-transparent border-r-white drop-shadow-lg" />
           <canvas
             ref={canvasRef}
-            className="h-full w-full rounded-full shadow-2xl shadow-black/40 transition-transform duration-[2600ms] ease-out will-change-transform"
+            className="h-full w-full rounded-full shadow-2xl shadow-black/40 transition-transform duration-[3900ms] ease-out will-change-transform"
             style={{
               transform: `rotate(${rotation}deg)`,
             }}

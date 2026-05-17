@@ -17,6 +17,15 @@ type RandomizerRow = {
   logo_data_url: string | null;
 };
 
+function formatCentralTime(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZoneName: "short",
+  }).format(new Date(value));
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -59,8 +68,14 @@ export default async function RandomizerResultPage({
               <h1 className="mt-2 text-4xl font-black">{data.title}</h1>
               <p className="mt-3 text-emerald-50/70">
                 Code <span className="font-black text-emerald-200">{data.public_code}</span> ·{" "}
-                {new Date(data.created_at).toLocaleString()}
+                {formatCentralTime(data.created_at)}
               </p>
+              <Link
+                className="mt-4 inline-flex rounded-xl border border-emerald-300/30 bg-emerald-300/10 px-4 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-300/15"
+                href={`/verify?code=${encodeURIComponent(data.public_code)}`}
+              >
+                Verify this code
+              </Link>
             </div>
 
             {data.logo_data_url && (
