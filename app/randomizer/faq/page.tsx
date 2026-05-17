@@ -8,7 +8,7 @@ export const metadata = {
 const sections = [
   {
     title: "How the Randomizer works",
-    body: "The person running a giveaway enters the title, rules, entry list, and wheel mode. When they generate an official result, the result is created on the server, saved to Supabase, and assigned a public verification code. The browser animation is a replay of that saved server result.",
+    body: "The person running a giveaway enters the title, rules, entry list, and wheel mode. When they make an official spin, the result is created on the secure-server, saved to a secure database, and assigned a public verification code. The browser animation is a replay of that saved database result. This happens without the randomizer user's input.",
   },
   {
     title: "How winners are determined",
@@ -20,7 +20,7 @@ const sections = [
   },
   {
     title: "How to verify a result",
-    body: "Ask the giveaway runner for the result link or verification code. Open the result link directly, or go to the Verify Result page and enter the code. If the code exists, you will see the official saved result page. If the code does not exist, it is not a saved official result.",
+    body: "Ask the Randomizer user for the result link or verification code. Open the result link directly, or go to the Verify Result page and enter the code. If the code exists, you will see the official saved result page. If the code does not exist, it is not a saved official result.",
   },
   {
     title: "What the wheel replay means",
