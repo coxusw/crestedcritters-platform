@@ -1,16 +1,19 @@
 import type { ContentAgentPage, ContentAgentTopic, GeneratedPostPayload, NextSlot } from "./types";
 import { createSupabaseAdminClient } from "./supabase-admin";
+import { getTractionGuidanceForPage } from "./traction";
 
 function getOpenAIKey() { const key = process.env.OPENAI_API_KEY; if (!key) throw new Error("Missing OPENAI_API_KEY."); return key; }
 function extractJsonObject(text: string) { const trimmed = text.trim().replace(/^```json/i, "").replace(/^```/i, "").replace(/```$/i, "").trim(); const start = trimmed.indexOf("{"); const end = trimmed.lastIndexOf("}"); return start >= 0 && end > start ? trimmed.slice(start, end + 1) : trimmed; }
 
 export async function generatePostText(input: { page: ContentAgentPage; slot: NextSlot; topic: ContentAgentTopic | null; }) {
   const model = process.env.CONTENT_AGENT_TEXT_MODEL || "gpt-5.4-mini";
+  const tractionGuidance = await getTractionGuidanceForPage(input.page.page_key);
   const system = [`You are a Facebook content assistant for ${input.page.page_name}.`, "Generate only family-friendly content.", "Return valid JSON only."].join("\n");
   const user = {
     page: { key: input.page.page_key, name: input.page.page_name, websiteUrl: input.page.website_url },
     selectedTopic: input.topic?.topic || input.slot.postType,
     selectedTopicNotes: input.topic?.notes || "",
+    tractionGuidance,
     slot: { scheduledAt: input.slot.scheduledAt.toISOString(), postType: input.slot.postType },
     instructions: {
       brandRules: input.page.brand_rules, textStyle: input.page.text_style, memeStyle: input.page.meme_style, defaultHashtags: input.page.default_hashtags,

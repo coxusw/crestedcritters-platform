@@ -6,6 +6,8 @@ import {
   setContentAgentTopicActive,
   updateContentAgentTopic,
 } from "./actions";
+import { areSimilarTopics } from "@/lib/content-agent/topic-normalization";
+import { requestedTopicSeedCounts } from "@/lib/content-agent/topic-seeds";
 
 type PageRow = {
   page_key: string;
@@ -44,47 +46,48 @@ export default function ContentAgentTopicsDashboard({
 }) {
   const activeCount = topics.filter((topic) => topic.active).length;
   const inactiveCount = topics.length - activeCount;
-
   const pageMap = new Map(pages.map((page) => [page.page_key, page.page_name]));
+  const duplicateTopicIds = findDuplicateTopicIds(topics);
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <header className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl">
+      <div className="mx-auto max-w-[96rem] space-y-6">
+        <header className="rounded-lg border border-white/10 bg-white/5 p-5 shadow-2xl">
           <p className="text-sm uppercase tracking-[0.3em] text-emerald-300">
             Content Agent
           </p>
-          <h1 className="mt-3 text-3xl font-bold">TopicBank Editor</h1>
-          <p className="mt-3 max-w-3xl text-slate-300">
-            Add, edit, deactivate, and rotate content topics. The generator only
-            sends one selected topic to OpenAI at a time, so you can safely build
-            a large topic bank.
+          <h1 className="mt-2 text-3xl font-bold">TopicBank Editor</h1>
+          <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-300">
+            Dense table view for large topic banks. Filter by page, search by
+            topic/type/notes, edit inline, and watch for possible duplicate
+            topics before the generator starts repeating itself.
           </p>
         </header>
 
         {notice && (
-          <div className="rounded-3xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-emerald-100">
+          <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-emerald-100">
             <div className="font-semibold">Saved</div>
             <pre className="mt-2 whitespace-pre-wrap text-sm">{notice}</pre>
           </div>
         )}
 
         {error && (
-          <div className="rounded-3xl border border-red-400/30 bg-red-500/10 p-4 text-red-100">
+          <div className="rounded-lg border border-red-400/30 bg-red-500/10 p-4 text-red-100">
             <div className="font-semibold">Error</div>
             <pre className="mt-2 whitespace-pre-wrap text-sm">{error}</pre>
           </div>
         )}
 
-        <section className="grid gap-4 md:grid-cols-4">
+        <section className="grid gap-3 md:grid-cols-5">
           <StatCard label="Shown Topics" value={topics.length} />
           <StatCard label="Active" value={activeCount} />
           <StatCard label="Inactive" value={inactiveCount} alert={inactiveCount > 0} />
+          <StatCard label="Possible Dupes" value={duplicateTopicIds.size} alert={duplicateTopicIds.size > 0} />
           <StatCard label="Pages" value={pages.length} />
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
-          <div className="flex flex-wrap gap-3">
+        <section className="rounded-lg border border-white/10 bg-white/5 p-4">
+          <div className="flex flex-wrap gap-2">
             <FilterLink href="/admin/content-agent/topics" active={activePageFilter === "all"}>
               All Pages
             </FilterLink>
@@ -107,27 +110,29 @@ export default function ContentAgentTopicsDashboard({
               name="q"
               defaultValue={searchQuery}
               placeholder="Search topics, post types, or notes..."
-              className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950/80 px-3 py-2 text-slate-100 outline-none focus:border-emerald-300"
+              className="min-w-0 flex-1 rounded-md border border-white/10 bg-slate-950/80 px-3 py-2 text-slate-100 outline-none focus:border-emerald-300"
             />
-            <button className="rounded-2xl bg-emerald-400 px-5 py-2 font-bold text-slate-950">
+            <button className="rounded-md bg-emerald-400 px-5 py-2 font-bold text-slate-950">
               Search
             </button>
           </form>
         </section>
 
-        <section className="rounded-3xl border border-sky-400/30 bg-sky-400/10 p-5">
+        <section className="rounded-lg border border-sky-400/30 bg-sky-400/10 p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-xl font-bold text-sky-100">
-                Requested Topic Pack
+                Huge Topic Pack
               </h2>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-sky-100/80">
-                Add fresh topics for Poverty Finance, Tap-Deck, and Crested
-                Critters. Existing matching topics are skipped automatically.
+              <p className="mt-1 max-w-4xl text-sm leading-6 text-sky-100/80">
+                Adds up to {requestedTopicSeedCounts["poverty-finance"]} Poverty
+                Finance, {requestedTopicSeedCounts["tap-deck"]} Tap-Deck, and{" "}
+                {requestedTopicSeedCounts["crested-critters"]} Crested Critters
+                topics. Existing duplicate or similar topics are skipped.
               </p>
             </div>
             <form action={seedRequestedTopicPack}>
-              <button className="rounded-2xl bg-sky-300 px-5 py-2 font-bold text-slate-950 hover:bg-sky-200">
+              <button className="rounded-md bg-sky-300 px-5 py-2 font-bold text-slate-950 hover:bg-sky-200">
                 Add Requested Topics
               </button>
             </form>
@@ -136,20 +141,47 @@ export default function ContentAgentTopicsDashboard({
 
         <AddTopicCard pages={pages} activePageFilter={activePageFilter} />
 
-        <section className="grid gap-5">
-          {topics.length ? (
-            topics.map((topic) => (
-              <TopicCard
-                key={topic.id}
-                topic={topic}
-                pageName={pageMap.get(topic.page_key) || topic.page_key}
-              />
-            ))
-          ) : (
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center text-slate-400">
-              No topics found for this filter.
-            </div>
-          )}
+        <section className="rounded-lg border border-white/10 bg-white/5">
+          <div className="border-b border-white/10 p-4">
+            <h2 className="text-lg font-bold">Topic Table</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              Each row saves independently. Yellow rows may be duplicates or
+              very close angles within the current filtered view.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-[1180px] w-full text-left text-sm">
+              <thead className="border-b border-white/10 bg-slate-950/70 text-xs uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th className="px-3 py-2">Page</th>
+                  <th className="px-3 py-2">Topic</th>
+                  <th className="px-3 py-2">Type</th>
+                  <th className="px-3 py-2">Notes</th>
+                  <th className="px-3 py-2">Use</th>
+                  <th className="px-3 py-2">Active</th>
+                  <th className="px-3 py-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topics.map((topic) => (
+                  <TopicTableRow
+                    key={topic.id}
+                    topic={topic}
+                    pageName={pageMap.get(topic.page_key) || topic.page_key}
+                    isPossibleDuplicate={duplicateTopicIds.has(topic.id)}
+                  />
+                ))}
+                {topics.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-10 text-center text-slate-400">
+                      No topics found for this filter.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </main>
@@ -172,19 +204,14 @@ function AddTopicCard({
   const postTypeHints = getPostTypeHints(selectedPage);
 
   return (
-    <form action={createContentAgentTopic} className="rounded-3xl border border-emerald-400/30 bg-emerald-400/10 p-5">
-      <h2 className="text-xl font-bold text-emerald-100">Add New Topic</h2>
-      <p className="mt-1 text-sm text-emerald-100/80">
-        Add more ideas for the generator to rotate through.
-      </p>
-
-      <div className="mt-5 grid gap-4 lg:grid-cols-[220px_1fr_260px]">
-        <label className="block">
+    <form action={createContentAgentTopic} className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+        <label className="block lg:w-56">
           <span className="text-xs uppercase tracking-wide text-emerald-100/70">Page</span>
           <select
             name="page_key"
             defaultValue={defaultPage}
-            className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-slate-100"
+            className="mt-1 w-full rounded-md border border-white/10 bg-slate-950/90 px-3 py-2 text-slate-100"
           >
             {pages.map((page) => (
               <option key={page.page_key} value={page.page_key}>
@@ -194,101 +221,140 @@ function AddTopicCard({
           </select>
         </label>
 
-        <TextField name="topic" label="Topic" placeholder="Example: Moisture gradient troubleshooting" />
-        <TextField name="post_type" label="Post Type" placeholder={postTypeHints[0] || "Educational"} />
+        <div className="min-w-0 flex-1">
+          <TextField name="topic" label="New Topic" placeholder="Example: Moisture gradient troubleshooting" />
+        </div>
+
+        <div className="lg:w-64">
+          <TextField name="post_type" label="Post Type" placeholder={postTypeHints[0] || "Educational"} />
+        </div>
       </div>
 
-      <div className="mt-4">
-        <TextareaField name="notes" label="Notes / Prompt Direction" placeholder="Tell the generator what angle this topic should cover." />
+      <div className="mt-3">
+        <TextareaField name="notes" label="Notes / Prompt Direction" placeholder="Tell the generator what angle this topic should cover." rows={3} />
       </div>
 
-      {postTypeHints.length > 0 && (
-        <p className="mt-3 text-xs text-emerald-100/70">
-          Current page post type hints: {postTypeHints.join(", ")}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-emerald-100/70">
+          {postTypeHints.length > 0
+            ? `Current page post type hints: ${postTypeHints.join(", ")}`
+            : "Add a topic manually or use the big seed pack above."}
         </p>
-      )}
-
-      <button className="mt-5 rounded-2xl bg-emerald-400 px-5 py-2 font-bold text-slate-950 hover:bg-emerald-300">
-        Add Topic
-      </button>
+        <button className="rounded-md bg-emerald-400 px-5 py-2 font-bold text-slate-950 hover:bg-emerald-300">
+          Add Topic
+        </button>
+      </div>
     </form>
   );
 }
 
-function TopicCard({
+function TopicTableRow({
   topic,
   pageName,
+  isPossibleDuplicate,
 }: {
   topic: TopicRow;
   pageName: string;
+  isPossibleDuplicate: boolean;
 }) {
   return (
-    <article className={`rounded-3xl border p-5 ${topic.active ? "border-white/10 bg-white/5" : "border-white/5 bg-slate-900/60 opacity-75"}`}>
-      <form action={updateContentAgentTopic}>
-        <input type="hidden" name="topic_id" value={topic.id} />
-        <input type="hidden" name="page_key" value={topic.page_key} />
-
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-emerald-300">
-              {pageName}
-            </p>
-            <h2 className="mt-1 text-xl font-bold">{topic.topic}</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              {topic.post_type} · Used {topic.use_count || 0} time{topic.use_count === 1 ? "" : "s"}
-              {topic.last_used_at ? ` · Last used ${new Date(topic.last_used_at).toLocaleString()}` : " · Never used"}
-            </p>
+    <tr className={`border-b border-white/5 align-top ${isPossibleDuplicate ? "bg-amber-400/10" : ""}`}>
+      <td className="w-44 px-3 py-3">
+        <div className="font-semibold text-slate-100">{pageName}</div>
+        <div className="mt-1 text-xs text-slate-500">{topic.page_key}</div>
+        {isPossibleDuplicate && (
+          <div className="mt-2 rounded-md bg-amber-300 px-2 py-1 text-xs font-bold text-slate-950">
+            similar
           </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button className="rounded-2xl bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950">
-              Save
-            </button>
-          </div>
+        )}
+      </td>
+      <td className="w-[28rem] px-3 py-3">
+        <form id={`topic-form-${topic.id}`} action={updateContentAgentTopic}>
+          <input type="hidden" name="topic_id" value={topic.id} />
+          <input type="hidden" name="page_key" value={topic.page_key} />
+          <TextInput name="topic" defaultValue={topic.topic} />
+        </form>
+      </td>
+      <td className="w-48 px-3 py-3">
+        <TextInput form={`topic-form-${topic.id}`} name="post_type" defaultValue={topic.post_type} />
+      </td>
+      <td className="min-w-[26rem] px-3 py-3">
+        <textarea
+          form={`topic-form-${topic.id}`}
+          name="notes"
+          defaultValue={topic.notes || ""}
+          rows={3}
+          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-300"
+        />
+      </td>
+      <td className="w-40 px-3 py-3 text-xs text-slate-400">
+        <div>Used {topic.use_count || 0}</div>
+        <div className="mt-1">
+          {topic.last_used_at
+            ? new Date(topic.last_used_at).toLocaleDateString()
+            : "Never used"}
         </div>
-
-        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_220px_160px]">
-          <TextField name="topic" label="Topic" defaultValue={topic.topic} />
-          <TextField name="post_type" label="Post Type" defaultValue={topic.post_type} />
-          <label className="flex items-center gap-3 rounded-2xl bg-slate-950/70 p-4">
-            <input
-              type="checkbox"
-              name="active"
-              defaultChecked={topic.active}
-              className="h-5 w-5"
-            />
-            <span className="font-semibold">Active</span>
-          </label>
-        </div>
-
-        <div className="mt-4">
-          <TextareaField name="notes" label="Notes" defaultValue={topic.notes || ""} />
-        </div>
-      </form>
-
-      <div className="mt-4 flex flex-wrap gap-3">
+      </td>
+      <td className="w-28 px-3 py-3">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            form={`topic-form-${topic.id}`}
+            type="checkbox"
+            name="active"
+            defaultChecked={topic.active}
+            className="h-4 w-4"
+          />
+          Active
+        </label>
+      </td>
+      <td className="w-44 space-y-2 px-3 py-3">
+        <button
+          form={`topic-form-${topic.id}`}
+          className="w-full rounded-md bg-emerald-400 px-3 py-2 text-xs font-bold text-slate-950"
+        >
+          Save
+        </button>
         {topic.active ? (
           <form action={setContentAgentTopicActive.bind(null, topic.id, topic.page_key, false)}>
-            <button className="rounded-2xl bg-amber-400 px-4 py-2 text-sm font-bold text-slate-950">
+            <button className="w-full rounded-md bg-amber-400 px-3 py-2 text-xs font-bold text-slate-950">
               Deactivate
             </button>
           </form>
         ) : (
           <form action={setContentAgentTopicActive.bind(null, topic.id, topic.page_key, true)}>
-            <button className="rounded-2xl bg-sky-400 px-4 py-2 text-sm font-bold text-slate-950">
+            <button className="w-full rounded-md bg-sky-400 px-3 py-2 text-xs font-bold text-slate-950">
               Reactivate
             </button>
           </form>
         )}
-
         <form action={deleteContentAgentTopic.bind(null, topic.id, topic.page_key)}>
-          <button className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-bold text-white">
+          <button className="w-full rounded-md bg-red-500 px-3 py-2 text-xs font-bold text-white">
             Delete
           </button>
         </form>
-      </div>
-    </article>
+      </td>
+    </tr>
   );
+}
+
+function findDuplicateTopicIds(topics: TopicRow[]) {
+  const duplicateIds = new Set<string>();
+
+  for (let i = 0; i < topics.length; i += 1) {
+    for (let j = i + 1; j < topics.length; j += 1) {
+      const a = topics[i];
+      const b = topics[j];
+
+      if (a.page_key !== b.page_key) continue;
+
+      if (areSimilarTopics(a.topic, b.topic)) {
+        duplicateIds.add(a.id);
+        duplicateIds.add(b.id);
+      }
+    }
+  }
+
+  return duplicateIds;
 }
 
 function getPostTypeHints(page?: PageRow) {
@@ -323,7 +389,7 @@ function FilterLink({
   return (
     <Link
       href={href}
-      className={`rounded-2xl px-4 py-2 text-sm font-semibold ${
+      className={`rounded-md px-3 py-2 text-sm font-semibold ${
         active
           ? "bg-emerald-400 text-slate-950"
           : "border border-white/10 bg-slate-950/70 text-slate-200 hover:border-emerald-300/50"
@@ -336,10 +402,29 @@ function FilterLink({
 
 function StatCard({ label, value, alert = false }: { label: string; value: number; alert?: boolean }) {
   return (
-    <div className={`rounded-3xl border p-4 ${alert ? "border-amber-400/40 bg-amber-400/10" : "border-white/10 bg-white/5"}`}>
+    <div className={`rounded-lg border p-4 ${alert ? "border-amber-400/40 bg-amber-400/10" : "border-white/10 bg-white/5"}`}>
       <div className="text-2xl font-bold">{value}</div>
       <div className="mt-1 text-xs uppercase tracking-wide text-slate-400">{label}</div>
     </div>
+  );
+}
+
+function TextInput({
+  name,
+  defaultValue,
+  form,
+}: {
+  name: string;
+  defaultValue: string;
+  form?: string;
+}) {
+  return (
+    <input
+      form={form}
+      name={name}
+      defaultValue={defaultValue}
+      className="w-full rounded-md border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-300"
+    />
   );
 }
 
@@ -361,7 +446,7 @@ function TextField({
         name={name}
         defaultValue={defaultValue}
         placeholder={placeholder}
-        className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-950/80 px-3 py-2 text-slate-100 outline-none focus:border-emerald-300"
+        className="mt-1 w-full rounded-md border border-white/10 bg-slate-950/80 px-3 py-2 text-slate-100 outline-none focus:border-emerald-300"
       />
     </label>
   );
@@ -372,11 +457,13 @@ function TextareaField({
   label,
   defaultValue = "",
   placeholder = "",
+  rows = 4,
 }: {
   name: string;
   label: string;
   defaultValue?: string;
   placeholder?: string;
+  rows?: number;
 }) {
   return (
     <label className="block">
@@ -385,8 +472,8 @@ function TextareaField({
         name={name}
         defaultValue={defaultValue}
         placeholder={placeholder}
-        rows={4}
-        className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-950/80 px-3 py-2 text-slate-100 outline-none focus:border-emerald-300"
+        rows={rows}
+        className="mt-1 w-full rounded-md border border-white/10 bg-slate-950/80 px-3 py-2 text-slate-100 outline-none focus:border-emerald-300"
       />
     </label>
   );

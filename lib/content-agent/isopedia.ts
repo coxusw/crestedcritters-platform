@@ -24,6 +24,22 @@ type SubmissionLite = {
   created_at: string | null;
 };
 
+type SpeciesLite = {
+  common_name: string | null;
+  scientific_name: string | null;
+  genus: string | null;
+  species: string | null;
+  morph: string | null;
+  image_url: string | null;
+};
+
+type CountQuery = PromiseLike<{
+  count: number | null;
+  error: { message: string } | null;
+}> & {
+  eq(column: string, value: string): CountQuery;
+};
+
 function siteUrl() {
   return (process.env.NEXT_PUBLIC_SITE_URL || "https://isopedia.crestedcritters.com").replace(/\/$/, "");
 }
@@ -64,12 +80,15 @@ function appendCreditToCaption(
 
 async function safeCount(
   table: string,
-  build?: (query: any) => any
+  build?: (query: CountQuery) => CountQuery
 ): Promise<number> {
   const supabase = createSupabaseAdminClient();
 
   try {
-    let query = supabase.from(table).select("id", { count: "exact", head: true });
+    const fromTable = supabase.from as unknown as (tableName: string) => {
+      select(columns: string, options: { count: "exact"; head: true }): CountQuery;
+    };
+    let query = fromTable(table).select("id", { count: "exact", head: true });
     if (build) query = build(query);
 
     const { count, error } = await query;
@@ -87,7 +106,7 @@ async function safeCount(
   }
 }
 
-function speciesMatchesSubmission(species: any, submission: SubmissionLite) {
+function speciesMatchesSubmission(species: SpeciesLite, submission: SubmissionLite) {
   const speciesCommon = String(species.common_name || "").trim().toLowerCase();
   const subCommon = String(submission.common_name || "").trim().toLowerCase();
 
@@ -119,7 +138,7 @@ function speciesMatchesSubmission(species: any, submission: SubmissionLite) {
   return Boolean(speciesParts && subParts && speciesParts === subParts);
 }
 
-async function findMatchingVerifiedSubmission(species: any) {
+async function findMatchingVerifiedSubmission(species: SpeciesLite) {
   const supabase = createSupabaseAdminClient();
 
   const { data, error } = await supabase
@@ -221,6 +240,11 @@ export async function createLatestSpeciesAnnouncement() {
   }
 
   const matchingSubmission = await findMatchingVerifiedSubmission(species);
+
+  if (!matchingSubmission?.verified_at) {
+    return `Latest species ${species.common_name || species.slug} does not have a verified submission credit yet. Skipping announcement.`;
+  }
+
   const profilesById = await getProfilesByIds([
     matchingSubmission?.submitted_by,
     matchingSubmission?.verified_by,
@@ -328,9 +352,26 @@ export async function createLatestSpeciesAnnouncement() {
 }
 
 export async function createIsopediaStatsPost() {
+  const supabase = createSupabaseAdminClient();
   const page = await getPage("isopedia");
 
   if (!page) throw new Error("Isopedia content agent page is missing.");
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfTomorrow = new Date(startOfToday);
+  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+
+  const existing = await supabase
+    .from("content_agent_posts")
+    .select("id")
+    .eq("source_type", "isopedia_stats")
+    .gte("scheduled_at", startOfToday.toISOString())
+    .lt("scheduled_at", startOfTomorrow.toISOString())
+    .maybeSingle();
+
+  if (existing.error) throw new Error(existing.error.message);
+  if (existing.data) return "Isopedia community stats already has a post queued for today.";
 
   const [
     verifiedSpecies,
@@ -364,7 +405,8 @@ export async function createIsopediaStatsPost() {
       `Pending expos: ${pendingExpos}`,
       `Open discussion reports: ${openDiscussionReports}`,
       "Make this sound like a community progress update.",
-      "Invite keepers to contribute species, expo listings, corrections, and experience.",
+      "Plead with keepers to join in and help Isopedia grow for the whole community.",
+      "Ask the community to contribute species, expo listings, corrections, images, and keeper experience.",
       `Main URL: ${page.website_url || `${siteUrl()}/isopedia`}`,
     ].join("\n"),
     active: true,
@@ -416,7 +458,7 @@ export async function createExpoRoundupPost() {
   if (!page) throw new Error("Isopedia content agent page is missing.");
 
   const now = new Date();
-  const weekOut = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const weekOut = new Date(Date.now() + 21 * 24 * 60 * 60 * 1000);
 
   const { data: expos, error } = await supabase
     .from("isopedia_expos")
@@ -450,9 +492,10 @@ export async function createExpoRoundupPost() {
     topic: "Upcoming expo roundup",
     post_type: "Weekly Expo Roundup",
     notes: [
-      "Create a weekly upcoming expo roundup.",
+      "Create a Monday weekly upcoming expo roundup for the next 3 weeks.",
       `Expo calendar URL: ${expoUrl}`,
       `Expo rows: ${JSON.stringify(expos || [], null, 2)}`,
+      "Plead with the community to add any expos they know about so the calendar gets stronger.",
       "If no expos are listed, ask people to submit upcoming expos to Isopedia.",
       "Mention the expo calendar and invite people to add shows they know about.",
     ].join("\n"),
@@ -485,4 +528,114 @@ export async function createExpoRoundupPost() {
   await logContentAgent("isopedia_expo_roundup", "OK", "Created expo roundup post.", "post", post.id);
 
   return `Created Isopedia expo roundup draft with ${(expos || []).length} upcoming expo(s).`;
+}
+
+export async function createExpoAlertPost(expoId: string) {
+  const supabase = createSupabaseAdminClient();
+  const page = await getPage("isopedia");
+
+  if (!page) throw new Error("Isopedia content agent page is missing.");
+
+  const { data: expo, error } = await supabase
+    .from("isopedia_expos")
+    .select(
+      `
+      id,
+      name,
+      slug,
+      city,
+      state,
+      venue,
+      starts_at,
+      ends_at,
+      description,
+      flyer_image_url,
+      status
+      `
+    )
+    .eq("id", expoId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!expo) return "Expo not found.";
+  if (expo.status !== "approved") return "Expo is not approved yet.";
+
+  const existing = await supabase
+    .from("content_agent_posts")
+    .select("id")
+    .eq("source_type", "isopedia_expo_alert")
+    .eq("source_ref_id", String(expo.id))
+    .maybeSingle();
+
+  if (existing.error) throw new Error(existing.error.message);
+  if (existing.data) return `Expo alert already exists for ${expo.name}.`;
+
+  const expoUrl = `${siteUrl()}/isopedia/expos/${expo.slug}`;
+
+  const topic: ContentAgentTopic = {
+    id: "virtual-isopedia-expo-alert",
+    page_key: "isopedia",
+    topic: `New expo added: ${expo.name}`,
+    post_type: "Expo Alert",
+    notes: [
+      `Expo name: ${expo.name}`,
+      `Location: ${[expo.city, expo.state].filter(Boolean).join(", ")}`,
+      expo.venue ? `Venue: ${expo.venue}` : "",
+      `Starts: ${expo.starts_at}`,
+      expo.ends_at ? `Ends: ${expo.ends_at}` : "",
+      expo.description ? `Description: ${expo.description}` : "",
+      `Expo URL: ${expoUrl}`,
+      "Announce that a new expo was added to Isopedia.",
+      "Plead with the community to add any other expos they know about so keepers can find shows.",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    active: true,
+    last_used_at: null,
+    use_count: 0,
+  };
+
+  const slot: NextSlot = {
+    pageKey: "isopedia",
+    pageName: page.page_name,
+    scheduledAt: new Date(Date.now() + 90 * 60 * 1000),
+    postType: "Expo Alert",
+  };
+
+  const generated = await generatePostText({ page, slot, topic });
+
+  const post = await insertGeneratedPost({
+    pageKey: "isopedia",
+    scheduledAt: slot.scheduledAt,
+    postType: slot.postType,
+    topic: generated.topic || topic.topic,
+    caption: generated.caption,
+    hashtags: generated.hashtags || page.default_hashtags || "",
+    status: "Draft",
+    sourceType: "isopedia_expo_alert",
+    sourceRefId: String(expo.id),
+    rawPayload: { expo, expoUrl, generated },
+  });
+
+  if (expo.flyer_image_url) {
+    const { error: updateError } = await supabase
+      .from("content_agent_posts")
+      .update({
+        image_url: expo.flyer_image_url,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", post.id);
+
+    if (updateError) throw new Error(updateError.message);
+  }
+
+  await logContentAgent(
+    "isopedia_expo_alert",
+    "OK",
+    `Created expo alert post for ${expo.name}.`,
+    "post",
+    post.id
+  );
+
+  return `Created expo alert draft for ${expo.name}.`;
 }

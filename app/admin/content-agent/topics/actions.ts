@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { requestedTopicSeeds } from "@/lib/content-agent/topic-seeds";
+import {
+  areSimilarTopics,
+  normalizeTopicText,
+} from "@/lib/content-agent/topic-normalization";
 
 function redirectWithNotice(message: string, pageKey?: string): never {
   revalidatePath("/admin/content-agent/topics");
@@ -29,6 +33,17 @@ function checkboxValue(formData: FormData, key: string) {
 
 function normalizeMatch(value: string | null | undefined) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function hasSimilarTopic(
+  topics: Array<{ page_key: string; topic: string }>,
+  pageKey: string,
+  topic: string
+) {
+  return topics.some(
+    (existing) =>
+      existing.page_key === pageKey && areSimilarTopics(existing.topic, topic)
+  );
 }
 
 type ContentAgentPageSeedRow = {
@@ -77,13 +92,15 @@ export async function seedRequestedTopicPack() {
     if (pagesError) throw new Error(pagesError.message);
     if (existingError) throw new Error(existingError.message);
 
+    const existingRows = [...(existing || [])];
     const existingKeys = new Set(
-      (existing || []).map(
-        (topic) => `${topic.page_key}:${normalizeMatch(topic.topic)}`
+      existingRows.map(
+        (topic) => `${topic.page_key}:${normalizeTopicText(topic.topic)}`
       )
     );
 
     const missingPages = new Set<string>();
+    let duplicateCount = 0;
     const rowsToInsert = requestedTopicSeeds.flatMap((seed) => {
       const page = findSeedPage(pages || [], seed.pageMatchers);
 
@@ -92,13 +109,18 @@ export async function seedRequestedTopicPack() {
         return [];
       }
 
-      const duplicateKey = `${page.page_key}:${normalizeMatch(seed.topic)}`;
+      const duplicateKey = `${page.page_key}:${normalizeTopicText(seed.topic)}`;
 
-      if (existingKeys.has(duplicateKey)) {
+      if (
+        existingKeys.has(duplicateKey) ||
+        hasSimilarTopic(existingRows, page.page_key, seed.topic)
+      ) {
+        duplicateCount += 1;
         return [];
       }
 
       existingKeys.add(duplicateKey);
+      existingRows.push({ page_key: page.page_key, topic: seed.topic });
 
       return [
         {
@@ -124,7 +146,7 @@ export async function seedRequestedTopicPack() {
       action: "topic_seed_requested_pack",
       entity_type: "topic",
       result: "OK",
-      details: `Inserted ${rowsToInsert.length} requested topic seeds. Missing page groups: ${
+      details: `Inserted ${rowsToInsert.length} requested topic seeds. Skipped ${duplicateCount} duplicates or near-duplicates. Missing page groups: ${
         Array.from(missingPages).join(", ") || "none"
       }.`,
     });
@@ -132,6 +154,8 @@ export async function seedRequestedTopicPack() {
     redirectWithNotice(
       `Added ${rowsToInsert.length} fresh topic${
         rowsToInsert.length === 1 ? "" : "s"
+      }. Skipped ${duplicateCount} duplicate or similar topic${
+        duplicateCount === 1 ? "" : "s"
       }. ${
         missingPages.size
           ? `Could not find pages for: ${Array.from(missingPages).join(", ")}.`

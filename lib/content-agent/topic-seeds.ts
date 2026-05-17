@@ -6,357 +6,495 @@ export type TopicSeed = {
   notes: string;
 };
 
-export const requestedTopicSeeds: TopicSeed[] = [
+type TopicPattern = {
+  title: string;
+  notes: string;
+  postType?: string;
+};
+
+const povertyMatchers = ["povertyfinance", "poverty finance"];
+const tapDeckMatchers = ["tapdeck", "tap-deck", "tap deck"];
+const crestedMatchers = ["crested", "crested critters"];
+
+function seed(
+  brand: TopicSeed["brand"],
+  pageMatchers: string[],
+  topic: string,
+  postType: string,
+  notes: string
+): TopicSeed {
+  return { brand, pageMatchers, topic, postType, notes };
+}
+
+const povertySubjects = [
+  ["getting a raise", "asking for more pay without sounding apologetic"],
+  ["raise receipts", "tracking wins, extra duties, numbers, praise, and solved problems"],
+  ["job hopping math", "knowing when a new employer is the real raise"],
+  ["salary negotiation", "naming a number and staying quiet long enough for the manager to answer"],
+  ["paycheck triage", "deciding what gets paid first when payday is already bullied by bills"],
+  ["emergency funds", "building a tiny buffer after life already ate the last one"],
+  ["bill negotiation", "calling providers, asking for retention, hardship plans, fee reversals, and promo rates"],
+  ["grocery survival", "cheap proteins, pantry meals, frozen vegetables, leftovers, and not buying fantasy produce"],
+  ["rent pressure", "planning rent before fun money steals the steering wheel"],
+  ["utility bills", "averaging plans, usage checks, weatherization, and calling before shutoff panic"],
+  ["credit scores", "payment history, utilization, old accounts, and avoiding panic applications"],
+  ["debt snowball vs avalanche", "choosing a payoff method that a tired broke person will actually follow"],
+  ["minimum payments", "what minimums do and why extra principal matters when possible"],
+  ["side hustle profit", "subtracting fees, gas, supplies, taxes, and time before calling it income"],
+  ["tax-time discipline", "not treating a refund like lottery winnings in sweatpants"],
+  ["retirement when broke", "starting tiny with 401k match, IRA basics, and future-you not being abandoned"],
+  ["401k match", "why free employer match money should not be ghosted if cash flow allows"],
+  ["Roth IRA basics", "plain-language retirement talk for beginners with small budgets"],
+  ["automatic savings", "moving tiny amounts before the debit card starts improvising"],
+  ["cash envelopes", "using physical or digital buckets when the bank app is too optimistic"],
+  ["subscriptions", "canceling quiet little charges acting like financial termites"],
+  ["insurance shopping", "comparing quotes without letting loyalty become an expensive personality flaw"],
+  ["meal prep burnout", "cheap repeatable meals that do not require becoming a lifestyle influencer"],
+  ["cheap living swaps", "boring substitutions that leave money behind"],
+  ["buy nothing weeks", "how to survive a no-spend stretch without making it your whole identity"],
+  ["used purchases", "when secondhand is smart and when it is just future trash with a discount sticker"],
+  ["car costs", "gas, insurance, maintenance, tires, and the true monthly cost of driving"],
+  ["bank fees", "overdraft prevention, fee reversals, and choosing less predatory accounts"],
+  ["medical bills", "asking for itemized bills, financial assistance, payment plans, and coding reviews"],
+  ["student loans", "repayment plans, autopay discounts, and not ignoring scary mail"],
+  ["holiday spending", "setting limits before December starts cosplaying as a financial emergency"],
+  ["kids and money", "family budgeting without pretending children are cheap hobbies"],
+  ["pet costs", "planning food, vet visits, emergencies, and supplies before the cute face wins"],
+  ["cheap dates", "social life ideas that do not require swiping the rent money"],
+  ["moving costs", "deposits, boxes, trucks, utility starts, and the sneaky cost pile"],
+  ["financial boundaries", "saying no to money requests when your own account is wheezing"],
+  ["windfalls", "what to do with bonuses, refunds, or surprise money before chaos votes"],
+  ["sinking funds", "saving ahead for predictable expenses that keep pretending to be surprises"],
+  ["price comparison", "unit pricing, store brands, and not getting emotionally attached to packaging"],
+  ["cash flow calendar", "matching due dates to paydays instead of hoping vibes handle logistics"],
+];
+
+const povertyAngles: TopicPattern[] = [
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "Ask for the raise before you are desperate",
-    postType: "Broke Tip",
-    notes:
-      "Give attitude-heavy but practical advice for asking for a raise while broke: track wins, pick a number, ask directly, and do not wait until rent is already late. Include #satire if the tone gets spicy.",
+    title: "The broke-but-not-clueless guide to",
+    notes: "Give practical, attitude-heavy steps. Mock the broke situation lightly, never shame the person. End with one action to take today.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "Your boss is not a mind reader with payroll powers",
-    postType: "Broke Tip",
-    notes:
-      "Explain that quiet hard work does not automatically become a raise. Tell readers to document responsibilities, compare market pay, and schedule the conversation.",
+    title: "Stop letting your money get jumped by",
+    notes: "Frame the problem like the follower's budget is getting ambushed. Give a blunt fix and a tiny first step.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "The broke-person script for asking for more money",
-    postType: "Broke Tip",
-    notes:
-      "Write a short raise-request script with a confident but scrappy tone. Make it useful for someone nervous, underpaid, and tired of surviving on vibes.",
+    title: "A script for handling",
+    notes: "Write a short real-world script or checklist. Keep it sassy and useful, with no fake guru energy.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "If the raise is no, ask what makes it yes",
-    postType: "Broke Tip",
-    notes:
-      "Cover the follow-up move after a rejected raise: ask for criteria, timeline, measurable goals, and a date to revisit. Keep the voice blunt and practical.",
+    title: "The receipt check for",
+    notes: "Tell readers what numbers, screenshots, documents, or proof to gather before making a money move.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "Stop calling unpaid extra work a growth opportunity",
-    postType: "Broke Tip",
-    notes:
-      "Talk about setting boundaries around extra duties. If responsibilities changed, pay should be discussed. Include a grounded example.",
+    title: "One ugly truth about",
+    notes: "Lead with a sharp truth, then soften into practical advice someone broke can actually use.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "The raise receipt folder",
-    postType: "Broke Tip",
-    notes:
-      "Tell readers to keep a simple notes file of wins, numbers, compliments, solved problems, and extra duties so they are ready when raise season appears.",
+    title: "How to make progress on",
+    notes: "Focus on small progress, not perfection. Acknowledge that the budget may be rude this month.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "Broke budgeting when payday is already spoken for",
-    postType: "Broke Tip",
-    notes:
-      "Give realistic triage tips for a paycheck that disappears: rent, utilities, food, minimums, then calls/payment plans. No shame, just survival math.",
+    title: "Broke people need a plan for",
+    notes: "Say the quiet part out loud: being broke makes this harder, which is exactly why a simple plan matters.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "Negotiate bills like customer service owes you a side quest reward",
-    postType: "Broke Tip",
-    notes:
-      "Give phone-call tips for lowering bills: ask for retention, hardship plans, promo rates, fee reversals, and confirmation numbers. Keep it funny but useful.",
+    title: "The no-delusion version of",
+    notes: "Cut through common internet advice that assumes spare cash is lying around doing nothing.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "Emergency fund for people whose emergency fund had an emergency",
-    postType: "Broke Tip",
-    notes:
-      "Suggest tiny automatic transfers, cash buffer goals, and rebuilding after using savings. Keep it validating and slightly sarcastic.",
+    title: "What to do before panic-spending around",
+    notes: "Give a pause-and-plan framework for the topic. Keep the tone funny, direct, and slightly disrespectful toward bad habits.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "The five-dollar rule for feeling less financially haunted",
-    postType: "Broke Tip",
-    notes:
-      "Explain a small habit: move five dollars, pay five extra, or reduce one recurring cost by five. Small wins for broke readers.",
+    title: "Tiny wins for",
+    notes: "Offer three tiny wins under ten minutes or ten dollars. Make it encouraging with a sarcastic edge.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "Before you rage quit, price your exit",
-    postType: "Broke Tip",
-    notes:
-      "Talk about planning a job exit: target pay, application schedule, emergency buffer, references, and not letting one terrible Tuesday wreck the rent plan.",
+    title: "The lazy budget fix for",
+    notes: "Give the simplest workable habit for people who are tired, busy, or overwhelmed.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "Side hustle math that does not lie to your face",
-    postType: "Broke Tip",
-    notes:
-      "Explain calculating true side-hustle profit after gas, supplies, fees, taxes, and time. Attitude-forward and realistic.",
+    title: "Questions to ask before spending on",
+    notes: "Give a decision checklist. Include needs vs wants, timing, cheaper options, and future regret.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "Credit score advice for people currently beefing with capitalism",
-    postType: "Broke Tip",
-    notes:
-      "Cover payment history, utilization, old accounts, and avoiding panic applications. Keep it clear, nonjudgmental, and funny.",
+    title: "How to stop future-you from yelling about",
+    notes: "Make the post about protecting future self from present self's chaotic spending choices.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "Meal planning when the budget says absolutely not",
-    postType: "Broke Tip",
-    notes:
-      "Give practical grocery tactics: pantry audit, cheap protein, frozen vegetables, leftovers, and avoiding aspirational groceries that die in the fridge.",
+    title: "The paycheck-to-paycheck playbook for",
+    notes: "Make the advice realistic for people with tight cash flow. Avoid pretending they can magically save hundreds.",
   },
   {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "Your raise request needs numbers, not workplace fan fiction",
-    postType: "Broke Meme",
-    notes:
-      "Create a funny broke meme concept about wanting a raise but needing receipts, achievements, and market data. Include a caption with a real tip and #satire.",
-  },
-  {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "When direct deposit lands and immediately leaves",
-    postType: "Broke Meme",
-    notes:
-      "Create a relatable meme about payday disappearing into bills. Include one useful tip about splitting bills or due dates. Must include #satire.",
-  },
-  {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "Me applying for jobs after seeing grocery prices",
-    postType: "Broke Meme",
-    notes:
-      "Make a funny job-search meme with a practical caption about keeping a weekly application target and tracking follow-ups. Include #satire.",
-  },
-  {
-    brand: "poverty-finance",
-    pageMatchers: ["povertyfinance", "poverty finance"],
-    topic: "The budget meeting is just me and my banking app arguing",
-    postType: "Broke Meme",
-    notes:
-      "Create a meme about checking the bank account and negotiating with reality. Add a practical tip about categorizing the last 30 days of spending. Include #satire.",
-  },
-  {
-    brand: "tap-deck",
-    pageMatchers: ["tapdeck", "tap-deck", "tap deck"],
-    topic: "How to start a conversation without making it weird",
-    postType: "Networking Tip",
-    notes:
-      "Give real networking advice: open with context, ask a specific light question, and make the other person easy to answer. Include example openers.",
-  },
-  {
-    brand: "tap-deck",
-    pageMatchers: ["tapdeck", "tap-deck", "tap deck"],
-    topic: "The best networking follow-up is specific",
-    postType: "Networking Tip",
-    notes:
-      "Explain how to follow up after meeting someone: mention where you met, one thing discussed, and one clear next step. Include a short message template.",
-  },
-  {
-    brand: "tap-deck",
-    pageMatchers: ["tapdeck", "tap-deck", "tap deck"],
-    topic: "Stop collecting contacts you never contact",
-    postType: "Networking Tip",
-    notes:
-      "Teach a simple system for turning new contacts into real relationships: tag them, add a note, follow up within 48 hours, and schedule a reminder.",
-  },
-  {
-    brand: "tap-deck",
-    pageMatchers: ["tapdeck", "tap-deck", "tap deck"],
-    topic: "How to be memorable in a 60-second interaction",
-    postType: "Networking Tip",
-    notes:
-      "Give concrete tips: say what you do plainly, connect it to who you help, ask one good question, and end with an easy follow-up path.",
-  },
-  {
-    brand: "tap-deck",
-    pageMatchers: ["tapdeck", "tap-deck", "tap deck"],
-    topic: "The tiny detail that makes someone remember you",
-    postType: "Networking Tip",
-    notes:
-      "Cover using one memorable detail naturally: current project, niche interest, problem you solve, or useful resource. Avoid gimmicks.",
-  },
-  {
-    brand: "tap-deck",
-    pageMatchers: ["tapdeck", "tap-deck", "tap deck"],
-    topic: "Networking for introverts who do not want to perform",
-    postType: "Networking Tip",
-    notes:
-      "Give practical low-pressure tactics: arrive with three questions, find one-on-one moments, take notes after, and set a realistic goal of two good conversations.",
-  },
-  {
-    brand: "tap-deck",
-    pageMatchers: ["tapdeck", "tap-deck", "tap deck"],
-    topic: "The ask that does not feel like asking for a favor",
-    postType: "Networking Tip",
-    notes:
-      "Explain how to ask for advice, an intro, or feedback in a way that is specific, low-friction, and respectful of time. Include examples.",
-  },
-  {
-    brand: "tap-deck",
-    pageMatchers: ["tapdeck", "tap-deck", "tap deck"],
-    topic: "How to exit a conversation gracefully",
-    postType: "Networking Tip",
-    notes:
-      "Teach clean conversation exits: summarize, thank them, exchange info if relevant, and move on without awkward hovering. Include sample phrasing.",
-  },
-  {
-    brand: "tap-deck",
-    pageMatchers: ["tapdeck", "tap-deck", "tap deck"],
-    topic: "Your digital business card still needs a human moment",
-    postType: "Networking Tip",
-    notes:
-      "Connect Tap-Deck use to real interaction: ask first, explain what they are tapping, and add a note about the conversation before following up.",
-  },
-  {
-    brand: "tap-deck",
-    pageMatchers: ["tapdeck", "tap-deck", "tap deck"],
-    topic: "The two-question method for better networking",
-    postType: "Networking Tip",
-    notes:
-      "Suggest asking one context question and one deeper follow-up: what brought you here, what are you working on, what would be helpful right now.",
-  },
-  {
-    brand: "tap-deck",
-    pageMatchers: ["tapdeck", "tap-deck", "tap deck"],
-    topic: "Make your profile easy to act on",
-    postType: "Networking Tip",
-    notes:
-      "Give profile tips: clear headline, current offer, best link first, recent work, contact method, and no mystery-meat bio.",
-  },
-  {
-    brand: "tap-deck",
-    pageMatchers: ["tapdeck", "tap-deck", "tap deck"],
-    topic: "How to reconnect without pretending you did not disappear",
-    postType: "Networking Tip",
-    notes:
-      "Offer a simple reconnect message that acknowledges time passed, references the connection, and gives a relevant reason for reaching out.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: they breathe with pleopodal lungs",
-    postType: "Isopod Fact",
-    notes:
-      "Explain that many terrestrial isopods breathe using specialized pleopods on the underside, which is why moisture matters. Keep it accurate and beginner-friendly.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: mancae are baby isopods, not insects",
-    postType: "Isopod Fact",
-    notes:
-      "Explain that baby isopods are called mancae and hatch looking like tiny adults, usually with one less pair of legs at first.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: calcium is not optional",
-    postType: "Isopod Fact",
-    notes:
-      "Explain why isopods need calcium sources for molting and exoskeleton health. Mention cuttlebone, limestone, eggshell, or calcium carbonate in general terms.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: molts often happen in two halves",
-    postType: "Isopod Fact",
-    notes:
-      "Teach that isopods commonly molt the back half and front half separately, which can surprise new keepers.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: leaf litter is food and shelter",
-    postType: "Isopod Fact",
-    notes:
-      "Explain how leaf litter supports grazing, hiding, humidity pockets, and microfauna. Include a simple husbandry takeaway.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: not all isopods want the same moisture",
-    postType: "Isopod Fact",
-    notes:
-      "Compare moisture preferences at a high level and explain why a moisture gradient matters more than soaking the whole bin.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: springtails are the cleanup crew's cleanup crew",
-    postType: "Isopod Fact",
-    notes:
-      "Explain how springtails help with mold and waste breakdown in bioactive setups, and why they pair well with isopod cultures.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: protein helps, too much protein causes problems",
-    postType: "Isopod Fact",
-    notes:
-      "Give balanced feeding advice around occasional protein sources while avoiding overfeeding that can foul the enclosure.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: ventilation is part of humidity control",
-    postType: "Isopod Fact",
-    notes:
-      "Explain stale air, condensation, drying, and why keepers balance ventilation with a damp side instead of sealing everything tight.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: hides are not decoration to them",
-    postType: "Isopod Fact",
-    notes:
-      "Explain cork bark, leaf piles, and cover objects as humidity shelters and stress reducers. Include a care takeaway.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: pods recycle nutrients in the wild",
-    postType: "Isopod Fact",
-    notes:
-      "Explain their decomposer role in breaking down leaves and organic matter, then connect it to bioactive enclosure cleanup.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: color morphs still need species-specific care",
-    postType: "Isopod Fact",
-    notes:
-      "Warn that a fancy morph name does not replace care research. Tie back to temperature, moisture, ventilation, and diet.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: a crash usually has clues first",
-    postType: "Care Tip",
-    notes:
-      "Give educational signs to watch for: smell, mold bloom, mites exploding, drying substrate, lack of babies, or food going untouched.",
-  },
-  {
-    brand: "crested-critters",
-    pageMatchers: ["crested", "crested critters"],
-    topic: "Random isopod fact: babies hide where conditions are stable",
-    postType: "Care Tip",
-    notes:
-      "Explain why keepers may not see mancae right away and why stable humidity, leaf litter, and cover help young isopods thrive.",
+    title: "If your account is wheezing, start with",
+    notes: "Give one starting point, one thing to avoid, and one follow-up move.",
   },
 ];
+
+const povertyMemeSubjects = [
+  "asking for a raise with a bank account that has seen things",
+  "opening the banking app after buying groceries",
+  "direct deposit arriving and immediately being escorted out by bills",
+  "budgeting with three dollars and a dream",
+  "checking subscriptions like they personally betrayed you",
+  "meal prepping because restaurants started acting premium",
+  "retirement planning while lunch is whatever is in the pantry",
+  "calling customer service to beg a fee off the bill",
+  "buying store brand and pretending it is character development",
+  "realizing the side hustle has side expenses",
+  "trying to save money while rent does parkour",
+  "the emergency fund having its own emergency",
+  "credit utilization judging your life choices",
+  "job hunting after seeing the price of eggs",
+  "trying a no-spend week after already spending",
+  "making a budget and watching reality object",
+  "bringing lunch from home like a financially responsible adult against your will",
+  "finding five dollars in a coat and acting blessed",
+  "canceling a subscription you forgot existed",
+  "payday optimism lasting eleven minutes",
+  "the grocery cart total attacking your personality",
+  "using coupons like tiny paper shields",
+  "asking whether fun fits in the budget and the budget laughing",
+  "planning retirement with couch-cushion energy",
+  "telling yourself leftovers are a lifestyle choice",
+  "looking at car insurance like it insulted your family",
+  "putting money in savings and immediately needing it",
+  "price comparing until your soul buffers",
+  "the rent due date sprinting toward you",
+  "choosing between convenience and not being broke-er",
+];
+
+const tapContexts = [
+  ["a chamber event", "meeting people in a room full of local business owners"],
+  ["a trade show floor", "starting useful conversations without blocking the booth flow"],
+  ["a vendor table", "turning quick scans into remembered follow-ups"],
+  ["a sales call", "building trust before pitching"],
+  ["a cold DM", "warming the conversation before asking for time"],
+  ["a referral ask", "making the ask specific and easy to say yes to"],
+  ["a coffee chat", "keeping it focused without making it stiff"],
+  ["a conference hallway", "using small windows of time well"],
+  ["a local meetup", "turning casual introductions into useful relationships"],
+  ["a follow-up message", "writing something specific enough to feel human"],
+  ["a networking lunch", "balancing conversation with business context"],
+  ["a LinkedIn or X reply", "adding value publicly before moving private"],
+  ["a customer discovery chat", "asking better questions before pitching"],
+  ["a B2B intro", "making clear who you help and what happens next"],
+  ["a sales handoff", "sharing context so the next conversation starts warmer"],
+];
+
+const tapSkills: TopicPattern[] = [
+  {
+    title: "How to open",
+    notes: "Give real phrasing for starting the conversation. Make the advice practical, warm, and non-cringey.",
+  },
+  {
+    title: "What to ask during",
+    notes: "Give two strong questions and one follow-up. Focus on connection, not interrogation.",
+  },
+  {
+    title: "How to make yourself memorable after",
+    notes: "Explain how to connect your name, value, and one useful detail so the person remembers you later.",
+  },
+  {
+    title: "How to use Tap-Deck during",
+    notes: "Tie digital card sharing to a real human moment: ask first, explain the tap, then add a note afterward.",
+  },
+  {
+    title: "The follow-up template for",
+    notes: "Write a short follow-up message template with context, reminder, useful detail, and next step.",
+  },
+  {
+    title: "The mistake people make in",
+    notes: "Name a common networking mistake and give the better move.",
+  },
+  {
+    title: "How to exit gracefully from",
+    notes: "Give wording to close the conversation without awkwardness while preserving the relationship.",
+  },
+  {
+    title: "How to turn",
+    notes: "Explain how to move from first contact to next useful step without hard-selling.",
+  },
+  {
+    title: "How to listen better during",
+    notes: "Give active listening cues and how to capture useful notes after the conversation.",
+  },
+  {
+    title: "The one-note system for",
+    notes: "Teach what to write down after the interaction so follow-up feels personal.",
+  },
+  {
+    title: "How to avoid sounding salesy in",
+    notes: "Show how to lead with relevance, curiosity, and a useful insight before pitching.",
+  },
+  {
+    title: "How to ask for the next step after",
+    notes: "Give specific next-step language: intro, call, quote, resource, or check-in.",
+  },
+  {
+    title: "How to recover when",
+    notes: "Give advice for awkward moments, forgotten names, quiet rooms, or stalled conversation.",
+  },
+  {
+    title: "The value-first move for",
+    notes: "Focus on helping first: useful resource, intro, question, quick audit, or relevant observation.",
+  },
+];
+
+const tapSalesSubjects = [
+  "building a warm prospect list from event conversations",
+  "using public posts as context before outreach",
+  "sending a DM after someone scans your card",
+  "turning a casual chat into a booked meeting",
+  "using replies to earn trust before a pitch",
+  "qualifying without making people feel interrogated",
+  "asking who else should be in the room",
+  "following up after a no-show without sounding annoyed",
+  "reconnecting with an old lead",
+  "making your Tap-Deck profile answer the obvious buyer questions",
+  "sharing one case study without dumping a brochure",
+  "asking for referrals after helping someone",
+  "using events to learn market language",
+  "tracking where each lead came from",
+  "making the first call feel like a continuation, not a cold start",
+  "turning a business card exchange into a tiny CRM habit",
+  "spotting buying signals in casual conversation",
+  "asking better pain-point questions",
+  "handling the 'send me info' brush-off",
+  "knowing when not to pitch yet",
+];
+
+const crestedSubjects = [
+  ["isopod moisture gradients", "why one damp side and one drier side beats soaking the whole bin"],
+  ["springtail population booms", "why springtails often explode when mold or food is available"],
+  ["bioactive cleanup crews", "what isopods and springtails actually do and what they do not magically fix"],
+  ["terrarium plant safety", "plant choice, rinsing roots, avoiding pesticides, and watching for nibbling"],
+  ["leaf litter layers", "food, cover, humidity pockets, and microbe habitat"],
+  ["calcium sources", "cuttlebone, limestone, calcium carbonate, eggshell, and molting support"],
+  ["ventilation balance", "stale air, drying, condensation, and how airflow works with humidity"],
+  ["substrate refreshes", "frass buildup, partial changes, and species-dependent maintenance"],
+  ["mold in enclosures", "when mold is normal, when it is a warning, and how springtails help"],
+  ["protein feeding", "occasional protein, overfeeding risks, and cleanup timing"],
+  ["mancae hiding", "why baby isopods are hard to spot and where they stay safe"],
+  ["molting in halves", "why molts can look strange and why calcium and humidity matter"],
+  ["starter cultures", "why new colonies can look like a bin of dirt for a while"],
+  ["population control", "when a culture is thriving too much and how to split or reduce feeding"],
+  ["dwarf isopods", "why dwarf species can be useful in smaller or plant-focused setups"],
+  ["powder orange care", "hardy beginner care notes and what they still need"],
+  ["dairy cow care", "fast breeding, protein appetite, and enclosure management"],
+  ["rubber ducky patience", "slow-starting Cubaris care and why patience matters"],
+  ["springtail cultures", "charcoal, clay, rice, yeast, moisture, and harvesting tips"],
+  ["terrarium plant roots", "how cleanup crews interact with delicate roots and decaying matter"],
+  ["fungus gnats", "how overfeeding and wet substrate invite pests"],
+  ["bioactive myths", "things bioactive setups still need humans to monitor"],
+  ["closed terrariums", "why springtails often fit better than larger isopods in tiny sealed setups"],
+  ["arid bioactive setups", "why microclimates matter for cleanup crews in drier enclosures"],
+  ["safe botanicals", "hardwood leaves, seed pods, cork bark, and avoiding treated material"],
+];
+
+const crestedAngles: TopicPattern[] = [
+  {
+    title: "Random isopod fact:",
+    notes: "Lead with a real isopod or cleanup-crew fact, then give a keeper takeaway.",
+    postType: "Isopod Fact",
+  },
+  {
+    title: "Beginner mistake:",
+    notes: "Explain the mistake, why it happens, and what to do instead. Keep it helpful and nonjudgmental.",
+    postType: "Care Tip",
+  },
+  {
+    title: "Quick care check:",
+    notes: "Give a practical checklist people can use today.",
+    postType: "Care Tip",
+  },
+  {
+    title: "Bioactive myth check:",
+    notes: "Correct a common misconception from terrarium and bioactive discussions.",
+    postType: "Bioactive Tip",
+  },
+  {
+    title: "Troubleshooting:",
+    notes: "Describe symptoms, likely causes, and first steps. Avoid making hard diagnoses from limited info.",
+    postType: "Care Tip",
+  },
+  {
+    title: "Plant keeper note:",
+    notes: "Connect terrarium plants to cleanup crew behavior, moisture, roots, or substrate health.",
+    postType: "Terrarium Plant Tip",
+  },
+  {
+    title: "Springtail spotlight:",
+    notes: "Teach what springtails do, what population changes mean, and how they support the setup.",
+    postType: "Springtail Fact",
+  },
+  {
+    title: "Setup upgrade:",
+    notes: "Give one enclosure improvement that helps stability without overcomplicating the hobby.",
+    postType: "Care Tip",
+  },
+  {
+    title: "Keeper question:",
+    notes: "Frame this as a common community question, then answer it clearly.",
+    postType: "Care Tip",
+  },
+  {
+    title: "Tiny ecosystem lesson:",
+    notes: "Explain how decomposers, plants, moisture, and airflow connect in a bioactive setup.",
+    postType: "Bioactive Tip",
+  },
+  {
+    title: "Culture health clue:",
+    notes: "Teach one sign that a culture is stable, stressed, overfed, too dry, or too wet.",
+    postType: "Care Tip",
+  },
+  {
+    title: "What new keepers miss about",
+    notes: "Make it educational and specific. Include one practical action at the end.",
+    postType: "Care Tip",
+  },
+];
+
+function buildPovertySeeds() {
+  const tips = povertySubjects.flatMap(([subject, detail]) =>
+    povertyAngles.map((angle) =>
+      seed(
+        "poverty-finance",
+        povertyMatchers,
+        `${angle.title} ${subject}`,
+        angle.postType || "Broke Tip",
+        `${angle.notes} Topic focus: ${detail}. Keep Poverty Finance sassy: tease the broke situation and bad habits, but give useful steps.`
+      )
+    )
+  );
+
+  const memes = povertyMemeSubjects.flatMap((subject, index) => [
+    seed(
+      "poverty-finance",
+      povertyMatchers,
+      `Broke meme: ${subject}`,
+      "Broke Meme",
+      "Create a relatable broke-finance meme concept with a short caption, one practical money tip, and #satire. The joke can roast the situation and gently mock the follower's broke behavior, but still be useful."
+    ),
+    seed(
+      "poverty-finance",
+      povertyMatchers,
+      `Sassy money reminder ${index + 1}: ${subject}`,
+      "Broke Tip",
+      "Write a sharp, funny reminder tied to this scenario. Include a realistic fix someone can do today even if they are low on cash."
+    ),
+  ]);
+
+  return [...tips, ...memes];
+}
+
+function buildTapDeckSeeds() {
+  const networking = tapContexts.flatMap(([context, detail]) =>
+    tapSkills.map((skill) =>
+      seed(
+        "tap-deck",
+        tapDeckMatchers,
+        `${skill.title} ${context}`,
+        "Networking Tip",
+        `${skill.notes} Context: ${detail}. Keep it real and tactical for business networking and sales networking.`
+      )
+    )
+  );
+
+  const sales = tapSalesSubjects.flatMap((subject) => [
+    seed(
+      "tap-deck",
+      tapDeckMatchers,
+      `Sales networking play: ${subject}`,
+      "Sales Networking Tip",
+      "Give a clear, practical sales networking move. Emphasize trust, relevance, warm context, and a clean next step."
+    ),
+    seed(
+      "tap-deck",
+      tapDeckMatchers,
+      `Connection system: ${subject}`,
+      "Networking Tip",
+      "Explain a repeatable system for managing this kind of networking moment with Tap-Deck, notes, follow-up, and relationship-building."
+    ),
+  ]);
+
+  return [...networking, ...sales];
+}
+
+function buildCrestedSeeds() {
+  const care = crestedSubjects.flatMap(([subject, detail]) =>
+    crestedAngles.map((angle) =>
+      seed(
+        "crested-critters",
+        crestedMatchers,
+        `${angle.title} ${subject}`,
+        angle.postType || "Care Tip",
+        `${angle.notes} Topic focus: ${detail}. Mention isopods, springtails, bioactive setups, or terrarium plants where relevant.`
+      )
+    )
+  );
+
+  const speciesFacts = [
+    "Armadillidium can roll into a ball because of conglobation",
+    "Porcellio species often need more ventilation than many beginners expect",
+    "Cubaris species can be slower to establish and reward patience",
+    "dwarf white isopods reproduce without males in many cultures",
+    "powder orange isopods are hardy but still need a moisture gradient",
+    "dairy cow isopods are bold feeders and can overrun food quickly",
+    "mancae spend a lot of time hidden in stable humid pockets",
+    "isopods are crustaceans, not insects",
+    "springtails jump with a furcula and often vanish before you can point at them",
+    "leaf litter supports microbes before isopods even eat the leaf itself",
+    "molting problems often point back to moisture, calcium, stress, or nutrition",
+    "bioactive does not mean maintenance-free",
+    "plants can raise humidity at night through transpiration",
+    "too much food can create pests faster than it creates growth",
+    "cork bark doubles as shelter and a microclimate tool",
+    "fungus gnats often tell on overwatering or extra food",
+    "springtails eat mold and fungi but cannot fix every husbandry issue",
+    "some isopods nibble soft plants if easier food is missing",
+    "hardwood leaves are a long-term food source and habitat layer",
+    "substrate depth changes how stable humidity stays",
+    "babies may appear weeks after a colony seems quiet",
+    "isopods help recycle organic matter in forest floor ecosystems",
+    "closed jars are usually better matched to springtails than large isopods",
+    "arid bioactive bins still need humid refuges for cleanup crews",
+    "protein is useful in moderation and messy when overdone",
+    "calcium access supports exoskeleton growth after molts",
+    "overcrowding can stress a colony even when it looks productive",
+    "new cultures often look inactive while they settle",
+    "temperature swings can slow breeding",
+    "clean-up crews need care because they are livestock too",
+  ];
+
+  const facts = speciesFacts.map((fact) =>
+    seed(
+      "crested-critters",
+      crestedMatchers,
+      `Random isopod fact: ${fact}`,
+      "Isopod Fact",
+      "Write a concise educational post with a practical keeper takeaway and a friendly Crested Critters voice."
+    )
+  );
+
+  return [...care, ...facts];
+}
+
+export const requestedTopicSeeds: TopicSeed[] = [
+  ...buildPovertySeeds(),
+  ...buildTapDeckSeeds(),
+  ...buildCrestedSeeds(),
+];
+
+export const requestedTopicSeedCounts = requestedTopicSeeds.reduce(
+  (counts, seedItem) => {
+    counts[seedItem.brand] += 1;
+    return counts;
+  },
+  {
+    "poverty-finance": 0,
+    "tap-deck": 0,
+    "crested-critters": 0,
+  } satisfies Record<TopicSeed["brand"], number>
+);

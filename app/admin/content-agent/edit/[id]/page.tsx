@@ -7,7 +7,9 @@ import {
   publishPostFromEditor,
   rejectPostFromEditor,
   updateContentAgentPost,
+  updatePostTractionMetrics,
 } from "./actions";
+import { parseTractionMetrics } from "@/lib/content-agent/traction";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -66,6 +68,7 @@ export default async function ContentAgentPostEditPage({
   if (!post) notFound();
 
   const typedPost = post as ContentPost;
+  const traction = parseTractionMetrics(typedPost.raw_payload);
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100">
@@ -112,7 +115,7 @@ export default async function ContentAgentPostEditPage({
           <InfoCard label="Status" value={typedPost.status} />
           <InfoCard label="Scheduled" value={new Date(typedPost.scheduled_at).toLocaleString()} />
           <InfoCard label="Posted" value={typedPost.posted_at ? new Date(typedPost.posted_at).toLocaleString() : "Not posted"} />
-          <InfoCard label="Image" value={typedPost.image_url ? "Attached" : "None"} />
+          <InfoCard label="Traction" value={String(traction.score)} />
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
@@ -245,6 +248,41 @@ export default async function ContentAgentPostEditPage({
           </form>
         </section>
 
+        <section className="rounded-3xl border border-sky-400/30 bg-sky-400/10 p-6">
+          <h2 className="text-xl font-bold text-sky-100">Traction Metrics</h2>
+          <p className="mt-2 text-sm leading-6 text-sky-100/80">
+            Add reactions, comments, shares, and saves after a post is live.
+            Future generations for this page will learn from high-scoring posted
+            content without copying it.
+          </p>
+
+          <form action={updatePostTractionMetrics} className="mt-5 space-y-4">
+            <input type="hidden" name="post_id" value={typedPost.id} />
+            <div className="grid gap-4 md:grid-cols-4">
+              <NumberField name="reactions" label="Reactions" defaultValue={traction.reactions} />
+              <NumberField name="comments" label="Comments" defaultValue={traction.comments} />
+              <NumberField name="shares" label="Shares" defaultValue={traction.shares} />
+              <NumberField name="saves" label="Saves" defaultValue={traction.saves} />
+            </div>
+
+            <TextareaField
+              name="traction_notes"
+              label="What worked / what to repeat"
+              defaultValue={traction.notes}
+              rows={3}
+            />
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button className="rounded-2xl bg-sky-300 px-5 py-2 font-bold text-slate-950 hover:bg-sky-200">
+                Save Traction
+              </button>
+              <span className="text-sm text-sky-100/80">
+                Current weighted score: {traction.score}
+              </span>
+            </div>
+          </form>
+        </section>
+
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
           <h2 className="text-xl font-bold">Quick Actions</h2>
           <div className="mt-4 flex flex-wrap gap-3">
@@ -313,6 +351,30 @@ function TextField({
         name={name}
         defaultValue={defaultValue}
         className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-950/80 px-3 py-2 text-slate-100 outline-none focus:border-emerald-300"
+      />
+    </label>
+  );
+}
+
+function NumberField({
+  name,
+  label,
+  defaultValue,
+}: {
+  name: string;
+  label: string;
+  defaultValue: number;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs uppercase tracking-wide text-sky-100/70">{label}</span>
+      <input
+        type="number"
+        min="0"
+        step="1"
+        name={name}
+        defaultValue={defaultValue}
+        className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-950/80 px-3 py-2 text-slate-100 outline-none focus:border-sky-300"
       />
     </label>
   );

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createExpoAlertPost } from "@/lib/content-agent/isopedia";
 
 const MAX_FLYER_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -110,6 +111,14 @@ export async function updateExpo(formData: FormData) {
     throw new Error("Invalid expo status.");
   }
 
+  const { data: existingExpo, error: existingExpoError } = await supabase
+    .from("isopedia_expos")
+    .select("status")
+    .eq("id", expoId)
+    .maybeSingle<{ status: string | null }>();
+
+  if (existingExpoError) throw new Error(existingExpoError.message);
+
   const startsAt = new Date(startsAtRaw);
   const endsAt = endsAtRaw ? new Date(endsAtRaw) : null;
 
@@ -175,6 +184,14 @@ export async function updateExpo(formData: FormData) {
     .eq("id", expoId);
 
   if (error) throw new Error(error.message);
+
+  if (status === "approved" && existingExpo?.status !== "approved") {
+    try {
+      await createExpoAlertPost(expoId);
+    } catch (alertError) {
+      console.error("Failed to create Isopedia expo alert:", alertError);
+    }
+  }
 
   revalidatePath("/admin/isopedia/expos");
   revalidatePath(`/admin/isopedia/expos/${expoId}/edit`);
