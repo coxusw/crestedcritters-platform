@@ -80,9 +80,6 @@ export default async function RandomizerBillingPage({
             <Link className="rounded-xl bg-emerald-300 px-5 py-3 font-black text-slate-950 hover:bg-emerald-200" href="/randomizer">
               Back to Randomizer
             </Link>
-            <Link className="rounded-xl border border-white/10 bg-white/10 px-5 py-3 font-black text-white hover:bg-white/15" href="/account">
-              Account
-            </Link>
           </div>
         </header>
 

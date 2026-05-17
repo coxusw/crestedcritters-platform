@@ -157,10 +157,9 @@ export function generateRandomizerResult(input: {
 
   for (let spinNumber = 1; spinNumber <= input.spinCount; spinNumber += 1) {
     const picked = pickEntry(entryPool);
-    const isIntervalWinner = input.prizeInterval > 0 && spinNumber % input.prizeInterval === 0;
     const isFinalWinner = spinNumber === input.spinCount;
-    const isWinner = isIntervalWinner || isFinalWinner;
-    const prize = isFinalWinner ? "Final Winner" : isIntervalWinner ? `Prize spin ${spinNumber}` : null;
+    const isWinner = isFinalWinner;
+    const prize = isFinalWinner ? "Final Winner" : null;
 
     spinHistory.push({
       spinNumber,

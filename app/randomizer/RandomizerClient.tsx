@@ -1,11 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import WheelReplay, { type WheelSpin, type WheelWinner } from "./WheelReplay";
 
 type Status = {
   tone: "idle" | "good" | "bad";
   message: string;
+};
+
+type Template = {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+  rules: string;
+  logo_data_url: string | null;
 };
 
 function cleanName(value: string) {
@@ -57,11 +66,15 @@ export default function RandomizerClient() {
   const [names, setNames] = useState("");
   const [mode, setMode] = useState("spin-count");
   const [spinCount, setSpinCount] = useState(1);
-  const [prizeInterval, setPrizeInterval] = useState(0);
   const [winnerCount, setWinnerCount] = useState(1);
   const [prizeList, setPrizeList] = useState("");
   const [preventDuplicateWinners, setPreventDuplicateWinners] = useState(true);
+  const [dice, setDice] = useState<[number, number] | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoDataUrl, setLogoDataUrl] = useState("");
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templateName, setTemplateName] = useState("");
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [replay, setReplay] = useState<{
     entries: string[];
@@ -76,6 +89,81 @@ export default function RandomizerClient() {
 
   const entries = useMemo(() => parseNames(names), [names]);
   const prizes = useMemo(() => parseNames(prizeList), [prizeList]);
+
+  useEffect(() => {
+    async function loadTemplates() {
+      const response = await fetch("/api/randomizer/templates");
+
+      if (!response.ok) return;
+
+      const payload = (await response.json()) as { templates?: Template[] };
+      setTemplates(payload.templates || []);
+    }
+
+    void loadTemplates();
+  }, []);
+
+  async function selectedLogoDataUrl() {
+    if (logoFile) {
+      const compressed = await compressLogo(logoFile);
+      setLogoDataUrl(compressed);
+      return compressed;
+    }
+
+    return logoDataUrl;
+  }
+
+  async function saveTemplate() {
+    setIsSavingTemplate(true);
+    setStatus({ tone: "idle", message: "Saving template..." });
+
+    try {
+      const savedLogoDataUrl = await selectedLogoDataUrl();
+      const response = await fetch("/api/randomizer/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: templateName || title || "Randomizer Template",
+          title,
+          description,
+          rules,
+          logoDataUrl: savedLogoDataUrl,
+        }),
+      });
+      const payload = (await response.json()) as {
+        template?: Template;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.template) {
+        throw new Error(payload.error || "Could not save template.");
+      }
+
+      setTemplates((current) => [payload.template!, ...current]);
+      setTemplateName("");
+      setStatus({ tone: "good", message: "Template saved." });
+    } catch (error) {
+      setStatus({
+        tone: "bad",
+        message: error instanceof Error ? error.message : "Could not save template.",
+      });
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  }
+
+  function loadTemplate(templateId: string) {
+    const template = templates.find((item) => item.id === templateId);
+
+    if (!template) return;
+
+    setTitle(template.title);
+    setDescription(template.description);
+    setRules(template.rules);
+    setLogoDataUrl(template.logo_data_url || "");
+    setLogoFile(null);
+    setStatus({ tone: "good", message: `Loaded template: ${template.name}` });
+  }
 
   async function generateResult() {
     if (entries.length < 2) {
@@ -95,7 +183,7 @@ export default function RandomizerClient() {
     setStatus({ tone: "idle", message: "Generating and saving the official result..." });
 
     try {
-      const logoDataUrl = await compressLogo(logoFile);
+      const savedLogoDataUrl = await selectedLogoDataUrl();
       const response = await fetch("/api/randomizer/results", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -106,11 +194,11 @@ export default function RandomizerClient() {
           mode,
           entries,
           spinCount,
-          prizeInterval,
+          prizeInterval: 0,
           winnerCount,
           prizeList: prizes,
           preventDuplicateWinners,
-          logoDataUrl,
+          logoDataUrl: savedLogoDataUrl,
         }),
       });
 
@@ -181,6 +269,13 @@ export default function RandomizerClient() {
     setStatus({ tone: "idle", message: "Demo names loaded." });
   }
 
+  function rollSpinDice() {
+    const first = Math.floor(Math.random() * 6) + 1;
+    const second = Math.floor(Math.random() * 6) + 1;
+    setDice([first, second]);
+    setSpinCount(first + second);
+  }
+
   const statusClass =
     status.tone === "good"
       ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100"
@@ -231,7 +326,7 @@ export default function RandomizerClient() {
           </label>
 
           <label className="grid gap-2">
-            <span className="text-sm font-black text-emerald-100">Giveaway Rules</span>
+            <span className="text-sm font-black text-emerald-100">Rules</span>
             <textarea
               value={rules}
               onChange={(event) => setRules(event.target.value)}
@@ -248,6 +343,11 @@ export default function RandomizerClient() {
               onChange={(event) => setLogoFile(event.target.files?.[0] || null)}
               className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-300 file:px-3 file:py-2 file:font-black file:text-slate-950"
             />
+            {logoDataUrl && !logoFile && (
+              <span className="text-sm text-emerald-50/60">
+                Template logo loaded.
+              </span>
+            )}
           </label>
 
           <label className="grid gap-2">
@@ -294,17 +394,37 @@ export default function RandomizerClient() {
                 />
               </label>
 
-              <label className="grid gap-2">
-                <span className="text-sm font-black text-emerald-100">Prize Winner Every X Spins</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={1000}
-                  value={prizeInterval}
-                  onChange={(event) => setPrizeInterval(Number(event.target.value || 0))}
-                  className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:ring-4 focus:ring-emerald-400/20"
-                />
-              </label>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-black text-emerald-100">Random Spin Count</p>
+                    <p className="mt-1 text-sm text-emerald-50/60">
+                      Roll two six-sided dice. The sum becomes the number of spins.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={rollSpinDice}
+                    className="rounded-xl border border-yellow-300/30 bg-yellow-300/15 px-5 py-3 font-black text-yellow-100 transition hover:bg-yellow-300/20"
+                  >
+                    Roll Dice
+                  </button>
+                </div>
+
+                <div className="mt-4 flex items-center gap-3">
+                  {(dice || [1, 1]).map((value, index) => (
+                    <div
+                      key={index}
+                      className="flex h-14 w-14 items-center justify-center rounded-xl border border-white/20 bg-white text-2xl font-black text-slate-950 shadow-lg"
+                    >
+                      {dice ? value : "?"}
+                    </div>
+                  ))}
+                  <div className="font-black text-emerald-100">
+                    {dice ? `Total: ${spinCount} spins` : "Roll to randomize"}
+                  </div>
+                </div>
+              </div>
             </>
           )}
 
@@ -348,6 +468,45 @@ export default function RandomizerClient() {
             {status.message}
           </div>
 
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+            <h2 className="font-black text-emerald-100">Templates</h2>
+
+            <label className="mt-3 grid gap-2">
+              <span className="text-sm font-bold text-emerald-50/70">Load Template</span>
+              <select
+                defaultValue=""
+                onChange={(event) => loadTemplate(event.target.value)}
+                className="rounded-xl border border-white/10 bg-[#08150e] px-4 py-3 text-white outline-none focus:ring-4 focus:ring-emerald-400/20"
+              >
+                <option value="">Choose a template</option>
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="mt-3 grid gap-2">
+              <span className="text-sm font-bold text-emerald-50/70">Template Name</span>
+              <input
+                value={templateName}
+                onChange={(event) => setTemplateName(event.target.value)}
+                placeholder="Example: Weekly Giveaway"
+                className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:ring-4 focus:ring-emerald-400/20"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={saveTemplate}
+              disabled={isSavingTemplate}
+              className="mt-3 w-full rounded-xl border border-white/10 bg-white/10 px-5 py-3 font-black text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSavingTemplate ? "Saving..." : "Save Current Setup"}
+            </button>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <button
               type="button"
@@ -366,13 +525,6 @@ export default function RandomizerClient() {
               Load Demo
             </button>
 
-            <button
-              type="button"
-              onClick={() => setSpinCount(Math.floor(Math.random() * 10) + 1)}
-              className="rounded-xl border border-yellow-300/30 bg-yellow-300/15 px-5 py-3 font-black text-yellow-100 transition hover:bg-yellow-300/20"
-            >
-              Random 1-10
-            </button>
           </div>
         </div>
       </aside>

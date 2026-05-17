@@ -12,7 +12,7 @@ const sections = [
   },
   {
     title: "How winners are determined",
-    body: "The Randomizer uses server-side cryptographic randomness. Each entry line is treated as one entry, so duplicate names count as extra chances when the giveaway rules allow multiple entries. The selected names, spin order, winners, and original entry list are saved together.",
+    body: "The Randomizer uses server-side cryptographic randomness. Each entry line is treated as one entry, so duplicate names count as extra chances when the rules allow multiple entries. For Spin Count mode, the final spin is the official winner. For Last Name Spun mode, names are removed until one remains. For Multiple Winners mode, one winner is selected for each prize or requested winner slot. The selected names, spin order, winners, and original entry list are saved together.",
   },
   {
     title: "Why the result is harder to fake",
@@ -61,7 +61,7 @@ export default function RandomizerFaqPage() {
               Verify Result
             </Link>
             <Link className="rounded-full border border-white/10 px-4 py-2 text-emerald-100 hover:bg-white/10" href="/billing">
-              Billing
+              Account
             </Link>
           </nav>
         </header>
