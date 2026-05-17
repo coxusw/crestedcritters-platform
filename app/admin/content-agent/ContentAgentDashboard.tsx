@@ -61,6 +61,12 @@ export default function ContentAgentDashboard({
               TopicBank Editor
             </Link>
             <Link
+              href="/admin/content-agent/traction"
+              className="rounded-2xl bg-violet-300 px-4 py-2 text-sm font-bold text-slate-950 shadow-lg shadow-violet-950/30 transition hover:bg-violet-200"
+            >
+              Traction Metrics
+            </Link>
+            <Link
               href="/admin/isopedia"
               className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/10"
             >
@@ -93,7 +99,7 @@ export default function ContentAgentDashboard({
           <StatCard label="Need Images" value={counts.pendingImages} alert={counts.pendingImages > 0} />
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2">
+        <section className="grid gap-4 md:grid-cols-3">
           <Link
             href="/admin/content-agent/settings"
             className="rounded-3xl border border-sky-400/30 bg-sky-400/10 p-5 transition hover:-translate-y-0.5 hover:border-sky-300"
@@ -118,6 +124,20 @@ export default function ContentAgentDashboard({
             <h2 className="mt-2 text-xl font-bold">TopicBank Editor</h2>
             <p className="mt-2 text-sm text-slate-300">
               Add, edit, deactivate, and rotate topics for each Facebook page.
+            </p>
+          </Link>
+
+          <Link
+            href="/admin/content-agent/traction"
+            className="rounded-3xl border border-violet-300/30 bg-violet-300/10 p-5 transition hover:-translate-y-0.5 hover:border-violet-200"
+          >
+            <p className="text-sm uppercase tracking-[0.25em] text-violet-200">
+              Feedback Loop
+            </p>
+            <h2 className="mt-2 text-xl font-bold">Traction Metrics</h2>
+            <p className="mt-2 text-sm text-slate-300">
+              Enter reactions, comments, shares, saves, and notes for posted
+              content in a fast table.
             </p>
           </Link>
         </section>
