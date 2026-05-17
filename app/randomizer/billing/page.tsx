@@ -65,15 +65,17 @@ export default async function RandomizerBillingPage({
             </div>
           )}
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className={`mt-5 grid gap-3 ${account?.lifetime_access ? "" : "sm:grid-cols-2"}`}>
             <div className="rounded-xl border border-white/10 bg-black/20 p-4">
               <p className="text-sm text-emerald-50/60">Current access</p>
               <p className="mt-1 font-black text-emerald-100">{accessLabel(account)}</p>
             </div>
-            <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-              <p className="text-sm text-emerald-50/60">Credits</p>
-              <p className="mt-1 font-black text-emerald-100">{account?.credits || 0}</p>
-            </div>
+            {!account?.lifetime_access && (
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <p className="text-sm text-emerald-50/60">Credits</p>
+                <p className="mt-1 font-black text-emerald-100">{account?.credits || 0}</p>
+              </div>
+            )}
           </div>
 
           <div className="mt-5 flex flex-wrap gap-3">
@@ -83,7 +85,11 @@ export default async function RandomizerBillingPage({
           </div>
         </header>
 
-        <BillingClient cleanBillingPath="https://randomizer.crestedcritters.com/billing" />
+        <BillingClient
+          cleanBillingPath="https://randomizer.crestedcritters.com/billing"
+          hasLifetimeAccess={Boolean(account?.lifetime_access)}
+          creditCount={account?.credits || 0}
+        />
       </div>
     </main>
   );

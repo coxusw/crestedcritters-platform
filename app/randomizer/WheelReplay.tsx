@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export type WheelSpin = {
   spinNumber: number;
@@ -42,19 +42,6 @@ type WheelEntry = {
   entryIndex: number;
 };
 
-function buildWheelBackground(entries: WheelEntry[]) {
-  const visibleEntries = entries.slice(0, 48);
-  const step = 100 / Math.max(visibleEntries.length, 1);
-
-  return visibleEntries
-    .map((_, index) => {
-      const start = index * step;
-      const end = (index + 1) * step;
-      return `${colors[index % colors.length]} ${start}% ${end}%`;
-    })
-    .join(", ");
-}
-
 export default function WheelReplay({
   mode = "spin-count",
   entries,
@@ -72,13 +59,79 @@ export default function WheelReplay({
   const [wheelEntries, setWheelEntries] = useState(initialWheelEntries);
   const [rotation, setRotation] = useState(0);
   const [finished, setFinished] = useState(false);
-  const wheelBackground = useMemo(() => buildWheelBackground(wheelEntries), [wheelEntries]);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const currentSpin = currentSpinIndex >= 0 ? spinHistory[currentSpinIndex] : null;
   const visibleEntries = wheelEntries.slice(0, 12);
 
   useEffect(() => {
     setWheelEntries(initialWheelEntries);
   }, [initialWheelEntries]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const size = 900;
+    const center = size / 2;
+    const radius = center - 18;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    canvas.width = size;
+    canvas.height = size;
+    ctx.clearRect(0, 0, size, size);
+
+    if (!wheelEntries.length) {
+      ctx.fillStyle = "#102016";
+      ctx.beginPath();
+      ctx.arc(center, center, radius, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+
+    const segment = (Math.PI * 2) / wheelEntries.length;
+    const fontSize = Math.max(2, Math.min(18, Math.floor((radius * segment) / 1.9)));
+    const textRadius = radius * 0.62;
+
+    wheelEntries.forEach((entry, index) => {
+      const start = index * segment - Math.PI / 2;
+      const end = start + segment;
+
+      ctx.beginPath();
+      ctx.moveTo(center, center);
+      ctx.arc(center, center, radius, start, end);
+      ctx.closePath();
+      ctx.fillStyle = colors[index % colors.length];
+      ctx.fill();
+      ctx.strokeStyle = "rgba(7, 19, 12, 0.32)";
+      ctx.lineWidth = Math.max(0.5, Math.min(3, 28 / wheelEntries.length));
+      ctx.stroke();
+
+      ctx.save();
+      ctx.translate(center, center);
+      ctx.rotate(start + segment / 2);
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#07130c";
+      ctx.font = `900 ${fontSize}px Arial, Helvetica, sans-serif`;
+
+      const maxWidth = radius * 0.52;
+      let label = entry.name;
+
+      while (label.length > 3 && ctx.measureText(label).width > maxWidth) {
+        label = `${label.slice(0, -4)}...`;
+      }
+
+      ctx.fillText(label, textRadius, 0);
+      ctx.restore();
+    });
+
+    ctx.beginPath();
+    ctx.arc(center, center, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+    ctx.lineWidth = 12;
+    ctx.stroke();
+  }, [wheelEntries]);
 
   async function play() {
     if (!spinHistory.length || isPlaying) return;
@@ -133,34 +186,18 @@ export default function WheelReplay({
       <div className="grid gap-6 lg:grid-cols-[minmax(260px,420px)_1fr] lg:items-center">
         <div className="relative mx-auto aspect-square w-full max-w-[420px]">
           <div className="absolute -right-2 top-1/2 z-10 h-0 w-0 -translate-y-1/2 border-y-[16px] border-r-[28px] border-y-transparent border-r-white drop-shadow-lg" />
-          <div
-            className="relative h-full w-full overflow-hidden rounded-full border-[10px] border-white/15 shadow-2xl shadow-black/40 transition-transform duration-1000 ease-out"
+          <canvas
+            ref={canvasRef}
+            className="h-full w-full rounded-full shadow-2xl shadow-black/40 transition-transform duration-1000 ease-out"
             style={{
-              background: `conic-gradient(${wheelBackground})`,
               transform: `rotate(${rotation}deg)`,
             }}
-          >
-            {wheelEntries.slice(0, 36).map((entry, index) => {
-              const angle = (360 / Math.max(wheelEntries.length, 1)) * index + 360 / Math.max(wheelEntries.length, 1) / 2;
-
-              return (
-                <span
-                  key={entry.entryIndex}
-                  className="absolute left-1/2 top-1/2 max-w-[38%] origin-left truncate text-[10px] font-black text-slate-950 drop-shadow-sm sm:text-xs"
-                  style={{
-                    transform: `rotate(${angle}deg) translateX(34%)`,
-                  }}
-                >
-                  {entry.name}
-                </span>
-              );
-            })}
-            <div className="flex h-full w-full items-center justify-center rounded-full">
-              <div className="flex h-[38%] w-[38%] items-center justify-center rounded-full border border-white/20 bg-[#07130c] p-4 text-center shadow-xl">
-                <span className="text-sm font-black text-emerald-100">
-                  {currentSpin?.name || "Ready"}
-                </span>
-              </div>
+          />
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full">
+            <div className="flex h-[38%] w-[38%] items-center justify-center rounded-full border border-white/20 bg-[#07130c] p-4 text-center shadow-xl">
+              <span className="text-sm font-black text-emerald-100">
+                {currentSpin?.name || "Ready"}
+              </span>
             </div>
           </div>
         </div>

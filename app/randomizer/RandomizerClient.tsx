@@ -380,11 +380,6 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
                 {logoFile?.name || (logoDataUrl ? "Template logo loaded" : "No file selected")}
               </span>
             </div>
-            {logoDataUrl && !logoFile && (
-              <span className="text-sm text-emerald-50/60">
-                Template logo loaded.
-              </span>
-            )}
           </label>
 
           <label className="grid gap-2">

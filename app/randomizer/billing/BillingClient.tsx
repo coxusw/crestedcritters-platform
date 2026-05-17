@@ -5,13 +5,41 @@ import { RANDOMIZER_PACKAGES, formatMoney } from "@/lib/randomizer-billing";
 
 type Props = {
   cleanBillingPath: string;
+  hasLifetimeAccess?: boolean;
+  creditCount?: number;
 };
 
-export default function BillingClient({ cleanBillingPath }: Props) {
+export default function BillingClient({
+  cleanBillingPath,
+  hasLifetimeAccess = false,
+  creditCount = 0,
+}: Props) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState("");
 
+  if (hasLifetimeAccess) {
+    return (
+      <div className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 p-6 text-emerald-50 shadow-2xl shadow-black/20">
+        <p className="text-sm font-black uppercase tracking-[0.25em] text-emerald-300">
+          Lifetime Active
+        </p>
+        <h2 className="mt-2 text-3xl font-black">You have lifetime access.</h2>
+        <p className="mt-3 max-w-2xl leading-7 text-emerald-50/75">
+          Purchase options are hidden because your account already has unlimited Randomizer access.
+        </p>
+      </div>
+    );
+  }
+
   async function checkout(packageKey: string) {
+    if (packageKey === "access_lifetime" && creditCount > 0) {
+      const confirmed = window.confirm(
+        `You currently have ${creditCount} credit${creditCount === 1 ? "" : "s"}. Lifetime access gives unlimited Randomizer use, so those credits will no longer be needed. Use your credits before purchasing lifetime?`
+      );
+
+      if (!confirmed) return;
+    }
+
     setBusyKey(packageKey);
     setError("");
 
