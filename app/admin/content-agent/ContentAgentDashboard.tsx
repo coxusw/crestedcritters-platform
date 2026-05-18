@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   approveContentPost,
+  clearDraftApprovedContentAction,
   createExpoRoundupPostAction,
   createIsopediaStatsPostAction,
   createLatestSpeciesAnnouncementAction,
@@ -150,6 +151,11 @@ export default function ContentAgentDashboard({
               <ActionButton action={generateNextImageAction} label="Generate Next Image" />
               <ActionButton action={postDueAction} label="Post Approved Due" />
             </div>
+            <form action={clearDraftApprovedContentAction} className="mt-3">
+              <button className="w-full rounded-2xl border border-red-300/40 bg-red-500/15 px-4 py-3 text-sm font-bold text-red-100 transition hover:bg-red-500/25">
+                Clear Draft & Approved Posts
+              </button>
+            </form>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/5 p-5">

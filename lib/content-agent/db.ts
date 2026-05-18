@@ -1,5 +1,6 @@
 import { createSupabaseAdminClient } from "./supabase-admin";
 import type { ContentAgentPage, ContentAgentPost, ContentAgentTopic } from "./types";
+import { areSimilarTopics } from "./topic-normalization";
 
 export async function logContentAgent(action: string, result: string, details: string, entityType?: string, entityId?: string) {
   const supabase = createSupabaseAdminClient();
@@ -48,14 +49,64 @@ export async function getDashboardCounts() {
 
 export async function getNextTopicForPage(pageKey: string, postType: string) {
   const supabase = createSupabaseAdminClient();
-  let query = supabase.from("content_agent_topics").select("*").eq("page_key", pageKey).eq("post_type", postType).eq("active", true).order("last_used_at", { ascending: true, nullsFirst: true }).order("use_count", { ascending: true }).limit(1).maybeSingle();
-  let { data, error } = await query;
-  if (error) throw new Error(error.message);
-  if (data) return data as ContentAgentTopic;
+  const { data: exactTopics, error: exactError } = await supabase
+    .from("content_agent_topics")
+    .select("*")
+    .eq("page_key", pageKey)
+    .eq("post_type", postType)
+    .eq("active", true)
+    .order("last_used_at", { ascending: true, nullsFirst: true })
+    .order("use_count", { ascending: true })
+    .returns<ContentAgentTopic[]>();
 
-  const fallback = await supabase.from("content_agent_topics").select("*").eq("page_key", pageKey).eq("active", true).order("last_used_at", { ascending: true, nullsFirst: true }).order("use_count", { ascending: true }).limit(1).maybeSingle();
-  if (fallback.error) throw new Error(fallback.error.message);
-  return fallback.data as ContentAgentTopic | null;
+  if (exactError) throw new Error(exactError.message);
+
+  const exactTopic = await chooseLeastRepeatedTopic(supabase, pageKey, postType, exactTopics || []);
+  if (exactTopic) return exactTopic;
+
+  const { data: fallbackTopics, error: fallbackError } = await supabase
+    .from("content_agent_topics")
+    .select("*")
+    .eq("page_key", pageKey)
+    .eq("active", true)
+    .order("last_used_at", { ascending: true, nullsFirst: true })
+    .order("use_count", { ascending: true })
+    .returns<ContentAgentTopic[]>();
+
+  if (fallbackError) throw new Error(fallbackError.message);
+
+  return chooseLeastRepeatedTopic(supabase, pageKey, null, fallbackTopics || []);
+}
+
+async function chooseLeastRepeatedTopic(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  pageKey: string,
+  postType: string | null,
+  topics: ContentAgentTopic[]
+) {
+  if (topics.length === 0) return null;
+
+  let usedQuery = supabase
+    .from("content_agent_posts")
+    .select("topic_id, topic")
+    .eq("page_key", pageKey)
+    .not("topic_id", "is", null)
+    .neq("status", "Rejected");
+
+  if (postType) usedQuery = usedQuery.eq("post_type", postType);
+
+  const { data: usedRows, error } = await usedQuery.returns<Array<{ topic_id: string | null; topic: string | null }>>();
+  if (error) throw new Error(error.message);
+
+  const usedTopicIds = new Set((usedRows || []).map((row) => row.topic_id).filter(Boolean));
+  const usedTopicTexts = (usedRows || []).map((row) => row.topic).filter(Boolean) as string[];
+  const freshTopic = topics.find(
+    (topic) =>
+      !usedTopicIds.has(topic.id) &&
+      !usedTopicTexts.some((usedTopic) => areSimilarTopics(usedTopic, topic.topic))
+  );
+  const neverGenerated = topics.find((topic) => !usedTopicIds.has(topic.id));
+  return freshTopic || neverGenerated || topics[0];
 }
 
 export async function markTopicUsed(topicId: string) {

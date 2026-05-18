@@ -24,6 +24,8 @@ export async function generatePostText(input: { page: ContentAgentPage; slot: Ne
         "For Meme or Broke Meme posts, write a short caption and a clear imagePrompt.",
         "Tap-Deck should remain text-only.",
         "Poverty Finance satire must clearly include #satire.",
+        "For Poverty Finance, the joke can roast broke-budget habits and chaotic money choices, but keep it obviously playful and include one useful financial move.",
+        "Do not reuse stale Poverty Finance phrasing such as opening the bank app like a horror movie. Make each joke feel like a new angle tied to the selected topic.",
         "Keep captions Facebook-friendly and not too long."
       ],
     },

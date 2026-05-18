@@ -77,6 +77,29 @@ export async function postDueAction() {
   redirectWithNotice(message);
 }
 
+export async function clearDraftApprovedContentAction() {
+  const supabase = await requireAdminAndSupabase();
+
+  try {
+    const { count, error } = await supabase
+      .from("content_agent_posts")
+      .delete({ count: "exact" })
+      .in("status", ["Draft", "Approved"]);
+
+    if (error) throw new Error(error.message);
+
+    await supabase.from("content_agent_logs").insert({
+      action: "clear_draft_approved",
+      result: "OK",
+      details: `Deleted ${count || 0} Draft/Approved generated posts for a fresh generation queue.`,
+    });
+
+    redirectWithNotice(`Cleared ${count || 0} Draft/Approved posts. Posted history was kept.`);
+  } catch (error) {
+    redirectWithError(error);
+  }
+}
+
 export async function approveContentPost(postId: string) {
   const supabase = await requireAdminAndSupabase();
 

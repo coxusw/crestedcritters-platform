@@ -163,6 +163,108 @@ const povertyMemeSubjects = [
   "price comparing until your soul buffers",
   "the rent due date sprinting toward you",
   "choosing between convenience and not being broke-er",
+  "the debit card declining like it is doing performance art",
+  "checking the account balance with one eye open",
+  "adding avocado and suddenly needing a payment plan",
+  "buying gas and pretending half a tank is emotional stability",
+  "the cart total asking if you are sure about living indoors",
+  "your savings account getting visited like a relative in witness protection",
+  "trying to budget while past-you left financial jump scares",
+  "the credit card minimum payment acting like a participation trophy",
+  "payday arriving dressed as a hostage negotiator for bills",
+  "opening the fridge and calling it a financial strategy meeting",
+  "using the calculator app in the grocery aisle like a survival tool",
+  "telling yourself a sale saved money after spending money",
+  "rent taking the whole paycheck out for a romantic dinner",
+  "checking bank notifications like they are horror movie subtitles",
+  "the emergency fund being two nickels and confidence",
+  "meal planning around whatever expires first",
+  "your budget hearing the word brunch and filing a complaint",
+  "trying to build credit while credit keeps acting exclusive",
+  "the bank app loading slower because it knows you are fragile",
+  "choosing store pickup to avoid impulse-buy side quests",
+  "turning leftovers into meal prep because poverty has branding now",
+  "canceling subscriptions like firing tiny employees",
+  "your account balance saying absolutely not in lowercase",
+  "the grocery receipt needing its own therapy session",
+  "side hustle math after gas and fees ate the profit",
+  "asking for a raise because vibes are not legal tender",
+  "checking if fun money survived the rent attack",
+  "watching insurance renewals act personally offended",
+  "when the cheap option is still rude",
+  "your budget and your appetite filing separate reports",
+  "pretending tap water is a premium beverage",
+  "waiting for payday like it owes you an apology",
+  "the savings transfer immediately boomeranging back",
+  "calling customer service with humble villain energy",
+  "using cash envelopes because the debit card has no manners",
+  "when a small fee starts multiplying like it found friends",
+  "buying one treat and the budget acting betrayed",
+  "a no-spend weekend with main-character withdrawal symptoms",
+  "checking prices online while standing in the store",
+  "using the library because free is a love language",
+  "trying to save for retirement while dinner is pantry roulette",
+  "the car making a noise that sounds expensive in three languages",
+  "realizing convenience fees are just tiny financial insults",
+  "making coffee at home with the enthusiasm of a hostage video",
+  "when the paycheck is gone before the direct deposit confetti settles",
+  "the bank balance looking back like you both made mistakes",
+  "comparing unit prices like a mathlete under duress",
+  "asking if the coupon stacks because dignity is expensive",
+  "your wallet entering airplane mode at checkout",
+  "rent week turning everyone into a minimalist",
+  "the budget seeing takeout and calling security",
+  "using 'later' as a savings plan and getting humbled",
+  "when the fun purchase creates a boring consequence",
+  "having champagne taste and tap-water logistics",
+  "the overdraft fee arriving like a villain monologue",
+  "treating payday like a limited-time event",
+  "opening a bill and immediately needing to sit down",
+  "trying to be financially responsible while ads are screaming",
+  "the account balance giving jump-scare energy without special effects",
+];
+
+const povertySatireSubjects = [
+  ["bank app bravery", "checking balances before spending instead of letting the card freestyle"],
+  ["raise negotiation", "asking for more money with receipts instead of hoping effort gets noticed by telepathy"],
+  ["grocery math", "building meals from cheap staples before the cart total starts insulting the family name"],
+  ["subscription cleanup", "canceling quiet charges that keep sneaking into the account like unpaid roommates"],
+  ["payday planning", "assigning dollars before bills drag them into a back alley"],
+  ["rent week survival", "protecting rent money before small purchases start a tiny coup"],
+  ["emergency fund crumbs", "starting with tiny savings because zero dollars is not a safety net, it is a plot twist"],
+  ["side hustle receipts", "counting gas, fees, supplies, and taxes before calling it profit"],
+  ["debt payoff pride", "paying extra principal when possible instead of letting interest do cardio"],
+  ["cheap fun", "having a social life without letting the debit card audition for tragedy"],
+  ["fee reversals", "calling the bank with polite menace and asking for the fee back"],
+  ["retirement match", "not leaving employer match money on the table unless the table is on fire"],
+  ["credit utilization", "keeping balances from yelling at the credit score"],
+  ["meal prep reality", "making boring food useful without pretending rice is a personality"],
+  ["cash envelopes", "using buckets because the bank app cannot supervise behavior by itself"],
+  ["car maintenance", "planning for oil, tires, and repairs before the dashboard starts sending threats"],
+  ["holiday spending", "setting gift limits before December starts cosplaying as bankruptcy theater"],
+  ["medical bills", "asking for itemized bills and assistance because scary paper is still negotiable"],
+  ["windfall discipline", "giving surprise money a job before chaos hires it first"],
+  ["cheap living swaps", "choosing boring savings that actually survive the week"],
+  ["job hopping math", "knowing when loyalty is just a discount coupon for your employer"],
+  ["salary receipts", "tracking wins before asking for money like a professional with evidence"],
+  ["no-spend resets", "using a short reset without turning it into a punishment arc"],
+  ["budget categories", "naming the leaks before the account becomes a crime scene"],
+  ["price comparison", "checking unit prices because packaging is a liar with good lighting"],
+  ["financial boundaries", "saying no when your wallet is already breathing through a straw"],
+  ["student loans", "choosing a repayment plan instead of letting emails pile up like haunted confetti"],
+  ["insurance quotes", "shopping rates because loyalty does not pay dividends"],
+  ["buy now pay later", "asking whether future-you consented to this nonsense"],
+  ["minimum payment traps", "knowing when minimum payments are keeping the debt on life support"],
+  ["cheap dates", "romance that does not require sacrificing the electric bill"],
+  ["moving costs", "budgeting deposits, boxes, and utility starts before moving day gets rude"],
+  ["pet costs", "planning for adorable dependents with tiny paws and expensive opinions"],
+  ["kids and money", "building buffers because children treat shoes like disposable software"],
+  ["utility bills", "calling before shutoff panic becomes a personality test"],
+  ["cash flow calendar", "matching bills to paydays instead of manifesting electricity"],
+  ["used purchases", "buying secondhand when it is smart, not when it is trash wearing a discount sticker"],
+  ["tax refund plans", "making refund money useful before the cart starts flirting"],
+  ["fun money limits", "letting fun exist without giving it access to the rent envelope"],
+  ["savings automation", "moving tiny money before your impulses discover it"],
 ];
 
 const tapContexts = [
@@ -356,6 +458,34 @@ const crestedAngles: TopicPattern[] = [
   },
 ];
 
+const crestedMemeSubjects = [
+  "checking an isopod bin and seeing everyone vanish under bark",
+  "springtails appearing only after you stop trying to count them",
+  "a dairy cow colony acting like protein is rent",
+  "new keepers mistaking normal mold for the end times",
+  "rubber duckies making patience part of the care sheet",
+  "buying one culture and suddenly needing more bins",
+  "leaf litter disappearing like someone paid it to leave",
+  "the dry side and wet side both being judged by tiny crustaceans",
+  "finding mancae after declaring the colony inactive",
+  "overfeeding once and fungus gnats filing paperwork",
+  "isopods ignoring fancy food and eating the boring leaf",
+  "springtails treating mold like a buffet reservation",
+  "the colony hiding until guests come over",
+  "adding cork bark and calling it interior design",
+  "checking humidity like a tiny weather station operator",
+  "a cleanup crew that still expects you to clean up",
+  "the moment you learn bioactive does not mean autopilot",
+  "powder oranges acting beginner-friendly but still having standards",
+  "Cubaris owners explaining slow growth with haunted patience",
+  "terrarium plants surviving until isopods discover soft leaves",
+  "the first time an isopod molts and looks like two ghosts",
+  "adding calcium like you are stocking a tiny gym",
+  "the bin looking empty while everyone is under one leaf",
+  "trying to photograph an isopod that chose violence and speed",
+  "telling yourself one more species is a reasonable business decision",
+];
+
 function buildPovertySeeds() {
   const tips = povertySubjects.flatMap(([subject, detail]) =>
     povertyAngles.map((angle) =>
@@ -386,7 +516,31 @@ function buildPovertySeeds() {
     ),
   ]);
 
-  return [...tips, ...memes];
+  const satire = povertySatireSubjects.flatMap(([subject, detail], index) => [
+    seed(
+      "poverty-finance",
+      povertyMatchers,
+      `Satire humor ${index + 1}: ${subject}`,
+      "Satire Humor",
+      `Make it a joke first: roast the broke-budget behavior and the absurd situation, not the person's worth. Push the line with playful sass, then land one practical fix. Topic focus: ${detail}.`
+    ),
+    seed(
+      "poverty-finance",
+      povertyMatchers,
+      `Real finance tip: ${subject}`,
+      "Real Finance Tip",
+      `Give useful money advice with a sharp comedic opener. Keep the attitude high, make the broke-life joke obvious, and avoid cruelty. Topic focus: ${detail}.`
+    ),
+    seed(
+      "poverty-finance",
+      povertyMatchers,
+      `Broke roast: ${subject}`,
+      "Broke Roast",
+      `Write a punchy post that jokes about broke habits like a friend roasting you with love. Include one action step so the joke has a point. Topic focus: ${detail}.`
+    ),
+  ]);
+
+  return [...tips, ...memes, ...satire];
 }
 
 function buildTapDeckSeeds() {
@@ -478,7 +632,17 @@ function buildCrestedSeeds() {
     )
   );
 
-  return [...care, ...facts];
+  const memes = crestedMemeSubjects.map((subject) =>
+    seed(
+      "crested-critters",
+      crestedMatchers,
+      `Crested Critters meme: ${subject}`,
+      "Meme",
+      "Create a friendly isopod, springtail, bioactive, or terrarium-keeper meme concept. Keep it accurate enough for hobbyists and include a tiny care takeaway."
+    )
+  );
+
+  return [...care, ...facts, ...memes];
 }
 
 export const requestedTopicSeeds: TopicSeed[] = [
