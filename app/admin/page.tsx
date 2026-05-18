@@ -22,10 +22,12 @@ type AdminTool = {
 type BookkeepingRow = {
   type: string;
   classification: string;
+  category: string | null;
   amount: number | null;
   payment_method: string | null;
   money_destination: string | null;
   source: string | null;
+  imported_from: string | null;
   reviewed: boolean | null;
 };
 
@@ -224,7 +226,7 @@ async function getAdminSnapshots() {
     safeRows<BookkeepingRow>(
       supabase
         .from("bookkeeping_transactions")
-        .select("type, classification, amount, payment_method, money_destination, source, reviewed")
+        .select("type, classification, category, amount, payment_method, money_destination, source, imported_from, reviewed")
         .gte("transaction_date", "2026-01-01")
         .limit(5000)
     ),
@@ -365,7 +367,7 @@ function summarizeBookkeeping(rows: BookkeepingRow[]) {
       const amount = Number(row.amount || 0);
       const paymentLabel = `${row.payment_method || ""} ${row.money_destination || ""}`.toLowerCase();
 
-      if (row.classification === "cash_deposit") {
+      if (isCashDepositRow(row)) {
         totals.squareBalance += amount;
         totals.cashOnHand -= amount;
       } else {
@@ -373,7 +375,7 @@ function summarizeBookkeeping(rows: BookkeepingRow[]) {
         if (paymentLabel.includes("cash")) totals.cashOnHand += balanceEffect(row, amount);
       }
 
-      if (row.classification === "ignore" || row.classification === "cash_deposit") return totals;
+      if (row.classification === "ignore" || isCashDepositRow(row)) return totals;
       if (row.type === "income") totals.income += amount;
       if (row.type === "expense" || row.type === "mileage") totals.expenses += amount;
       return totals;
@@ -385,12 +387,23 @@ function summarizeBookkeeping(rows: BookkeepingRow[]) {
 function balanceEffect(row: BookkeepingRow, amount: number) {
   if (row.source === "rebalance") return amount;
   if (row.classification === "ignore") return 0;
-  if (row.classification === "cash_deposit") return 0;
+  if (isCashDepositRow(row)) return 0;
   if (row.classification === "owner_draw") return -amount;
   if (row.classification === "owner_contribution") return amount;
   if (row.type === "income") return amount;
   if (row.type === "expense" || row.type === "tax" || row.type === "transfer") return -amount;
   return 0;
+}
+
+function isCashDepositRow(row: BookkeepingRow) {
+  const category = (row.category || "").toLowerCase();
+  const importedFrom = (row.imported_from || "").toLowerCase();
+  return (
+    row.source === "cash_deposit" ||
+    row.classification === "cash_deposit" ||
+    category === "cash deposit" ||
+    importedFrom.includes("cash deposit")
+  );
 }
 
 function formatMoney(value: number) {

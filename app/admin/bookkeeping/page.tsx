@@ -59,7 +59,6 @@ const CLASSIFICATION_OPTIONS = [
   "business",
   "owner_contribution",
   "owner_draw",
-  "cash_deposit",
   "sales_tax",
   "ignore",
 ];
@@ -343,7 +342,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
               <FilterLink href="/admin/bookkeeping?classification=owner_contribution" active={classificationFilter === "owner_contribution"}>
                 Owner Contributions
               </FilterLink>
-              <FilterLink href="/admin/bookkeeping?classification=cash_deposit" active={classificationFilter === "cash_deposit"}>
+              <FilterLink href="/admin/bookkeeping?q=Cash%20Deposit" active={searchTerm.toLowerCase() === "cash deposit"}>
                 Cash Deposits
               </FilterLink>
               <FilterLink href="/admin/bookkeeping?review=needs" active={reviewFilter === "needs"}>
@@ -475,17 +474,17 @@ function summarizeTransactions(transactions: TransactionRow[]) {
       const amount = Number(transaction.amount || 0);
       const paymentLabel = `${transaction.payment_method || ""} ${transaction.money_destination || ""}`.toLowerCase();
 
-      if (transaction.classification === "cash_deposit") {
+      if (isCashDepositTransaction(transaction)) {
         totals.squareBalance += amount;
         totals.cashOnHand -= amount;
       } else if (paymentLabel.includes("square")) {
         totals.squareBalance += balanceEffect(transaction, amount);
       }
-      if (transaction.classification !== "cash_deposit" && paymentLabel.includes("cash")) {
+      if (!isCashDepositTransaction(transaction) && paymentLabel.includes("cash")) {
         totals.cashOnHand += balanceEffect(transaction, amount);
       }
 
-      if (transaction.classification === "ignore" || transaction.classification === "cash_deposit") return totals;
+      if (transaction.classification === "ignore" || isCashDepositTransaction(transaction)) return totals;
       if (transaction.classification === "owner_contribution") {
         totals.ownerContributions += amount;
       } else if (transaction.classification === "owner_draw") {
@@ -517,7 +516,7 @@ function summarizeTransactions(transactions: TransactionRow[]) {
 function balanceEffect(transaction: TransactionRow, amount: number) {
   if (transaction.source === "rebalance") return amount;
   if (transaction.classification === "ignore") return 0;
-  if (transaction.classification === "cash_deposit") return 0;
+  if (isCashDepositTransaction(transaction)) return 0;
   if (transaction.classification === "owner_draw") return -amount;
   if (transaction.classification === "owner_contribution") return amount;
   if (transaction.type === "income") return amount;
@@ -525,6 +524,17 @@ function balanceEffect(transaction: TransactionRow, amount: number) {
     return -amount;
   }
   return 0;
+}
+
+function isCashDepositTransaction(transaction: TransactionRow) {
+  const category = (transaction.category || "").toLowerCase();
+  const importedFrom = (transaction.imported_from || "").toLowerCase();
+  return (
+    transaction.source === "cash_deposit" ||
+    transaction.classification === "cash_deposit" ||
+    category === "cash deposit" ||
+    importedFrom.includes("cash deposit")
+  );
 }
 
 function TransactionRowEditor({

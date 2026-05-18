@@ -14,7 +14,6 @@ const CLASSIFICATIONS = new Set([
   "business",
   "owner_contribution",
   "owner_draw",
-  "cash_deposit",
   "sales_tax",
   "ignore",
 ]);
@@ -94,13 +93,13 @@ export async function createCashDepositTransaction(formData: FormData) {
       .insert({
         transaction_date: depositDate,
         type: "transfer",
-        classification: "cash_deposit",
+        classification: "ignore",
         category: "Cash Deposit",
         description,
         amount,
         payment_method: "Cash to Square",
         money_destination: "Square",
-        source: "manual",
+        source: "cash_deposit",
         imported_from: "Manual Cash Deposit",
         notes: textValue(formData, "notes") || "Moves existing cash on hand into Square without counting as new income.",
         reviewed: true,
@@ -298,7 +297,7 @@ export async function rebalanceBookkeepingBalances(formData: FormData) {
 
     const { data, error: fetchError } = await supabase
       .from("bookkeeping_transactions")
-      .select("type, classification, amount, payment_method, money_destination, source")
+      .select("type, classification, category, amount, payment_method, money_destination, source, imported_from")
       .gte("transaction_date", "2026-01-01")
       .limit(2000);
 
@@ -374,10 +373,12 @@ export async function updateBookkeepingTransaction(formData: FormData) {
 type BalanceActionRow = {
   type: string;
   classification: string;
+  category: string | null;
   amount: number;
   payment_method: string | null;
   money_destination: string | null;
   source: string;
+  imported_from: string | null;
 };
 
 function summarizeBalancesForAction(rows: BalanceActionRow[]) {
@@ -385,7 +386,7 @@ function summarizeBalancesForAction(rows: BalanceActionRow[]) {
     (totals, row) => {
       const label = `${row.payment_method || ""} ${row.money_destination || ""}`.toLowerCase();
       const amount = Number(row.amount || 0);
-      if (row.classification === "cash_deposit") {
+      if (isCashDepositBalanceRow(row)) {
         totals.squareBalance += amount;
         totals.cashOnHand -= amount;
         return totals;
@@ -401,12 +402,23 @@ function summarizeBalancesForAction(rows: BalanceActionRow[]) {
 function balanceEffectForAction(row: BalanceActionRow, amount: number) {
   if (row.source === "rebalance") return amount;
   if (row.classification === "ignore") return 0;
-  if (row.classification === "cash_deposit") return 0;
+  if (isCashDepositBalanceRow(row)) return 0;
   if (row.classification === "owner_draw") return -amount;
   if (row.classification === "owner_contribution") return amount;
   if (row.type === "income") return amount;
   if (row.type === "expense" || row.type === "tax" || row.type === "transfer") return -amount;
   return 0;
+}
+
+function isCashDepositBalanceRow(row: BalanceActionRow) {
+  const category = (row.category || "").toLowerCase();
+  const importedFrom = (row.imported_from || "").toLowerCase();
+  return (
+    row.source === "cash_deposit" ||
+    row.classification === "cash_deposit" ||
+    category === "cash deposit" ||
+    importedFrom.includes("cash deposit")
+  );
 }
 
 function buildRebalanceRow(destination: "Square" | "Cash", target: number, amount: number, date: string) {
