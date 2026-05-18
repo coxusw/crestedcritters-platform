@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
   bulkUpdateBookkeepingTransactions,
   createManualBookkeepingTransaction,
+  deleteSelectedBookkeepingTransactions,
   diagnoseSquareBookkeepingTransactions,
   importSquareBankingCsv,
   pullSquareBookkeepingTransactions,
@@ -289,15 +290,24 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                   as Owner Draw / Personal so it stays out of expenses.
                 </p>
               </div>
-              <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
-                Save Visible Rows
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
+                  Save Visible Rows
+                </button>
+                <button
+                  formAction={deleteSelectedBookkeepingTransactions}
+                  className="rounded-md border border-red-300/40 bg-red-500/20 px-4 py-2 text-sm font-bold text-red-100 hover:bg-red-500/30"
+                >
+                  Delete Selected
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="min-w-[1300px] w-full text-left text-sm">
+              <table className="min-w-[1360px] w-full text-left text-sm">
                 <thead className="border-b border-white/10 bg-slate-950/70 text-xs uppercase tracking-wide text-slate-400">
                   <tr>
+                    <th className="px-3 py-2">Delete</th>
                     <th className="px-3 py-2">Date</th>
                     <th className="px-3 py-2">Type</th>
                     <th className="px-3 py-2">Classification</th>
@@ -320,7 +330,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                   ))}
                   {transactions.length === 0 && (
                     <tr>
-                      <td colSpan={10} className="px-3 py-10 text-center text-slate-400">
+                      <td colSpan={11} className="px-3 py-10 text-center text-slate-400">
                         No transactions found for this filter.
                       </td>
                     </tr>
@@ -329,9 +339,15 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
               </table>
             </div>
 
-            <div className="flex justify-end border-t border-white/10 p-4">
+            <div className="flex flex-wrap justify-end gap-2 border-t border-white/10 p-4">
               <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
                 Save Visible Rows
+              </button>
+              <button
+                formAction={deleteSelectedBookkeepingTransactions}
+                className="rounded-md border border-red-300/40 bg-red-500/20 px-4 py-2 text-sm font-bold text-red-100 hover:bg-red-500/30"
+              >
+                Delete Selected
               </button>
             </div>
           </form>
@@ -429,6 +445,12 @@ function TransactionRowEditor({
 
   return (
     <tr className={`border-b align-top ${transaction.reviewed ? "border-white/5" : "border-red-400/25 bg-red-500/10"}`}>
+      <td className="w-20 px-2 py-2">
+        <label className="flex items-center gap-2 text-xs text-red-100">
+          <input type="checkbox" name="delete_transaction_id" value={transaction.id} />
+          Delete
+        </label>
+      </td>
       <td className="w-32 px-2 py-2">
         <input type="hidden" name="transaction_id" value={transaction.id} />
         <input

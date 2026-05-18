@@ -227,6 +227,29 @@ export async function bulkUpdateBookkeepingTransactions(formData: FormData) {
   redirectWithNotice(`Saved ${savedCount} bookkeeping transactions.`);
 }
 
+export async function deleteSelectedBookkeepingTransactions(formData: FormData) {
+  await requireContentAgentAdmin();
+  let deletedCount = 0;
+
+  try {
+    const ids = formData.getAll("delete_transaction_id").map((id) => String(id));
+    if (ids.length === 0) throw new Error("Select at least one transaction to delete.");
+
+    const supabase = createSupabaseAdminClient();
+    const { error } = await supabase
+      .from("bookkeeping_transactions")
+      .delete()
+      .in("id", ids);
+
+    if (error) throw new Error(error.message);
+    deletedCount = ids.length;
+  } catch (error) {
+    redirectWithError(error);
+  }
+
+  redirectWithNotice(`Deleted ${deletedCount} bookkeeping transaction${deletedCount === 1 ? "" : "s"}.`);
+}
+
 export async function rebalanceBookkeepingBalances(formData: FormData) {
   await requireContentAgentAdmin();
   let notice = "";
