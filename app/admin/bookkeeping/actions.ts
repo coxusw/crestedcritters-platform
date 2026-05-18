@@ -78,6 +78,42 @@ export async function createManualBookkeepingTransaction(formData: FormData) {
   redirectWithNotice("Added manual bookkeeping entry.");
 }
 
+export async function createCashDepositTransaction(formData: FormData) {
+  await requireContentAgentAdmin();
+
+  try {
+    const amount = numberValue(formData, "amount");
+    if (amount <= 0) throw new Error("Cash deposit amount must be greater than zero.");
+
+    const depositDate = textValue(formData, "transaction_date") || new Date().toISOString().slice(0, 10);
+    const description = textValue(formData, "description") || "Cash deposited into Square";
+
+    const supabase = createSupabaseAdminClient();
+    const { error } = await supabase
+      .from("bookkeeping_transactions")
+      .insert({
+        transaction_date: depositDate,
+        type: "transfer",
+        classification: "cash_deposit",
+        category: "Cash Deposit",
+        description,
+        amount,
+        payment_method: "Cash to Square",
+        money_destination: "Square",
+        source: "manual",
+        imported_from: "Manual Cash Deposit",
+        notes: textValue(formData, "notes") || "Moves existing cash on hand into Square without counting as new income.",
+        reviewed: true,
+      });
+
+    if (error) throw new Error(error.message);
+  } catch (error) {
+    redirectWithError(error);
+  }
+
+  redirectWithNotice("Recorded cash deposit as a transfer from cash on hand to Square.");
+}
+
 export async function pullSquareBookkeepingTransactions() {
   await requireContentAgentAdmin();
   let notice = "";

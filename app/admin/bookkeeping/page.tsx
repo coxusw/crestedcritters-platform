@@ -3,6 +3,7 @@ import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
   bulkUpdateBookkeepingTransactions,
+  createCashDepositTransaction,
   createManualBookkeepingTransaction,
   deleteSelectedBookkeepingTransactions,
   diagnoseSquareBookkeepingTransactions,
@@ -210,7 +211,43 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           </div>
         </section>
 
-        <section className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
+        <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-lg border border-emerald-300/20 bg-emerald-400/[0.06] p-4">
+            <h2 className="font-bold">Record Cash Deposit</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              Use this when cash sales were already counted as income and you
+              are only depositing that cash into Square.
+            </p>
+            <form action={createCashDepositTransaction} className="mt-3 grid gap-3 sm:grid-cols-[9rem_1fr_8rem_auto]">
+              <input
+                type="date"
+                name="transaction_date"
+                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+              />
+              <input
+                name="description"
+                placeholder="Description"
+                defaultValue="Cash deposited into Square"
+                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+              />
+              <input
+                name="amount"
+                placeholder="Amount"
+                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+              />
+              <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
+                Record
+              </button>
+              <textarea
+                name="notes"
+                placeholder="Notes"
+                rows={2}
+                className="sm:col-span-4 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+              />
+            </form>
+          </div>
+
+          <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
           <h2 className="font-bold">Add Manual Entry</h2>
           <form action={createManualBookkeepingTransaction} className="mt-3 grid gap-3 lg:grid-cols-[9rem_8rem_12rem_12rem_1fr_8rem_10rem_6rem_7rem_auto]">
               <input
@@ -265,6 +302,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                 Add
               </button>
           </form>
+          </div>
         </section>
 
         <section className="grid gap-4">
