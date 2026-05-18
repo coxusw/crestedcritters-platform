@@ -211,6 +211,13 @@ export default async function AdminIsopediaPage() {
             <h2 className="text-xl font-semibold">Admin Tools</h2>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <AdminActionCard
+                href="/admin/isopedia/review"
+                title="Review Queues"
+                description={`${totalSubmissions} species / ${totalSuggestedEdits} edit${totalSuggestedEdits === 1 ? "" : "s"} waiting.`}
+                icon="Review"
+                alert={totalSubmissions + totalSuggestedEdits > 0}
+              />
+              <AdminActionCard
                 href="/admin/isopedia/badges"
                 title="Badge Manager"
                 description={`${totalBadges} badge assignment${totalBadges === 1 ? "" : "s"} active.`}

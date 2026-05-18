@@ -258,16 +258,34 @@ export default async function SpeciesPage({ params }: PageProps) {
   } = await supabase.auth.getUser();
 
   let collectionItems: CollectionItem[] = [];
+  let canAccessAdmin = false;
 
   if (user) {
-    const { data } = await supabase
-      .from("isopedia_user_species")
-      .select("status")
-      .eq("user_id", user.id)
-      .eq("species_id", species.id)
-      .returns<CollectionItem[]>();
+    const [{ data }, { data: profile }, { data: adminProfile }] =
+      await Promise.all([
+        supabase
+          .from("isopedia_user_species")
+          .select("status")
+          .eq("user_id", user.id)
+          .eq("species_id", species.id)
+          .returns<CollectionItem[]>(),
+        supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle<{ role: string | null }>(),
+        supabase
+          .from("admin_profiles")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle(),
+      ]);
 
     collectionItems = data || [];
+    canAccessAdmin =
+      Boolean(adminProfile) ||
+      profile?.role === "admin" ||
+      profile?.role === "moderator";
   }
 
   const initialOwned = collectionItems.some((item) => item.status === "owned");
@@ -423,12 +441,14 @@ export default async function SpeciesPage({ params }: PageProps) {
                 Add Image
               </Link>
 
-              <Link
-                href="/isopedia/review"
-                className="rounded-xl border border-white/10 bg-[#102016] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#14311f]"
-              >
-                Review Queue
-              </Link>
+              {!canAccessAdmin && (
+                <Link
+                  href="/isopedia/review"
+                  className="rounded-xl border border-white/10 bg-[#102016] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#14311f]"
+                >
+                  Review Queue
+                </Link>
+              )}
             </div>
           </div>
 
