@@ -51,19 +51,19 @@ export default async function AdminIsopediaReviewPage() {
 
         <section className="grid gap-4 md:grid-cols-3">
           <ReviewCard
-            href="/isopedia/verify"
+            href="/admin/isopedia/verify"
             title="Species Submissions"
             count={submissionCount}
             description="Review new species pages submitted by contributors."
           />
           <ReviewCard
-            href="/isopedia/verify-edits"
+            href="/admin/isopedia/verify-edits"
             title="Suggested Edits"
             count={editCount}
             description="Review proposed changes to existing species pages."
           />
           <ReviewCard
-            href="/isopedia/verify-images"
+            href="/admin/isopedia/verify-images"
             title="Gallery Images"
             count={imageCount}
             description="Review submitted species gallery images."
