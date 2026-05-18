@@ -1,12 +1,21 @@
 import { createSupabaseAdminClient } from "./supabase-admin";
 import { generateImageBase64 } from "./openai";
+import { isImagePostTypeForPage } from "./scheduler";
 import type { ContentAgentPost } from "./types";
 
 export async function generateImageForNextPost() {
   const supabase = createSupabaseAdminClient();
-  const { data: posts, error } = await supabase.from("content_agent_posts").select("*").in("post_type", ["Meme", "Broke Meme"]).is("image_url", null).not("status", "in", '("Rejected","Posted")').order("scheduled_at", { ascending: true }).limit(10);
+  const { data: posts, error } = await supabase
+    .from("content_agent_posts")
+    .select("*")
+    .is("image_url", null)
+    .not("status", "in", '("Rejected","Posted")')
+    .order("scheduled_at", { ascending: true })
+    .limit(50);
   if (error) throw new Error(error.message);
-  const post = (posts || []).find((item) => (item.page_key === "crested" && item.post_type === "Meme") || (item.page_key === "povertyfinance" && item.post_type === "Broke Meme")) as ContentAgentPost | undefined;
+  const post = (posts || []).find((item) =>
+    isImagePostTypeForPage(item.page_key, item.post_type)
+  ) as ContentAgentPost | undefined;
   if (!post) return { generated: false, message: "No eligible missing image posts." };
 
   const prompt = [post.image_prompt || "", post.meme_top_text ? `Top meme text: ${post.meme_top_text}` : "", post.meme_bottom_text ? `Bottom meme text: ${post.meme_bottom_text}` : "", post.caption ? `Caption context: ${post.caption}` : "", "Square Facebook image. Family-friendly. No logos. No watermarks."].filter(Boolean).join("\n");

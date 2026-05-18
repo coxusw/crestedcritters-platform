@@ -46,7 +46,7 @@ export function isImagePostTypeForPage(
   }
 
   if (cleanPageKey === "povertyfinance") {
-    return cleanPostType === "brokememe";
+    return ["brokememe", "brokeroast", "satirehumor", "meme"].includes(cleanPostType);
   }
 
   // Isopedia verified species announcements can have uploaded images,
