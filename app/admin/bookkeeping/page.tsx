@@ -2,12 +2,12 @@ import Link from "next/link";
 import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
+  bulkUpdateBookkeepingTransactions,
   createManualBookkeepingTransaction,
   diagnoseSquareBookkeepingTransactions,
   importSquareBankingCsv,
   pullSquareBookkeepingTransactions,
   rebalanceBookkeepingBalances,
-  updateBookkeepingTransaction,
 } from "./actions";
 
 type PageProps = {
@@ -280,49 +280,61 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
         </section>
 
         <section className="rounded-lg border border-white/10 bg-white/[0.05]">
-          <div className="border-b border-white/10 p-4">
-            <h2 className="text-lg font-bold">Transaction Ledger</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              Newest transactions show first. Mark personal/non-business spending
-              as Owner Draw / Personal so it stays out of expenses.
-            </p>
-          </div>
+          <form id="bulk-bookkeeping-form" action={bulkUpdateBookkeepingTransactions}>
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 p-4">
+              <div>
+                <h2 className="text-lg font-bold">Transaction Ledger</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Newest transactions show first. Mark personal/non-business spending
+                  as Owner Draw / Personal so it stays out of expenses.
+                </p>
+              </div>
+              <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
+                Save Visible Rows
+              </button>
+            </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-[1380px] w-full text-left text-sm">
-              <thead className="border-b border-white/10 bg-slate-950/70 text-xs uppercase tracking-wide text-slate-400">
-                <tr>
-                  <th className="px-3 py-2">Date</th>
-                  <th className="px-3 py-2">Type</th>
-                  <th className="px-3 py-2">Classification</th>
-                  <th className="px-3 py-2">Category</th>
-                  <th className="px-3 py-2">Description</th>
-                  <th className="px-3 py-2">Amount</th>
-                  <th className="px-3 py-2">Payment</th>
-                  <th className="px-3 py-2">Mileage</th>
-                  <th className="px-3 py-2">Notes</th>
-                  <th className="px-3 py-2">Reviewed</th>
-                  <th className="px-3 py-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((transaction) => (
-                  <TransactionRowEditor
-                    key={transaction.id}
-                    transaction={transaction}
-                    categories={categories}
-                  />
-                ))}
-                {transactions.length === 0 && (
+            <div className="overflow-x-auto">
+              <table className="min-w-[1300px] w-full text-left text-sm">
+                <thead className="border-b border-white/10 bg-slate-950/70 text-xs uppercase tracking-wide text-slate-400">
                   <tr>
-                    <td colSpan={11} className="px-3 py-10 text-center text-slate-400">
-                      No transactions found for this filter.
-                    </td>
+                    <th className="px-3 py-2">Date</th>
+                    <th className="px-3 py-2">Type</th>
+                    <th className="px-3 py-2">Classification</th>
+                    <th className="px-3 py-2">Category</th>
+                    <th className="px-3 py-2">Description</th>
+                    <th className="px-3 py-2">Amount</th>
+                    <th className="px-3 py-2">Payment</th>
+                    <th className="px-3 py-2">Mileage</th>
+                    <th className="px-3 py-2">Notes</th>
+                    <th className="px-3 py-2">Reviewed</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {transactions.map((transaction) => (
+                    <TransactionRowEditor
+                      key={transaction.id}
+                      transaction={transaction}
+                      categories={categories}
+                    />
+                  ))}
+                  {transactions.length === 0 && (
+                    <tr>
+                      <td colSpan={10} className="px-3 py-10 text-center text-slate-400">
+                        No transactions found for this filter.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-end border-t border-white/10 p-4">
+              <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
+                Save Visible Rows
+              </button>
+            </div>
+          </form>
         </section>
       </div>
     </main>
@@ -413,30 +425,29 @@ function TransactionRowEditor({
   transaction: TransactionRow;
   categories: CategoryRow[];
 }) {
-  const formId = `bookkeeping-${transaction.id}`;
+  const fieldName = (field: string) => `${field}:${transaction.id}`;
 
   return (
     <tr className={`border-b align-top ${transaction.reviewed ? "border-white/5" : "border-red-400/25 bg-red-500/10"}`}>
       <td className="w-32 px-2 py-2">
+        <input type="hidden" name="transaction_id" value={transaction.id} />
         <input
-          form={formId}
           type="date"
-          name="transaction_date"
+          name={fieldName("transaction_date")}
           defaultValue={transaction.transaction_date || ""}
           className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
         />
         <div className="mt-1 text-xs text-slate-500">{transaction.imported_from || transaction.source}</div>
       </td>
       <td className="w-24 px-2 py-2">
-        <SelectInput form={formId} name="type" defaultValue={transaction.type} options={["income", "expense", "equity", "tax", "mileage", "transfer"]} />
+        <SelectInput name={fieldName("type")} defaultValue={transaction.type} options={["income", "expense", "equity", "tax", "mileage", "transfer"]} />
       </td>
       <td className="w-40 px-2 py-2">
-        <SelectInput form={formId} name="classification" defaultValue={transaction.classification} options={["business", "owner_contribution", "owner_draw", "sales_tax", "ignore"]} />
+        <SelectInput name={fieldName("classification")} defaultValue={transaction.classification} options={["business", "owner_contribution", "owner_draw", "sales_tax", "ignore"]} />
       </td>
       <td className="w-44 px-2 py-2">
         <input
-          form={formId}
-          name="category"
+          name={fieldName("category")}
           defaultValue={transaction.category || ""}
           list="bookkeeping-categories"
           className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
@@ -449,8 +460,7 @@ function TransactionRowEditor({
       </td>
       <td className="min-w-[18rem] px-2 py-2">
         <input
-          form={formId}
-          name="description"
+          name={fieldName("description")}
           defaultValue={transaction.description || ""}
           className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
         />
@@ -462,16 +472,14 @@ function TransactionRowEditor({
       </td>
       <td className="w-24 px-2 py-2">
         <input
-          form={formId}
-          name="amount"
+          name={fieldName("amount")}
           defaultValue={Number(transaction.amount || 0).toFixed(2)}
           className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-right text-sm text-slate-100"
         />
       </td>
       <td className="w-32 px-2 py-2">
         <input
-          form={formId}
-          name="payment_method"
+          name={fieldName("payment_method")}
           defaultValue={transaction.payment_method || transaction.money_destination || ""}
           className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
         />
@@ -479,15 +487,13 @@ function TransactionRowEditor({
       <td className="w-40 px-2 py-2">
         <div className="grid grid-cols-2 gap-2">
           <input
-            form={formId}
-            name="mileage"
+            name={fieldName("mileage")}
             defaultValue={transaction.mileage ? Number(transaction.mileage).toFixed(2) : ""}
             placeholder="Miles"
             className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-right text-sm text-slate-100"
           />
           <input
-            form={formId}
-            name="mileage_deduction"
+            name={fieldName("mileage_deduction")}
             defaultValue={transaction.mileage_deduction ? Number(transaction.mileage_deduction).toFixed(2) : ""}
             placeholder="$"
             className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-right text-sm text-slate-100"
@@ -497,8 +503,7 @@ function TransactionRowEditor({
       </td>
       <td className="min-w-[16rem] px-2 py-2">
         <textarea
-          form={formId}
-          name="notes"
+          name={fieldName("notes")}
           defaultValue={transaction.notes || ""}
           rows={2}
           className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
@@ -511,17 +516,9 @@ function TransactionRowEditor({
       </td>
       <td className="w-24 px-2 py-2">
         <label className="flex items-center gap-2">
-          <input form={formId} type="checkbox" name="reviewed" defaultChecked={transaction.reviewed} />
+          <input type="checkbox" name={fieldName("reviewed")} defaultChecked={transaction.reviewed} />
           <span className="text-xs">Reviewed</span>
         </label>
-      </td>
-      <td className="w-20 px-2 py-2">
-        <form id={formId} action={updateBookkeepingTransaction}>
-          <input type="hidden" name="transaction_id" value={transaction.id} />
-          <button className="w-full rounded-md bg-emerald-400 px-3 py-2 text-xs font-bold text-slate-950">
-            Save
-          </button>
-        </form>
       </td>
     </tr>
   );
@@ -552,19 +549,16 @@ function SelectBox({
 }
 
 function SelectInput({
-  form,
   name,
   defaultValue,
   options,
 }: {
-  form: string;
   name: string;
   defaultValue: string;
   options: string[];
 }) {
   return (
     <select
-      form={form}
       name={name}
       defaultValue={defaultValue}
       className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"

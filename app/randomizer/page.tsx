@@ -5,6 +5,17 @@ import RandomizerClient from "./RandomizerClient";
 export const metadata = {
   title: "Randomizer",
   description: "Generate official giveaway randomizer results with saved verification pages.",
+  openGraph: {
+    title: "Randomizer",
+    description: "Generate official giveaway randomizer results with saved verification pages.",
+    images: ["/randomizer-preview.svg"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Randomizer",
+    description: "Generate official giveaway randomizer results with saved verification pages.",
+    images: ["/randomizer-preview.svg"],
+  },
 };
 
 export default async function RandomizerPage() {

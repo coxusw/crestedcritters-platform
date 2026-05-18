@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#07130c"/>
+  <circle cx="365" cy="315" r="210" fill="#102016" stroke="#34d399" stroke-width="18"/>
+  <path d="M365 105v210L514 166.5A209 209 0 0 0 365 105z" fill="#34d399"/>
+  <path d="M365 315 571.6 348.6A210 210 0 0 0 514 166.5z" fill="#38bdf8"/>
+  <path d="M365 315 454.9 504.8A210 210 0 0 0 571.6 348.6z" fill="#f59e0b"/>
+  <path d="M365 315 212.1 458.6a210 210 0 0 0 242.8 46.2z" fill="#f43f5e"/>
+  <path d="M365 315 158.4 348.6a210 210 0 0 0 53.7 110z" fill="#a78bfa"/>
+  <path d="M365 315V105a210 210 0 0 0-206.6 243.6z" fill="#22c55e"/>
+  <circle cx="365" cy="315" r="55" fill="#f8fafc" stroke="#07130c" stroke-width="18"/>
+  <path d="M365 65 405 145H325z" fill="#f8fafc"/>
+  <text x="650" y="275" fill="#f8fafc" font-family="Arial, sans-serif" font-size="82" font-weight="800">Randomizer</text>
+  <text x="654" y="345" fill="#a7f3d0" font-family="Arial, sans-serif" font-size="34" font-weight="700">Official saved giveaway results</text>
+  <text x="654" y="405" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="28">Crested Critters verification pages</text>
+</svg>

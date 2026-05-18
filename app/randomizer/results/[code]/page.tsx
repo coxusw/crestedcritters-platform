@@ -46,6 +46,19 @@ export async function generateMetadata({
   return {
     title: `Randomizer Result ${code}`,
     description: "Official Crested Critters randomizer result verification page.",
+    openGraph: {
+      title: `Randomizer Result ${code}`,
+      description: "Official Crested Critters randomizer result verification page.",
+      images: ["/randomizer-preview.svg"],
+      siteName: "Randomizer",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `Randomizer Result ${code}`,
+      description: "Official Crested Critters randomizer result verification page.",
+      images: ["/randomizer-preview.svg"],
+    },
   };
 }
 

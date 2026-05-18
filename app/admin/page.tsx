@@ -1,65 +1,33 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { postDueAction } from "@/app/admin/content-agent/actions";
+import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+
+type SnapshotStat = {
+  label: string;
+  value: string | number;
+  alert?: boolean;
+};
 
 type AdminTool = {
   title: string;
   href: string;
   status: string;
-  description: string;
-  actions: string[];
+  stats: SnapshotStat[];
+  links: Array<{ href: string; label: string }>;
+  postDueButton?: boolean;
 };
 
-const tools: AdminTool[] = [
-  {
-    title: "Isopedia Tools",
-    href: "/admin/isopedia",
-    status: "Live",
-    description:
-      "Manage species, expos, badges, roles, discussions, submissions, and suggested edits.",
-    actions: ["Species editor", "Expo manager", "Role and badge controls"],
-  },
-  {
-    title: "Facebook Content Agent",
-    href: "/admin/content-agent",
-    status: "Live",
-    description:
-      "Review, schedule, and tune automated Facebook content tied to Crested Critters and Isopedia.",
-    actions: ["Post queue", "Topic settings", "Image generation"],
-  },
-  {
-    title: "Randomizer",
-    href: "/admin/randomizer",
-    status: "Prepared",
-    description:
-      "Future home for giveaway templates, billing oversight, saved results, and cleanup settings.",
-    actions: ["Template controls", "Result audit trail", "Billing review"],
-  },
-  {
-    title: "Bookkeeping",
-    href: "/admin/bookkeeping",
-    status: "Prepared",
-    description:
-      "Planned income and expense tracker for Square deposits, email receipts, categories, and reports.",
-    actions: ["Square imports", "Email receipt review", "Category rules"],
-  },
-  {
-    title: "IsoTracker",
-    href: "/admin/isotracker",
-    status: "Prepared",
-    description:
-      "Migration planning for the local-device colony tracker and future optional paid backup service.",
-    actions: ["Static app inventory", "Backup roadmap", "Support notes"],
-  },
-  {
-    title: "Shop",
-    href: "/admin/shop",
-    status: "Prepared",
-    description:
-      "Future product, cart, inventory, and Square checkout control center for a smoother shop flow.",
-    actions: ["Product catalog", "Cart checkout plan", "Square integration"],
-  },
-];
+type BookkeepingRow = {
+  type: string;
+  classification: string;
+  amount: number | null;
+  payment_method: string | null;
+  money_destination: string | null;
+  source: string | null;
+  reviewed: boolean | null;
+};
 
 export default async function AdminDashboard() {
   const supabase = await createSupabaseServerClient();
@@ -81,6 +49,9 @@ export default async function AdminDashboard() {
     redirect("/admin/login");
   }
 
+  const snapshots = await getAdminSnapshots();
+  const tools = buildTools(snapshots);
+
   return (
     <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -93,8 +64,8 @@ export default async function AdminDashboard() {
               Crested Critters Admin
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
-              A private control center for the public site, Isopedia, Randomizer,
-              Facebook content, bookkeeping, IsoTracker, and the future shop.
+              A private control center for Isopedia, Facebook content,
+              Randomizer, bookkeeping, IsoTracker, and the future shop.
             </p>
           </div>
 
@@ -138,20 +109,20 @@ export default async function AdminDashboard() {
               Parallel rollout status
             </h2>
             <p className="mt-2 text-sm leading-6 text-emerald-50/80">
-              The existing `/admin` routes are still in place. When DNS points
-              `admin.crestedcritters.com` at this app, the subdomain root will
-              load this dashboard and `/login` will load the admin login.
+              Admin tools are running under `admin.crestedcritters.com` while
+              the older Isopedia admin routes remain available during the
+              migration.
             </p>
           </div>
 
           <div className="rounded-lg border border-sky-400/20 bg-sky-400/10 p-5">
             <h2 className="text-lg font-black text-sky-100">
-              External access still needed
+              Next admin move
             </h2>
             <p className="mt-2 text-sm leading-6 text-sky-50/80">
-              Shop, bookkeeping, and email imports are scaffolded for planning,
-              but they need Square, email, and Google Sheet permissions before
-              live data can be connected.
+              Pull the remaining Isopedia admin-only controls fully into this
+              dashboard, verify them here, then remove the old Isopedia admin
+              clutter.
             </p>
           </div>
         </section>
@@ -162,32 +133,264 @@ export default async function AdminDashboard() {
 
 function ToolCard({ tool }: { tool: AdminTool }) {
   return (
-    <Link
-      href={tool.href}
-      className="group rounded-lg border border-white/10 bg-white/[0.05] p-5 transition hover:-translate-y-0.5 hover:border-emerald-300/50 hover:bg-white/[0.07]"
-    >
+    <div className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-xl font-black">{tool.title}</h2>
         <span className="rounded-md border border-white/10 px-2 py-1 text-xs font-black uppercase tracking-wide text-emerald-200">
           {tool.status}
         </span>
       </div>
-      <p className="mt-3 text-sm leading-6 text-slate-300">
-        {tool.description}
-      </p>
-      <div className="mt-5 grid gap-2">
-        {tool.actions.map((action) => (
+
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        {tool.stats.map((stat) => (
           <div
-            key={action}
-            className="rounded-md bg-black/20 px-3 py-2 text-sm text-slate-200"
+            key={stat.label}
+            className={`rounded-md border p-3 ${
+              stat.alert
+                ? "border-amber-400/30 bg-amber-400/10"
+                : "border-white/10 bg-black/20"
+            }`}
           >
-            {action}
+            <div className="text-xl font-black">{stat.value}</div>
+            <div className="mt-1 text-xs uppercase tracking-wide text-slate-400">
+              {stat.label}
+            </div>
           </div>
         ))}
       </div>
-      <p className="mt-5 text-sm font-black text-emerald-300 group-hover:text-emerald-200">
-        Open {tool.title}
-      </p>
-    </Link>
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Link
+          href={tool.href}
+          className="rounded-md bg-emerald-400 px-3 py-2 text-sm font-black text-slate-950 hover:bg-emerald-300"
+        >
+          Open
+        </Link>
+        {tool.links.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="rounded-md border border-white/10 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-white/10"
+          >
+            {link.label}
+          </Link>
+        ))}
+      </div>
+
+      {tool.postDueButton && (
+        <form action={postDueAction} className="mt-3">
+          <button className="w-full rounded-md bg-sky-400 px-3 py-2 text-sm font-black text-slate-950 hover:bg-sky-300">
+            Post Due Content
+          </button>
+        </form>
+      )}
+    </div>
   );
+}
+
+async function getAdminSnapshots() {
+  const supabase = createSupabaseAdminClient();
+  const now = new Date().toISOString();
+
+  const [
+    species,
+    pendingSpecies,
+    pendingExpos,
+    reports,
+    contentDrafts,
+    contentApproved,
+    contentDue,
+    contentPosted,
+    contentTopics,
+    randomizerActive,
+    randomizerLifetime,
+    randomizerAccounts,
+    randomizerResults,
+    bookkeepingRows,
+  ] = await Promise.all([
+    safeCount(supabase.from("isopedia_species").select("id", { count: "exact", head: true })),
+    safeCount(supabase.from("isopedia_submissions").select("id", { count: "exact", head: true }).eq("status", "unverified")),
+    safeCount(supabase.from("isopedia_expos").select("id", { count: "exact", head: true }).eq("status", "pending")),
+    safeCount(supabase.from("isopedia_discussion_reports").select("id", { count: "exact", head: true }).eq("status", "open")),
+    safeCount(supabase.from("content_agent_posts").select("id", { count: "exact", head: true }).eq("status", "Draft")),
+    safeCount(supabase.from("content_agent_posts").select("id", { count: "exact", head: true }).eq("status", "Approved")),
+    safeCount(supabase.from("content_agent_posts").select("id", { count: "exact", head: true }).eq("status", "Approved").lte("scheduled_at", now)),
+    safeCount(supabase.from("content_agent_posts").select("id", { count: "exact", head: true }).eq("status", "Posted")),
+    safeCount(supabase.from("content_agent_topics").select("id", { count: "exact", head: true }).eq("active", true)),
+    safeCount(supabase.from("randomizer_accounts").select("user_id", { count: "exact", head: true }).eq("lifetime_access", false).gt("access_expires_at", now)),
+    safeCount(supabase.from("randomizer_accounts").select("user_id", { count: "exact", head: true }).eq("lifetime_access", true)),
+    safeRows<{ credits: number | null }>(supabase.from("randomizer_accounts").select("credits").limit(5000)),
+    safeCount(supabase.from("randomizer_results").select("id", { count: "exact", head: true })),
+    safeRows<BookkeepingRow>(
+      supabase
+        .from("bookkeeping_transactions")
+        .select("type, classification, amount, payment_method, money_destination, source, reviewed")
+        .gte("transaction_date", "2026-01-01")
+        .limit(5000)
+    ),
+  ]);
+
+  const bookkeeping = summarizeBookkeeping(bookkeepingRows);
+  const outstandingCredits = randomizerAccounts.reduce(
+    (total, account) => total + Number(account.credits || 0),
+    0
+  );
+
+  return {
+    isopedia: { species, pendingSpecies, pendingExpos, reports },
+    content: {
+      drafts: contentDrafts,
+      approved: contentApproved,
+      due: contentDue,
+      posted: contentPosted,
+      topics: contentTopics,
+    },
+    randomizer: {
+      activeUsers: randomizerActive,
+      lifetimeUsers: randomizerLifetime,
+      outstandingCredits,
+      results: randomizerResults,
+    },
+    bookkeeping,
+  };
+}
+
+function buildTools(snapshots: Awaited<ReturnType<typeof getAdminSnapshots>>): AdminTool[] {
+  return [
+    {
+      title: "Isopedia Tools",
+      href: "/admin/isopedia",
+      status: "Live",
+      stats: [
+        { label: "Species", value: snapshots.isopedia.species },
+        { label: "Species Review", value: snapshots.isopedia.pendingSpecies, alert: snapshots.isopedia.pendingSpecies > 0 },
+        { label: "Expo Review", value: snapshots.isopedia.pendingExpos, alert: snapshots.isopedia.pendingExpos > 0 },
+        { label: "Reports", value: snapshots.isopedia.reports, alert: snapshots.isopedia.reports > 0 },
+      ],
+      links: [
+        { href: "/admin/isopedia/new", label: "New Species" },
+        { href: "/admin/isopedia/expos", label: "Expos" },
+        { href: "/admin/isopedia/discussions", label: "Reports" },
+      ],
+    },
+    {
+      title: "Facebook Content Agent",
+      href: "/admin/content-agent",
+      status: "Live",
+      stats: [
+        { label: "Due Now", value: snapshots.content.due, alert: snapshots.content.due > 0 },
+        { label: "Approved", value: snapshots.content.approved },
+        { label: "Drafts", value: snapshots.content.drafts },
+        { label: "Topics", value: snapshots.content.topics },
+      ],
+      links: [
+        { href: "/admin/content-agent/topics", label: "Topics" },
+        { href: "/admin/content-agent/traction", label: "Traction" },
+        { href: "/admin/content-agent/settings", label: "Settings" },
+      ],
+      postDueButton: true,
+    },
+    {
+      title: "Randomizer",
+      href: "/admin/randomizer",
+      status: "Live",
+      stats: [
+        { label: "Active Users", value: snapshots.randomizer.activeUsers },
+        { label: "Lifetime Users", value: snapshots.randomizer.lifetimeUsers },
+        { label: "Credits", value: snapshots.randomizer.outstandingCredits },
+        { label: "Results", value: snapshots.randomizer.results },
+      ],
+      links: [
+        { href: "/randomizer", label: "Open App" },
+        { href: "/randomizer/billing", label: "Billing" },
+      ],
+    },
+    {
+      title: "Bookkeeping",
+      href: "/admin/bookkeeping",
+      status: "Live",
+      stats: [
+        { label: "Square", value: formatMoney(snapshots.bookkeeping.squareBalance), alert: snapshots.bookkeeping.squareBalance < 0 },
+        { label: "Cash", value: formatMoney(snapshots.bookkeeping.cashOnHand), alert: snapshots.bookkeeping.cashOnHand < 0 },
+        { label: "YTD Income", value: formatMoney(snapshots.bookkeeping.income) },
+        { label: "Needs Review", value: snapshots.bookkeeping.needsReview, alert: snapshots.bookkeeping.needsReview > 0 },
+      ],
+      links: [
+        { href: "/admin/bookkeeping?review=needs", label: "Review Rows" },
+      ],
+    },
+    {
+      title: "IsoTracker",
+      href: "/admin/isotracker",
+      status: "Prepared",
+      stats: [
+        { label: "Mode", value: "Local" },
+        { label: "Server Sync", value: "Later" },
+        { label: "Backups", value: "Planned" },
+        { label: "Billing", value: "Planned" },
+      ],
+      links: [{ href: "/admin/isotracker", label: "Roadmap" }],
+    },
+    {
+      title: "Shop",
+      href: "/admin/shop",
+      status: "Prepared",
+      stats: [
+        { label: "Catalog", value: "Planned" },
+        { label: "Cart", value: "Planned" },
+        { label: "Square", value: "Planned" },
+        { label: "Inventory", value: "Planned" },
+      ],
+      links: [{ href: "/admin/shop", label: "Roadmap" }],
+    },
+  ];
+}
+
+async function safeCount(query: PromiseLike<{ count: number | null; error: { message: string } | null }>) {
+  const result = await query;
+  if (result.error) return 0;
+  return result.count || 0;
+}
+
+async function safeRows<T>(query: PromiseLike<{ data: T[] | null; error: { message: string } | null }>) {
+  const result = await query;
+  if (result.error) return [];
+  return result.data || [];
+}
+
+function summarizeBookkeeping(rows: BookkeepingRow[]) {
+  return rows.reduce(
+    (totals, row) => {
+      if (!row.reviewed) totals.needsReview += 1;
+      const amount = Number(row.amount || 0);
+      const paymentLabel = `${row.payment_method || ""} ${row.money_destination || ""}`.toLowerCase();
+
+      if (paymentLabel.includes("square")) totals.squareBalance += balanceEffect(row, amount);
+      if (paymentLabel.includes("cash")) totals.cashOnHand += balanceEffect(row, amount);
+
+      if (row.classification === "ignore") return totals;
+      if (row.type === "income") totals.income += amount;
+      if (row.type === "expense" || row.type === "mileage") totals.expenses += amount;
+      return totals;
+    },
+    { squareBalance: 0, cashOnHand: 0, income: 0, expenses: 0, needsReview: 0 }
+  );
+}
+
+function balanceEffect(row: BookkeepingRow, amount: number) {
+  if (row.source === "rebalance") return amount;
+  if (row.classification === "ignore") return 0;
+  if (row.classification === "owner_draw") return -amount;
+  if (row.classification === "owner_contribution") return amount;
+  if (row.type === "income") return amount;
+  if (row.type === "expense" || row.type === "tax" || row.type === "transfer") return -amount;
+  return 0;
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
 }

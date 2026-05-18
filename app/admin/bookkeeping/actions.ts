@@ -178,6 +178,55 @@ export async function importSquareBankingCsv(formData: FormData) {
   redirectWithNotice(notice);
 }
 
+export async function bulkUpdateBookkeepingTransactions(formData: FormData) {
+  await requireContentAgentAdmin();
+  let savedCount = 0;
+
+  try {
+    const ids = formData.getAll("transaction_id").map((id) => String(id));
+    if (ids.length === 0) throw new Error("No transactions were submitted.");
+
+    const supabase = createSupabaseAdminClient();
+    const updates = ids.map((id) => {
+      const type = textValue(formData, `type:${id}`);
+      const classification = textValue(formData, `classification:${id}`);
+
+      if (!TYPES.has(type)) throw new Error("Invalid transaction type.");
+      if (!CLASSIFICATIONS.has(classification)) throw new Error("Invalid classification.");
+
+      return supabase
+        .from("bookkeeping_transactions")
+        .update({
+          transaction_date: textValue(formData, `transaction_date:${id}`) || null,
+          type,
+          classification,
+          category: textValue(formData, `category:${id}`) || null,
+          description: textValue(formData, `description:${id}`) || null,
+          amount: numberValue(formData, `amount:${id}`),
+          payment_method: textValue(formData, `payment_method:${id}`) || null,
+          mileage: numberValue(formData, `mileage:${id}`),
+          mileage_deduction: numberValue(formData, `mileage_deduction:${id}`),
+          receipt_status: textValue(formData, `receipt_status:${id}`) || null,
+          receipt_location: textValue(formData, `receipt_location:${id}`) || null,
+          notes: textValue(formData, `notes:${id}`) || null,
+          reviewed: formData.get(`reviewed:${id}`) === "on",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+    });
+
+    const results = await Promise.all(updates);
+    const failed = results.find((result) => result.error);
+    if (failed?.error) throw new Error(failed.error.message);
+
+    savedCount = ids.length;
+  } catch (error) {
+    redirectWithError(error);
+  }
+
+  redirectWithNotice(`Saved ${savedCount} bookkeeping transactions.`);
+}
+
 export async function rebalanceBookkeepingBalances(formData: FormData) {
   await requireContentAgentAdmin();
   let notice = "";
