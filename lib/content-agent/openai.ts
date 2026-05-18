@@ -22,7 +22,7 @@ export async function generatePostText(input: { page: ContentAgentPage; slot: Ne
         "Use the selected topic and notes.",
         "Generate text-only posts. Always leave memeTopText, memeBottomText, and imagePrompt blank.",
         "Do not write image prompts, meme overlay text, or instructions for visual generation.",
-        "If the selected topic notes include a Reference URL, include that source link in the caption when it is useful to the audience.",
+        "Do not include source labels, source notes, Reference URLs, or research links unless the selected topic notes explicitly say to share the source link in the caption.",
         "Tap-Deck should remain text-only.",
         "Poverty Finance satire must clearly include #satire.",
         "For Poverty Finance, the joke can roast broke-budget habits and chaotic money choices, but keep it obviously playful and include one useful financial move.",

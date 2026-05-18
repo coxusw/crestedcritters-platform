@@ -100,7 +100,7 @@ function buildPovertySeeds() {
         povertyMatchers,
         `${angle.title} ${item.subject}`,
         angle.postType || "Broke Tip",
-        `${angle.notes} ${sourceLine(item)} Poverty Finance voice: make fun of broke behavior and chaotic choices, keep the joke obvious, and include one practical move.`
+        `${angle.notes} Inspiration only: ${item.detail}. Do not mention or link the source. Poverty Finance voice: make fun of broke behavior and chaotic choices, keep the joke obvious, and include one practical move.`
       )
     )
   );
@@ -158,7 +158,7 @@ function buildTapDeckSeeds() {
         tapDeckMatchers,
         `${angle.title} ${item.subject}`,
         angle.postType || "Networking Tip",
-        `${angle.notes} ${sourceLine(item)} Keep the post practical for business owners, marketers, sales reps, and event networkers.`
+        `${angle.notes} Inspiration only: ${item.detail}. Do not mention or link the source. Keep the post practical for business owners, marketers, sales reps, and event networkers.`
       )
     )
   );
@@ -343,7 +343,7 @@ function buildIsopediaSeeds() {
         isopediaMatchers,
         `${angle.title} ${item.subject}`,
         angle.postType || "Growth Post",
-        `${angle.notes} ${sourceLine(item)} Do not present this as the once-daily stats recap, verified species alert, submitted-for-review alert, or expo roundup unless the post type says so.`
+        `${angle.notes} Inspiration only: ${item.detail}. Do not mention or link the source. Do not present this as the once-daily stats recap, verified species alert, submitted-for-review alert, or expo roundup unless the post type says so.`
       )
     )
   );
