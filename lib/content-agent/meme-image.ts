@@ -3,6 +3,20 @@ import sharp from "sharp";
 const CANVAS_SIZE = 1024;
 const SIDE_PADDING = 70;
 const MAX_LINE_CHARS = 22;
+const fakeTextTerms = [
+  "caption",
+  "meme text",
+  "top text",
+  "bottom text",
+  "overlay text",
+  "speech bubble",
+  "word",
+  "words",
+  "letters",
+  "readable text",
+  "sign says",
+  "screen says",
+];
 
 function escapeXml(value: string) {
   return value
@@ -17,6 +31,70 @@ function cleanMemeText(value: string | null | undefined) {
     .replace(/\s+/g, " ")
     .trim()
     .toUpperCase();
+}
+
+function sanitizeVisualPrompt(value: string | null | undefined) {
+  return String(value || "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter((line) => {
+      const cleanLine = line.toLowerCase();
+      return !fakeTextTerms.some((term) => cleanLine.includes(term));
+    })
+    .join("\n")
+    .trim();
+}
+
+function stripTopicPrefix(value: string | null | undefined) {
+  return String(value || "")
+    .replace(/^(broke|crested critters|informational|sassy|satire|real finance|keeper|community|bioactive)?\s*(meme|roast|tip|question)?\s*\d*\s*:\s*/i, "")
+    .replace(/^(when|if)\s+/i, "")
+    .trim();
+}
+
+export function fallbackMemeText({
+  pageKey,
+  topic,
+  caption,
+  topText,
+  bottomText,
+}: {
+  pageKey: string;
+  topic: string | null;
+  caption: string | null;
+  topText?: string | null;
+  bottomText?: string | null;
+}) {
+  const cleanTop = cleanMemeText(topText);
+  const cleanBottom = cleanMemeText(bottomText);
+
+  if (cleanTop || cleanBottom) {
+    return { topText: cleanTop, bottomText: cleanBottom };
+  }
+
+  const subject =
+    stripTopicPrefix(topic) ||
+    String(caption || "")
+      .split(/[.!?]/)[0]
+      .trim();
+
+  if (!subject) {
+    return {
+      topText: "WHEN THE HOBBY GETS SERIOUS",
+      bottomText: "AND THE BUDGET WAS NOT CONSULTED",
+    };
+  }
+
+  const cleanPageKey = String(pageKey || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const bottom =
+    cleanPageKey === "povertyfinance"
+      ? "BROKE MATH STRIKES AGAIN"
+      : "TINY CREATURES, BIG DRAMA";
+
+  return {
+    topText: `WHEN ${subject}`,
+    bottomText: bottom,
+  };
 }
 
 function wrapText(text: string) {
@@ -84,11 +162,15 @@ export function buildMemeImagePrompt({
       ? "Funny, expressive editorial meme background with a relatable broke-budget scene, polished social media illustration, strong facial expressions, clean composition, high contrast."
       : "Funny, expressive isopod and bioactive terrarium meme background, polished social media illustration, charming tiny-critter details, clean composition, high contrast.";
 
+  const cleanPrompt = sanitizeVisualPrompt(imagePrompt) || sanitizeVisualPrompt(caption);
+
   return [
-    imagePrompt || caption || "Create a funny meme background.",
+    cleanPrompt || "Create a funny meme background.",
     visualStyle,
-    "Create only the background art. Do not include captions, words, letters, speech bubbles, signs, logos, watermarks, UI, or fake text.",
-    "Leave the upper and lower portions visually simple enough for large overlay text.",
+    "Create only background art for a meme template.",
+    "ABSOLUTELY NO TEXT OF ANY KIND: no captions, words, letters, numbers, symbols, fake app text, labels, signs, speech bubbles, logos, watermarks, price tags, handwriting, or UI words.",
+    "Any screens, phones, receipts, cards, books, shelves, signs, documents, product packaging, or posters must be blank or abstract color blocks with no characters.",
+    "Leave the upper and lower portions visually simple for large app-added overlay text.",
     "Square 1:1 Facebook-ready image, crisp details, professional lighting, vibrant but natural colors.",
   ]
     .filter(Boolean)

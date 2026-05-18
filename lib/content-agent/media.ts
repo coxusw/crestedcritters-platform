@@ -1,6 +1,6 @@
 import { createSupabaseAdminClient } from "./supabase-admin";
 import { generateImageBase64 } from "./openai";
-import { buildMemeImagePrompt, composeMemeImage } from "./meme-image";
+import { buildMemeImagePrompt, composeMemeImage, fallbackMemeText } from "./meme-image";
 import { isImagePostTypeForPage } from "./scheduler";
 import type { ContentAgentPost } from "./types";
 
@@ -25,9 +25,16 @@ export async function generateImageForNextPost() {
     caption: post.caption,
   });
   const image = await generateImageBase64(prompt);
-  const buffer = await composeMemeImage(Buffer.from(image.base64, "base64"), {
+  const memeText = fallbackMemeText({
+    pageKey: post.page_key,
+    topic: post.topic,
+    caption: post.caption,
     topText: post.meme_top_text,
     bottomText: post.meme_bottom_text,
+  });
+  const buffer = await composeMemeImage(Buffer.from(image.base64, "base64"), {
+    topText: memeText.topText,
+    bottomText: memeText.bottomText,
   });
   const path = `${post.page_key}/${post.id}.png`;
 
