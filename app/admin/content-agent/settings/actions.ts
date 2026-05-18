@@ -162,7 +162,6 @@ const recommendedSchedules = [
     matchers: ["isopedia", "isopeida"],
     slots: [
       { time: "10:00", postType: "Growth Post" },
-      { time: "16:00", postType: "Community Stats" },
     ],
   },
 ] satisfies Array<{

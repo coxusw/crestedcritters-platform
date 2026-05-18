@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/content-agent/cron/isopedia/stats",
-      "schedule": "0 16 * * *"
+      "schedule": "0 16 * * 3"
     },
     {
       "path": "/api/content-agent/cron/isopedia/expos",
