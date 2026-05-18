@@ -6,7 +6,7 @@ function getOpenAIKey() { const key = process.env.OPENAI_API_KEY; if (!key) thro
 function extractJsonObject(text: string) { const trimmed = text.trim().replace(/^```json/i, "").replace(/^```/i, "").replace(/```$/i, "").trim(); const start = trimmed.indexOf("{"); const end = trimmed.lastIndexOf("}"); return start >= 0 && end > start ? trimmed.slice(start, end + 1) : trimmed; }
 
 export async function generatePostText(input: { page: ContentAgentPage; slot: NextSlot; topic: ContentAgentTopic | null; }) {
-  const model = process.env.CONTENT_AGENT_TEXT_MODEL || "gpt-5.4-mini";
+  const model = process.env.CONTENT_AGENT_TEXT_MODEL || "gpt-5.5";
   const tractionGuidance = await getTractionGuidanceForPage(input.page.page_key);
   const system = [`You are a Facebook content assistant for ${input.page.page_name}.`, "Generate only family-friendly content.", "Return valid JSON only."].join("\n");
   const user = {
@@ -48,7 +48,7 @@ export async function generatePostText(input: { page: ContentAgentPage; slot: Ne
 }
 
 export async function generateImageBase64(prompt: string) {
-  const model = process.env.CONTENT_AGENT_IMAGE_MODEL || "gpt-image-1";
+  const model = process.env.CONTENT_AGENT_IMAGE_MODEL || "gpt-image-2";
   const quality = process.env.CONTENT_AGENT_IMAGE_QUALITY || "high";
   const size = process.env.CONTENT_AGENT_IMAGE_SIZE || "1024x1024";
   const response = await fetch("https://api.openai.com/v1/images/generations", {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  clearTopicBankAndDraftQueue,
   createContentAgentTopic,
   deleteContentAgentTopic,
   seedRequestedTopicPack,
@@ -142,6 +143,25 @@ export default function ContentAgentTopicsDashboard({
             <form action={seedRequestedTopicPack}>
               <button className="rounded-md bg-sky-300 px-5 py-2 font-bold text-slate-950 hover:bg-sky-200">
                 Add Requested Topics
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-red-400/30 bg-red-500/10 p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-red-100">
+                Fresh Start Reset
+              </h2>
+              <p className="mt-1 max-w-4xl text-sm leading-6 text-red-100/80">
+                Clears every TopicBank row and deletes current Draft/Approved
+                content agent posts. Posted history stays untouched.
+              </p>
+            </div>
+            <form action={clearTopicBankAndDraftQueue}>
+              <button className="rounded-md bg-red-300 px-5 py-2 font-bold text-red-950 hover:bg-red-200">
+                Clear Topics + Drafts
               </button>
             </form>
           </div>

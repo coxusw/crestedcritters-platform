@@ -167,6 +167,67 @@ export async function seedRequestedTopicPack() {
   }
 }
 
+export async function clearTopicBankAndDraftQueue() {
+  await requireContentAgentAdmin();
+
+  try {
+    const supabase = createSupabaseAdminClient();
+
+    const [{ count: topicCount, error: topicCountError }, { data: queuedPosts, error: postReadError }] =
+      await Promise.all([
+        supabase
+          .from("content_agent_topics")
+          .select("id", { count: "exact", head: true }),
+        supabase
+          .from("content_agent_posts")
+          .select("id")
+          .in("status", ["Draft", "Approved"])
+          .returns<Array<{ id: string }>>(),
+      ]);
+
+    if (topicCountError) throw new Error(topicCountError.message);
+    if (postReadError) throw new Error(postReadError.message);
+
+    const postIds = (queuedPosts || []).map((post) => post.id);
+
+    if (postIds.length > 0) {
+      const { error: mediaError } = await supabase
+        .from("content_agent_media_assets")
+        .delete()
+        .in("post_id", postIds);
+
+      if (mediaError) throw new Error(mediaError.message);
+
+      const { error: postsError } = await supabase
+        .from("content_agent_posts")
+        .delete()
+        .in("id", postIds);
+
+      if (postsError) throw new Error(postsError.message);
+    }
+
+    const { error: topicsError } = await supabase
+      .from("content_agent_topics")
+      .delete()
+      .not("id", "is", null);
+
+    if (topicsError) throw new Error(topicsError.message);
+
+    await supabase.from("content_agent_logs").insert({
+      action: "topic_bank_clear_and_queue_reset",
+      entity_type: "topic",
+      result: "OK",
+      details: `Deleted ${topicCount || 0} topic bank row(s) and ${postIds.length} Draft/Approved post row(s). Posted history was left untouched.`,
+    });
+
+    redirectWithNotice(
+      `Cleared ${topicCount || 0} topic bank row(s) and ${postIds.length} Draft/Approved post row(s). Posted history was left untouched.`
+    );
+  } catch (error) {
+    redirectWithError(error);
+  }
+}
+
 export async function createContentAgentTopic(formData: FormData) {
   await requireContentAgentAdmin();
 
