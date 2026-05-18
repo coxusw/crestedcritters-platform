@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   approveContentPost,
   clearDraftApprovedContentAction,
@@ -28,11 +29,13 @@ export default function ContentAgentDashboard({
   posts,
   notice,
   error,
+  statusFilter,
 }: {
   counts: Counts;
   posts: ContentAgentPost[];
   notice?: string;
   error?: string;
+  statusFilter?: string;
 }) {
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100">
@@ -175,6 +178,20 @@ export default function ContentAgentDashboard({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold">Recent Queue</h2>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <QueueFilter href="/admin/content-agent" active={!statusFilter || statusFilter === "all"}>
+                  All
+                </QueueFilter>
+                <QueueFilter href="/admin/content-agent?status=Error" active={statusFilter === "Error"} alert={counts.error > 0}>
+                  Errors ({counts.error})
+                </QueueFilter>
+                <QueueFilter href="/admin/content-agent?status=Draft" active={statusFilter === "Draft"}>
+                  Drafts ({counts.draft})
+                </QueueFilter>
+                <QueueFilter href="/admin/content-agent?status=Approved" active={statusFilter === "Approved"}>
+                  Approved ({counts.approved})
+                </QueueFilter>
+              </div>
               <p className="text-sm text-slate-400">
                 Newest scheduled rows from content_agent_posts. Tap “View full post” to expand long captions.
               </p>
@@ -210,6 +227,15 @@ export default function ContentAgentDashboard({
                       <p className="mt-1 line-clamp-3 text-slate-400">
                         {post.caption || "No caption yet."}
                       </p>
+
+                      {post.status === "Error" && post.error && (
+                        <div className="mt-3 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-red-100">
+                          <div className="text-xs font-bold uppercase tracking-wide text-red-300">
+                            Error Details
+                          </div>
+                          <pre className="mt-1 whitespace-pre-wrap text-xs leading-5">{post.error}</pre>
+                        </div>
+                      )}
 
                       <details className="mt-3 rounded-2xl border border-white/10 bg-slate-950/70 p-3">
                         <summary className="cursor-pointer select-none text-sm font-semibold text-emerald-300">
@@ -259,7 +285,11 @@ export default function ContentAgentDashboard({
                       </details>
                     </td>
                     <td className="px-3 py-3">
-                      <span className="rounded-full border border-white/10 bg-white/10 px-2 py-1 text-xs">
+                      <span className={`rounded-full border px-2 py-1 text-xs ${
+                        post.status === "Error"
+                          ? "border-red-400/40 bg-red-500/15 text-red-100"
+                          : "border-white/10 bg-white/10"
+                      }`}>
                         {post.status}
                       </span>
                     </td>
@@ -351,6 +381,33 @@ function StatCard({ label, value, alert = false }: { label: string; value: numbe
       <div className="text-2xl font-bold">{value}</div>
       <div className="mt-1 text-xs uppercase tracking-wide text-slate-400">{label}</div>
     </div>
+  );
+}
+
+function QueueFilter({
+  href,
+  active,
+  alert = false,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  alert?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${
+        active
+          ? "border-emerald-300/60 bg-emerald-400/15 text-emerald-100"
+          : alert
+            ? "border-red-300/40 bg-red-500/15 text-red-100 hover:bg-red-500/25"
+            : "border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
+      }`}
+    >
+      {children}
+    </Link>
   );
 }
 

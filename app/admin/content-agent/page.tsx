@@ -7,6 +7,7 @@ type PageProps = {
   searchParams?: Promise<{
     notice?: string;
     error?: string;
+    status?: string;
   }>;
 };
 
@@ -14,10 +15,11 @@ export default async function ContentAgentAdminPage({ searchParams }: PageProps)
   await requireContentAgentAdmin();
 
   const params = await searchParams;
+  const statusFilter = params?.status || "all";
 
   const [counts, posts] = await Promise.all([
     getDashboardCounts(),
-    getRecentPosts(50),
+    getRecentPosts(statusFilter === "Error" ? 100 : 50, statusFilter),
   ]);
 
   return (
@@ -32,6 +34,7 @@ export default async function ContentAgentAdminPage({ searchParams }: PageProps)
         posts={posts}
         notice={params?.notice}
         error={params?.error}
+        statusFilter={statusFilter}
       />
     </>
   );

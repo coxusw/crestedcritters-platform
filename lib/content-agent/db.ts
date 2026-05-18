@@ -19,8 +19,18 @@ export async function getPage(pageKey: string) {
   return data as ContentAgentPage | null;
 }
 
-export async function getRecentPosts(limit = 25) {
-  const { data, error } = await createSupabaseAdminClient().from("content_agent_posts").select("*").order("scheduled_at", { ascending: false }).limit(limit);
+export async function getRecentPosts(limit = 25, status?: string) {
+  let query = createSupabaseAdminClient()
+    .from("content_agent_posts")
+    .select("*")
+    .order("scheduled_at", { ascending: false })
+    .limit(limit);
+
+  if (status && status !== "all") {
+    query = query.eq("status", status);
+  }
+
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data || []) as ContentAgentPost[];
 }
