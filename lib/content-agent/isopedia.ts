@@ -451,6 +451,147 @@ export async function createIsopediaStatsPost() {
   return "Created Isopedia stats recap draft.";
 }
 
+export async function createSubmissionReviewAlertPost(submissionId: string) {
+  const supabase = createSupabaseAdminClient();
+  const page = await getPage("isopedia");
+
+  if (!page) throw new Error("Isopedia content agent page is missing.");
+
+  const { data: submission, error } = await supabase
+    .from("isopedia_submissions")
+    .select(
+      `
+      id,
+      organism_type,
+      common_name,
+      scientific_name,
+      genus,
+      species,
+      morph,
+      difficulty,
+      origin,
+      temperature,
+      humidity,
+      diet,
+      substrate,
+      notes,
+      image_url,
+      submitted_by,
+      verified_by,
+      verified_at,
+      created_at
+      `
+    )
+    .eq("id", submissionId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!submission) return "Submitted species not found.";
+
+  const existing = await supabase
+    .from("content_agent_posts")
+    .select("id")
+    .eq("source_type", "isopedia_submission_review")
+    .eq("source_ref_id", String(submission.id))
+    .maybeSingle();
+
+  if (existing.error) throw new Error(existing.error.message);
+  if (existing.data) return `Submission review alert already exists for ${submission.common_name}.`;
+
+  const profilesById = await getProfilesByIds([submission.submitted_by]);
+  const submitterProfile = submission.submitted_by
+    ? profilesById.get(submission.submitted_by)
+    : null;
+  const submitterName = profileName(submitterProfile, "a community keeper");
+  const reviewUrl = `${siteUrl()}/isopedia/review`;
+
+  const topic: ContentAgentTopic = {
+    id: "virtual-isopedia-submission-review",
+    page_key: "isopedia",
+    topic: `New species submitted for review: ${submission.common_name || submission.scientific_name || submission.id}`,
+    post_type: "Species Review Alert",
+    notes: [
+      `Common name: ${submission.common_name || "Unknown"}`,
+      submission.scientific_name ? `Scientific name: ${submission.scientific_name}` : "",
+      submission.organism_type ? `Type: ${submission.organism_type}` : "",
+      submission.genus ? `Genus: ${submission.genus}` : "",
+      submission.species ? `Species: ${submission.species}` : "",
+      submission.morph ? `Morph: ${submission.morph}` : "",
+      submission.difficulty ? `Difficulty: ${submission.difficulty}` : "",
+      submission.origin ? `Origin: ${submission.origin}` : "",
+      submission.humidity ? `Humidity notes: ${submission.humidity}` : "",
+      submission.temperature ? `Temperature notes: ${submission.temperature}` : "",
+      submission.diet ? `Diet notes: ${submission.diet}` : "",
+      submission.substrate ? `Substrate notes: ${submission.substrate}` : "",
+      submission.notes ? `Submitter notes: ${submission.notes}` : "",
+      `Submitted by: ${submitterName}`,
+      `Review URL: ${reviewUrl}`,
+      "Announce that a new Isopedia species entry is waiting for community review.",
+      "Give a friendly shoutout to the submitter by username/display name.",
+      "Ask knowledgeable keepers to review, verify, or help improve the entry.",
+      "Do not say the species is verified or live yet.",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    active: true,
+    last_used_at: null,
+    use_count: 0,
+  };
+
+  const slot: NextSlot = {
+    pageKey: "isopedia",
+    pageName: page.page_name,
+    scheduledAt: new Date(Date.now() + 30 * 60 * 1000),
+    postType: "Species Review Alert",
+  };
+
+  const generated = await generatePostText({ page, slot, topic });
+  const caption = generated.caption.toLowerCase().includes(submitterName.toLowerCase())
+    ? generated.caption
+    : `${generated.caption.trim()}\n\nShoutout to ${submitterName} for submitting this entry for community review.`;
+
+  const post = await insertGeneratedPost({
+    pageKey: "isopedia",
+    scheduledAt: slot.scheduledAt,
+    postType: slot.postType,
+    topic: generated.topic || topic.topic,
+    caption,
+    hashtags: generated.hashtags || page.default_hashtags || "",
+    imagePrompt: generated.imagePrompt || "",
+    status: "Draft",
+    sourceType: "isopedia_submission_review",
+    sourceRefId: String(submission.id),
+    rawPayload: {
+      submission,
+      reviewUrl,
+      submitterName,
+      generated,
+    },
+  });
+
+  if (submission.image_url) {
+    const { error: updateError } = await supabase
+      .from("content_agent_posts")
+      .update({
+        image_url: submission.image_url,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", post.id);
+
+    if (updateError) throw new Error(updateError.message);
+  }
+
+  await logContentAgent(
+    "isopedia_submission_review_alert",
+    "OK",
+    `Created review alert for ${submission.common_name || submission.id} submitted by ${submitterName}.`,
+    "post",
+    post.id
+  );
+
+  return `Created submission review alert draft for ${submission.common_name || submission.id}.`;
+}
+
 export async function createExpoRoundupPost() {
   const supabase = createSupabaseAdminClient();
   const page = await getPage("isopedia");
@@ -485,6 +626,7 @@ export async function createExpoRoundupPost() {
   if (error) throw new Error(error.message);
 
   const expoUrl = `${siteUrl()}/isopedia/expos`;
+  const expoCount = (expos || []).length;
 
   const topic: ContentAgentTopic = {
     id: "virtual-isopedia-expos",
@@ -494,10 +636,12 @@ export async function createExpoRoundupPost() {
     notes: [
       "Create a Monday weekly upcoming expo roundup for the next 3 weeks.",
       `Expo calendar URL: ${expoUrl}`,
-      `Expo rows: ${JSON.stringify(expos || [], null, 2)}`,
+      `Number of approved expos in the next 3 weeks: ${expoCount}`,
+      "Do not list expo names, venues, dates, or cities in the Facebook caption.",
+      "Tease the count and send people to the expo calendar link for the details.",
       "Plead with the community to add any expos they know about so the calendar gets stronger.",
       "If no expos are listed, ask people to submit upcoming expos to Isopedia.",
-      "Mention the expo calendar and invite people to add shows they know about.",
+      "Mention the expo calendar link and invite people to add shows they know about.",
     ].join("\n"),
     active: true,
     last_used_at: null,
@@ -522,7 +666,7 @@ export async function createExpoRoundupPost() {
     hashtags: generated.hashtags || page.default_hashtags || "",
     status: "Draft",
     sourceType: "isopedia_expo_roundup",
-    rawPayload: { expos: expos || [], expoUrl, generated },
+    rawPayload: { expos: expos || [], expoUrl, expoCount, generated },
   });
 
   await logContentAgent("isopedia_expo_roundup", "OK", "Created expo roundup post.", "post", post.id);

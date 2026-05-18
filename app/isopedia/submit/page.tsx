@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
+import { createSubmissionReviewAlertPost } from "@/lib/content-agent/isopedia";
 
 type Profile = {
   id: string;
@@ -134,7 +135,10 @@ async function submitSpecies(formData: FormData) {
     });
   }
 
+  const submissionId = crypto.randomUUID();
+
   const { error } = await supabase.from("isopedia_submissions").insert({
+    id: submissionId,
     organism_type: organismType || null,
     genus: genus || null,
     species: species || null,
@@ -156,6 +160,12 @@ async function submitSpecies(formData: FormData) {
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  try {
+    await createSubmissionReviewAlertPost(submissionId);
+  } catch (autoPostError) {
+    console.error("Failed to auto-create Isopedia submission review alert:", autoPostError);
   }
 
   redirect("/isopedia?submitted=true");

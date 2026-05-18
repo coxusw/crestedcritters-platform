@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/content-agent/cron/isopedia/expos",
-      "schedule": "0 17 * * 1"
+      "schedule": "0 14 * * 1"
     },
     {
       "path": "/api/randomizer/cron/delete-expired-results",

@@ -12,6 +12,13 @@ type TopicPattern = {
   postType?: string;
 };
 
+type TopicSource = {
+  subject: string;
+  detail: string;
+  source: string;
+  url: string;
+};
+
 const povertyMatchers = ["povertyfinance", "poverty finance"];
 const tapDeckMatchers = ["tapdeck", "tap-deck", "tap deck"];
 const crestedMatchers = ["crested", "crested critters"];
@@ -27,536 +34,116 @@ function seed(
   return { brand, pageMatchers, topic, postType, notes };
 }
 
-const povertySubjects = [
-  ["getting a raise", "asking for more pay without sounding apologetic"],
-  ["raise receipts", "tracking wins, extra duties, numbers, praise, and solved problems"],
-  ["job hopping math", "knowing when a new employer is the real raise"],
-  ["salary negotiation", "naming a number and staying quiet long enough for the manager to answer"],
-  ["paycheck triage", "deciding what gets paid first when payday is already bullied by bills"],
-  ["emergency funds", "building a tiny buffer after life already ate the last one"],
-  ["bill negotiation", "calling providers, asking for retention, hardship plans, fee reversals, and promo rates"],
-  ["grocery survival", "cheap proteins, pantry meals, frozen vegetables, leftovers, and not buying fantasy produce"],
-  ["rent pressure", "planning rent before fun money steals the steering wheel"],
-  ["utility bills", "averaging plans, usage checks, weatherization, and calling before shutoff panic"],
-  ["credit scores", "payment history, utilization, old accounts, and avoiding panic applications"],
-  ["debt snowball vs avalanche", "choosing a payoff method that a tired broke person will actually follow"],
-  ["minimum payments", "what minimums do and why extra principal matters when possible"],
-  ["side hustle profit", "subtracting fees, gas, supplies, taxes, and time before calling it income"],
-  ["tax-time discipline", "not treating a refund like lottery winnings in sweatpants"],
-  ["retirement when broke", "starting tiny with 401k match, IRA basics, and future-you not being abandoned"],
-  ["401k match", "why free employer match money should not be ghosted if cash flow allows"],
-  ["Roth IRA basics", "plain-language retirement talk for beginners with small budgets"],
-  ["automatic savings", "moving tiny amounts before the debit card starts improvising"],
-  ["cash envelopes", "using physical or digital buckets when the bank app is too optimistic"],
-  ["subscriptions", "canceling quiet little charges acting like financial termites"],
-  ["insurance shopping", "comparing quotes without letting loyalty become an expensive personality flaw"],
-  ["meal prep burnout", "cheap repeatable meals that do not require becoming a lifestyle influencer"],
-  ["cheap living swaps", "boring substitutions that leave money behind"],
-  ["buy nothing weeks", "how to survive a no-spend stretch without making it your whole identity"],
-  ["used purchases", "when secondhand is smart and when it is just future trash with a discount sticker"],
-  ["car costs", "gas, insurance, maintenance, tires, and the true monthly cost of driving"],
-  ["bank fees", "overdraft prevention, fee reversals, and choosing less predatory accounts"],
-  ["medical bills", "asking for itemized bills, financial assistance, payment plans, and coding reviews"],
-  ["student loans", "repayment plans, autopay discounts, and not ignoring scary mail"],
-  ["holiday spending", "setting limits before December starts cosplaying as a financial emergency"],
-  ["kids and money", "family budgeting without pretending children are cheap hobbies"],
-  ["pet costs", "planning food, vet visits, emergencies, and supplies before the cute face wins"],
-  ["cheap dates", "social life ideas that do not require swiping the rent money"],
-  ["moving costs", "deposits, boxes, trucks, utility starts, and the sneaky cost pile"],
-  ["financial boundaries", "saying no to money requests when your own account is wheezing"],
-  ["windfalls", "what to do with bonuses, refunds, or surprise money before chaos votes"],
-  ["sinking funds", "saving ahead for predictable expenses that keep pretending to be surprises"],
-  ["price comparison", "unit pricing, store brands, and not getting emotionally attached to packaging"],
-  ["cash flow calendar", "matching due dates to paydays instead of hoping vibes handle logistics"],
+function sourceLine(source: TopicSource) {
+  return `Source angle: ${source.source}. Reference: ${source.url}. Topic focus: ${source.detail}`;
+}
+
+const povertySources: TopicSource[] = [
+  { subject: "getting a raise before lifestyle creep eats it", detail: "turning a raise into emergency savings, retirement match, and debt payoff before new spending gets brave", source: "Reddit personal finance discussions around raise planning", url: "https://www.reddit.com/r/personalfinance/comments/1bu659v/what_do_i_do_with_my_raise/" },
+  { subject: "asking for a raise with receipts", detail: "tracking wins, extra duties, revenue saved, customer praise, and measurable outcomes before asking", source: "Recurring Reddit career and finance raise questions", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "grocery bills acting like a car payment", detail: "unit pricing, cheap proteins, frozen vegetables, store brands, pantry meals, and avoiding fantasy groceries", source: "r/povertyfinance and r/personalfinance grocery-budget discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "rent week survival", detail: "protecting rent before small purchases drain the account and create panic math", source: "r/povertyfinance rent and paycheck-to-paycheck discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "emergency fund crumbs", detail: "building a tiny starter buffer even when the budget is rude and unstable", source: "Personal finance emergency fund advice threads", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "subscriptions sneaking around like financial roaches", detail: "auditing recurring charges and canceling quiet leaks before they become a personality", source: "Common budgeting pain point across finance communities", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "side hustle math after gas and fees", detail: "subtracting supplies, mileage, platform fees, taxes, and time before calling it profit", source: "Reddit side hustle and poverty finance discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "bill negotiation without sounding scared", detail: "calling providers for retention offers, hardship plans, fee reversals, and lower rates", source: "Common money-saving tip threads", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "retirement when the wallet is coughing", detail: "starting with employer match, tiny IRA contributions, and automatic savings without pretending cash is everywhere", source: "Retirement questions from low-income finance communities", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "cash flow calendars for people allergic to math", detail: "matching due dates to paydays so bills stop ambushing the account", source: "Budgeting systems discussed in personal finance communities", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "debt payoff when minimum payments are clowning you", detail: "snowball vs avalanche, extra principal, due dates, and staying motivated with small wins", source: "Debt payoff advice threads", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "credit score damage control", detail: "utilization, payment history, old accounts, and avoiding panic applications", source: "Credit score questions in finance communities", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "medical bill negotiation", detail: "asking for itemized bills, assistance, coding review, and payment plans", source: "Recurring US personal finance medical debt threads", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "tax refund discipline", detail: "using refunds for bills, debt, savings, and boring progress before treating it like lottery money", source: "Tax refund planning discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "buy now pay later traps", detail: "checking whether future-you consented before splitting a want into four tiny regrets", source: "Consumer debt and BNPL finance discussions", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "cheap living without making misery the brand", detail: "boring swaps that leave money behind while keeping life livable", source: "Cheap living tip threads", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "no-spend resets that do not become punishment", detail: "short spending freezes, pantry challenges, and avoiding rebound spending", source: "No-spend challenge discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "insurance renewal disrespect", detail: "shopping quotes, checking coverage, and refusing loyalty pricing that acts personal", source: "Insurance shopping discussions", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "car costs beyond the payment", detail: "gas, tires, oil, insurance, repairs, registration, and the true monthly cost", source: "Car budgeting threads", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "financial boundaries with family", detail: "saying no when helping someone else would put your own bills in danger", source: "Family money boundary discussions", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "meal prep when motivation is bankrupt", detail: "repeatable cheap meals that work for tired people and not just influencers", source: "Grocery and meal prep budgeting discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "bank fees with villain energy", detail: "overdraft prevention, fee reversals, alerts, and switching accounts", source: "Bank fee complaint and advice threads", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "windfalls before chaos touches them", detail: "giving bonuses, refunds, and surprise money a job immediately", source: "Windfall handling advice threads", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "student loan autopilot", detail: "repayment plans, autopay discounts, and not letting scary emails pile up", source: "Student loan finance discussions", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "holiday spending before December starts yelling", detail: "gift caps, sinking funds, homemade options, and refusing panic shopping", source: "Seasonal budget discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "cheap dates with dignity still attached", detail: "social life and romance without sacrificing the electric bill", source: "Cheap living and frugal social-life discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "price comparison as a survival skill", detail: "unit pricing, store brands, refill math, and not being seduced by packaging", source: "Grocery budget advice threads", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "moving costs that jump out of the walls", detail: "deposits, boxes, utility starts, truck rental, and emergency cash", source: "Moving budget threads", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "pet costs before the cute face wins", detail: "food, vet care, emergency savings, supplies, and realistic ownership costs", source: "Budget planning discussions", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "the raise that disappears in 11 minutes", detail: "automatic transfers on raise day so bills and wants do not eat the whole improvement", source: "Raise planning and lifestyle creep discussions", url: "https://www.reddit.com/r/personalfinance/comments/1bu659v/what_do_i_do_with_my_raise/" },
+  { subject: "renters needing a move-out fund", detail: "saving for deposits and surprise housing costs while still broke", source: "Rent and moving finance discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "panic spending after a bad day", detail: "building a pause rule for emotional purchases and finding cheaper pressure releases", source: "Behavioral budgeting discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "cash envelopes for debit-card chaos", detail: "using buckets when the bank app cannot supervise behavior", source: "Budget method discussions", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "sinking funds for predictable surprises", detail: "car tags, school fees, gifts, vet visits, and the expenses that keep pretending to be emergencies", source: "Budgeting system discussions", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "cheap food that still has protein", detail: "beans, eggs, canned fish, chicken thighs, tofu, lentils, and realistic shopping lists", source: "Grocery survival discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "the bank app avoidance problem", detail: "checking balances without spiraling so the debit card stops freelancing", source: "Budget anxiety discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "using libraries like broke royalty", detail: "free books, tools, passes, internet, printing, classes, and entertainment", source: "Cheap living discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "job hopping vs loyalty discounts", detail: "when a new job is the only realistic raise and how to compare the full offer", source: "Career finance discussions", url: "https://www.reddit.com/r/personalfinance/" },
+  { subject: "paycheck triage when everything is due", detail: "ranking shelter, utilities, food, transportation, debt, and late fees by actual consequence", source: "Paycheck-to-paycheck discussions", url: "https://www.reddit.com/r/povertyfinance/" },
+  { subject: "owner of a cart full of wants", detail: "waiting 24 hours, removing half the cart, and not confusing sale pricing with savings", source: "Spending-control discussions", url: "https://www.reddit.com/r/personalfinance/" },
 ];
 
 const povertyAngles: TopicPattern[] = [
-  {
-    title: "The broke-but-not-clueless guide to",
-    notes: "Give practical, attitude-heavy steps. Mock the broke situation lightly, never shame the person. End with one action to take today.",
-  },
-  {
-    title: "Stop letting your money get jumped by",
-    notes: "Frame the problem like the follower's budget is getting ambushed. Give a blunt fix and a tiny first step.",
-  },
-  {
-    title: "A script for handling",
-    notes: "Write a short real-world script or checklist. Keep it sassy and useful, with no fake guru energy.",
-  },
-  {
-    title: "The receipt check for",
-    notes: "Tell readers what numbers, screenshots, documents, or proof to gather before making a money move.",
-  },
-  {
-    title: "One ugly truth about",
-    notes: "Lead with a sharp truth, then soften into practical advice someone broke can actually use.",
-  },
-  {
-    title: "How to make progress on",
-    notes: "Focus on small progress, not perfection. Acknowledge that the budget may be rude this month.",
-  },
-  {
-    title: "Broke people need a plan for",
-    notes: "Say the quiet part out loud: being broke makes this harder, which is exactly why a simple plan matters.",
-  },
-  {
-    title: "The no-delusion version of",
-    notes: "Cut through common internet advice that assumes spare cash is lying around doing nothing.",
-  },
-  {
-    title: "What to do before panic-spending around",
-    notes: "Give a pause-and-plan framework for the topic. Keep the tone funny, direct, and slightly disrespectful toward bad habits.",
-  },
-  {
-    title: "Tiny wins for",
-    notes: "Offer three tiny wins under ten minutes or ten dollars. Make it encouraging with a sarcastic edge.",
-  },
-  {
-    title: "The lazy budget fix for",
-    notes: "Give the simplest workable habit for people who are tired, busy, or overwhelmed.",
-  },
-  {
-    title: "Questions to ask before spending on",
-    notes: "Give a decision checklist. Include needs vs wants, timing, cheaper options, and future regret.",
-  },
-  {
-    title: "How to stop future-you from yelling about",
-    notes: "Make the post about protecting future self from present self's chaotic spending choices.",
-  },
-  {
-    title: "The paycheck-to-paycheck playbook for",
-    notes: "Make the advice realistic for people with tight cash flow. Avoid pretending they can magically save hundreds.",
-  },
-  {
-    title: "If your account is wheezing, start with",
-    notes: "Give one starting point, one thing to avoid, and one follow-up move.",
-  },
+  { title: "Broke people need a plan for", postType: "Broke Tip", notes: "Make it funny, sharp, and useful. Tease broke-budget chaos like a friend roasting someone with love. End with one sassy action step." },
+  { title: "The no-delusion guide to", postType: "Real Finance Tip", notes: "Give real financial advice for low-cash people. Push the line with the joke, but do not be cruel. End with a sassy one-liner." },
+  { title: "Stop letting your wallet get bullied by", postType: "Broke Roast", notes: "Roast the habit and the situation. Include a practical fix. Keep it monetization-safe enough for a public page while still feeling spicy." },
+  { title: "If your account is wheezing, start with", postType: "Broke Tip", notes: "Give one small step, one thing to stop doing, and one next move. Add a playful insult toward the bad habit, not the person's worth." },
+  { title: "The poverty finance receipt check for", postType: "Real Finance Tip", notes: "Tell followers what proof, screenshots, numbers, or documents they need before making a money move. Finish with attitude." },
+  { title: "A rude little reminder about", postType: "Satire Humor", notes: "Make the post a joke first, then sneak in useful advice. Include #satire and a sassy closer." },
+  { title: "Before you act rich around", postType: "Broke Roast", notes: "Push the line. Mock impulsive spending and broke math, then give a realistic alternative." },
+  { title: "Tiny wins for people losing to", postType: "Broke Tip", notes: "Offer quick wins under ten minutes or ten dollars. Keep it encouraging, but do not let the follower off the hook." },
 ];
 
 const povertyMemeSubjects = [
-  "asking for a raise with a bank account that has seen things",
-  "opening the banking app after buying groceries",
-  "direct deposit arriving and immediately being escorted out by bills",
-  "budgeting with three dollars and a dream",
-  "checking subscriptions like they personally betrayed you",
-  "meal prepping because restaurants started acting premium",
-  "retirement planning while lunch is whatever is in the pantry",
-  "calling customer service to beg a fee off the bill",
-  "buying store brand and pretending it is character development",
-  "realizing the side hustle has side expenses",
-  "trying to save money while rent does parkour",
-  "the emergency fund having its own emergency",
-  "credit utilization judging your life choices",
-  "job hunting after seeing the price of eggs",
-  "trying a no-spend week after already spending",
-  "making a budget and watching reality object",
-  "bringing lunch from home like a financially responsible adult against your will",
-  "finding five dollars in a coat and acting blessed",
-  "canceling a subscription you forgot existed",
-  "payday optimism lasting eleven minutes",
-  "the grocery cart total attacking your personality",
-  "using coupons like tiny paper shields",
-  "asking whether fun fits in the budget and the budget laughing",
-  "planning retirement with couch-cushion energy",
-  "telling yourself leftovers are a lifestyle choice",
-  "looking at car insurance like it insulted your family",
-  "putting money in savings and immediately needing it",
-  "price comparing until your soul buffers",
-  "the rent due date sprinting toward you",
-  "choosing between convenience and not being broke-er",
-  "the debit card declining like it is doing performance art",
+  "direct deposit arriving and immediately getting escorted out by bills",
   "checking the account balance with one eye open",
-  "adding avocado and suddenly needing a payment plan",
-  "buying gas and pretending half a tank is emotional stability",
-  "the cart total asking if you are sure about living indoors",
-  "your savings account getting visited like a relative in witness protection",
-  "trying to budget while past-you left financial jump scares",
-  "the credit card minimum payment acting like a participation trophy",
-  "payday arriving dressed as a hostage negotiator for bills",
-  "opening the fridge and calling it a financial strategy meeting",
-  "using the calculator app in the grocery aisle like a survival tool",
-  "telling yourself a sale saved money after spending money",
-  "rent taking the whole paycheck out for a romantic dinner",
-  "checking bank notifications like they are horror movie subtitles",
-  "the emergency fund being two nickels and confidence",
-  "meal planning around whatever expires first",
-  "your budget hearing the word brunch and filing a complaint",
-  "trying to build credit while credit keeps acting exclusive",
-  "the bank app loading slower because it knows you are fragile",
-  "choosing store pickup to avoid impulse-buy side quests",
-  "turning leftovers into meal prep because poverty has branding now",
+  "the grocery cart total asking if you are sure about living indoors",
+  "payday confidence lasting eleven minutes",
+  "rent taking the whole paycheck out for dinner",
+  "making coffee at home with hostage-video enthusiasm",
+  "using the calculator app in the grocery aisle like survival gear",
   "canceling subscriptions like firing tiny employees",
-  "your account balance saying absolutely not in lowercase",
-  "the grocery receipt needing its own therapy session",
-  "side hustle math after gas and fees ate the profit",
+  "the emergency fund being two nickels and confidence",
   "asking for a raise because vibes are not legal tender",
-  "checking if fun money survived the rent attack",
-  "watching insurance renewals act personally offended",
-  "when the cheap option is still rude",
-  "your budget and your appetite filing separate reports",
-  "pretending tap water is a premium beverage",
-  "waiting for payday like it owes you an apology",
-  "the savings transfer immediately boomeranging back",
-  "calling customer service with humble villain energy",
-  "using cash envelopes because the debit card has no manners",
-  "when a small fee starts multiplying like it found friends",
+  "the budget hearing brunch and calling security",
   "buying one treat and the budget acting betrayed",
+  "watching convenience fees multiply like they found friends",
+  "the savings transfer boomeranging back by Tuesday",
+  "trying to meal prep while the fridge is doing improv",
+  "the bank app loading slowly because it knows you are fragile",
+  "store brand groceries becoming your personality",
+  "side hustle profit after gas and taxes leaves the chat",
+  "using coupons because dignity is expensive",
+  "paying minimums like debt is a subscription service",
+  "opening a bill and immediately needing a chair",
+  "the debit card declining like performance art",
+  "your cart having champagne taste and tap-water logistics",
   "a no-spend weekend with main-character withdrawal symptoms",
-  "checking prices online while standing in the store",
-  "using the library because free is a love language",
+  "payday arriving dressed as a hostage negotiator",
+  "the overdraft fee giving villain monologue energy",
+  "leftovers rebranded as financial strategy",
+  "asking if fun money survived the rent attack",
+  "credit utilization judging your life choices",
+  "buy now pay later asking future-you to clean up the mess",
+  "finding five dollars in a coat and acting blessed",
+  "the budget seeing takeout and filing a complaint",
+  "cheap dates because romance has overhead",
   "trying to save for retirement while dinner is pantry roulette",
-  "the car making a noise that sounds expensive in three languages",
-  "realizing convenience fees are just tiny financial insults",
-  "making coffee at home with the enthusiasm of a hostage video",
-  "when the paycheck is gone before the direct deposit confetti settles",
-  "the bank balance looking back like you both made mistakes",
-  "comparing unit prices like a mathlete under duress",
-  "asking if the coupon stacks because dignity is expensive",
-  "your wallet entering airplane mode at checkout",
-  "rent week turning everyone into a minimalist",
-  "the budget seeing takeout and calling security",
-  "using 'later' as a savings plan and getting humbled",
-  "when the fun purchase creates a boring consequence",
-  "having champagne taste and tap-water logistics",
-  "the overdraft fee arriving like a villain monologue",
-  "treating payday like a limited-time event",
-  "opening a bill and immediately needing to sit down",
-  "trying to be financially responsible while ads are screaming",
-  "the account balance giving jump-scare energy without special effects",
-];
-
-const povertySatireSubjects = [
-  ["bank app bravery", "checking balances before spending instead of letting the card freestyle"],
-  ["raise negotiation", "asking for more money with receipts instead of hoping effort gets noticed by telepathy"],
-  ["grocery math", "building meals from cheap staples before the cart total starts insulting the family name"],
-  ["subscription cleanup", "canceling quiet charges that keep sneaking into the account like unpaid roommates"],
-  ["payday planning", "assigning dollars before bills drag them into a back alley"],
-  ["rent week survival", "protecting rent money before small purchases start a tiny coup"],
-  ["emergency fund crumbs", "starting with tiny savings because zero dollars is not a safety net, it is a plot twist"],
-  ["side hustle receipts", "counting gas, fees, supplies, and taxes before calling it profit"],
-  ["debt payoff pride", "paying extra principal when possible instead of letting interest do cardio"],
-  ["cheap fun", "having a social life without letting the debit card audition for tragedy"],
-  ["fee reversals", "calling the bank with polite menace and asking for the fee back"],
-  ["retirement match", "not leaving employer match money on the table unless the table is on fire"],
-  ["credit utilization", "keeping balances from yelling at the credit score"],
-  ["meal prep reality", "making boring food useful without pretending rice is a personality"],
-  ["cash envelopes", "using buckets because the bank app cannot supervise behavior by itself"],
-  ["car maintenance", "planning for oil, tires, and repairs before the dashboard starts sending threats"],
-  ["holiday spending", "setting gift limits before December starts cosplaying as bankruptcy theater"],
-  ["medical bills", "asking for itemized bills and assistance because scary paper is still negotiable"],
-  ["windfall discipline", "giving surprise money a job before chaos hires it first"],
-  ["cheap living swaps", "choosing boring savings that actually survive the week"],
-  ["job hopping math", "knowing when loyalty is just a discount coupon for your employer"],
-  ["salary receipts", "tracking wins before asking for money like a professional with evidence"],
-  ["no-spend resets", "using a short reset without turning it into a punishment arc"],
-  ["budget categories", "naming the leaks before the account becomes a crime scene"],
-  ["price comparison", "checking unit prices because packaging is a liar with good lighting"],
-  ["financial boundaries", "saying no when your wallet is already breathing through a straw"],
-  ["student loans", "choosing a repayment plan instead of letting emails pile up like haunted confetti"],
-  ["insurance quotes", "shopping rates because loyalty does not pay dividends"],
-  ["buy now pay later", "asking whether future-you consented to this nonsense"],
-  ["minimum payment traps", "knowing when minimum payments are keeping the debt on life support"],
-  ["cheap dates", "romance that does not require sacrificing the electric bill"],
-  ["moving costs", "budgeting deposits, boxes, and utility starts before moving day gets rude"],
-  ["pet costs", "planning for adorable dependents with tiny paws and expensive opinions"],
-  ["kids and money", "building buffers because children treat shoes like disposable software"],
-  ["utility bills", "calling before shutoff panic becomes a personality test"],
-  ["cash flow calendar", "matching bills to paydays instead of manifesting electricity"],
-  ["used purchases", "buying secondhand when it is smart, not when it is trash wearing a discount sticker"],
-  ["tax refund plans", "making refund money useful before the cart starts flirting"],
-  ["fun money limits", "letting fun exist without giving it access to the rent envelope"],
-  ["savings automation", "moving tiny money before your impulses discover it"],
-];
-
-const tapContexts = [
-  ["a chamber event", "meeting people in a room full of local business owners"],
-  ["a trade show floor", "starting useful conversations without blocking the booth flow"],
-  ["a vendor table", "turning quick scans into remembered follow-ups"],
-  ["a sales call", "building trust before pitching"],
-  ["a cold DM", "warming the conversation before asking for time"],
-  ["a referral ask", "making the ask specific and easy to say yes to"],
-  ["a coffee chat", "keeping it focused without making it stiff"],
-  ["a conference hallway", "using small windows of time well"],
-  ["a local meetup", "turning casual introductions into useful relationships"],
-  ["a follow-up message", "writing something specific enough to feel human"],
-  ["a networking lunch", "balancing conversation with business context"],
-  ["a LinkedIn or X reply", "adding value publicly before moving private"],
-  ["a customer discovery chat", "asking better questions before pitching"],
-  ["a B2B intro", "making clear who you help and what happens next"],
-  ["a sales handoff", "sharing context so the next conversation starts warmer"],
-];
-
-const tapSkills: TopicPattern[] = [
-  {
-    title: "How to open",
-    notes: "Give real phrasing for starting the conversation. Make the advice practical, warm, and non-cringey.",
-  },
-  {
-    title: "What to ask during",
-    notes: "Give two strong questions and one follow-up. Focus on connection, not interrogation.",
-  },
-  {
-    title: "How to make yourself memorable after",
-    notes: "Explain how to connect your name, value, and one useful detail so the person remembers you later.",
-  },
-  {
-    title: "How to use Tap-Deck during",
-    notes: "Tie digital card sharing to a real human moment: ask first, explain the tap, then add a note afterward.",
-  },
-  {
-    title: "The follow-up template for",
-    notes: "Write a short follow-up message template with context, reminder, useful detail, and next step.",
-  },
-  {
-    title: "The mistake people make in",
-    notes: "Name a common networking mistake and give the better move.",
-  },
-  {
-    title: "How to exit gracefully from",
-    notes: "Give wording to close the conversation without awkwardness while preserving the relationship.",
-  },
-  {
-    title: "How to turn",
-    notes: "Explain how to move from first contact to next useful step without hard-selling.",
-  },
-  {
-    title: "How to listen better during",
-    notes: "Give active listening cues and how to capture useful notes after the conversation.",
-  },
-  {
-    title: "The one-note system for",
-    notes: "Teach what to write down after the interaction so follow-up feels personal.",
-  },
-  {
-    title: "How to avoid sounding salesy in",
-    notes: "Show how to lead with relevance, curiosity, and a useful insight before pitching.",
-  },
-  {
-    title: "How to ask for the next step after",
-    notes: "Give specific next-step language: intro, call, quote, resource, or check-in.",
-  },
-  {
-    title: "How to recover when",
-    notes: "Give advice for awkward moments, forgotten names, quiet rooms, or stalled conversation.",
-  },
-  {
-    title: "The value-first move for",
-    notes: "Focus on helping first: useful resource, intro, question, quick audit, or relevant observation.",
-  },
-];
-
-const tapSalesSubjects = [
-  "building a warm prospect list from event conversations",
-  "using public posts as context before outreach",
-  "sending a DM after someone scans your card",
-  "turning a casual chat into a booked meeting",
-  "using replies to earn trust before a pitch",
-  "qualifying without making people feel interrogated",
-  "asking who else should be in the room",
-  "following up after a no-show without sounding annoyed",
-  "reconnecting with an old lead",
-  "making your Tap-Deck profile answer the obvious buyer questions",
-  "sharing one case study without dumping a brochure",
-  "asking for referrals after helping someone",
-  "using events to learn market language",
-  "tracking where each lead came from",
-  "making the first call feel like a continuation, not a cold start",
-  "turning a business card exchange into a tiny CRM habit",
-  "spotting buying signals in casual conversation",
-  "asking better pain-point questions",
-  "handling the 'send me info' brush-off",
-  "knowing when not to pitch yet",
-];
-
-const crestedSubjects = [
-  ["isopod moisture gradients", "why one damp side and one drier side beats soaking the whole bin"],
-  ["springtail population booms", "why springtails often explode when mold or food is available"],
-  ["bioactive cleanup crews", "what isopods and springtails actually do and what they do not magically fix"],
-  ["terrarium plant safety", "plant choice, rinsing roots, avoiding pesticides, and watching for nibbling"],
-  ["leaf litter layers", "food, cover, humidity pockets, and microbe habitat"],
-  ["calcium sources", "cuttlebone, limestone, calcium carbonate, eggshell, and molting support"],
-  ["ventilation balance", "stale air, drying, condensation, and how airflow works with humidity"],
-  ["substrate refreshes", "frass buildup, partial changes, and species-dependent maintenance"],
-  ["mold in enclosures", "when mold is normal, when it is a warning, and how springtails help"],
-  ["protein feeding", "occasional protein, overfeeding risks, and cleanup timing"],
-  ["mancae hiding", "why baby isopods are hard to spot and where they stay safe"],
-  ["molting in halves", "why molts can look strange and why calcium and humidity matter"],
-  ["starter cultures", "why new colonies can look like a bin of dirt for a while"],
-  ["population control", "when a culture is thriving too much and how to split or reduce feeding"],
-  ["dwarf isopods", "why dwarf species can be useful in smaller or plant-focused setups"],
-  ["powder orange care", "hardy beginner care notes and what they still need"],
-  ["dairy cow care", "fast breeding, protein appetite, and enclosure management"],
-  ["rubber ducky patience", "slow-starting Cubaris care and why patience matters"],
-  ["springtail cultures", "charcoal, clay, rice, yeast, moisture, and harvesting tips"],
-  ["terrarium plant roots", "how cleanup crews interact with delicate roots and decaying matter"],
-  ["fungus gnats", "how overfeeding and wet substrate invite pests"],
-  ["bioactive myths", "things bioactive setups still need humans to monitor"],
-  ["closed terrariums", "why springtails often fit better than larger isopods in tiny sealed setups"],
-  ["arid bioactive setups", "why microclimates matter for cleanup crews in drier enclosures"],
-  ["safe botanicals", "hardwood leaves, seed pods, cork bark, and avoiding treated material"],
-];
-
-const crestedAngles: TopicPattern[] = [
-  {
-    title: "Random isopod fact:",
-    notes: "Lead with a real isopod or cleanup-crew fact, then give a keeper takeaway.",
-    postType: "Isopod Fact",
-  },
-  {
-    title: "Beginner mistake:",
-    notes: "Explain the mistake, why it happens, and what to do instead. Keep it helpful and nonjudgmental.",
-    postType: "Care Tip",
-  },
-  {
-    title: "Quick care check:",
-    notes: "Give a practical checklist people can use today.",
-    postType: "Care Tip",
-  },
-  {
-    title: "Bioactive myth check:",
-    notes: "Correct a common misconception from terrarium and bioactive discussions.",
-    postType: "Bioactive Tip",
-  },
-  {
-    title: "Troubleshooting:",
-    notes: "Describe symptoms, likely causes, and first steps. Avoid making hard diagnoses from limited info.",
-    postType: "Care Tip",
-  },
-  {
-    title: "Plant keeper note:",
-    notes: "Connect terrarium plants to cleanup crew behavior, moisture, roots, or substrate health.",
-    postType: "Terrarium Plant Tip",
-  },
-  {
-    title: "Springtail spotlight:",
-    notes: "Teach what springtails do, what population changes mean, and how they support the setup.",
-    postType: "Springtail Fact",
-  },
-  {
-    title: "Setup upgrade:",
-    notes: "Give one enclosure improvement that helps stability without overcomplicating the hobby.",
-    postType: "Care Tip",
-  },
-  {
-    title: "Keeper question:",
-    notes: "Frame this as a common community question, then answer it clearly.",
-    postType: "Care Tip",
-  },
-  {
-    title: "Tiny ecosystem lesson:",
-    notes: "Explain how decomposers, plants, moisture, and airflow connect in a bioactive setup.",
-    postType: "Bioactive Tip",
-  },
-  {
-    title: "Culture health clue:",
-    notes: "Teach one sign that a culture is stable, stressed, overfed, too dry, or too wet.",
-    postType: "Care Tip",
-  },
-  {
-    title: "What new keepers miss about",
-    notes: "Make it educational and specific. Include one practical action at the end.",
-    postType: "Care Tip",
-  },
-];
-
-const crestedMemeSubjects = [
-  "checking an isopod bin and seeing everyone vanish under bark",
-  "springtails appearing only after you stop trying to count them",
-  "a dairy cow colony acting like protein is rent",
-  "new keepers mistaking normal mold for the end times",
-  "rubber duckies making patience part of the care sheet",
-  "buying one culture and suddenly needing more bins",
-  "leaf litter disappearing like someone paid it to leave",
-  "the dry side and wet side both being judged by tiny crustaceans",
-  "finding mancae after declaring the colony inactive",
-  "overfeeding once and fungus gnats filing paperwork",
-  "isopods ignoring fancy food and eating the boring leaf",
-  "springtails treating mold like a buffet reservation",
-  "the colony hiding until guests come over",
-  "adding cork bark and calling it interior design",
-  "checking humidity like a tiny weather station operator",
-  "a cleanup crew that still expects you to clean up",
-  "the moment you learn bioactive does not mean autopilot",
-  "powder oranges acting beginner-friendly but still having standards",
-  "Cubaris owners explaining slow growth with haunted patience",
-  "terrarium plants surviving until isopods discover soft leaves",
-  "the first time an isopod molts and looks like two ghosts",
-  "adding calcium like you are stocking a tiny gym",
-  "the bin looking empty while everyone is under one leaf",
-  "trying to photograph an isopod that chose violence and speed",
-  "telling yourself one more species is a reasonable business decision",
-  "spending the grocery budget on terrarium plants and calling it ecosystem investment",
-  "buying moss like it has retirement benefits",
-  "telling yourself the new enclosure is definitely the last one",
-  "springtails doing unpaid mold management while you take credit",
-  "isopods treating cork bark like luxury real estate",
-  "the terrarium plant looking innocent while the isopods discuss snacks",
-  "building a bioactive setup and immediately needing three more microhabitats",
-  "the moment you realize leaf litter is now something you have opinions about",
-  "checking humidity more often than your bank balance",
-  "buying a rare isopod culture and pretending money is temporary anyway",
-  "springtails appearing in every photo except the one you actually need",
-  "terrarium plants thriving until you brag about them",
-  "an isopod colony hiding like rent is due",
-  "the cleanup crew asking why you keep making messes",
-  "bioactive keepers saying it is self-sustaining while holding six tools",
-  "spending all your money on tiny crustaceans with excellent camouflage",
-  "telling yourself botanicals are supplies and not a shopping addiction",
-  "the isopods getting better housing upgrades than you",
-  "springtail culture maintenance becoming a personality trait",
-  "plant quarantine feeling dramatic until pests show up",
-  "the terrarium looking peaceful while the substrate is running a tiny economy",
-  "asking if one more plant will fit like the enclosure can negotiate",
-  "buying a misting bottle and suddenly becoming weather itself",
-  "the colony eating zucchini like it has restaurant reservations",
-  "watching isopods ignore the expensive food for a decaying leaf",
-  "spending hobby money and then calling it research",
-  "bioactive hobby math where one bin somehow becomes twelve",
-  "explaining to normal people why you bought dirt on purpose",
-  "the plant light bill joining the hobby budget without asking",
-  "finding a single springtail and acting like the ecosystem waved hello",
-  "isopods making you excited about rotten wood like that is normal",
-  "terrarium plants getting names before your budget gets a category",
-  "the cleanup crew clocking in only when guests cannot see them",
-  "buying pods, plants, cork, leaves, and then pretending the container was the expensive part",
-  "trying to make a naturalistic setup while the isopods rearrange everything",
-  "the enclosure becoming prettier than your living room",
-  "telling yourself it is not hoarding if each bin has a label",
-  "springtails being tiny employees with zero HR paperwork",
-  "the humidity gauge judging your entire husbandry career",
-  "bioactive keepers hearing free leaf litter and entering gatherer mode",
-  "the terrarium plant melting just to keep you humble",
-  "your isopod wishlist having more financial ambition than your savings account",
-  "spending money on plants the isopods may immediately taste-test",
-  "the colony multiplying after you finally stop staring at it",
-  "buying one cleanup crew and accidentally joining a whole hobby",
-  "telling yourself the expo purchase is business inventory and emotional support",
-  "isopods turning a slice of squash into a community event",
-  "springtails cleaning mold while everyone asks what they even do",
-  "bioactive setup costs sneaking up one cute supply at a time",
-  "the hobby budget getting buried under leaf litter",
-  "plants, pods, and springtails forming a tiny committee to drain your wallet",
-  "the terrarium looking effortless after three hours of fussing",
-  "realizing your isopods have better calcium access than you do",
-  "the springtail culture surviving neglect better than your houseplants",
-  "buying a backup culture because trust issues are part of husbandry",
-  "the isopods refusing to pose after you hyped them up",
-  "bioactive keepers casually discussing mold like weather",
-  "the moment a tiny bin of dirt becomes your most checked project",
-  "terrarium plants making you learn lighting terminology against your will",
-  "the cleanup crew disappearing the second someone says show me",
-  "spending money on a hobby where the stars hide under bark",
+  "a sale convincing you spending money saved money",
+  "waiting for payday like it owes you an apology",
+  "the car making a noise in three expensive languages",
+  "tax refund season trying to turn everyone into a rapper",
+  "financial boundaries when relatives smell direct deposit",
+  "the account balance looking back like you both made mistakes",
 ];
 
 function buildPovertySeeds() {
-  const tips = povertySubjects.flatMap(([subject, detail]) =>
+  const tips = povertySources.flatMap((item) =>
     povertyAngles.map((angle) =>
       seed(
         "poverty-finance",
         povertyMatchers,
-        `${angle.title} ${subject}`,
+        `${angle.title} ${item.subject}`,
         angle.postType || "Broke Tip",
-        `${angle.notes} Topic focus: ${detail}. Keep Poverty Finance sassy: tease the broke situation and bad habits, but give useful steps.`
+        `${angle.notes} ${sourceLine(item)} Poverty Finance voice: make fun of broke behavior and chaotic choices, keep the joke obvious, and include one practical move.`
       )
     )
   );
@@ -565,223 +152,320 @@ function buildPovertySeeds() {
     seed(
       "poverty-finance",
       povertyMatchers,
-      `Broke meme: ${subject}`,
+      `Broke meme ${index + 1}: ${subject}`,
       "Broke Meme",
-      "Create a relatable broke-finance meme concept with a short caption, one practical money tip, and #satire. The joke can roast the situation and gently mock the follower's broke behavior, but still be useful."
+      "Create a visual meme concept with short top/bottom text. The joke should roast broke-budget behavior in a funny, slightly too-far way, include #satire in the caption, and sneak in one useful money move."
     ),
     seed(
       "poverty-finance",
       povertyMatchers,
-      `Sassy money reminder ${index + 1}: ${subject}`,
-      "Broke Tip",
-      "Write a sharp, funny reminder tied to this scenario. Include a realistic fix someone can do today even if they are low on cash."
-    ),
-  ]);
-
-  const satire = povertySatireSubjects.flatMap(([subject, detail], index) => [
-    seed(
-      "poverty-finance",
-      povertyMatchers,
-      `Satire humor ${index + 1}: ${subject}`,
-      "Satire Humor",
-      `Make it a joke first: roast the broke-budget behavior and the absurd situation, not the person's worth. Push the line with playful sass, then land one practical fix. Topic focus: ${detail}.`
-    ),
-    seed(
-      "poverty-finance",
-      povertyMatchers,
-      `Real finance tip: ${subject}`,
-      "Real Finance Tip",
-      `Give useful money advice with a sharp comedic opener. Keep the attitude high, make the broke-life joke obvious, and avoid cruelty. Topic focus: ${detail}.`
-    ),
-    seed(
-      "poverty-finance",
-      povertyMatchers,
-      `Broke roast: ${subject}`,
+      `Broke roast meme ${index + 1}: ${subject}`,
       "Broke Roast",
-      `Write a punchy post that jokes about broke habits like a friend roasting you with love. Include one action step so the joke has a point. Topic focus: ${detail}.`
+      "Write a punchy roast post that can become an image meme. Push the line, but keep it playful and monetization-aware. End with one practical action step and a sassy closer."
     ),
   ]);
 
-  return [...tips, ...memes, ...satire];
+  return [...tips, ...memes];
 }
 
+const tapDeckSources: TopicSource[] = [
+  { subject: "following up within 24 hours", detail: "networking contacts go cold fast when the follow-up has no context", source: "r/sales discussion about what makes people follow up after exchanging cards", url: "https://www.reddit.com/r/sales/comments/1puzk04/when_networking_what_actually_makes_you_follow_up/" },
+  { subject: "saving the conversation context", detail: "notes on where you met, what they needed, and the promised next step turn a contact into a relationship", source: "r/sales networking follow-up thread", url: "https://www.reddit.com/r/sales/comments/1puzk04/when_networking_what_actually_makes_you_follow_up/" },
+  { subject: "not handing cards to everyone with a pulse", detail: "better networking comes from relevance, not spraying contact info at strangers", source: "r/sales follow-up and business card discussion", url: "https://www.reddit.com/r/sales/comments/1puzk04/when_networking_what_actually_makes_you_follow_up/" },
+  { subject: "marketing consistency for small businesses", detail: "owners struggle less with ideas and more with a repeatable system they can maintain", source: "r/smallbusiness marketing discussion", url: "https://www.reddit.com/r/smallbusiness/comments/1surwnr/how_do_small_businesses_do_marketing/" },
+  { subject: "turning customer questions into content", detail: "real questions become better posts, pages, and ads than guessed-at content calendars", source: "r/smallbusiness marketing systems discussion", url: "https://www.reddit.com/r/smallbusiness/comments/1p8pi4y/what_do_small_business_owners_do_for_marketing/" },
+  { subject: "local networking before expensive ads", detail: "service businesses often need relationship channels before broad paid reach", source: "r/smallbusiness promotion discussions", url: "https://www.reddit.com/r/smallbusiness/comments/1s0ure8/how_do_yall_promote_yalls_businesses/" },
+  { subject: "community-first marketing", detail: "answering real questions without pitching builds trust before the ask", source: "Reddit Business small business guidance", url: "https://www.business.reddit.com/learning-hub/articles/why-you-should-be-on-reddit-smb" },
+  { subject: "finding where customers already talk", detail: "communities and interests can define better audiences before spending ad budget", source: "Reddit Business customer-finding guidance", url: "https://www.business.reddit.com/learning-hub/articles/how-to-find-customers-on-reddit" },
+  { subject: "X social listening", detail: "advanced search, lists, replies, and quote posts help brands join live conversations", source: "X Business community management guidance", url: "https://business.x.com/en/basics/community-management" },
+  { subject: "real-time engagement for SMBs", detail: "fast public replies can build trust and credibility for small businesses", source: "X for Business SMB guidance", url: "https://business.x.com/en/blog/x-is-committed-to-small-and-medium-businesses.html" },
+  { subject: "event booth follow-up", detail: "capture why the contact cared while the conversation is fresh", source: "X marketing event case-study angle", url: "https://marketing.x.com/en/success-stories/how-mulesoft-uses-twitter-to-drive-booth-traffic" },
+  { subject: "budget advertising clarity", detail: "separate marketing, advertising, and networking before buying random monthly packages", source: "r/smallbusiness advertising advice discussions", url: "https://www.reddit.com/r/smallbusiness/comments/1r0tmkl/business_advertising_advice/" },
+  { subject: "review and referral loops", detail: "small businesses need repeated customer touchpoints, not one-off random posts", source: "r/smallbusiness marketing consistency discussions", url: "https://www.reddit.com/r/smallbusiness/comments/1surwnr/how_do_small_businesses_do_marketing/" },
+  { subject: "LinkedIn plus local groups", detail: "targeted professional visibility beats being everywhere badly", source: "Small business promotion discussions", url: "https://www.reddit.com/r/smallbusiness/comments/1r0nw5j/how_to_promote_my_small_business/" },
+  { subject: "anti-AI in-person networking", detail: "physical presence and specific follow-up stand out while inboxes feel automated", source: "r/sales networking discussion", url: "https://www.reddit.com/r/sales/comments/1puzk04/when_networking_what_actually_makes_you_follow_up/" },
+  { subject: "lead quality over contact volume", detail: "a smaller list with context is more useful than a phone full of forgotten names", source: "r/sales follow-up discussion", url: "https://www.reddit.com/r/sales/comments/1puzk04/when_networking_what_actually_makes_you_follow_up/" },
+  { subject: "ad creative from objections", detail: "turn sales objections and FAQs into posts, landing copy, and ad hooks", source: "Small business marketing discussions", url: "https://www.reddit.com/r/smallbusiness/" },
+  { subject: "relationship CRM hygiene", detail: "tag contacts by event, interest, urgency, and promised follow-up", source: "r/sales networking follow-up discussion", url: "https://www.reddit.com/r/sales/comments/1puzk04/when_networking_what_actually_makes_you_follow_up/" },
+  { subject: "content that helps before it sells", detail: "helpful replies and tips build credibility before pitching", source: "Reddit Business SMB guidance", url: "https://www.business.reddit.com/learning-hub/articles/why-you-should-be-on-reddit-smb" },
+  { subject: "retargeting warm interest", detail: "website visitors and engaged contacts deserve different follow-up than cold strangers", source: "X partner retargeting guidance", url: "https://partners.x.com/en/partners/perfect-audience" },
+  { subject: "using social profiles as trust checks", detail: "people check profiles after meeting; stale profiles waste warm curiosity", source: "X profile presence guidance", url: "https://business.x.com/en/resources/guides-and-webinars" },
+  { subject: "event notes that sell later", detail: "write down the personal hook, business need, and next action while the memory is fresh", source: "r/sales business card follow-up discussion", url: "https://www.reddit.com/r/sales/comments/1puzk04/when_networking_what_actually_makes_you_follow_up/" },
+  { subject: "marketing burnout prevention", detail: "create repeatable weekly moves instead of trying to become a full-time media company", source: "r/smallbusiness marketing burnout discussions", url: "https://www.reddit.com/r/smallbusiness/comments/1r8prh9/how_are_other_small_business_owners_handling/" },
+  { subject: "local partnership maps", detail: "track who sends referrals, who serves the same buyer, and who needs a warm intro", source: "Small business local promotion discussions", url: "https://www.reddit.com/r/smallbusiness/" },
+  { subject: "tap-to-save contact moments", detail: "make the contact exchange fast, then make the follow-up personal", source: "r/sales digital card/noise discussion", url: "https://www.reddit.com/r/sales/comments/1puzk04/when_networking_what_actually_makes_you_follow_up/" },
+  { subject: "post-event sorting", detail: "separate hot leads, referral partners, vendors, peers, and nice-but-no-fit contacts", source: "r/sales networking discussion", url: "https://www.reddit.com/r/sales/comments/1puzk04/when_networking_what_actually_makes_you_follow_up/" },
+  { subject: "small budget ad discipline", detail: "know the offer, audience, and next step before spending money", source: "Reddit Business small business ad guidance", url: "https://www.business.reddit.com/learning-hub/articles/small-business-ads" },
+  { subject: "customer list ownership", detail: "email and CRM notes protect relationships from algorithm changes", source: "r/smallbusiness marketing tools discussion", url: "https://www.reddit.com/r/smallbusiness/comments/1surwnr/how_do_small_businesses_do_marketing/" },
+  { subject: "networking opener quality", detail: "specific questions beat generic what-do-you-do conversations", source: "Sales networking discussion", url: "https://www.reddit.com/r/sales/" },
+  { subject: "public conversation as marketing", detail: "commenting helpfully can outperform posting into the void", source: "X Business community management guidance", url: "https://business.x.com/en/basics/community-management" },
+  { subject: "turning event traffic into booked calls", detail: "a contact card should lead to a specific next step, not a digital graveyard", source: "MuleSoft event traffic case-study angle", url: "https://marketing.x.com/en/success-stories/how-mulesoft-uses-twitter-to-drive-booth-traffic" },
+];
+
+const tapDeckAngles: TopicPattern[] = [
+  { title: "Tap-Deck networking play:", postType: "Networking Tip", notes: "Give a practical, real-world move and tie it back to using Tap-Deck to capture contact context." },
+  { title: "Small business marketing system:", postType: "Marketing Tip", notes: "Give a repeatable marketing habit for busy owners and connect it to Tap-Deck follow-up or profile sharing." },
+  { title: "Advertising reality check:", postType: "Advertising Tip", notes: "Explain the advertising lesson with clear steps before spending money. Bring it back to Tap-Deck as the relationship bridge." },
+  { title: "Sales networking script:", postType: "Sales Networking Tip", notes: "Include a short script or follow-up template. Make Tap-Deck the tool that keeps the context from dying." },
+  { title: "Connection cleanup:", postType: "Networking Tip", notes: "Show how to organize contacts after events by next step, value, urgency, and notes." },
+  { title: "One better follow-up for", postType: "Sales Networking Tip", notes: "Make the follow-up specific, human, and useful. Tie it to Tap-Deck instead of generic business card swapping." },
+  { title: "Stop wasting warm leads from", postType: "Marketing Tip", notes: "Make the post direct and tactical. Explain how Tap-Deck helps make the warm lead remember why they cared." },
+];
+
 function buildTapDeckSeeds() {
-  const networking = tapContexts.flatMap(([context, detail]) =>
-    tapSkills.map((skill) =>
+  return tapDeckSources.flatMap((item) =>
+    tapDeckAngles.map((angle) =>
       seed(
         "tap-deck",
         tapDeckMatchers,
-        `${skill.title} ${context}`,
-        "Networking Tip",
-        `${skill.notes} Context: ${detail}. Keep it real and tactical for business networking and sales networking.`
+        `${angle.title} ${item.subject}`,
+        angle.postType || "Networking Tip",
+        `${angle.notes} ${sourceLine(item)} Keep the post practical for business owners, marketers, sales reps, and event networkers.`
       )
     )
   );
-
-  const sales = tapSalesSubjects.flatMap((subject) => [
-    seed(
-      "tap-deck",
-      tapDeckMatchers,
-      `Sales networking play: ${subject}`,
-      "Sales Networking Tip",
-      "Give a clear, practical sales networking move. Emphasize trust, relevance, warm context, and a clean next step."
-    ),
-    seed(
-      "tap-deck",
-      tapDeckMatchers,
-      `Connection system: ${subject}`,
-      "Networking Tip",
-      "Explain a repeatable system for managing this kind of networking moment with Tap-Deck, notes, follow-up, and relationship-building."
-    ),
-  ]);
-
-  return [...networking, ...sales];
 }
 
+const crestedScienceSources: TopicSource[] = [
+  { subject: "isopods as leaf litter fragmenters", detail: "terrestrial isopods speed litter breakdown by fragmenting leaf material and interacting with microbes", source: "Geoderma paper on terrestrial isopods and soil nutrients during litter decomposition", url: "https://www.sciencedirect.com/science/article/pii/S0016706120300586" },
+  { subject: "species-specific decomposition effects", detail: "different terrestrial isopod species can affect leaf litter decomposition differently", source: "Open-access paper on terrestrial isopods and leaf litter decomposition processes", url: "https://www.sciencedirect.com/science/article/pii/S2090989615000363" },
+  { subject: "leaf chemistry and feeding preference", detail: "litter chemistry can change consumption rates and gut/faecal microbiomes in detritivores", source: "Soil Biology and Biochemistry paper on litter chemistry and soil invertebrates", url: "https://www.sciencedirect.com/science/article/pii/S0038071722003753" },
+  { subject: "calcium storage before molting", detail: "terrestrial isopods resorb and store calcium before ecdysis so the new cuticle can mineralize", source: "PLOS One paper on mineral deposition in isopod calcium bodies", url: "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0058968" },
+  { subject: "isopods molt in two halves", detail: "isopods molt posterior and anterior halves separately, which explains the half-white molt look keepers notice", source: "Review on calcium transport and deposition in terrestrial isopods", url: "https://pubmed.ncbi.nlm.nih.gov/15629645/" },
+  { subject: "bacteria and calcium bodies", detail: "microbial communities can colonize isopod calcium bodies, showing molting is biologically complex", source: "FEMS Microbiology Ecology paper on calcium bodies in terrestrial isopods", url: "https://academic.oup.com/femsec/article/doi/10.1093/femsec/fix053/3753549" },
+  { subject: "springtail aerial righting", detail: "some semiaquatic springtails can jump, right themselves in air, and land on water with impressive control", source: "PNAS/arXiv research on springtail jumping and landing", url: "https://arxiv.org/abs/2211.04285" },
+  { subject: "springtails and stress tolerance", detail: "Folsomia candida exposed to alpha-pinene showed increased survival after cold shock in one study", source: "ScienceDirect paper on alpha-pinene and Folsomia candida stress tolerance", url: "https://www.sciencedirect.com/science/article/pii/S1532045619303977" },
+  { subject: "springtails as microbial grazers", detail: "springtails influence decomposition indirectly through microbial grazing and movement through litter", source: "General Collembola ecology references and springtail decomposition literature", url: "https://www.sciencedirect.com/topics/agricultural-and-biological-sciences/collembola" },
+  { subject: "springtails in mold management", detail: "springtails can help consume fungi, but they are not a cure for overfeeding or stagnant husbandry", source: "Recent r/isopods springtail/mold keeper questions", url: "https://www.reddit.com/r/isopods/comments/1sldg6y/to_add_springtails_or_no/" },
+  { subject: "bioactive does not mean maintenance-free", detail: "keeper discussions show frass, overpopulation, and leaf litter still need management in isopod terrariums", source: "Recent r/isopods bioactive maintenance discussion", url: "https://www.reddit.com/r/isopods/comments/1slv3w4/bioactive_terrarium_maintenance/" },
+  { subject: "small jar terrariums and isopod limits", detail: "tiny terrariums can look stable while still being a poor long-term fit for many isopods", source: "r/isopods magic potion jarrarium care discussion", url: "https://www.reddit.com/r/isopods/comments/1i3ocwc/advice_for_magic_potion_isopods_in_bioactive_terrarium/" },
+  { subject: "moist refuges in arid builds", detail: "cleanup crews in drier enclosures need humid pockets even when the display side is dry", source: "r/isopods bioactive tank tips discussion", url: "https://www.reddit.com/r/isopods/comments/mvoq3x/bioactive_tank_tips/" },
+  { subject: "plants and terrarium humidity", detail: "terrarium humidity is shaped by evaporation and plant transpiration, which is useful but still needs monitoring", source: "University of Arizona Extension terrarium humidity guide", url: "https://extension.arizona.edu/sites/extension.arizona.edu/files/pubs/az2050-2023.pdf" },
+  { subject: "leaf litter as food and habitat", detail: "leaf litter feeds microbes first and isopods later while also creating shelter and humidity structure", source: "Isopod decomposition papers and keeper bioactive discussions", url: "https://www.sciencedirect.com/science/article/pii/S2090989615000363" },
+  { subject: "protein moderation", detail: "protein can support colonies, but excess food fuels pests, odor, and mold before it helps growth", source: "Bioactive maintenance and overfeeding keeper discussions", url: "https://www.reddit.com/r/isopods/" },
+  { subject: "ventilation versus moisture", detail: "good setups balance airflow with a moisture gradient rather than chasing one humidity number", source: "r/isopods moisture and humidity keeper discussions", url: "https://www.reddit.com/r/isopods/comments/1l8tvgx/moisture_vs_humidity/" },
+  { subject: "springtails and isopods together", detail: "keepers frequently pair springtails with isopods, but the setup still needs species-appropriate moisture and food", source: "r/isopods springtails together discussion", url: "https://www.reddit.com/r/isopods/comments/1krp48m/isopods_and_springtails_together_or_separate/" },
+  { subject: "overcrowding in display terrariums", detail: "beautiful bioactive displays can still need population management if fast-breeding isopods boom", source: "Bioactive terrarium maintenance keeper discussions", url: "https://www.reddit.com/r/isopods/comments/1slv3w4/bioactive_terrarium_maintenance/" },
+  { subject: "plant choice in cleanup crew setups", detail: "hardy plants matter because some isopods nibble soft growth when easier food is missing", source: "Bioactive plant and cleanup crew keeper discussions", url: "https://www.reddit.com/r/bioactive/" },
+  { subject: "cork bark as microclimate furniture", detail: "bark provides shelter, climbing surfaces, and humidity pockets that help cleanup crews regulate themselves", source: "Keeper husbandry discussions and bioactive setup guides", url: "https://www.reddit.com/r/isopods/" },
+  { subject: "fungus gnats as husbandry feedback", detail: "gnats often indicate excess moisture, extra food, or decomposing organics that need adjustment", source: "Bioactive troubleshooting discussions", url: "https://www.reddit.com/r/bioactive/" },
+  { subject: "calcium sources for captive colonies", detail: "cuttlebone, limestone, eggshell, and other calcium sources support molting, but moisture and stress also matter", source: "Isopod molting research plus keeper molt-problem discussions", url: "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0058968" },
+  { subject: "new colony patience", detail: "young colonies may look inactive while individuals settle into hidden humid pockets", source: "Recurring keeper questions in r/isopods", url: "https://www.reddit.com/r/isopods/" },
+  { subject: "closed terrarium caution", detail: "sealed humidity can work for many tropical plants but can create ventilation problems for larger cleanup crew populations", source: "Terrarium humidity references and r/terrariums discussion", url: "https://www.reddit.com/r/terrariums/comments/1dmyfnq/is_96_humidity_too_high_for_a_terrarium/" },
+  { subject: "substrate depth and stability", detail: "deeper substrate and organic structure can buffer moisture, provide burrowing zones, and stabilize microclimates", source: "Bioactive setup discussions", url: "https://www.reddit.com/r/isopods/comments/1iv1y9z/starting_a_bioactive_advise_welcomed/" },
+  { subject: "decaying wood in isopod diets", detail: "rotting wood supports microbial food webs and gives isopods more than just decorative bark", source: "Isopod nutrition and decomposition literature", url: "https://onlinelibrary.wiley.com/doi/pdf/10.1017/S1464793102005912" },
+  { subject: "mancae hiding behavior", detail: "babies often stay hidden in stable humid pockets, so a quiet bin is not always an empty bin", source: "Keeper observation angle from r/isopods", url: "https://www.reddit.com/r/isopods/" },
+  { subject: "bioactive clean-up crew mismatch", detail: "arid reptiles, humid springtails, and isopods may need carefully separated microhabitats", source: "r/isopods bioactive tank tips discussion", url: "https://www.reddit.com/r/isopods/comments/mvoq3x/bioactive_tank_tips/" },
+  { subject: "leaf litter quality over leaf litter quantity", detail: "not all leaves decompose or feed the same way because chemistry and conditioning matter", source: "Paper on litter chemistry, feeding preference, and detritivore microbiomes", url: "https://www.sciencedirect.com/science/article/pii/S0038071722003753" },
+];
+
+const crestedAngles: TopicPattern[] = [
+  { title: "Science-backed keeper note:", postType: "Isopod Fact", notes: "Share one sourced tidbit, translate it into plain keeper language, and include the source link." },
+  { title: "Bioactive reality check:", postType: "Care Tip", notes: "Use the source to correct a common keeper assumption. Mention what to watch in the enclosure." },
+  { title: "Random isopod fact:", postType: "Isopod Fact", notes: "Make it concise, interesting, and useful for hobbyists. Include the research/source link." },
+  { title: "Terrarium keeper takeaway:", postType: "Care Tip", notes: "Connect the source to isopods, springtails, terrarium plants, or bioactive care." },
+];
+
+const crestedMemeSubjects = [
+  "bioactive does not mean autopilot",
+  "springtails doing mold management while you take the credit",
+  "isopods ignoring expensive food for one suspicious leaf",
+  "checking humidity more than your bank account",
+  "the colony hiding the second you try to show someone",
+  "buying leaf litter like a normal person buys snacks",
+  "the terrarium plant surviving until the pods discover it",
+  "cork bark becoming luxury real estate",
+  "a cleanup crew that still expects you to clean",
+  "finding one manca and acting like the colony announced earnings",
+  "the humidity gauge judging your entire career",
+  "telling yourself one more species is research",
+  "springtail cultures surviving neglect better than houseplants",
+  "plant quarantine feeling dramatic until pests arrive",
+  "the isopods getting better housing upgrades than you",
+  "buying moss like it has retirement benefits",
+  "explaining to normal people why you bought dirt",
+  "the bin looking empty while everyone lives under one leaf",
+  "protein day turning into a tiny buffet riot",
+  "bioactive keepers holding six tools while saying self-sustaining",
+  "the terrarium looking peaceful while the substrate runs an economy",
+  "a rare pod purchase filed under emotional support",
+  "the cleanup crew clocking in only when guests leave",
+  "plants, pods, and springtails forming a wallet-draining committee",
+  "humidity gradients being the real main character",
+  "the isopod refusing to pose after you hyped it up",
+  "springtails appearing in every photo except the one you need",
+  "buying backup cultures because trust issues are husbandry",
+  "the enclosure becoming prettier than your living room",
+  "calling rotten wood a supply and meaning it",
+  "terrarium plants getting names before the budget gets a category",
+  "leaf litter opinions becoming your personality",
+  "mold panic before springtails have had coffee",
+  "the colony multiplying after you finally stop staring",
+  "one bioactive setup somehow becoming twelve bins",
+  "the isopods rearranging your naturalistic layout",
+  "buying botanicals and pretending it is not shopping",
+  "the expo purchase being business inventory and emotional support",
+  "springtails being tiny employees with zero paperwork",
+  "the first molt looking like two tiny ghosts",
+];
+
+const crestedEngagementSubjects = [
+  "what isopod species surprised you the most",
+  "which springtail culture has been easiest for you",
+  "what terrarium plant has survived your cleanup crew the best",
+  "what was your first isopod species",
+  "what is the most dramatic thing your colony has done",
+  "what leaf litter do your pods seem to love most",
+  "what bioactive mistake taught you the fastest lesson",
+  "which enclosure do you check first every day",
+  "what is your favorite hide or cork bark setup",
+  "what species is still on your wishlist",
+  "what is the funniest place you have found springtails",
+  "what plant did your isopods immediately taste-test",
+  "what is your favorite beginner species and why",
+  "what is your most underrated cleanup crew tip",
+  "what food gets the biggest colony response",
+  "what humidity trick made your setup easier",
+  "what is the best expo pickup you ever made",
+  "what is a species you love but rarely see discussed",
+  "what is the one supply you always keep extra",
+  "what did you believe about bioactive setups before keeping one",
+  "what is your go-to calcium source",
+  "what species hides the most in your collection",
+  "what is your favorite terrarium plant combo",
+  "what cleanup crew myth do you wish would disappear",
+  "what is your most chaotic feeding response",
+  "what is one thing you wish beginners knew",
+  "what setup change made the biggest difference",
+  "what species bred faster than you expected",
+  "what species made you learn patience",
+  "what is your favorite isopod behavior to watch",
+];
+
+const crestedEngagementAngles: TopicPattern[] = [
+  {
+    title: "Keeper question:",
+    postType: "Engagement Question",
+    notes: "Ask a simple, inviting question that gets keepers commenting with their own experience. No source link needed.",
+  },
+  {
+    title: "Community check-in:",
+    postType: "Engagement Question",
+    notes: "Make it friendly and conversational. Encourage photos, species names, or short keeper stories in the comments.",
+  },
+  {
+    title: "Bioactive keeper debate:",
+    postType: "Engagement Question",
+    notes: "Frame it as a light discussion prompt, not a formal fact post. Keep the Crested Critters voice warm and hobby-focused.",
+  },
+];
+
 function buildCrestedSeeds() {
-  const care = crestedSubjects.flatMap(([subject, detail]) =>
+  const facts = crestedScienceSources.flatMap((item) =>
     crestedAngles.map((angle) =>
       seed(
         "crested-critters",
         crestedMatchers,
-        `${angle.title} ${subject}`,
+        `${angle.title} ${item.subject}`,
         angle.postType || "Care Tip",
-        `${angle.notes} Topic focus: ${detail}. Mention isopods, springtails, bioactive setups, or terrarium plants where relevant.`
+        `${angle.notes} ${sourceLine(item)} Do not overstate the science. Share the source link in the caption and turn the tidbit into a practical keeper takeaway.`
       )
     )
   );
 
-  const speciesFacts = [
-    "Armadillidium can roll into a ball because of conglobation",
-    "Porcellio species often need more ventilation than many beginners expect",
-    "Cubaris species can be slower to establish and reward patience",
-    "dwarf white isopods reproduce without males in many cultures",
-    "powder orange isopods are hardy but still need a moisture gradient",
-    "dairy cow isopods are bold feeders and can overrun food quickly",
-    "mancae spend a lot of time hidden in stable humid pockets",
-    "isopods are crustaceans, not insects",
-    "springtails jump with a furcula and often vanish before you can point at them",
-    "leaf litter supports microbes before isopods even eat the leaf itself",
-    "molting problems often point back to moisture, calcium, stress, or nutrition",
-    "bioactive does not mean maintenance-free",
-    "plants can raise humidity at night through transpiration",
-    "too much food can create pests faster than it creates growth",
-    "cork bark doubles as shelter and a microclimate tool",
-    "fungus gnats often tell on overwatering or extra food",
-    "springtails eat mold and fungi but cannot fix every husbandry issue",
-    "some isopods nibble soft plants if easier food is missing",
-    "hardwood leaves are a long-term food source and habitat layer",
-    "substrate depth changes how stable humidity stays",
-    "babies may appear weeks after a colony seems quiet",
-    "isopods help recycle organic matter in forest floor ecosystems",
-    "closed jars are usually better matched to springtails than large isopods",
-    "arid bioactive bins still need humid refuges for cleanup crews",
-    "protein is useful in moderation and messy when overdone",
-    "calcium access supports exoskeleton growth after molts",
-    "overcrowding can stress a colony even when it looks productive",
-    "new cultures often look inactive while they settle",
-    "temperature swings can slow breeding",
-    "clean-up crews need care because they are livestock too",
-  ];
-
-  const facts = speciesFacts.map((fact) =>
+  const memes = crestedMemeSubjects.flatMap((subject, index) => [
     seed(
       "crested-critters",
       crestedMatchers,
-      `Random isopod fact: ${fact}`,
-      "Isopod Fact",
-      "Write a concise educational post with a practical keeper takeaway and a friendly Crested Critters voice."
-    )
-  );
-
-  const memes = crestedMemeSubjects.map((subject) =>
-    seed(
-      "crested-critters",
-      crestedMatchers,
-      `Crested Critters meme: ${subject}`,
+      `Crested Critters meme ${index + 1}: ${subject}`,
       "Meme",
-      "Create a friendly isopod, springtail, bioactive, or terrarium-keeper meme concept. Keep it accurate enough for hobbyists and include a tiny care takeaway."
+      "Create a funny image meme about isopods, springtails, terrariums, bioactive setups, or hobby spending. Include a tiny accurate care takeaway in the caption."
+    ),
+    seed(
+      "crested-critters",
+      crestedMatchers,
+      `Informational meme ${index + 1}: ${subject}`,
+      "Meme",
+      "Make the meme funny first, then make the caption teach one small keeper lesson about moisture, leaf litter, calcium, springtails, plants, or cleanup crews."
+    ),
+  ]);
+
+  const engagement = crestedEngagementSubjects.flatMap((subject) =>
+    crestedEngagementAngles.map((angle) =>
+      seed(
+        "crested-critters",
+        crestedMatchers,
+        `${angle.title} ${subject}`,
+        angle.postType || "Engagement Question",
+        `${angle.notes} Focus on isopods, springtails, terrarium plants, bioactive setups, or keeper habits.`
+      )
     )
   );
 
-  return [...care, ...facts, ...memes];
+  return [...facts, ...memes, ...engagement];
 }
 
-const isopediaGrowthSubjects = [
-  ["what Isopedia is", "Explain Isopedia as a community-built isopod, springtail, bioactive, and terrarium knowledge base for keepers."],
-  ["why community records matter", "Show how shared care notes, photos, and corrections make the hobby less confusing for everyone."],
-  ["creating an Isopedia profile", "Encourage keepers to create a profile so their contributions, collection, photos, and knowledge have a home."],
-  ["sharing keeper experience", "Invite people to share real husbandry lessons from cultures they have kept, including what worked and what failed."],
-  ["adding species knowledge", "Ask keepers to help improve species pages with care details, morph notes, ventilation needs, and behavior observations."],
-  ["uploading useful photos", "Encourage clear species photos, mancae photos, setup photos, and comparison photos that help other keepers learn."],
-  ["submitting corrections", "Explain that suggested edits help clean up mistakes and keep information current."],
-  ["helping beginners avoid bad advice", "Frame Isopedia as a way to reduce scattered, contradictory advice for newer keepers."],
-  ["building a keeper profile", "Talk about profiles as a simple way to show what someone keeps and the knowledge they bring."],
-  ["tracking collections", "Invite users to build public collection pages that make connecting with other keepers easier."],
-  ["verified community knowledge", "Explain why review and verification matter when a database is built by the community."],
-  ["local expo listings", "Ask people to submit reptile, invert, terrarium, and bioactive expos so the community can find events."],
-  ["regional keeper connections", "Encourage people to use Isopedia to help find nearby keepers, breeders, and events."],
-  ["species page gaps", "Ask experienced keepers to help fill missing species pages, especially for less-documented species."],
-  ["care note details", "Encourage useful specifics like humidity ranges, ventilation, substrate, protein, calcium, and temperature observations."],
-  ["bioactive setup notes", "Invite bioactive builders to share cleanup crew combinations, plant choices, and setup lessons."],
-  ["springtail knowledge", "Ask springtail keepers to contribute culture notes, species observations, and troubleshooting tips."],
-  ["terrarium plant notes", "Encourage plant keepers to share which plants survive cleanup crews, humidity, and enclosure conditions."],
-  ["common beginner mistakes", "Ask the community to turn hard lessons into helpful notes on Isopedia."],
-  ["photo credit and contribution", "Explain that contributions can give credit to the keeper while helping the community learn."],
-  ["collection credibility", "Show how a profile and collection page can make sales, trades, and conversations easier."],
-  ["the living database idea", "Explain that Isopedia improves as keepers add, correct, and review information over time."],
-  ["why lurkers should contribute", "Encourage quiet but knowledgeable keepers to add even one note, photo, or correction."],
-  ["how small contributions help", "Show that one submitted photo, edit, or expo can save someone else time later."],
-  ["community over gatekeeping", "Position Isopedia as a place to make good information easier to find instead of hiding it in scattered threads."],
-  ["documenting rare species", "Ask experienced keepers to help document rare, slow-growing, or confusing species before info gets lost."],
-  ["care guides that evolve", "Explain that care info can improve when many keepers compare real outcomes."],
-  ["public profiles for hobby identity", "Encourage users to claim a username and build a profile that represents their keeper journey."],
-  ["making Isopedia useful before it is perfect", "Invite people to help build the resource instead of waiting until every page is complete."],
-  ["discussion and collaboration", "Encourage respectful discussion, suggested edits, and community review around species information."],
-  ["new keeper welcome", "Invite beginners to join even if they only have questions, a small collection, or one useful photo."],
-  ["experienced keeper invitation", "Ask advanced keepers to help preserve knowledge that usually gets buried in comment sections."],
-  ["species verification help", "Ask knowledgeable users to help review new submissions and improve accuracy."],
-  ["expo community coverage", "Encourage people to submit expos they know about so the map/calendar is not missing local events."],
-  ["turning scattered posts into a resource", "Explain how Isopedia can turn temporary social media advice into searchable community knowledge."],
-  ["keeper-to-keeper learning", "Encourage people to share observations because the hobby moves forward when keepers compare notes."],
+const isopediaGrowthSources: TopicSource[] = [
+  { subject: "what Isopedia is", detail: "a community-built database for isopods, springtails, bioactive cleanup crews, terrarium plants, expos, profiles, photos, and care knowledge", source: "Crested Critters Isopedia product direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "creating a keeper profile", detail: "profiles give contributors a visible identity for submissions, photos, collection pages, and community knowledge", source: "Isopedia profile and collection features", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "submitting species knowledge", detail: "the community can add species, morphs, care notes, origin info, humidity, diet, substrate, and photos for review", source: "Isopedia submission workflow", url: "https://isopedia.crestedcritters.com/isopedia/submit" },
+  { subject: "suggesting edits", detail: "community corrections keep care information from going stale or staying wrong", source: "Isopedia suggested edit workflow", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "uploading useful species images", detail: "clear photos help keepers identify species, morphs, mancae, and setup examples", source: "Isopedia gallery image workflow", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "adding expo listings", detail: "community-submitted expos make the calendar stronger and bring keepers back to the site", source: "Isopedia expo calendar", url: "https://isopedia.crestedcritters.com/isopedia/expos" },
+  { subject: "why verification matters", detail: "review helps community-submitted knowledge stay useful instead of becoming another pile of random internet claims", source: "Isopedia review workflow", url: "https://isopedia.crestedcritters.com/isopedia/review" },
+  { subject: "turning scattered comments into searchable knowledge", detail: "the best care tips should not disappear in social threads after two days", source: "Isopedia community knowledge mission", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "new keeper welcome", detail: "beginners can join even if they only have questions, one culture, one photo, or one useful observation", source: "Isopedia community growth direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "experienced keeper knowledge preservation", detail: "advanced keepers can document rare species, hard lessons, breeding notes, and setup observations before they get lost", source: "Isopedia community growth direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "collection pages as connection tools", detail: "public collection pages can help keepers connect, trade, buy, sell, and compare experience", source: "Isopedia collection feature direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "species page gaps", detail: "missing pages are an invitation for keepers to contribute, not a reason to wait until the database is perfect", source: "Isopedia database growth direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "photo credit and contributor recognition", detail: "contributors should feel seen when their photos, edits, and species submissions help the hobby", source: "Isopedia contribution direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "expo discovery teaser", detail: "people should visit the expo calendar rather than only seeing event details on Facebook", source: "Isopedia expo calendar strategy", url: "https://isopedia.crestedcritters.com/isopedia/expos" },
+  { subject: "community over gatekeeping", detail: "helpful knowledge grows faster when keepers contribute openly and respectfully", source: "Isopedia community mission", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "one small contribution challenge", detail: "ask followers to add one photo, one edit, one species note, one expo, or one profile update", source: "Isopedia community growth direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "keeper credibility", detail: "profiles and contributions help people show what they actually keep and what they have learned", source: "Isopedia profile direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "bioactive knowledge sharing", detail: "cleanup crew, plant, humidity, substrate, and pest notes become more useful when searchable", source: "Isopedia bioactive content direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "verified species shoutouts", detail: "new verified species posts should thank the submitter and verifier and use the species image when available", source: "Isopedia smart post behavior", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "submission review shoutouts", detail: "new species review posts should invite knowledgeable keepers to help review fresh submissions", source: "Isopedia smart post behavior", url: "https://isopedia.crestedcritters.com/isopedia/review" },
+  { subject: "why lurkers matter", detail: "quiet keepers often have the exact observation that helps someone else solve a problem", source: "Isopedia community growth direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "species comparison value", detail: "photos and notes make it easier to compare similar species, morphs, and care expectations", source: "Isopedia database mission", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "local keeper connections", detail: "profiles, collections, and expo listings can help keepers find community beyond algorithm feeds", source: "Isopedia community direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "database before perfection", detail: "a living database gets better through use, submissions, corrections, and review", source: "Isopedia product direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "keeper experience as data", detail: "real outcomes from real cultures can make care pages stronger than generic summaries", source: "Isopedia community knowledge direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "monthly contributor push", detail: "encourage people to build profiles and make one useful contribution this month", source: "Isopedia growth direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "care notes that save beginners", detail: "humidity, ventilation, diet, substrate, and difficulty notes can prevent avoidable mistakes", source: "Isopedia submission workflow", url: "https://isopedia.crestedcritters.com/isopedia/submit" },
+  { subject: "expo calendar missing shows", detail: "ask followers to add expos they know about so the calendar gets less embarrassing and more useful", source: "Isopedia expo calendar strategy", url: "https://isopedia.crestedcritters.com/isopedia/expos" },
+  { subject: "community review as a feature", detail: "review is how Isopedia avoids becoming a random unverified care sheet", source: "Isopedia review workflow", url: "https://isopedia.crestedcritters.com/isopedia/review" },
+  { subject: "share the weird little detail", detail: "odd observations about behavior, feeding, molting, or plants may be exactly what another keeper needs", source: "Isopedia community knowledge direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "turn collections into profiles", detail: "ask people to make a profile and start logging what they keep", source: "Isopedia profile direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "build the resource you wanted as a beginner", detail: "frame contribution as making the hobby easier for the next keeper", source: "Isopedia community mission", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "verified information with human credit", detail: "Isopedia should feel like a community, not a faceless database", source: "Isopedia smart post direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "species submission challenge", detail: "ask people to submit one species, morph, or cleanup crew entry they know well", source: "Isopedia submission workflow", url: "https://isopedia.crestedcritters.com/isopedia/submit" },
+  { subject: "photo-first contribution", detail: "some people may not write care guides, but a clear photo can still help the database", source: "Isopedia image contribution direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "expo Monday habit", detail: "weekly posts should tease the number of upcoming expos and push people to the expo page", source: "Isopedia expo calendar strategy", url: "https://isopedia.crestedcritters.com/isopedia/expos" },
+  { subject: "community stats as accountability", detail: "show growth, ask for help, and make the community feel like they are building something together", source: "Isopedia smart stats direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "from Facebook thread to permanent page", detail: "turn useful posts and comments into lasting Isopedia entries", source: "Isopedia community knowledge mission", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "why profiles help future paid backup", detail: "profiles and collections lay groundwork for optional future backup features without forcing server storage today", source: "Isopedia product direction", url: "https://isopedia.crestedcritters.com/isopedia" },
+  { subject: "community challenge for reviewers", detail: "ask knowledgeable members to help review pending submissions so good info goes live faster", source: "Isopedia review workflow", url: "https://isopedia.crestedcritters.com/isopedia/review" },
 ];
 
-const isopediaGrowthAngles: TopicPattern[] = [
-  {
-    title: "Help build Isopedia:",
-    notes: "Write a warm community-growth post that explains the value of Isopedia and asks keepers to join in with one specific action.",
-  },
-  {
-    title: "Why Isopedia needs the community for",
-    notes: "Explain why this topic cannot be built well by one person alone. Invite people to contribute knowledge, photos, edits, or event info.",
-  },
-  {
-    title: "One small way to help Isopedia grow:",
-    notes: "Make the ask feel easy and low-pressure. Give one simple contribution someone can make today.",
-  },
-  {
-    title: "Isopedia community call:",
-    notes: "Use a direct call-to-action. Encourage profile creation, shared experience, corrections, and respectful keeper collaboration.",
-  },
-  {
-    title: "What keepers get from Isopedia:",
-    notes: "Focus on benefits for the person joining: searchable info, profiles, collection visibility, event discovery, and better community records.",
-  },
-  {
-    title: "Turn your keeper knowledge into community value:",
-    notes: "Make experienced keepers feel useful without sounding preachy. Ask them to share specific observations others can learn from.",
-  },
+const isopediaAngles: TopicPattern[] = [
+  { title: "Help build Isopedia:", postType: "Growth Post", notes: "Explain what Isopedia is and give one specific community action." },
+  { title: "Isopedia community call:", postType: "Growth Post", notes: "Use a direct CTA to create a profile, contribute knowledge, upload photos, suggest edits, add expos, or review submissions." },
+  { title: "Why keepers should join Isopedia for", postType: "Growth Post", notes: "Focus on benefits for the keeper and the hobby. Make the community feel needed." },
+  { title: "One small way to grow Isopedia:", postType: "Growth Post", notes: "Make the contribution feel easy and low-pressure." },
+  { title: "The Isopedia pitch for", postType: "Growth Post", notes: "Explain the feature/value clearly without sounding like an ad." },
+  { title: "Community knowledge reminder:", postType: "Growth Post", notes: "Make the post warm, practical, and contribution-focused." },
 ];
 
 function buildIsopediaSeeds() {
-  return isopediaGrowthSubjects.flatMap(([subject, detail]) =>
-    isopediaGrowthAngles.map((angle) =>
+  return isopediaGrowthSources.flatMap((item) =>
+    isopediaAngles.map((angle) =>
       seed(
         "isopedia",
         isopediaMatchers,
-        `${angle.title} ${subject}`,
-        "Growth Post",
-        `${angle.notes} Topic focus: ${detail} Always include a clear invitation to create an Isopedia profile, submit knowledge, upload photos, suggest edits, or add expo info. Do not present this as the once-daily stats recap, a new species alert, or an expo alert.`
+        `${angle.title} ${item.subject}`,
+        angle.postType || "Growth Post",
+        `${angle.notes} ${sourceLine(item)} Do not present this as the once-daily stats recap, verified species alert, submitted-for-review alert, or expo roundup unless the post type says so.`
       )
     )
   );

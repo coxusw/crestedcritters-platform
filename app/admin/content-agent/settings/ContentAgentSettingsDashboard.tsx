@@ -39,15 +39,23 @@ const POST_TYPE_HINTS = [
   "Meme",
   "Informational",
   "Networking Tip",
+  "Marketing Tip",
+  "Advertising Tip",
+  "Sales Networking Tip",
+  "Broke Tip",
   "Real Finance Tip",
   "Satire Humor",
   "Broke Roast",
   "Broke Meme",
   "Growth Post",
+  "Care Tip",
+  "Isopod Fact",
+  "Engagement Question",
   "Species Spotlight",
   "Community Stats",
   "Weekly Expo Roundup",
   "Verified Species Announcement",
+  "Species Review Alert",
 ];
 
 export default function ContentAgentSettingsDashboard({
