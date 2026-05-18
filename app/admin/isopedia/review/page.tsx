@@ -29,8 +29,8 @@ export default async function AdminIsopediaReviewPage() {
     <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-wrap gap-3 text-sm">
-          <Link className="text-emerald-300 underline" href="/admin/isopedia">
-            Back to Isopedia Admin
+          <Link className="text-emerald-300 underline" href="/admin">
+            Back to Admin Dashboard
           </Link>
           <Link className="text-emerald-300 underline" href="/isopedia">
             View public Isopedia

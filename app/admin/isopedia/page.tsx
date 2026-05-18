@@ -139,36 +139,38 @@ export default async function AdminIsopediaPage() {
     .slice(0, 5);
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <header className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl">
-          <p className="text-sm uppercase tracking-[0.3em] text-emerald-300">
-            Isopedia Admin
-          </p>
-          <h1 className="mt-3 text-3xl font-bold">Admin Dashboard</h1>
-          <p className="mt-3 max-w-3xl text-slate-300">
-            Manage species, expo systems, community contributions, badges,
-            discussions, moderation tools, and public Isopedia infrastructure.
-          </p>
+    <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <header className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">
+              admin.crestedcritters.com
+            </p>
+            <h1 className="mt-2 text-3xl font-black md:text-4xl">Isopedia Tools</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
+              Manage species, expo systems, community contributions, badges,
+              discussions, moderation tools, and public Isopedia infrastructure.
+            </p>
+          </div>
 
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 text-sm font-bold">
+            <Link
+              href="/admin"
+              className="rounded-md border border-white/10 px-3 py-2 text-slate-200 hover:bg-white/10"
+            >
+              Admin Dashboard
+            </Link>
             <Link
               href="/isopedia"
-              className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-white/10"
+              className="rounded-md border border-white/10 px-3 py-2 text-slate-200 hover:bg-white/10"
             >
               View Public Site
             </Link>
             <Link
               href="/admin/isopedia/new"
-              className="rounded-2xl bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300"
+              className="rounded-md bg-emerald-400 px-3 py-2 text-slate-950 hover:bg-emerald-300"
             >
               Add New Species
-            </Link>
-            <Link
-              href="/admin/content-agent"
-              className="rounded-2xl bg-sky-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-sky-300"
-            >
-              Facebook Agent
             </Link>
           </div>
         </header>
@@ -207,7 +209,7 @@ export default async function AdminIsopediaPage() {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+          <div className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
             <h2 className="text-xl font-semibold">Admin Tools</h2>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <AdminActionCard
@@ -254,7 +256,7 @@ export default async function AdminIsopediaPage() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+          <div className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
             <p className="text-sm uppercase tracking-[0.25em] text-emerald-300">
               Community
             </p>
@@ -269,7 +271,7 @@ export default async function AdminIsopediaPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm uppercase tracking-[0.25em] text-emerald-300">
@@ -279,7 +281,7 @@ export default async function AdminIsopediaPage() {
             </div>
             <Link
               href="/admin/isopedia/new"
-              className="rounded-2xl bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300"
+              className="rounded-md bg-emerald-400 px-3 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300"
             >
               Add Species
             </Link>
@@ -291,7 +293,7 @@ export default async function AdminIsopediaPage() {
                 <Link
                   key={item.id}
                   href={`/isopedia/${item.slug}`}
-                  className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 transition hover:-translate-y-0.5 hover:border-emerald-300/50"
+                  className="rounded-lg border border-white/10 bg-black/20 p-4 transition hover:-translate-y-0.5 hover:border-emerald-300/50"
                 >
                   <h3 className="font-bold text-slate-100">{item.common_name}</h3>
                   <p className="mt-1 text-sm italic text-slate-400">
@@ -306,7 +308,7 @@ export default async function AdminIsopediaPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm uppercase tracking-[0.25em] text-emerald-300">
@@ -316,7 +318,7 @@ export default async function AdminIsopediaPage() {
             </div>
             <Link
               href="/admin/isopedia/new"
-              className="rounded-2xl bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300"
+              className="rounded-md bg-emerald-400 px-3 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300"
             >
               Add Species
             </Link>
@@ -327,7 +329,7 @@ export default async function AdminIsopediaPage() {
               species.map((item) => (
                 <article
                   key={item.id}
-                  className="rounded-3xl border border-white/10 bg-slate-900/70 p-5"
+                  className="rounded-lg border border-white/10 bg-black/20 p-4"
                 >
                   <h3 className="text-lg font-bold">{item.common_name}</h3>
                   <p className="mt-1 text-sm text-slate-400">
@@ -366,7 +368,7 @@ export default async function AdminIsopediaPage() {
                 </article>
               ))
             ) : (
-              <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-8 text-center text-slate-400">
+              <div className="rounded-lg border border-white/10 bg-black/20 p-8 text-center text-slate-400">
                 No species added yet.
               </div>
             )}
@@ -394,14 +396,14 @@ function DashboardStat({
 }) {
   return (
     <div
-      className={`rounded-3xl border p-5 ${
+      className={`rounded-lg border p-4 ${
         alert
           ? "border-amber-400/40 bg-amber-400/10"
           : "border-white/10 bg-white/5"
       }`}
     >
       <div className="text-sm uppercase tracking-wide text-slate-400">{label}</div>
-      <div className="mt-3 text-3xl font-black">{value}</div>
+      <div className="mt-3 text-2xl font-black">{value}</div>
       <p className="mt-2 text-sm text-slate-400">{description}</p>
     </div>
   );
@@ -423,10 +425,10 @@ function AdminActionCard({
   return (
     <Link
       href={href}
-      className={`rounded-3xl border p-5 transition hover:-translate-y-0.5 ${
+      className={`rounded-lg border p-4 transition hover:-translate-y-0.5 ${
         alert
           ? "border-amber-400/40 bg-amber-400/10"
-          : "border-white/10 bg-slate-900/70 hover:border-emerald-300/50"
+          : "border-white/10 bg-black/20 hover:border-emerald-300/50"
       }`}
     >
       <div className="text-2xl">{icon}</div>
@@ -438,7 +440,7 @@ function AdminActionCard({
 
 function MiniStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl bg-slate-900/80 p-4">
+    <div className="rounded-md border border-white/10 bg-black/20 p-3">
       <div className="text-sm text-slate-400">{label}</div>
       <div className="mt-1 text-2xl font-bold">{value}</div>
     </div>
