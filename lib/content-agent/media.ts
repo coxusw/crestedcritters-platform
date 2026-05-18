@@ -36,9 +36,13 @@ export async function generateImageForNextPost() {
     topText: memeText.topText,
     bottomText: memeText.bottomText,
   });
-  const path = `${post.page_key}/${post.id}.png`;
+  const path = `${post.page_key}/${post.id}-${Date.now()}.png`;
 
-  const upload = await supabase.storage.from("content-agent-media").upload(path, buffer, { contentType: "image/png", upsert: true });
+  const upload = await supabase.storage.from("content-agent-media").upload(path, buffer, {
+    cacheControl: "60",
+    contentType: "image/png",
+    upsert: false,
+  });
   if (upload.error) throw new Error(upload.error.message);
   const { data: publicData } = supabase.storage.from("content-agent-media").getPublicUrl(path);
 
