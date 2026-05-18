@@ -2,6 +2,8 @@ import { createSupabaseAdminClient } from "./supabase-admin";
 import type { ContentAgentPage, ContentAgentPost, ContentAgentTopic } from "./types";
 import { areSimilarTopics } from "./topic-normalization";
 
+const imagePostTypes = ["Meme", "Broke Meme", "Broke Roast", "Satire Humor"];
+
 export async function logContentAgent(action: string, result: string, details: string, entityType?: string, entityId?: string) {
   const supabase = createSupabaseAdminClient();
   await supabase.from("content_agent_logs").insert({ action, result, details, entity_type: entityType || null, entity_id: entityId || null });
@@ -44,7 +46,7 @@ export async function getDashboardCounts() {
     supabase.from("content_agent_posts").select("id", { count: "exact", head: true }).eq("status", "Error"),
     supabase.from("content_agent_pages").select("id", { count: "exact", head: true }).eq("active", true),
     supabase.from("content_agent_topics").select("id", { count: "exact", head: true }).eq("active", true),
-    supabase.from("content_agent_posts").select("id", { count: "exact", head: true }).in("post_type", ["Meme", "Broke Meme"]).is("image_url", null).neq("status", "Rejected").neq("status", "Posted"),
+    supabase.from("content_agent_posts").select("id", { count: "exact", head: true }).in("post_type", imagePostTypes).is("image_url", null).neq("status", "Rejected").neq("status", "Posted"),
   ]);
   return {
     draft: draft.count || 0,

@@ -21,7 +21,9 @@ export async function generatePostText(input: { page: ContentAgentPage; slot: Ne
       rules: [
         "Use the selected topic and notes.",
         "For text-only posts, leave memeTopText, memeBottomText, and imagePrompt blank.",
-        "For Meme or Broke Meme posts, write a short caption and a clear imagePrompt.",
+        "For Meme, Broke Meme, Broke Roast, or Satire Humor image posts, write a short caption, punchy memeTopText/memeBottomText, and a clear imagePrompt.",
+        "Meme text should be short, readable, and split naturally between top and bottom text. Avoid long sentences in memeTopText or memeBottomText.",
+        "The imagePrompt should describe the visual scene only. Do not ask the image model to render words or captions inside the image.",
         "Tap-Deck should remain text-only.",
         "Poverty Finance satire must clearly include #satire.",
         "For Poverty Finance, the joke can roast broke-budget habits and chaotic money choices, but keep it obviously playful and include one useful financial move.",
@@ -46,8 +48,8 @@ export async function generatePostText(input: { page: ContentAgentPage; slot: Ne
 }
 
 export async function generateImageBase64(prompt: string) {
-  const model = process.env.CONTENT_AGENT_IMAGE_MODEL || "gpt-image-1-mini";
-  const quality = process.env.CONTENT_AGENT_IMAGE_QUALITY || "low";
+  const model = process.env.CONTENT_AGENT_IMAGE_MODEL || "gpt-image-1";
+  const quality = process.env.CONTENT_AGENT_IMAGE_QUALITY || "high";
   const size = process.env.CONTENT_AGENT_IMAGE_SIZE || "1024x1024";
   const response = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",

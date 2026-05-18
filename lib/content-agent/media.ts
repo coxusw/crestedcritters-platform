@@ -1,5 +1,6 @@
 import { createSupabaseAdminClient } from "./supabase-admin";
 import { generateImageBase64 } from "./openai";
+import { buildMemeImagePrompt, composeMemeImage } from "./meme-image";
 import { isImagePostTypeForPage } from "./scheduler";
 import type { ContentAgentPost } from "./types";
 
@@ -18,9 +19,16 @@ export async function generateImageForNextPost() {
   ) as ContentAgentPost | undefined;
   if (!post) return { generated: false, message: "No eligible missing image posts." };
 
-  const prompt = [post.image_prompt || "", post.meme_top_text ? `Top meme text: ${post.meme_top_text}` : "", post.meme_bottom_text ? `Bottom meme text: ${post.meme_bottom_text}` : "", post.caption ? `Caption context: ${post.caption}` : "", "Square Facebook image. Family-friendly. No logos. No watermarks."].filter(Boolean).join("\n");
+  const prompt = buildMemeImagePrompt({
+    pageKey: post.page_key,
+    imagePrompt: post.image_prompt,
+    caption: post.caption,
+  });
   const image = await generateImageBase64(prompt);
-  const buffer = Buffer.from(image.base64, "base64");
+  const buffer = await composeMemeImage(Buffer.from(image.base64, "base64"), {
+    topText: post.meme_top_text,
+    bottomText: post.meme_bottom_text,
+  });
   const path = `${post.page_key}/${post.id}.png`;
 
   const upload = await supabase.storage.from("content-agent-media").upload(path, buffer, { contentType: "image/png", upsert: true });
