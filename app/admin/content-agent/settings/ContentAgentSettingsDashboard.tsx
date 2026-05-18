@@ -43,6 +43,7 @@ const POST_TYPE_HINTS = [
   "Satire Humor",
   "Broke Roast",
   "Broke Meme",
+  "Growth Post",
   "Species Spotlight",
   "Community Stats",
   "Weekly Expo Roundup",

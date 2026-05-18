@@ -128,6 +128,7 @@ export default function ContentAgentTopicsDashboard({
                 Adds up to {requestedTopicSeedCounts["poverty-finance"]} Poverty
                 Finance, {requestedTopicSeedCounts["tap-deck"]} Tap-Deck, and{" "}
                 {requestedTopicSeedCounts["crested-critters"]} Crested Critters
+                topics, plus {requestedTopicSeedCounts.isopedia} Isopedia growth
                 topics. Existing duplicate or similar topics are skipped.
               </p>
               <p className="mt-2 text-xs leading-5 text-sky-100/70">
@@ -135,6 +136,7 @@ export default function ContentAgentTopicsDashboard({
                 {requestedTopicSeedTypeCounts["poverty-finance"]["Satire Humor"] || 0} Satire Humor, and{" "}
                 {requestedTopicSeedTypeCounts["poverty-finance"]["Real Finance Tip"] || 0} Real Finance Tip topics.
                 Crested Critters has {requestedTopicSeedTypeCounts["crested-critters"]["Meme"] || 0} Meme topics.
+                Isopedia has {requestedTopicSeedTypeCounts.isopedia?.["Growth Post"] || 0} Growth Post topics.
               </p>
             </div>
             <form action={seedRequestedTopicPack}>

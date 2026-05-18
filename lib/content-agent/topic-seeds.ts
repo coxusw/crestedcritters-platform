@@ -1,5 +1,5 @@
 export type TopicSeed = {
-  brand: "poverty-finance" | "tap-deck" | "crested-critters";
+  brand: "poverty-finance" | "tap-deck" | "crested-critters" | "isopedia";
   pageMatchers: string[];
   topic: string;
   postType: string;
@@ -15,6 +15,7 @@ type TopicPattern = {
 const povertyMatchers = ["povertyfinance", "poverty finance"];
 const tapDeckMatchers = ["tapdeck", "tap-deck", "tap deck"];
 const crestedMatchers = ["crested", "crested critters"];
+const isopediaMatchers = ["isopedia", "isopeida"];
 
 function seed(
   brand: TopicSeed["brand"],
@@ -706,10 +707,91 @@ function buildCrestedSeeds() {
   return [...care, ...facts, ...memes];
 }
 
+const isopediaGrowthSubjects = [
+  ["what Isopedia is", "Explain Isopedia as a community-built isopod, springtail, bioactive, and terrarium knowledge base for keepers."],
+  ["why community records matter", "Show how shared care notes, photos, and corrections make the hobby less confusing for everyone."],
+  ["creating an Isopedia profile", "Encourage keepers to create a profile so their contributions, collection, photos, and knowledge have a home."],
+  ["sharing keeper experience", "Invite people to share real husbandry lessons from cultures they have kept, including what worked and what failed."],
+  ["adding species knowledge", "Ask keepers to help improve species pages with care details, morph notes, ventilation needs, and behavior observations."],
+  ["uploading useful photos", "Encourage clear species photos, mancae photos, setup photos, and comparison photos that help other keepers learn."],
+  ["submitting corrections", "Explain that suggested edits help clean up mistakes and keep information current."],
+  ["helping beginners avoid bad advice", "Frame Isopedia as a way to reduce scattered, contradictory advice for newer keepers."],
+  ["building a keeper profile", "Talk about profiles as a simple way to show what someone keeps and the knowledge they bring."],
+  ["tracking collections", "Invite users to build public collection pages that make connecting with other keepers easier."],
+  ["verified community knowledge", "Explain why review and verification matter when a database is built by the community."],
+  ["local expo listings", "Ask people to submit reptile, invert, terrarium, and bioactive expos so the community can find events."],
+  ["regional keeper connections", "Encourage people to use Isopedia to help find nearby keepers, breeders, and events."],
+  ["species page gaps", "Ask experienced keepers to help fill missing species pages, especially for less-documented species."],
+  ["care note details", "Encourage useful specifics like humidity ranges, ventilation, substrate, protein, calcium, and temperature observations."],
+  ["bioactive setup notes", "Invite bioactive builders to share cleanup crew combinations, plant choices, and setup lessons."],
+  ["springtail knowledge", "Ask springtail keepers to contribute culture notes, species observations, and troubleshooting tips."],
+  ["terrarium plant notes", "Encourage plant keepers to share which plants survive cleanup crews, humidity, and enclosure conditions."],
+  ["common beginner mistakes", "Ask the community to turn hard lessons into helpful notes on Isopedia."],
+  ["photo credit and contribution", "Explain that contributions can give credit to the keeper while helping the community learn."],
+  ["collection credibility", "Show how a profile and collection page can make sales, trades, and conversations easier."],
+  ["the living database idea", "Explain that Isopedia improves as keepers add, correct, and review information over time."],
+  ["why lurkers should contribute", "Encourage quiet but knowledgeable keepers to add even one note, photo, or correction."],
+  ["how small contributions help", "Show that one submitted photo, edit, or expo can save someone else time later."],
+  ["community over gatekeeping", "Position Isopedia as a place to make good information easier to find instead of hiding it in scattered threads."],
+  ["documenting rare species", "Ask experienced keepers to help document rare, slow-growing, or confusing species before info gets lost."],
+  ["care guides that evolve", "Explain that care info can improve when many keepers compare real outcomes."],
+  ["public profiles for hobby identity", "Encourage users to claim a username and build a profile that represents their keeper journey."],
+  ["making Isopedia useful before it is perfect", "Invite people to help build the resource instead of waiting until every page is complete."],
+  ["discussion and collaboration", "Encourage respectful discussion, suggested edits, and community review around species information."],
+  ["new keeper welcome", "Invite beginners to join even if they only have questions, a small collection, or one useful photo."],
+  ["experienced keeper invitation", "Ask advanced keepers to help preserve knowledge that usually gets buried in comment sections."],
+  ["species verification help", "Ask knowledgeable users to help review new submissions and improve accuracy."],
+  ["expo community coverage", "Encourage people to submit expos they know about so the map/calendar is not missing local events."],
+  ["turning scattered posts into a resource", "Explain how Isopedia can turn temporary social media advice into searchable community knowledge."],
+  ["keeper-to-keeper learning", "Encourage people to share observations because the hobby moves forward when keepers compare notes."],
+];
+
+const isopediaGrowthAngles: TopicPattern[] = [
+  {
+    title: "Help build Isopedia:",
+    notes: "Write a warm community-growth post that explains the value of Isopedia and asks keepers to join in with one specific action.",
+  },
+  {
+    title: "Why Isopedia needs the community for",
+    notes: "Explain why this topic cannot be built well by one person alone. Invite people to contribute knowledge, photos, edits, or event info.",
+  },
+  {
+    title: "One small way to help Isopedia grow:",
+    notes: "Make the ask feel easy and low-pressure. Give one simple contribution someone can make today.",
+  },
+  {
+    title: "Isopedia community call:",
+    notes: "Use a direct call-to-action. Encourage profile creation, shared experience, corrections, and respectful keeper collaboration.",
+  },
+  {
+    title: "What keepers get from Isopedia:",
+    notes: "Focus on benefits for the person joining: searchable info, profiles, collection visibility, event discovery, and better community records.",
+  },
+  {
+    title: "Turn your keeper knowledge into community value:",
+    notes: "Make experienced keepers feel useful without sounding preachy. Ask them to share specific observations others can learn from.",
+  },
+];
+
+function buildIsopediaSeeds() {
+  return isopediaGrowthSubjects.flatMap(([subject, detail]) =>
+    isopediaGrowthAngles.map((angle) =>
+      seed(
+        "isopedia",
+        isopediaMatchers,
+        `${angle.title} ${subject}`,
+        "Growth Post",
+        `${angle.notes} Topic focus: ${detail} Always include a clear invitation to create an Isopedia profile, submit knowledge, upload photos, suggest edits, or add expo info. Do not present this as the once-daily stats recap, a new species alert, or an expo alert.`
+      )
+    )
+  );
+}
+
 export const requestedTopicSeeds: TopicSeed[] = [
   ...buildPovertySeeds(),
   ...buildTapDeckSeeds(),
   ...buildCrestedSeeds(),
+  ...buildIsopediaSeeds(),
 ];
 
 export const requestedTopicSeedCounts = requestedTopicSeeds.reduce(
@@ -721,6 +803,7 @@ export const requestedTopicSeedCounts = requestedTopicSeeds.reduce(
     "poverty-finance": 0,
     "tap-deck": 0,
     "crested-critters": 0,
+    isopedia: 0,
   } satisfies Record<TopicSeed["brand"], number>
 );
 
