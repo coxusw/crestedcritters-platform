@@ -133,10 +133,10 @@ export default function ContentAgentTopicsDashboard({
                 topics. Existing duplicate or similar topics are skipped.
               </p>
               <p className="mt-2 text-xs leading-5 text-sky-100/70">
-                Seed balance: Poverty Finance has {requestedTopicSeedTypeCounts["poverty-finance"]["Broke Meme"] || 0} Broke Meme,
+                Seed balance: Poverty Finance has {requestedTopicSeedTypeCounts["poverty-finance"]["Broke Roast"] || 0} Broke Roast,
                 {requestedTopicSeedTypeCounts["poverty-finance"]["Satire Humor"] || 0} Satire Humor, and{" "}
                 {requestedTopicSeedTypeCounts["poverty-finance"]["Real Finance Tip"] || 0} Real Finance Tip topics.
-                Crested Critters has {requestedTopicSeedTypeCounts["crested-critters"]["Meme"] || 0} Meme topics.
+                Crested Critters has {requestedTopicSeedTypeCounts["crested-critters"]["Engagement Question"] || 0} Engagement Question topics.
                 Isopedia has {requestedTopicSeedTypeCounts.isopedia?.["Growth Post"] || 0} Growth Post topics.
               </p>
             </div>

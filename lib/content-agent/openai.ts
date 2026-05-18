@@ -20,10 +20,8 @@ export async function generatePostText(input: { page: ContentAgentPage; slot: Ne
       outputShape: '{ "topic": "...", "caption": "...", "hashtags": "...", "memeTopText": "", "memeBottomText": "", "imagePrompt": "" }',
       rules: [
         "Use the selected topic and notes.",
-        "For text-only posts, leave memeTopText, memeBottomText, and imagePrompt blank.",
-        "For Meme, Broke Meme, Broke Roast, or Satire Humor image posts, write a short caption, punchy memeTopText/memeBottomText, and a clear imagePrompt.",
-        "Meme text should be short, readable, and split naturally between top and bottom text. Avoid long sentences in memeTopText or memeBottomText.",
-        "The imagePrompt should describe the visual scene only. Do not ask the image model to render words or captions inside the image.",
+        "Generate text-only posts. Always leave memeTopText, memeBottomText, and imagePrompt blank.",
+        "Do not write image prompts, meme overlay text, or instructions for visual generation.",
         "If the selected topic notes include a Reference URL, include that source link in the caption when it is useful to the audience.",
         "Tap-Deck should remain text-only.",
         "Poverty Finance satire must clearly include #satire.",

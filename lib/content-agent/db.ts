@@ -2,8 +2,6 @@ import { createSupabaseAdminClient } from "./supabase-admin";
 import type { ContentAgentPage, ContentAgentPost, ContentAgentTopic } from "./types";
 import { areSimilarTopics } from "./topic-normalization";
 
-const imagePostTypes = ["Meme", "Broke Meme", "Broke Roast", "Satire Humor"];
-
 export async function logContentAgent(action: string, result: string, details: string, entityType?: string, entityId?: string) {
   const supabase = createSupabaseAdminClient();
   await supabase.from("content_agent_logs").insert({ action, result, details, entity_type: entityType || null, entity_id: entityId || null });
@@ -39,14 +37,13 @@ export async function getRecentPosts(limit = 25, status?: string) {
 
 export async function getDashboardCounts() {
   const supabase = createSupabaseAdminClient();
-  const [draft, approved, posted, error, pages, topics, pendingImages] = await Promise.all([
+  const [draft, approved, posted, error, pages, topics] = await Promise.all([
     supabase.from("content_agent_posts").select("id", { count: "exact", head: true }).eq("status", "Draft"),
     supabase.from("content_agent_posts").select("id", { count: "exact", head: true }).eq("status", "Approved"),
     supabase.from("content_agent_posts").select("id", { count: "exact", head: true }).eq("status", "Posted"),
     supabase.from("content_agent_posts").select("id", { count: "exact", head: true }).eq("status", "Error"),
     supabase.from("content_agent_pages").select("id", { count: "exact", head: true }).eq("active", true),
     supabase.from("content_agent_topics").select("id", { count: "exact", head: true }).eq("active", true),
-    supabase.from("content_agent_posts").select("id", { count: "exact", head: true }).in("post_type", imagePostTypes).is("image_url", null).neq("status", "Rejected").neq("status", "Posted"),
   ]);
   return {
     draft: draft.count || 0,
@@ -55,7 +52,7 @@ export async function getDashboardCounts() {
     error: error.count || 0,
     pages: pages.count || 0,
     topics: topics.count || 0,
-    pendingImages: pendingImages.count || 0,
+    pendingImages: 0,
   };
 }
 

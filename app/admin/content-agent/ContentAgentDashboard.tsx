@@ -7,7 +7,6 @@ import {
   createIsopediaStatsPostAction,
   createLatestSpeciesAnnouncementAction,
   generateNextContentAction,
-  generateNextImageAction,
   postDueAction,
   publishContentPostNow,
   rejectContentPost,
@@ -47,8 +46,7 @@ export default function ContentAgentDashboard({
           <h1 className="mt-3 text-3xl font-bold">Facebook Content Agent</h1>
           <p className="mt-3 max-w-3xl text-slate-300">
             Database-backed replacement for the Google Sheet agent. Generate
-            drafts, create missing images, approve posts, and publish due
-            approved content.
+            text drafts, approve posts, and publish due approved content.
           </p>
 
           <div className="mt-5 flex flex-wrap gap-3">
@@ -93,14 +91,13 @@ export default function ContentAgentDashboard({
           </div>
         )}
 
-        <section className="grid gap-4 md:grid-cols-4 lg:grid-cols-7">
+        <section className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
           <StatCard label="Drafts" value={counts.draft} />
           <StatCard label="Approved" value={counts.approved} />
           <StatCard label="Posted" value={counts.posted} />
           <StatCard label="Errors" value={counts.error} alert={counts.error > 0} />
           <StatCard label="Pages" value={counts.pages} />
           <StatCard label="Topics" value={counts.topics} />
-          <StatCard label="Need Images" value={counts.pendingImages} alert={counts.pendingImages > 0} />
         </section>
 
         <section className="grid gap-4 md:grid-cols-3">
@@ -149,9 +146,8 @@ export default function ContentAgentDashboard({
         <section className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
             <h2 className="text-xl font-semibold">Main Actions</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <ActionButton action={generateNextContentAction} label="Generate Next Posts" />
-              <ActionButton action={generateNextImageAction} label="Generate Next Image" />
               <ActionButton action={postDueAction} label="Post Approved Due" />
             </div>
             <form action={clearDraftApprovedContentAction} className="mt-3">

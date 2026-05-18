@@ -92,51 +92,8 @@ const povertyAngles: TopicPattern[] = [
   { title: "Tiny wins for people losing to", postType: "Broke Tip", notes: "Offer quick wins under ten minutes or ten dollars. Keep it encouraging, but do not let the follower off the hook." },
 ];
 
-const povertyMemeSubjects = [
-  "direct deposit arriving and immediately getting escorted out by bills",
-  "checking the account balance with one eye open",
-  "the grocery cart total asking if you are sure about living indoors",
-  "payday confidence lasting eleven minutes",
-  "rent taking the whole paycheck out for dinner",
-  "making coffee at home with hostage-video enthusiasm",
-  "using the calculator app in the grocery aisle like survival gear",
-  "canceling subscriptions like firing tiny employees",
-  "the emergency fund being two nickels and confidence",
-  "asking for a raise because vibes are not legal tender",
-  "the budget hearing brunch and calling security",
-  "buying one treat and the budget acting betrayed",
-  "watching convenience fees multiply like they found friends",
-  "the savings transfer boomeranging back by Tuesday",
-  "trying to meal prep while the fridge is doing improv",
-  "the bank app loading slowly because it knows you are fragile",
-  "store brand groceries becoming your personality",
-  "side hustle profit after gas and taxes leaves the chat",
-  "using coupons because dignity is expensive",
-  "paying minimums like debt is a subscription service",
-  "opening a bill and immediately needing a chair",
-  "the debit card declining like performance art",
-  "your cart having champagne taste and tap-water logistics",
-  "a no-spend weekend with main-character withdrawal symptoms",
-  "payday arriving dressed as a hostage negotiator",
-  "the overdraft fee giving villain monologue energy",
-  "leftovers rebranded as financial strategy",
-  "asking if fun money survived the rent attack",
-  "credit utilization judging your life choices",
-  "buy now pay later asking future-you to clean up the mess",
-  "finding five dollars in a coat and acting blessed",
-  "the budget seeing takeout and filing a complaint",
-  "cheap dates because romance has overhead",
-  "trying to save for retirement while dinner is pantry roulette",
-  "a sale convincing you spending money saved money",
-  "waiting for payday like it owes you an apology",
-  "the car making a noise in three expensive languages",
-  "tax refund season trying to turn everyone into a rapper",
-  "financial boundaries when relatives smell direct deposit",
-  "the account balance looking back like you both made mistakes",
-];
-
 function buildPovertySeeds() {
-  const tips = povertySources.flatMap((item) =>
+  return povertySources.flatMap((item) =>
     povertyAngles.map((angle) =>
       seed(
         "poverty-finance",
@@ -147,25 +104,6 @@ function buildPovertySeeds() {
       )
     )
   );
-
-  const memes = povertyMemeSubjects.flatMap((subject, index) => [
-    seed(
-      "poverty-finance",
-      povertyMatchers,
-      `Broke meme ${index + 1}: ${subject}`,
-      "Broke Meme",
-      "Create a visual meme concept with short top/bottom text. The joke should roast broke-budget behavior in a funny, slightly too-far way, include #satire in the caption, and sneak in one useful money move."
-    ),
-    seed(
-      "poverty-finance",
-      povertyMatchers,
-      `Broke roast meme ${index + 1}: ${subject}`,
-      "Broke Roast",
-      "Write a punchy roast post that can become an image meme. Push the line, but keep it playful and monetization-aware. End with one practical action step and a sassy closer."
-    ),
-  ]);
-
-  return [...tips, ...memes];
 }
 
 const tapDeckSources: TopicSource[] = [
@@ -266,49 +204,6 @@ const crestedAngles: TopicPattern[] = [
   { title: "Terrarium keeper takeaway:", postType: "Care Tip", notes: "Connect the source to isopods, springtails, terrarium plants, or bioactive care." },
 ];
 
-const crestedMemeSubjects = [
-  "bioactive does not mean autopilot",
-  "springtails doing mold management while you take the credit",
-  "isopods ignoring expensive food for one suspicious leaf",
-  "checking humidity more than your bank account",
-  "the colony hiding the second you try to show someone",
-  "buying leaf litter like a normal person buys snacks",
-  "the terrarium plant surviving until the pods discover it",
-  "cork bark becoming luxury real estate",
-  "a cleanup crew that still expects you to clean",
-  "finding one manca and acting like the colony announced earnings",
-  "the humidity gauge judging your entire career",
-  "telling yourself one more species is research",
-  "springtail cultures surviving neglect better than houseplants",
-  "plant quarantine feeling dramatic until pests arrive",
-  "the isopods getting better housing upgrades than you",
-  "buying moss like it has retirement benefits",
-  "explaining to normal people why you bought dirt",
-  "the bin looking empty while everyone lives under one leaf",
-  "protein day turning into a tiny buffet riot",
-  "bioactive keepers holding six tools while saying self-sustaining",
-  "the terrarium looking peaceful while the substrate runs an economy",
-  "a rare pod purchase filed under emotional support",
-  "the cleanup crew clocking in only when guests leave",
-  "plants, pods, and springtails forming a wallet-draining committee",
-  "humidity gradients being the real main character",
-  "the isopod refusing to pose after you hyped it up",
-  "springtails appearing in every photo except the one you need",
-  "buying backup cultures because trust issues are husbandry",
-  "the enclosure becoming prettier than your living room",
-  "calling rotten wood a supply and meaning it",
-  "terrarium plants getting names before the budget gets a category",
-  "leaf litter opinions becoming your personality",
-  "mold panic before springtails have had coffee",
-  "the colony multiplying after you finally stop staring",
-  "one bioactive setup somehow becoming twelve bins",
-  "the isopods rearranging your naturalistic layout",
-  "buying botanicals and pretending it is not shopping",
-  "the expo purchase being business inventory and emotional support",
-  "springtails being tiny employees with zero paperwork",
-  "the first molt looking like two tiny ghosts",
-];
-
 const crestedEngagementSubjects = [
   "what isopod species surprised you the most",
   "which springtail culture has been easiest for you",
@@ -373,23 +268,6 @@ function buildCrestedSeeds() {
     )
   );
 
-  const memes = crestedMemeSubjects.flatMap((subject, index) => [
-    seed(
-      "crested-critters",
-      crestedMatchers,
-      `Crested Critters meme ${index + 1}: ${subject}`,
-      "Meme",
-      "Create a funny image meme about isopods, springtails, terrariums, bioactive setups, or hobby spending. Include a tiny accurate care takeaway in the caption."
-    ),
-    seed(
-      "crested-critters",
-      crestedMatchers,
-      `Informational meme ${index + 1}: ${subject}`,
-      "Meme",
-      "Make the meme funny first, then make the caption teach one small keeper lesson about moisture, leaf litter, calcium, springtails, plants, or cleanup crews."
-    ),
-  ]);
-
   const engagement = crestedEngagementSubjects.flatMap((subject) =>
     crestedEngagementAngles.map((angle) =>
       seed(
@@ -402,7 +280,7 @@ function buildCrestedSeeds() {
     )
   );
 
-  return [...facts, ...memes, ...engagement];
+  return [...facts, ...engagement];
 }
 
 const isopediaGrowthSources: TopicSource[] = [

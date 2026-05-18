@@ -81,30 +81,6 @@ function normalizeMatchValue(value: unknown) {
     .replace(/[^a-z0-9]/g, "");
 }
 
-function normalizeStoredScheduleSlots(value: unknown) {
-  if (!Array.isArray(value)) return [];
-
-  return value
-    .map((slot) => {
-      const rawSlot = slot as Partial<{ time: unknown; postType: unknown }>;
-      return {
-        time: String(rawSlot.time || "").trim(),
-        postType: String(rawSlot.postType || "").trim(),
-      };
-    })
-    .filter((slot) => slot.time && slot.postType);
-}
-
-function ensureScheduleSlot(
-  slots: Array<{ time: string; postType: string }>,
-  desiredSlot: { time: string; postType: string }
-) {
-  const desiredType = normalizeMatchValue(desiredSlot.postType);
-  const hasSlot = slots.some((slot) => normalizeMatchValue(slot.postType) === desiredType);
-
-  return hasSlot ? slots : [...slots, desiredSlot];
-}
-
 function findPageByMatchers(
   pages: Array<{ page_key: string; page_name: string }>,
   matchers: string[]
@@ -133,7 +109,6 @@ const recommendedSchedules = [
       { time: "08:30", postType: "Broke Tip" },
       { time: "12:30", postType: "Real Finance Tip" },
       { time: "18:30", postType: "Broke Roast" },
-      { time: "20:30", postType: "Broke Meme" },
       { time: "21:15", postType: "Satire Humor" },
     ],
   },
@@ -144,7 +119,6 @@ const recommendedSchedules = [
       { time: "09:00", postType: "Care Tip" },
       { time: "13:00", postType: "Isopod Fact" },
       { time: "17:30", postType: "Engagement Question" },
-      { time: "20:00", postType: "Meme" },
     ],
   },
   {
@@ -336,89 +310,6 @@ export async function applyRecommendedTopicRotationSchedule() {
         ...foundPages,
         missingPages.length ? `Missing pages: ${missingPages.join(", ")}` : "Missing pages: none",
       ].join("\n")
-    );
-  } catch (error) {
-    redirectWithError(error);
-  }
-}
-
-export async function applyDailyMemeSchedule() {
-  await requireContentAgentAdmin();
-
-  try {
-    const supabase = createSupabaseAdminClient();
-
-    const { data: pages, error: readError } = await supabase
-      .from("content_agent_pages")
-      .select("page_key,page_name,schedule_slots");
-
-    if (readError) throw new Error(readError.message);
-
-    const crestedPage = (pages || []).find((page) => {
-      const key = normalizeMatchValue(page.page_key);
-      const name = normalizeMatchValue(page.page_name);
-      return key === "crested" || key === "crestedcritters" || name.includes("crested");
-    });
-
-    const povertyPage = (pages || []).find((page) => {
-      const key = normalizeMatchValue(page.page_key);
-      const name = normalizeMatchValue(page.page_name);
-      return key === "povertyfinance" || name.includes("povertyfinance");
-    });
-
-    const updates: Array<{
-      pageKey: string;
-      scheduleSlots: Array<{ time: string; postType: string }>;
-    }> = [];
-    const updatedNames: string[] = [];
-
-    if (crestedPage) {
-      const scheduleSlots = ensureScheduleSlot(
-        normalizeStoredScheduleSlots(crestedPage.schedule_slots),
-        { time: "20:00", postType: "Meme" }
-      );
-
-      updates.push({ pageKey: crestedPage.page_key, scheduleSlots });
-      updatedNames.push(`${crestedPage.page_name || "Crested Critters"}: daily Meme image slot`);
-    }
-
-    if (povertyPage) {
-      const scheduleSlots = ensureScheduleSlot(
-        normalizeStoredScheduleSlots(povertyPage.schedule_slots),
-        { time: "20:30", postType: "Broke Meme" }
-      );
-
-      updates.push({ pageKey: povertyPage.page_key, scheduleSlots });
-      updatedNames.push(`${povertyPage.page_name || "Poverty Finance"}: daily Broke Meme image slot`);
-    }
-
-    if (!updates.length) {
-      throw new Error("Could not find Crested Critters or Poverty Finance in content_agent_pages.");
-    }
-
-    for (const update of updates) {
-      const { error } = await supabase
-        .from("content_agent_pages")
-        .update({
-          schedule_slots: update.scheduleSlots,
-          content_cycle: [],
-          updated_at: new Date().toISOString(),
-        })
-        .eq("page_key", update.pageKey);
-
-      if (error) throw new Error(error.message);
-    }
-
-    await supabase.from("content_agent_logs").insert({
-      action: "settings_daily_meme_schedule",
-      entity_type: "page",
-      entity_id: "daily-meme-schedule",
-      result: "OK",
-      details: `Applied daily meme image slots.\n${updatedNames.join("\n")}\nContent cycle overrides were cleared on those pages so schedule slot types rotate directly.`,
-    });
-
-    redirectWithNotice(
-      `Applied daily meme image slots.\n${updatedNames.join("\n")}\nContent cycle overrides were cleared on those pages so schedule slot types rotate directly.`
     );
   } catch (error) {
     redirectWithError(error);

@@ -34,22 +34,10 @@ export async function findNextMissingSlot(page: ContentAgentPage) {
   return null;
 }
 
-export function isImagePostTypeForPage(
-  pageKey: string,
-  postType: string | null | undefined
-) {
-  const cleanPageKey = String(pageKey || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const cleanPostType = String(postType || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-
-  if (cleanPageKey === "crested") {
-    return cleanPostType === "meme";
-  }
-
-  if (cleanPageKey === "povertyfinance") {
-    return ["brokememe", "brokeroast", "satirehumor", "meme"].includes(cleanPostType);
-  }
-
-  // Isopedia verified species announcements can have uploaded images,
-  // but they do not need to wait for generated image creation.
+export function isImagePostTypeForPage(...args: unknown[]) {
+  void args;
+  // Normal content-agent generation is text-only. Isopedia smart posts may
+  // still attach existing uploaded images, but they do not wait for generated
+  // image creation.
   return false;
 }

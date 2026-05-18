@@ -1,5 +1,4 @@
 import {
-  applyDailyMemeSchedule,
   applyRecommendedTopicRotationSchedule,
   createContentAgentPage,
   updateContentAgentPageSettings,
@@ -37,7 +36,6 @@ type LogRow = {
 
 const POST_TYPE_HINTS = [
   "Educational",
-  "Meme",
   "Informational",
   "Networking Tip",
   "Marketing Tip",
@@ -47,7 +45,6 @@ const POST_TYPE_HINTS = [
   "Real Finance Tip",
   "Satire Humor",
   "Broke Roast",
-  "Broke Meme",
   "Growth Post",
   "Care Tip",
   "Isopod Fact",
@@ -116,23 +113,6 @@ export default function ContentAgentSettingsDashboard({
           <p className="mt-2 text-sm">
             Page tokens still belong in Vercel environment variables. The token env key is shown on each page card.
           </p>
-        </section>
-
-        <section className="rounded-3xl border border-emerald-400/30 bg-emerald-400/10 p-5 text-emerald-100">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold">Daily Meme Image Schedule</h2>
-              <p className="mt-2 max-w-3xl text-sm">
-                Adds one daily image meme slot for Crested Critters and one daily image meme slot for Poverty Finance.
-                Existing slots stay in place; the content cycle override is cleared on those two pages so the schedule can rotate by slot type.
-              </p>
-            </div>
-            <form action={applyDailyMemeSchedule}>
-              <button className="rounded-2xl bg-emerald-400 px-5 py-2 font-bold text-slate-950 hover:bg-emerald-300">
-                Apply Daily Meme Slots
-              </button>
-            </form>
-          </div>
         </section>
 
         <section className="rounded-3xl border border-sky-400/30 bg-sky-400/10 p-5 text-sky-100">
@@ -260,7 +240,7 @@ function PageSettingsCard({ page }: { page: ContentAgentPageRow }) {
         />
         <TextareaField
           name="meme_style"
-          label="Meme/Image Style"
+          label="Tone / Humor Style"
           defaultValue={page.meme_style || ""}
         />
       </div>
@@ -303,7 +283,7 @@ function PageSettingsCard({ page }: { page: ContentAgentPageRow }) {
           name="content_cycle"
           label="Content Cycle Override"
           defaultValue={contentCycle}
-          help="Optional comma-separated cycle. Example: Real Finance Tip, Satire Humor, Satire Humor, Broke Meme. Leave blank to use the post type listed in each schedule slot."
+          help="Optional comma-separated cycle. Example: Real Finance Tip, Satire Humor, Broke Roast. Leave blank to use the post type listed in each schedule slot."
         />
       </div>
     </form>
