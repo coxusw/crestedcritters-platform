@@ -1,8 +1,8 @@
+import { createCanvas, loadImage } from "canvas";
 import sharp from "sharp";
 
 const CANVAS_SIZE = 1024;
 const SIDE_PADDING = 70;
-const MAX_LINE_CHARS = 22;
 const fakeTextTerms = [
   "caption",
   "meme text",
@@ -18,13 +18,7 @@ const fakeTextTerms = [
   "screen says",
 ];
 
-function escapeXml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+type CanvasContext = ReturnType<ReturnType<typeof createCanvas>["getContext"]>;
 
 function cleanMemeText(value: string | null | undefined) {
   return String(value || "")
@@ -97,56 +91,6 @@ export function fallbackMemeText({
   };
 }
 
-function wrapText(text: string) {
-  const words = text.split(" ").filter(Boolean);
-  const lines: string[] = [];
-  let current = "";
-
-  for (const word of words) {
-    const next = current ? `${current} ${word}` : word;
-    if (next.length <= MAX_LINE_CHARS || !current) {
-      current = next;
-      continue;
-    }
-
-    lines.push(current);
-    current = word;
-  }
-
-  if (current) lines.push(current);
-  return lines.slice(0, 3);
-}
-
-function fontSizeFor(lines: string[]) {
-  const longest = Math.max(...lines.map((line) => line.length), 1);
-  const byLength = Math.floor(900 / Math.max(longest, 8));
-  const byLineCount = lines.length >= 3 ? 78 : lines.length === 2 ? 88 : 104;
-  return Math.max(48, Math.min(byLength, byLineCount));
-}
-
-function textBlockSvg(text: string, position: "top" | "bottom") {
-  const cleanText = cleanMemeText(text);
-  if (!cleanText) return "";
-
-  const lines = wrapText(cleanText);
-  const fontSize = fontSizeFor(lines);
-  const lineHeight = Math.round(fontSize * 1.08);
-  const blockHeight = lineHeight * lines.length;
-  const startY =
-    position === "top"
-      ? 58 + fontSize
-      : CANVAS_SIZE - 58 - blockHeight + fontSize;
-
-  const textLines = lines
-    .map((line, index) => {
-      const y = startY + index * lineHeight;
-      return `<text x="${CANVAS_SIZE / 2}" y="${y}" text-anchor="middle" font-size="${fontSize}">${escapeXml(line)}</text>`;
-    })
-    .join("");
-
-  return `<g class="meme-text">${textLines}</g>`;
-}
-
 export function buildMemeImagePrompt({
   pageKey,
   imagePrompt,
@@ -159,8 +103,8 @@ export function buildMemeImagePrompt({
   const cleanPageKey = String(pageKey || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   const visualStyle =
     cleanPageKey === "povertyfinance"
-      ? "Funny, expressive editorial meme background with a relatable broke-budget scene, polished social media illustration, strong facial expressions, clean composition, high contrast."
-      : "Funny, expressive isopod and bioactive terrarium meme background, polished social media illustration, charming tiny-critter details, clean composition, high contrast.";
+      ? "Realistic candid social-media photo style, relatable broke-budget scene, natural lighting, believable human expression, real grocery store or home setting, crisp details, high contrast, not a cartoon, not an illustration."
+      : "Ultra-realistic macro pet photography of a real terrestrial isopod or springtails in a bioactive terrarium. Real segmented exoskeleton, many small legs, antennae, natural body plates, no cartoon eyes, no toy look, no wire coil, no metal, no plastic creature, shallow depth of field, natural cork bark, leaf litter, soil, moss, and terrarium plants.";
 
   const cleanPrompt = sanitizeVisualPrompt(imagePrompt) || sanitizeVisualPrompt(caption);
 
@@ -170,11 +114,72 @@ export function buildMemeImagePrompt({
     "Create only background art for a meme template.",
     "ABSOLUTELY NO TEXT OF ANY KIND: no captions, words, letters, numbers, symbols, fake app text, labels, signs, speech bubbles, logos, watermarks, price tags, handwriting, or UI words.",
     "Any screens, phones, receipts, cards, books, shelves, signs, documents, product packaging, or posters must be blank or abstract color blocks with no characters.",
+    cleanPageKey === "crested"
+      ? "The main animal must look like a real isopod or springtail photographed in macro, not a fantasy creature, not a snail, not a worm, not a coiled wire, not jewelry, not a toy, not a cartoon."
+      : "",
     "Leave the upper and lower portions visually simple for large app-added overlay text.",
     "Square 1:1 Facebook-ready image, crisp details, professional lighting, vibrant but natural colors.",
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function wrapCanvasText(context: CanvasContext, text: string, maxWidth: number) {
+  const words = text.split(" ").filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (context.measureText(next).width <= maxWidth || !current) {
+      current = next;
+      continue;
+    }
+
+    lines.push(current);
+    current = word;
+  }
+
+  if (current) lines.push(current);
+  return lines.slice(0, 3);
+}
+
+function drawMemeText(context: CanvasContext, text: string, position: "top" | "bottom") {
+  const cleanText = cleanMemeText(text);
+  if (!cleanText) return;
+
+  const maxWidth = CANVAS_SIZE - SIDE_PADDING * 2;
+  let fontSize = 92;
+  let lines: string[] = [];
+
+  while (fontSize >= 46) {
+    context.font = `900 ${fontSize}px Arial`;
+    lines = wrapCanvasText(context, cleanText, maxWidth);
+
+    if (lines.every((line) => context.measureText(line).width <= maxWidth)) break;
+    fontSize -= 4;
+  }
+
+  const lineHeight = Math.round(fontSize * 1.08);
+  const blockHeight = lineHeight * lines.length;
+  const startY =
+    position === "top"
+      ? 66 + fontSize
+      : CANVAS_SIZE - 66 - blockHeight + fontSize;
+
+  context.textAlign = "center";
+  context.textBaseline = "alphabetic";
+  context.lineJoin = "round";
+  context.strokeStyle = "#050505";
+  context.fillStyle = "#ffffff";
+  context.lineWidth = Math.max(8, Math.round(fontSize * 0.12));
+  context.font = `900 ${fontSize}px Arial`;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const y = startY + index * lineHeight;
+    context.strokeText(lines[index], CANVAS_SIZE / 2, y);
+    context.fillText(lines[index], CANVAS_SIZE / 2, y);
+  }
 }
 
 export async function composeMemeImage(
@@ -187,46 +192,33 @@ export async function composeMemeImage(
   const topText = cleanMemeText(options.topText);
   const bottomText = cleanMemeText(options.bottomText);
 
-  const image = sharp(baseBuffer)
+  const normalizedBase = await sharp(baseBuffer)
     .resize(CANVAS_SIZE, CANVAS_SIZE, { fit: "cover", position: "attention" })
-    .png();
-
-  if (!topText && !bottomText) return image.toBuffer();
-
-  const svg = `
-    <svg width="${CANVAS_SIZE}" height="${CANVAS_SIZE}" viewBox="0 0 ${CANVAS_SIZE} ${CANVAS_SIZE}" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="topShade" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#000000" stop-opacity="0.70"/>
-          <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
-        </linearGradient>
-        <linearGradient id="bottomShade" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0%" stop-color="#000000" stop-opacity="0.76"/>
-          <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="${CANVAS_SIZE}" height="280" fill="url(#topShade)"/>
-      <rect x="0" y="${CANVAS_SIZE - 310}" width="${CANVAS_SIZE}" height="310" fill="url(#bottomShade)"/>
-      <style>
-        .meme-text text {
-          font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
-          font-weight: 900;
-          letter-spacing: 1px;
-          fill: #ffffff;
-          stroke: #050505;
-          stroke-width: 9px;
-          paint-order: stroke fill;
-          dominant-baseline: alphabetic;
-        }
-      </style>
-      <g transform="translate(${SIDE_PADDING}, 0) scale(${(CANVAS_SIZE - SIDE_PADDING * 2) / CANVAS_SIZE}, 1)">
-        ${textBlockSvg(topText, "top")}
-        ${textBlockSvg(bottomText, "bottom")}
-      </g>
-    </svg>`;
-
-  return image
-    .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
     .png()
     .toBuffer();
+
+  if (!topText && !bottomText) return normalizedBase;
+
+  const loadedImage = await loadImage(normalizedBase);
+  const canvas = createCanvas(CANVAS_SIZE, CANVAS_SIZE);
+  const context = canvas.getContext("2d");
+
+  context.drawImage(loadedImage, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+  const topGradient = context.createLinearGradient(0, 0, 0, 280);
+  topGradient.addColorStop(0, "rgba(0,0,0,0.70)");
+  topGradient.addColorStop(1, "rgba(0,0,0,0)");
+  context.fillStyle = topGradient;
+  context.fillRect(0, 0, CANVAS_SIZE, 280);
+
+  const bottomGradient = context.createLinearGradient(0, CANVAS_SIZE, 0, CANVAS_SIZE - 310);
+  bottomGradient.addColorStop(0, "rgba(0,0,0,0.76)");
+  bottomGradient.addColorStop(1, "rgba(0,0,0,0)");
+  context.fillStyle = bottomGradient;
+  context.fillRect(0, CANVAS_SIZE - 310, CANVAS_SIZE, 310);
+
+  drawMemeText(context, topText, "top");
+  drawMemeText(context, bottomText, "bottom");
+
+  return canvas.toBuffer("image/png");
 }
