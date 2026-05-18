@@ -14,6 +14,7 @@ const CLASSIFICATIONS = new Set([
   "business",
   "owner_contribution",
   "owner_draw",
+  "cash_deposit",
   "sales_tax",
   "ignore",
 ]);
@@ -348,6 +349,11 @@ function summarizeBalancesForAction(rows: BalanceActionRow[]) {
     (totals, row) => {
       const label = `${row.payment_method || ""} ${row.money_destination || ""}`.toLowerCase();
       const amount = Number(row.amount || 0);
+      if (row.classification === "cash_deposit") {
+        totals.squareBalance += amount;
+        totals.cashOnHand -= amount;
+        return totals;
+      }
       if (label.includes("square")) totals.squareBalance += balanceEffectForAction(row, amount);
       if (label.includes("cash")) totals.cashOnHand += balanceEffectForAction(row, amount);
       return totals;
@@ -359,6 +365,7 @@ function summarizeBalancesForAction(rows: BalanceActionRow[]) {
 function balanceEffectForAction(row: BalanceActionRow, amount: number) {
   if (row.source === "rebalance") return amount;
   if (row.classification === "ignore") return 0;
+  if (row.classification === "cash_deposit") return 0;
   if (row.classification === "owner_draw") return -amount;
   if (row.classification === "owner_contribution") return amount;
   if (row.type === "income") return amount;

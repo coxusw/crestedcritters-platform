@@ -18,6 +18,7 @@ type PageProps = {
     type?: string;
     classification?: string;
     review?: string;
+    q?: string;
   }>;
 };
 
@@ -53,6 +54,15 @@ type CategoryRow = {
   type: string;
 };
 
+const CLASSIFICATION_OPTIONS = [
+  "business",
+  "owner_contribution",
+  "owner_draw",
+  "cash_deposit",
+  "sales_tax",
+  "ignore",
+];
+
 export default async function AdminBookkeepingPage({ searchParams }: PageProps) {
   await requireContentAgentAdmin();
 
@@ -60,10 +70,11 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
   const typeFilter = params?.type || "all";
   const classificationFilter = params?.classification || "all";
   const reviewFilter = params?.review || "all";
+  const searchTerm = (params?.q || "").trim();
 
   const supabase = createSupabaseAdminClient();
   const [transactionsResult, categoriesResult] = await Promise.all([
-    buildTransactionsQuery(supabase, typeFilter, classificationFilter, reviewFilter),
+    buildTransactionsQuery(supabase, typeFilter, classificationFilter, reviewFilter, searchTerm),
     supabase
       .from("bookkeeping_categories")
       .select("name, type")
@@ -208,7 +219,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                 className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
               />
               <SelectBox name="type" defaultValue="expense" options={["income", "expense", "equity", "tax", "mileage", "transfer"]} />
-              <SelectBox name="classification" defaultValue="business" options={["business", "owner_contribution", "owner_draw", "sales_tax", "ignore"]} />
+              <SelectBox name="classification" defaultValue="business" options={CLASSIFICATION_OPTIONS} />
               <input
                 name="category"
                 placeholder="Category"
@@ -258,6 +269,27 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
 
         <section className="grid gap-4">
           <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
+            <form action="/admin/bookkeeping" className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+              {typeFilter !== "all" && <input type="hidden" name="type" value={typeFilter} />}
+              {classificationFilter !== "all" && <input type="hidden" name="classification" value={classificationFilter} />}
+              {reviewFilter !== "all" && <input type="hidden" name="review" value={reviewFilter} />}
+              <input
+                name="q"
+                defaultValue={searchTerm}
+                placeholder="Search category, description, notes, payment..."
+                className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300"
+              />
+              <div className="flex gap-2">
+                <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
+                  Search
+                </button>
+                {searchTerm && (
+                  <Link href="/admin/bookkeeping" className="rounded-md border border-white/10 px-4 py-2 text-sm font-bold text-slate-100 hover:bg-white/10">
+                    Clear
+                  </Link>
+                )}
+              </div>
+            </form>
             <div className="flex flex-wrap gap-2">
               <FilterLink href="/admin/bookkeeping" active={typeFilter === "all" && classificationFilter === "all" && reviewFilter === "all"}>
                 All
@@ -273,6 +305,9 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
               <FilterLink href="/admin/bookkeeping?classification=owner_contribution" active={classificationFilter === "owner_contribution"}>
                 Owner Contributions
               </FilterLink>
+              <FilterLink href="/admin/bookkeeping?classification=cash_deposit" active={classificationFilter === "cash_deposit"}>
+                Cash Deposits
+              </FilterLink>
               <FilterLink href="/admin/bookkeeping?review=needs" active={reviewFilter === "needs"}>
                 Needs Review
               </FilterLink>
@@ -286,8 +321,9 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
               <div>
                 <h2 className="text-lg font-bold">Transaction Ledger</h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  Newest transactions show first. Mark personal/non-business spending
-                  as Owner Draw / Personal so it stays out of expenses.
+                  Newest transactions show first. Mark cash deposited into Square
+                  as Cash Deposit so it moves from cash to Square without counting
+                  as new income.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -361,7 +397,8 @@ function buildTransactionsQuery(
   supabase: ReturnType<typeof createSupabaseAdminClient>,
   typeFilter: string,
   classificationFilter: string,
-  reviewFilter: string
+  reviewFilter: string,
+  searchTerm: string
 ) {
   let query = supabase
     .from("bookkeeping_transactions")
@@ -375,6 +412,20 @@ function buildTransactionsQuery(
     query = query.eq("classification", classificationFilter);
   }
   if (reviewFilter === "needs") query = query.eq("reviewed", false);
+  if (searchTerm) {
+    const pattern = `%${searchTerm.replace(/[,%]/g, " ")}%`;
+    query = query.or(
+      [
+        `category.ilike.${pattern}`,
+        `description.ilike.${pattern}`,
+        `notes.ilike.${pattern}`,
+        `payment_method.ilike.${pattern}`,
+        `customer_name.ilike.${pattern}`,
+        `product_name.ilike.${pattern}`,
+        `imported_from.ilike.${pattern}`,
+      ].join(",")
+    );
+  }
 
   return query;
 }
@@ -386,14 +437,17 @@ function summarizeTransactions(transactions: TransactionRow[]) {
       const amount = Number(transaction.amount || 0);
       const paymentLabel = `${transaction.payment_method || ""} ${transaction.money_destination || ""}`.toLowerCase();
 
-      if (paymentLabel.includes("square")) {
+      if (transaction.classification === "cash_deposit") {
+        totals.squareBalance += amount;
+        totals.cashOnHand -= amount;
+      } else if (paymentLabel.includes("square")) {
         totals.squareBalance += balanceEffect(transaction, amount);
       }
-      if (paymentLabel.includes("cash")) {
+      if (transaction.classification !== "cash_deposit" && paymentLabel.includes("cash")) {
         totals.cashOnHand += balanceEffect(transaction, amount);
       }
 
-      if (transaction.classification === "ignore") return totals;
+      if (transaction.classification === "ignore" || transaction.classification === "cash_deposit") return totals;
       if (transaction.classification === "owner_contribution") {
         totals.ownerContributions += amount;
       } else if (transaction.classification === "owner_draw") {
@@ -425,6 +479,7 @@ function summarizeTransactions(transactions: TransactionRow[]) {
 function balanceEffect(transaction: TransactionRow, amount: number) {
   if (transaction.source === "rebalance") return amount;
   if (transaction.classification === "ignore") return 0;
+  if (transaction.classification === "cash_deposit") return 0;
   if (transaction.classification === "owner_draw") return -amount;
   if (transaction.classification === "owner_contribution") return amount;
   if (transaction.type === "income") return amount;
@@ -465,7 +520,7 @@ function TransactionRowEditor({
         <SelectInput name={fieldName("type")} defaultValue={transaction.type} options={["income", "expense", "equity", "tax", "mileage", "transfer"]} />
       </td>
       <td className="w-40 px-2 py-2">
-        <SelectInput name={fieldName("classification")} defaultValue={transaction.classification} options={["business", "owner_contribution", "owner_draw", "sales_tax", "ignore"]} />
+        <SelectInput name={fieldName("classification")} defaultValue={transaction.classification} options={CLASSIFICATION_OPTIONS} />
       </td>
       <td className="w-44 px-2 py-2">
         <input

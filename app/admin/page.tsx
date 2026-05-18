@@ -365,10 +365,15 @@ function summarizeBookkeeping(rows: BookkeepingRow[]) {
       const amount = Number(row.amount || 0);
       const paymentLabel = `${row.payment_method || ""} ${row.money_destination || ""}`.toLowerCase();
 
-      if (paymentLabel.includes("square")) totals.squareBalance += balanceEffect(row, amount);
-      if (paymentLabel.includes("cash")) totals.cashOnHand += balanceEffect(row, amount);
+      if (row.classification === "cash_deposit") {
+        totals.squareBalance += amount;
+        totals.cashOnHand -= amount;
+      } else {
+        if (paymentLabel.includes("square")) totals.squareBalance += balanceEffect(row, amount);
+        if (paymentLabel.includes("cash")) totals.cashOnHand += balanceEffect(row, amount);
+      }
 
-      if (row.classification === "ignore") return totals;
+      if (row.classification === "ignore" || row.classification === "cash_deposit") return totals;
       if (row.type === "income") totals.income += amount;
       if (row.type === "expense" || row.type === "mileage") totals.expenses += amount;
       return totals;
@@ -380,6 +385,7 @@ function summarizeBookkeeping(rows: BookkeepingRow[]) {
 function balanceEffect(row: BookkeepingRow, amount: number) {
   if (row.source === "rebalance") return amount;
   if (row.classification === "ignore") return 0;
+  if (row.classification === "cash_deposit") return 0;
   if (row.classification === "owner_draw") return -amount;
   if (row.classification === "owner_contribution") return amount;
   if (row.type === "income") return amount;
