@@ -39,8 +39,8 @@ export default async function ContentAgentSettingsPage({ searchParams }: PagePro
           <Link className="text-emerald-300 underline" href="/admin/content-agent">
             ← Back to Content Agent
           </Link>
-          <Link className="text-emerald-300 underline" href="/admin/isopedia">
-            Isopedia Admin
+          <Link className="text-emerald-300 underline" href="/admin">
+            Admin Dashboard
           </Link>
         </div>
       </div>

@@ -67,10 +67,10 @@ export default function ContentAgentDashboard({
               Traction Metrics
             </Link>
             <Link
-              href="/admin/isopedia"
+              href="/admin"
               className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/10"
             >
-              Isopedia Admin
+              Admin Dashboard
             </Link>
           </div>
         </header>

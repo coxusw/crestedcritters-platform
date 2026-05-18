@@ -23,8 +23,8 @@ export default async function ContentAgentAdminPage({ searchParams }: PageProps)
   return (
     <>
       <div className="bg-slate-950 px-4 pt-4 text-sm">
-        <Link className="text-emerald-300 underline" href="/admin/isopedia">
-          ← Back to Isopedia Admin
+        <Link className="text-emerald-300 underline" href="/admin">
+          Back to Admin Dashboard
         </Link>
       </div>
       <ContentAgentDashboard
