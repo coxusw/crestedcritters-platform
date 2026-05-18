@@ -105,6 +105,72 @@ function ensureScheduleSlot(
   return hasSlot ? slots : [...slots, desiredSlot];
 }
 
+function findPageByMatchers(
+  pages: Array<{ page_key: string; page_name: string }>,
+  matchers: string[]
+) {
+  const normalizedMatchers = matchers.map(normalizeMatchValue);
+
+  return pages.find((page) => {
+    const key = normalizeMatchValue(page.page_key);
+    const name = normalizeMatchValue(page.page_name);
+
+    return normalizedMatchers.some(
+      (matcher) =>
+        key === matcher ||
+        name === matcher ||
+        key.includes(matcher) ||
+        name.includes(matcher)
+    );
+  });
+}
+
+const recommendedSchedules = [
+  {
+    label: "Poverty Finance",
+    matchers: ["povertyfinance", "poverty finance"],
+    slots: [
+      { time: "08:30", postType: "Broke Tip" },
+      { time: "12:30", postType: "Real Finance Tip" },
+      { time: "18:30", postType: "Broke Roast" },
+      { time: "20:30", postType: "Broke Meme" },
+      { time: "21:15", postType: "Satire Humor" },
+    ],
+  },
+  {
+    label: "Crested Critters",
+    matchers: ["crested", "crestedcritters", "crested critters"],
+    slots: [
+      { time: "09:00", postType: "Care Tip" },
+      { time: "13:00", postType: "Isopod Fact" },
+      { time: "17:30", postType: "Engagement Question" },
+      { time: "20:00", postType: "Meme" },
+    ],
+  },
+  {
+    label: "Tap-Deck",
+    matchers: ["tapdeck", "tap-deck", "tap deck"],
+    slots: [
+      { time: "08:15", postType: "Networking Tip" },
+      { time: "11:45", postType: "Marketing Tip" },
+      { time: "15:30", postType: "Sales Networking Tip" },
+      { time: "18:15", postType: "Advertising Tip" },
+    ],
+  },
+  {
+    label: "Isopedia",
+    matchers: ["isopedia", "isopeida"],
+    slots: [
+      { time: "10:00", postType: "Growth Post" },
+      { time: "16:00", postType: "Community Stats" },
+    ],
+  },
+] satisfies Array<{
+  label: string;
+  matchers: string[];
+  slots: Array<{ time: string; postType: string }>;
+}>;
+
 export async function updateContentAgentPageSettings(formData: FormData) {
   await requireContentAgentAdmin();
 
@@ -208,6 +274,70 @@ export async function createContentAgentPage(formData: FormData) {
     });
 
     redirectWithNotice(`Created ${pageName}. Add ${tokenEnvKey} in Vercel if you have not already.`);
+  } catch (error) {
+    redirectWithError(error);
+  }
+}
+
+export async function applyRecommendedTopicRotationSchedule() {
+  await requireContentAgentAdmin();
+
+  try {
+    const supabase = createSupabaseAdminClient();
+
+    const { data: pages, error: readError } = await supabase
+      .from("content_agent_pages")
+      .select("page_key,page_name");
+
+    if (readError) throw new Error(readError.message);
+
+    const foundPages: string[] = [];
+    const missingPages: string[] = [];
+
+    for (const schedule of recommendedSchedules) {
+      const page = findPageByMatchers(pages || [], schedule.matchers);
+
+      if (!page) {
+        missingPages.push(schedule.label);
+        continue;
+      }
+
+      const { error } = await supabase
+        .from("content_agent_pages")
+        .update({
+          schedule_slots: schedule.slots,
+          content_cycle: [],
+          updated_at: new Date().toISOString(),
+        })
+        .eq("page_key", page.page_key);
+
+      if (error) throw new Error(error.message);
+      foundPages.push(`${page.page_name || schedule.label}: ${schedule.slots.map((slot) => slot.postType).join(", ")}`);
+    }
+
+    if (!foundPages.length) {
+      throw new Error("No matching content agent pages were found for the recommended schedule.");
+    }
+
+    await supabase.from("content_agent_logs").insert({
+      action: "settings_recommended_topic_rotation",
+      entity_type: "page",
+      entity_id: "recommended-topic-rotation",
+      result: "OK",
+      details: [
+        "Applied recommended topic rotation schedules and cleared content cycle overrides.",
+        ...foundPages,
+        missingPages.length ? `Missing pages: ${missingPages.join(", ")}` : "Missing pages: none",
+      ].join("\n"),
+    });
+
+    redirectWithNotice(
+      [
+        "Applied recommended topic rotation schedules and cleared content cycle overrides.",
+        ...foundPages,
+        missingPages.length ? `Missing pages: ${missingPages.join(", ")}` : "Missing pages: none",
+      ].join("\n")
+    );
   } catch (error) {
     redirectWithError(error);
   }
