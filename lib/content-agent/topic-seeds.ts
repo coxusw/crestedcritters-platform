@@ -484,6 +484,67 @@ const crestedMemeSubjects = [
   "the bin looking empty while everyone is under one leaf",
   "trying to photograph an isopod that chose violence and speed",
   "telling yourself one more species is a reasonable business decision",
+  "spending the grocery budget on terrarium plants and calling it ecosystem investment",
+  "buying moss like it has retirement benefits",
+  "telling yourself the new enclosure is definitely the last one",
+  "springtails doing unpaid mold management while you take credit",
+  "isopods treating cork bark like luxury real estate",
+  "the terrarium plant looking innocent while the isopods discuss snacks",
+  "building a bioactive setup and immediately needing three more microhabitats",
+  "the moment you realize leaf litter is now something you have opinions about",
+  "checking humidity more often than your bank balance",
+  "buying a rare isopod culture and pretending money is temporary anyway",
+  "springtails appearing in every photo except the one you actually need",
+  "terrarium plants thriving until you brag about them",
+  "an isopod colony hiding like rent is due",
+  "the cleanup crew asking why you keep making messes",
+  "bioactive keepers saying it is self-sustaining while holding six tools",
+  "spending all your money on tiny crustaceans with excellent camouflage",
+  "telling yourself botanicals are supplies and not a shopping addiction",
+  "the isopods getting better housing upgrades than you",
+  "springtail culture maintenance becoming a personality trait",
+  "plant quarantine feeling dramatic until pests show up",
+  "the terrarium looking peaceful while the substrate is running a tiny economy",
+  "asking if one more plant will fit like the enclosure can negotiate",
+  "buying a misting bottle and suddenly becoming weather itself",
+  "the colony eating zucchini like it has restaurant reservations",
+  "watching isopods ignore the expensive food for a decaying leaf",
+  "spending hobby money and then calling it research",
+  "bioactive hobby math where one bin somehow becomes twelve",
+  "explaining to normal people why you bought dirt on purpose",
+  "the plant light bill joining the hobby budget without asking",
+  "finding a single springtail and acting like the ecosystem waved hello",
+  "isopods making you excited about rotten wood like that is normal",
+  "terrarium plants getting names before your budget gets a category",
+  "the cleanup crew clocking in only when guests cannot see them",
+  "buying pods, plants, cork, leaves, and then pretending the container was the expensive part",
+  "trying to make a naturalistic setup while the isopods rearrange everything",
+  "the enclosure becoming prettier than your living room",
+  "telling yourself it is not hoarding if each bin has a label",
+  "springtails being tiny employees with zero HR paperwork",
+  "the humidity gauge judging your entire husbandry career",
+  "bioactive keepers hearing free leaf litter and entering gatherer mode",
+  "the terrarium plant melting just to keep you humble",
+  "your isopod wishlist having more financial ambition than your savings account",
+  "spending money on plants the isopods may immediately taste-test",
+  "the colony multiplying after you finally stop staring at it",
+  "buying one cleanup crew and accidentally joining a whole hobby",
+  "telling yourself the expo purchase is business inventory and emotional support",
+  "isopods turning a slice of squash into a community event",
+  "springtails cleaning mold while everyone asks what they even do",
+  "bioactive setup costs sneaking up one cute supply at a time",
+  "the hobby budget getting buried under leaf litter",
+  "plants, pods, and springtails forming a tiny committee to drain your wallet",
+  "the terrarium looking effortless after three hours of fussing",
+  "realizing your isopods have better calcium access than you do",
+  "the springtail culture surviving neglect better than your houseplants",
+  "buying a backup culture because trust issues are part of husbandry",
+  "the isopods refusing to pose after you hyped them up",
+  "bioactive keepers casually discussing mold like weather",
+  "the moment a tiny bin of dirt becomes your most checked project",
+  "terrarium plants making you learn lighting terminology against your will",
+  "the cleanup crew disappearing the second someone says show me",
+  "spending money on a hobby where the stars hide under bark",
 ];
 
 function buildPovertySeeds() {
@@ -661,4 +722,14 @@ export const requestedTopicSeedCounts = requestedTopicSeeds.reduce(
     "tap-deck": 0,
     "crested-critters": 0,
   } satisfies Record<TopicSeed["brand"], number>
+);
+
+export const requestedTopicSeedTypeCounts = requestedTopicSeeds.reduce(
+  (counts, seedItem) => {
+    counts[seedItem.brand] ||= {};
+    counts[seedItem.brand][seedItem.postType] =
+      (counts[seedItem.brand][seedItem.postType] || 0) + 1;
+    return counts;
+  },
+  {} as Record<TopicSeed["brand"], Record<string, number>>
 );
