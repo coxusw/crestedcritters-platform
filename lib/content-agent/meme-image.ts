@@ -20,6 +20,54 @@ const fakeTextTerms = [
 
 type CanvasContext = ReturnType<ReturnType<typeof createCanvas>["getContext"]>;
 
+const blockFont: Record<string, string[]> = {
+  A: ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
+  B: ["11110", "10001", "10001", "11110", "10001", "10001", "11110"],
+  C: ["01111", "10000", "10000", "10000", "10000", "10000", "01111"],
+  D: ["11110", "10001", "10001", "10001", "10001", "10001", "11110"],
+  E: ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+  F: ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
+  G: ["01111", "10000", "10000", "10111", "10001", "10001", "01111"],
+  H: ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
+  I: ["11111", "00100", "00100", "00100", "00100", "00100", "11111"],
+  J: ["00111", "00010", "00010", "00010", "10010", "10010", "01100"],
+  K: ["10001", "10010", "10100", "11000", "10100", "10010", "10001"],
+  L: ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
+  M: ["10001", "11011", "10101", "10101", "10001", "10001", "10001"],
+  N: ["10001", "11001", "10101", "10011", "10001", "10001", "10001"],
+  O: ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
+  P: ["11110", "10001", "10001", "11110", "10000", "10000", "10000"],
+  Q: ["01110", "10001", "10001", "10001", "10101", "10010", "01101"],
+  R: ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
+  S: ["01111", "10000", "10000", "01110", "00001", "00001", "11110"],
+  T: ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
+  U: ["10001", "10001", "10001", "10001", "10001", "10001", "01110"],
+  V: ["10001", "10001", "10001", "10001", "10001", "01010", "00100"],
+  W: ["10001", "10001", "10001", "10101", "10101", "10101", "01010"],
+  X: ["10001", "10001", "01010", "00100", "01010", "10001", "10001"],
+  Y: ["10001", "10001", "01010", "00100", "00100", "00100", "00100"],
+  Z: ["11111", "00001", "00010", "00100", "01000", "10000", "11111"],
+  "0": ["01110", "10001", "10011", "10101", "11001", "10001", "01110"],
+  "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
+  "2": ["01110", "10001", "00001", "00010", "00100", "01000", "11111"],
+  "3": ["11110", "00001", "00001", "01110", "00001", "00001", "11110"],
+  "4": ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
+  "5": ["11111", "10000", "10000", "11110", "00001", "00001", "11110"],
+  "6": ["01110", "10000", "10000", "11110", "10001", "10001", "01110"],
+  "7": ["11111", "00001", "00010", "00100", "01000", "01000", "01000"],
+  "8": ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
+  "9": ["01110", "10001", "10001", "01111", "00001", "00001", "01110"],
+  "?": ["01110", "10001", "00001", "00010", "00100", "00000", "00100"],
+  "!": ["00100", "00100", "00100", "00100", "00100", "00000", "00100"],
+  "&": ["01100", "10010", "10100", "01000", "10101", "10010", "01101"],
+  "$": ["00100", "01111", "10100", "01110", "00101", "11110", "00100"],
+  "#": ["01010", "01010", "11111", "01010", "11111", "01010", "01010"],
+  "-": ["00000", "00000", "00000", "11111", "00000", "00000", "00000"],
+  ".": ["00000", "00000", "00000", "00000", "00000", "01100", "01100"],
+  ",": ["00000", "00000", "00000", "00000", "00000", "01100", "01000"],
+  "'": ["00100", "00100", "01000", "00000", "00000", "00000", "00000"],
+};
+
 function cleanMemeText(value: string | null | undefined) {
   return String(value || "")
     .replace(/\s+/g, " ")
@@ -124,14 +172,26 @@ export function buildMemeImagePrompt({
     .join("\n");
 }
 
-function wrapCanvasText(context: CanvasContext, text: string, maxWidth: number) {
-  const words = text.split(" ").filter(Boolean);
+function normalizeBlockText(text: string) {
+  return cleanMemeText(text).replace(/[^A-Z0-9?!&$#\-'., ]/g, "");
+}
+
+function blockLineWidth(line: string, scale: number) {
+  return Array.from(line).reduce((width, character, index) => {
+    const glyphWidth = character === " " ? 3 : 5;
+    const spacing = index === 0 ? 0 : 1;
+    return width + (glyphWidth + spacing) * scale;
+  }, 0);
+}
+
+function wrapBlockText(text: string, scale: number, maxWidth: number) {
+  const words = normalizeBlockText(text).split(" ").filter(Boolean);
   const lines: string[] = [];
   let current = "";
 
   for (const word of words) {
     const next = current ? `${current} ${word}` : word;
-    if (context.measureText(next).width <= maxWidth || !current) {
+    if (blockLineWidth(next, scale) <= maxWidth || !current) {
       current = next;
       continue;
     }
@@ -144,41 +204,78 @@ function wrapCanvasText(context: CanvasContext, text: string, maxWidth: number) 
   return lines.slice(0, 3);
 }
 
+function drawBlockLine(
+  context: CanvasContext,
+  line: string,
+  x: number,
+  y: number,
+  scale: number,
+  color: string
+) {
+  let cursorX = x;
+  context.fillStyle = color;
+
+  for (const character of Array.from(line)) {
+    if (character === " ") {
+      cursorX += 4 * scale;
+      continue;
+    }
+
+    const glyph = blockFont[character] || blockFont["?"];
+
+    for (let row = 0; row < glyph.length; row += 1) {
+      for (let col = 0; col < glyph[row].length; col += 1) {
+        if (glyph[row][col] !== "1") continue;
+        context.fillRect(cursorX + col * scale, y + row * scale, scale, scale);
+      }
+    }
+
+    cursorX += 6 * scale;
+  }
+}
+
 function drawMemeText(context: CanvasContext, text: string, position: "top" | "bottom") {
-  const cleanText = cleanMemeText(text);
+  const cleanText = normalizeBlockText(text);
   if (!cleanText) return;
 
   const maxWidth = CANVAS_SIZE - SIDE_PADDING * 2;
-  let fontSize = 92;
+  let scale = 15;
   let lines: string[] = [];
 
-  while (fontSize >= 46) {
-    context.font = `900 ${fontSize}px Arial`;
-    lines = wrapCanvasText(context, cleanText, maxWidth);
+  while (scale >= 7) {
+    lines = wrapBlockText(cleanText, scale, maxWidth);
 
-    if (lines.every((line) => context.measureText(line).width <= maxWidth)) break;
-    fontSize -= 4;
+    if (lines.every((line) => blockLineWidth(line, scale) <= maxWidth)) break;
+    scale -= 1;
   }
 
-  const lineHeight = Math.round(fontSize * 1.08);
+  const lineHeight = Math.round(8.5 * scale);
   const blockHeight = lineHeight * lines.length;
   const startY =
     position === "top"
-      ? 66 + fontSize
-      : CANVAS_SIZE - 66 - blockHeight + fontSize;
-
-  context.textAlign = "center";
-  context.textBaseline = "alphabetic";
-  context.lineJoin = "round";
-  context.strokeStyle = "#050505";
-  context.fillStyle = "#ffffff";
-  context.lineWidth = Math.max(8, Math.round(fontSize * 0.12));
-  context.font = `900 ${fontSize}px Arial`;
+      ? 66
+      : CANVAS_SIZE - 66 - blockHeight;
 
   for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const lineWidth = blockLineWidth(line, scale);
+    const x = (CANVAS_SIZE - lineWidth) / 2;
     const y = startY + index * lineHeight;
-    context.strokeText(lines[index], CANVAS_SIZE / 2, y);
-    context.fillText(lines[index], CANVAS_SIZE / 2, y);
+
+    for (const [offsetX, offsetY] of [
+      [-scale, 0],
+      [scale, 0],
+      [0, -scale],
+      [0, scale],
+      [-scale, -scale],
+      [scale, -scale],
+      [-scale, scale],
+      [scale, scale],
+    ]) {
+      drawBlockLine(context, line, x + offsetX, y + offsetY, scale, "#050505");
+    }
+
+    drawBlockLine(context, line, x, y, scale, "#ffffff");
   }
 }
 
