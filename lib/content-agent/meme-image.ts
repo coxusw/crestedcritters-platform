@@ -140,7 +140,7 @@ function textBlockSvg(text: string, position: "top" | "bottom") {
   const textLines = lines
     .map((line, index) => {
       const y = startY + index * lineHeight;
-      return `<text x="${CANVAS_SIZE / 2}" y="${y}" text-anchor="middle">${escapeXml(line)}</text>`;
+      return `<text x="${CANVAS_SIZE / 2}" y="${y}" text-anchor="middle" font-size="${fontSize}">${escapeXml(line)}</text>`;
     })
     .join("");
 
@@ -209,7 +209,7 @@ export async function composeMemeImage(
       <rect x="0" y="${CANVAS_SIZE - 310}" width="${CANVAS_SIZE}" height="310" fill="url(#bottomShade)"/>
       <style>
         .meme-text text {
-          font-family: Impact, "Arial Black", Arial, sans-serif;
+          font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
           font-weight: 900;
           letter-spacing: 1px;
           fill: #ffffff;
