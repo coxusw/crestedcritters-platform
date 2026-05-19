@@ -151,16 +151,15 @@ export default async function RandomizerResultPage({
               These are the recorded name-list shuffles completed before the official wheel result was generated.
             </p>
 
-            <div className="mt-4 grid gap-4">
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
               {shuffleHistory.map((shuffle, index) => (
-                <details
+                <article
                   key={`${shuffle.step}-${index}`}
                   className="rounded-xl border border-white/10 bg-black/20 p-4"
-                  open={index === shuffleHistory.length - 1}
                 >
-                  <summary className="cursor-pointer text-sm font-black text-yellow-100">
+                  <h3 className="text-sm font-black text-yellow-100">
                     Shuffle {shuffle.step} of {shuffle.total}
-                  </summary>
+                  </h3>
                   <ol className="mt-3 max-h-72 list-decimal space-y-1 overflow-auto pl-5 text-sm text-emerald-50/80">
                     {(shuffle.numberedEntries?.length
                       ? shuffle.numberedEntries
@@ -169,7 +168,7 @@ export default async function RandomizerResultPage({
                       <li key={`${entry}-${entryIndex}`}>{entry}</li>
                     ))}
                   </ol>
-                </details>
+                </article>
               ))}
             </div>
           </section>

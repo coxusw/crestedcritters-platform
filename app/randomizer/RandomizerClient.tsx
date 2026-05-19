@@ -146,6 +146,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
   const [shuffleProgress, setShuffleProgress] = useState<{
     current: number;
     total: number;
+    numberedEntries: string[];
   } | null>(null);
   const [replay, setReplay] = useState<{
     entries: string[];
@@ -445,7 +446,11 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
           entries: currentRows.map((row) => row.name),
           numberedEntries: currentRows.map((row) => `${row.number}. ${row.name}`),
         });
-        setShuffleProgress({ current: index, total: safeShuffleCount });
+        setShuffleProgress({
+          current: index,
+          total: safeShuffleCount,
+          numberedEntries: currentRows.map((row) => `${row.number}. ${row.name}`),
+        });
         setNames(serializeNameRows(currentRows));
         setStatus({
           tone: "idle",
@@ -501,7 +506,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
 
     {shuffleProgress && (
       <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#07130c]/75 p-4 backdrop-blur-sm">
-        <div className="w-full max-w-sm rounded-3xl border border-yellow-300/30 bg-[#102016] p-6 text-center shadow-2xl shadow-black/50">
+        <div className="w-full max-w-xl rounded-3xl border border-yellow-300/30 bg-[#102016] p-6 text-center shadow-2xl shadow-black/50">
           <p className="text-sm font-black uppercase tracking-[0.25em] text-yellow-200">
             Shuffling
           </p>
@@ -519,6 +524,13 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
           <p className="mt-4 text-sm font-bold text-emerald-50/70">
             Updating the list live...
           </p>
+          <div className="mt-4 max-h-72 overflow-auto rounded-2xl border border-white/10 bg-black/25 p-4 text-left">
+            <ol className="list-decimal space-y-1 pl-5 text-sm text-emerald-50/85">
+              {shuffleProgress.numberedEntries.map((entry, index) => (
+                <li key={`${entry}-${index}`}>{entry}</li>
+              ))}
+            </ol>
+          </div>
         </div>
       </div>
     )}
