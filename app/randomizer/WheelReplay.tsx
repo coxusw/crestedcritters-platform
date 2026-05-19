@@ -40,10 +40,9 @@ const colors = [
 
 const confettiColors = ["#34d399", "#facc15", "#60a5fa", "#fb7185", "#a78bfa", "#f97316"];
 
-type WheelEntry = {
-  name: string;
-  entryIndex: number;
-};
+function colorForEntry(entryIndex: number) {
+  return colors[entryIndex % colors.length];
+}
 
 export default function WheelReplay({
   mode = "spin-count",
@@ -73,6 +72,7 @@ export default function WheelReplay({
   const visibleEntries = wheelEntries.slice(0, 12);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWheelEntries(initialWheelEntries);
   }, [initialWheelEntries]);
 
@@ -125,7 +125,7 @@ export default function WheelReplay({
       ctx.moveTo(center, center);
       ctx.arc(center, center, radius, start, end);
       ctx.closePath();
-      ctx.fillStyle = colors[index % colors.length];
+      ctx.fillStyle = colorForEntry(entry.entryIndex);
       ctx.fill();
       ctx.strokeStyle = "rgba(7, 19, 12, 0.32)";
       ctx.lineWidth = Math.max(0.5, Math.min(3, 28 / wheelEntries.length));
@@ -232,6 +232,7 @@ export default function WheelReplay({
 
   useEffect(() => {
     if (autoPlay) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       void play();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -372,7 +373,7 @@ export default function WheelReplay({
                 <span
                   key={`${entry.entryIndex}-${index}`}
                   className="rounded-full px-3 py-1"
-                  style={{ backgroundColor: colors[index % colors.length] }}
+                  style={{ backgroundColor: colorForEntry(entry.entryIndex) }}
                 >
                   {entry.name}
                 </span>

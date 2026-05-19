@@ -144,36 +144,6 @@ export default async function RandomizerResultPage({
           )}
         </section>
 
-        {shuffleHistory.length > 0 && (
-          <section className="mt-5 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 p-6">
-            <h2 className="text-2xl font-black">Shuffle History</h2>
-            <p className="mt-2 text-sm leading-6 text-emerald-50/70">
-              These are the recorded name-list shuffles completed before the official wheel result was generated.
-            </p>
-
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              {shuffleHistory.map((shuffle, index) => (
-                <article
-                  key={`${shuffle.step}-${index}`}
-                  className="rounded-xl border border-white/10 bg-black/20 p-4"
-                >
-                  <h3 className="text-sm font-black text-yellow-100">
-                    Shuffle {shuffle.step} of {shuffle.total}
-                  </h3>
-                  <div className="mt-3 max-h-72 space-y-1 overflow-auto text-sm text-emerald-50/80">
-                    {(shuffle.numberedEntries?.length
-                      ? shuffle.numberedEntries
-                      : shuffle.entries
-                    ).map((entry, entryIndex) => (
-                      <div key={`${entry}-${entryIndex}`}>{entry}</div>
-                    ))}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
-
         <div className="mt-5">
           <WheelReplay
             mode={data.mode}
@@ -234,6 +204,46 @@ export default async function RandomizerResultPage({
             </div>
           </section>
         </div>
+
+        {shuffleHistory.length > 0 && (
+          <section className="mt-5 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 p-5">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black">Shuffle History</h2>
+                <p className="mt-1 text-xs leading-5 text-emerald-50/65">
+                  Recorded name-list order after each shuffle before the official wheel result.
+                </p>
+              </div>
+              <div className="rounded-full border border-yellow-200/30 bg-black/20 px-3 py-1 text-xs font-black text-yellow-100">
+                {shuffleHistory.length} step{shuffleHistory.length === 1 ? "" : "s"}
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {shuffleHistory.map((shuffle, index) => {
+                const entries = shuffle.numberedEntries?.length
+                  ? shuffle.numberedEntries
+                  : shuffle.entries;
+
+                return (
+                  <article
+                    key={`${shuffle.step}-${index}`}
+                    className="rounded-xl border border-white/10 bg-black/20 p-3"
+                  >
+                    <h3 className="text-xs font-black uppercase tracking-wide text-yellow-100">
+                      Shuffle {shuffle.step} of {shuffle.total}
+                    </h3>
+                    <div className="mt-2 max-h-48 overflow-auto rounded-lg bg-black/20 p-2 font-mono text-[11px] leading-5 text-emerald-50/80">
+                      {entries.map((entry, entryIndex) => (
+                        <div key={`${entry}-${entryIndex}`}>{entry}</div>
+                      ))}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Link className="rounded-xl bg-emerald-300 px-5 py-3 font-black text-slate-950 hover:bg-emerald-200" href="/randomizer">
