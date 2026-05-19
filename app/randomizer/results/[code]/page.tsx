@@ -13,6 +13,12 @@ type RandomizerRow = {
   rules: string | null;
   mode: string;
   entries: string[];
+  shuffle_history: Array<{
+    step: number;
+    total: number;
+    entries: string[];
+    numberedEntries: string[];
+  }> | null;
   spin_history: RandomizerSpin[];
   winners: RandomizerWinner[];
   logo_data_url: string | null;
@@ -72,13 +78,17 @@ export default async function RandomizerResultPage({
   const { data } = await supabase
     .from("randomizer_results")
     .select(
-      "public_code, created_at, title, description, rules, mode, entries, spin_history, winners, logo_data_url"
+      "public_code, created_at, title, description, rules, mode, entries, shuffle_history, spin_history, winners, logo_data_url"
     )
     .eq("public_code", code.toUpperCase())
     .gte("created_at", resultRetentionCutoff().toISOString())
     .maybeSingle<RandomizerRow>();
 
   if (!data) notFound();
+
+  const shuffleHistory = Array.isArray(data.shuffle_history)
+    ? data.shuffle_history
+    : [];
 
   return (
     <main className="min-h-screen bg-[#07130c] px-4 py-8 text-white">
@@ -133,6 +143,37 @@ export default async function RandomizerResultPage({
             </div>
           )}
         </section>
+
+        {shuffleHistory.length > 0 && (
+          <section className="mt-5 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 p-6">
+            <h2 className="text-2xl font-black">Shuffle History</h2>
+            <p className="mt-2 text-sm leading-6 text-emerald-50/70">
+              These are the recorded name-list shuffles completed before the official wheel result was generated.
+            </p>
+
+            <div className="mt-4 grid gap-4">
+              {shuffleHistory.map((shuffle, index) => (
+                <details
+                  key={`${shuffle.step}-${index}`}
+                  className="rounded-xl border border-white/10 bg-black/20 p-4"
+                  open={index === shuffleHistory.length - 1}
+                >
+                  <summary className="cursor-pointer text-sm font-black text-yellow-100">
+                    Shuffle {shuffle.step} of {shuffle.total}
+                  </summary>
+                  <ol className="mt-3 max-h-72 list-decimal space-y-1 overflow-auto pl-5 text-sm text-emerald-50/80">
+                    {(shuffle.numberedEntries?.length
+                      ? shuffle.numberedEntries
+                      : shuffle.entries
+                    ).map((entry, entryIndex) => (
+                      <li key={`${entry}-${entryIndex}`}>{entry}</li>
+                    ))}
+                  </ol>
+                </details>
+              ))}
+            </div>
+          </section>
+        )}
 
         <div className="mt-5">
           <WheelReplay

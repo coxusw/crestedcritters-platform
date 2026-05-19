@@ -32,6 +32,13 @@ type NameRow = {
   name: string;
 };
 
+type ShuffleHistoryStep = {
+  step: number;
+  total: number;
+  entries: string[];
+  numberedEntries: string[];
+};
+
 function parseNameRows(value: string): NameRow[] {
   return value
     .split(/\n+/)
@@ -127,6 +134,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
   const [preventDuplicateWinners, setPreventDuplicateWinners] = useState(true);
   const [dice, setDice] = useState<[number, number] | null>(null);
   const [shuffleDice, setShuffleDice] = useState<[number, number] | null>(null);
+  const [shuffleHistory, setShuffleHistory] = useState<ShuffleHistoryStep[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoDataUrl, setLogoDataUrl] = useState("");
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -333,6 +341,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
           winnerCount,
           prizeList: prizes,
           preventDuplicateWinners,
+          shuffleHistory,
           logoDataUrl: savedLogoDataUrl,
         }),
       });
@@ -345,6 +354,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
         entries?: string[];
         spinHistory?: WheelSpin[];
         winners?: WheelWinner[];
+        shuffleHistory?: ShuffleHistoryStep[];
         mode?: string;
       };
 
@@ -404,6 +414,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
     setPrizeList("Sticker Pack\n10-count Isopod Culture\nGrand Prize");
     setWinnerCount(3);
     setNames(["Name 6", "Name 5", "Name 4", "Name 3", "Name 2", "Name 1"].join("\n"));
+    setShuffleHistory([]);
     setStatus({ tone: "idle", message: "Demo names loaded." });
   }
 
@@ -423,10 +434,17 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
     }
 
     let currentRows = [...nameRows];
+    const historySteps: ShuffleHistoryStep[] = [];
 
     try {
       for (let index = 1; index <= safeShuffleCount; index += 1) {
         currentRows = shuffleNameRows(currentRows, 1);
+        historySteps.push({
+          step: index,
+          total: safeShuffleCount,
+          entries: currentRows.map((row) => row.name),
+          numberedEntries: currentRows.map((row) => `${row.number}. ${row.name}`),
+        });
         setShuffleProgress({ current: index, total: safeShuffleCount });
         setNames(serializeNameRows(currentRows));
         setStatus({
@@ -440,6 +458,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
         tone: "good",
         message: `Shuffled the name list ${safeShuffleCount} time${safeShuffleCount === 1 ? "" : "s"}.`,
       });
+      setShuffleHistory((current) => [...current, ...historySteps]);
     } finally {
       setShuffleProgress(null);
     }
@@ -559,12 +578,18 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
             <span className="text-sm font-black text-emerald-100">Name List</span>
             <textarea
               value={names}
-              onChange={(event) => setNames(event.target.value)}
+              onChange={(event) => {
+                setNames(event.target.value);
+                setShuffleHistory([]);
+              }}
               className="min-h-72 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:ring-4 focus:ring-emerald-400/20"
               placeholder="Paste names here, one per line."
             />
             <span className="text-sm text-emerald-50/60">
               {entries.length} entries. Duplicate names count as separate entries.
+              {shuffleHistory.length > 0
+                ? ` ${shuffleHistory.length} shuffle step${shuffleHistory.length === 1 ? "" : "s"} will be recorded.`
+                : ""}
             </span>
           </label>
 

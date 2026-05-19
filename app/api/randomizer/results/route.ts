@@ -9,6 +9,36 @@ import {
   parseStringList,
 } from "@/lib/randomizer";
 
+type ShuffleHistoryStep = {
+  step: number;
+  total: number;
+  entries: string[];
+  numberedEntries: string[];
+};
+
+function parseShuffleHistory(value: unknown): ShuffleHistoryStep[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    const rawStep = item as Partial<ShuffleHistoryStep>;
+    const step = boundedInteger(rawStep.step, 0, 0, 1000);
+    const total = boundedInteger(rawStep.total, 0, 0, 1000);
+    const entries = parseStringList(rawStep.entries);
+    const numberedEntries = parseStringList(rawStep.numberedEntries);
+
+    if (!step || !total || !entries.length) return [];
+
+    return [
+      {
+        step,
+        total,
+        entries,
+        numberedEntries,
+      },
+    ];
+  });
+}
+
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -37,6 +67,7 @@ export async function POST(request: Request) {
   const winnerCount = boundedInteger(body.winnerCount, 1, 1, 1000);
   const prizeList = parseStringList(body.prizeList);
   const preventDuplicateWinners = body.preventDuplicateWinners !== false;
+  const shuffleHistory = parseShuffleHistory(body.shuffleHistory);
   const logoDataUrl = cleanName(body.logoDataUrl);
 
   if (entries.length < 2) {
@@ -107,6 +138,7 @@ export async function POST(request: Request) {
         prize_list: prizeList,
         prevent_duplicate_winners: preventDuplicateWinners,
         entries,
+        shuffle_history: shuffleHistory,
         spin_history: generated.spinHistory,
         winners: generated.winners,
         logo_data_url: logoDataUrl || null,
@@ -120,6 +152,7 @@ export async function POST(request: Request) {
         resultUrl: `/randomizer/results/${data.public_code}`,
         mode,
         entries,
+        shuffleHistory,
         spinHistory: generated.spinHistory,
         winners: generated.winners,
       });
