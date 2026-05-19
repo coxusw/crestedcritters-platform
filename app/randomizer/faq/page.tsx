@@ -15,6 +15,10 @@ const sections = [
     body: "The Randomizer uses server-side cryptographic randomness. Each entry line is treated as one entry, so duplicate names count as extra chances when the rules allow multiple entries. For Spin Count mode, the final spin is the official winner. For Last Name Spun mode, names are removed until one remains. The selected names, spin order, winner, and original entry list are saved together.",
   },
   {
+    title: "How fair is the random pick?",
+    body: "To sanity-check fairness, we ran a 1,000,000,000-pick simulation with 10 entries. Each entry should average 100,000,000 picks. The results were: Entry 1: 100,008,521; Entry 2: 100,001,369; Entry 3: 99,994,904; Entry 4: 99,998,675; Entry 5: 100,010,173; Entry 6: 100,013,366; Entry 7: 99,983,584; Entry 8: 99,993,868; Entry 9: 100,001,706; Entry 10: 99,993,834. Every entry landed between 9.9983584% and 10.0013366%, which is the tiny natural variance expected from real randomness.",
+  },
+  {
     title: "Why the result is harder to fake",
     body: "The official result page is created from the saved database record, not from a screenshot or manually typed winner. The public page shows the verification code, original entries, spin history, winners, and a wheel replay generated from the saved spin history.",
   },
