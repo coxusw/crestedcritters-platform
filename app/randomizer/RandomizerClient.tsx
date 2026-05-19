@@ -22,10 +22,59 @@ function cleanName(value: string) {
 }
 
 function parseNames(value: string) {
+  return parseNameRows(value)
+    .map((row) => row.name)
+    .filter(Boolean);
+}
+
+type NameRow = {
+  number: string;
+  name: string;
+};
+
+function parseNameRows(value: string): NameRow[] {
   return value
     .split(/\n+/)
-    .map(cleanName)
-    .filter(Boolean);
+    .map((line, index) => {
+      const cleaned = cleanName(line);
+      const numbered = cleaned.match(/^(\d+)\s*[\).\-\:]\s*(.+)$/);
+
+      return {
+        number: numbered?.[1] || String(index + 1),
+        name: cleanName(numbered?.[2] || cleaned),
+      };
+    })
+    .filter((row) => row.name);
+}
+
+function shuffleArray<T>(items: T[]) {
+  const next = [...items];
+
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+
+  return next;
+}
+
+function shuffleNameRows(rows: NameRow[], shuffleCount: number) {
+  let numbers = rows.map((row) => row.number);
+  let names = rows.map((row) => row.name);
+
+  for (let index = 0; index < shuffleCount; index += 1) {
+    numbers = shuffleArray(numbers);
+    names = shuffleArray(names);
+  }
+
+  return numbers.map((number, index) => ({
+    number,
+    name: names[index] || "",
+  }));
+}
+
+function serializeNameRows(rows: NameRow[]) {
+  return rows.map((row) => `${row.number}. ${row.name}`).join("\n");
 }
 
 async function compressLogo(file: File | null) {
@@ -71,6 +120,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
   const [prizeList, setPrizeList] = useState("");
   const [preventDuplicateWinners, setPreventDuplicateWinners] = useState(true);
   const [dice, setDice] = useState<[number, number] | null>(null);
+  const [shuffleDice, setShuffleDice] = useState<[number, number] | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoDataUrl, setLogoDataUrl] = useState("");
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -93,6 +143,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
   });
 
   const entries = useMemo(() => parseNames(names), [names]);
+  const nameRows = useMemo(() => parseNameRows(names), [names]);
   const prizes = useMemo(() => parseNames(prizeList), [prizeList]);
 
   useEffect(() => {
@@ -353,6 +404,28 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
     setSpinCount(first + second);
   }
 
+  function shuffleNameList(shuffleCount: number) {
+    const safeShuffleCount = Math.max(1, shuffleCount);
+
+    if (nameRows.length < 2) {
+      setStatus({ tone: "bad", message: "Enter at least 2 names before shuffling." });
+      return;
+    }
+
+    setNames(serializeNameRows(shuffleNameRows(nameRows, safeShuffleCount)));
+    setStatus({
+      tone: "good",
+      message: `Shuffled the name list ${safeShuffleCount} time${safeShuffleCount === 1 ? "" : "s"}.`,
+    });
+  }
+
+  function rollShuffleDice() {
+    const first = Math.floor(Math.random() * 6) + 1;
+    const second = Math.floor(Math.random() * 6) + 1;
+    setShuffleDice([first, second]);
+    shuffleNameList(first + second);
+  }
+
   const statusClass =
     status.tone === "good"
       ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100"
@@ -444,6 +517,51 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
               {entries.length} entries. Duplicate names count as separate entries.
             </span>
           </label>
+
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-black text-emerald-100">Shuffle Name List</p>
+                <p className="mt-1 text-sm leading-6 text-emerald-50/60">
+                  Accepts plain names or numbered names. Numbers and names are
+                  shuffled separately, then written back as a numbered list.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => shuffleNameList(1)}
+                  className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15"
+                >
+                  Shuffle Once
+                </button>
+                <button
+                  type="button"
+                  onClick={rollShuffleDice}
+                  className="rounded-xl border border-yellow-300/30 bg-yellow-300/15 px-4 py-3 text-sm font-black text-yellow-100 transition hover:bg-yellow-300/20"
+                >
+                  Roll Dice Shuffle
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center gap-3">
+              {(shuffleDice || [1, 1]).map((value, index) => (
+                <div
+                  key={index}
+                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/20 bg-white text-xl font-black text-slate-950 shadow-lg"
+                >
+                  {shuffleDice ? value : "?"}
+                </div>
+              ))}
+              <div className="text-sm font-black text-emerald-100">
+                {shuffleDice
+                  ? `Last dice shuffle: ${shuffleDice[0] + shuffleDice[1]} shuffles`
+                  : "Roll to decide shuffle count"}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
