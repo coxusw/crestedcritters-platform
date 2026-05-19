@@ -44,7 +44,7 @@ function parseNameRows(value: string): NameRow[] {
     .split(/\n+/)
     .map((line, index) => {
       const cleaned = cleanName(line);
-      const numbered = cleaned.match(/^(\d+)\s*[\).\-\:]\s*(.+)$/);
+      const numbered = cleaned.match(/^(\d+)(?:\s*[\).\-\:]|\s+)\s*(.+)$/);
 
       return {
         number: numbered?.[1] || String(index + 1),
@@ -525,11 +525,11 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
             Updating the list live...
           </p>
           <div className="mt-4 max-h-72 overflow-auto rounded-2xl border border-white/10 bg-black/25 p-4 text-left">
-            <ol className="list-decimal space-y-1 pl-5 text-sm text-emerald-50/85">
+            <div className="space-y-1 text-sm text-emerald-50/85">
               {shuffleProgress.numberedEntries.map((entry, index) => (
-                <li key={`${entry}-${index}`}>{entry}</li>
+                <div key={`${entry}-${index}`}>{entry}</div>
               ))}
-            </ol>
+            </div>
           </div>
         </div>
       </div>

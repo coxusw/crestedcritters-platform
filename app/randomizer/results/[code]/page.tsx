@@ -160,14 +160,14 @@ export default async function RandomizerResultPage({
                   <h3 className="text-sm font-black text-yellow-100">
                     Shuffle {shuffle.step} of {shuffle.total}
                   </h3>
-                  <ol className="mt-3 max-h-72 list-decimal space-y-1 overflow-auto pl-5 text-sm text-emerald-50/80">
+                  <div className="mt-3 max-h-72 space-y-1 overflow-auto text-sm text-emerald-50/80">
                     {(shuffle.numberedEntries?.length
                       ? shuffle.numberedEntries
                       : shuffle.entries
                     ).map((entry, entryIndex) => (
-                      <li key={`${entry}-${entryIndex}`}>{entry}</li>
+                      <div key={`${entry}-${entryIndex}`}>{entry}</div>
                     ))}
-                  </ol>
+                  </div>
                 </article>
               ))}
             </div>
