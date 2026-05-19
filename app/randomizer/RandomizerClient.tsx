@@ -77,6 +77,12 @@ function serializeNameRows(rows: NameRow[]) {
   return rows.map((row) => `${row.number}. ${row.name}`).join("\n");
 }
 
+function wait(milliseconds: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, milliseconds);
+  });
+}
+
 async function compressLogo(file: File | null) {
   if (!file) return "";
 
@@ -129,6 +135,10 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shuffleProgress, setShuffleProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
   const [replay, setReplay] = useState<{
     entries: string[];
     spinHistory: WheelSpin[];
@@ -404,7 +414,7 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
     setSpinCount(first + second);
   }
 
-  function shuffleNameList(shuffleCount: number) {
+  async function shuffleNameList(shuffleCount: number) {
     const safeShuffleCount = Math.max(1, shuffleCount);
 
     if (nameRows.length < 2) {
@@ -412,18 +422,34 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
       return;
     }
 
-    setNames(serializeNameRows(shuffleNameRows(nameRows, safeShuffleCount)));
-    setStatus({
-      tone: "good",
-      message: `Shuffled the name list ${safeShuffleCount} time${safeShuffleCount === 1 ? "" : "s"}.`,
-    });
+    let currentRows = [...nameRows];
+
+    try {
+      for (let index = 1; index <= safeShuffleCount; index += 1) {
+        currentRows = shuffleNameRows(currentRows, 1);
+        setShuffleProgress({ current: index, total: safeShuffleCount });
+        setNames(serializeNameRows(currentRows));
+        setStatus({
+          tone: "idle",
+          message: `Shuffle ${index} of ${safeShuffleCount} in progress...`,
+        });
+        await wait(index === safeShuffleCount ? 700 : 850);
+      }
+
+      setStatus({
+        tone: "good",
+        message: `Shuffled the name list ${safeShuffleCount} time${safeShuffleCount === 1 ? "" : "s"}.`,
+      });
+    } finally {
+      setShuffleProgress(null);
+    }
   }
 
-  function rollShuffleDice() {
+  async function rollShuffleDice() {
     const first = Math.floor(Math.random() * 6) + 1;
     const second = Math.floor(Math.random() * 6) + 1;
     setShuffleDice([first, second]);
-    shuffleNameList(first + second);
+    await shuffleNameList(first + second);
   }
 
   const statusClass =
@@ -450,6 +476,30 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
             manualAdvance={replay.manualAdvance}
             redirectUrl={replay.redirectUrl}
           />
+        </div>
+      </div>
+    )}
+
+    {shuffleProgress && (
+      <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#07130c]/75 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-sm rounded-3xl border border-yellow-300/30 bg-[#102016] p-6 text-center shadow-2xl shadow-black/50">
+          <p className="text-sm font-black uppercase tracking-[0.25em] text-yellow-200">
+            Shuffling
+          </p>
+          <h2 className="mt-3 text-4xl font-black text-white">
+            Shuffle {shuffleProgress.current} of {shuffleProgress.total}
+          </h2>
+          <div className="mt-5 h-3 overflow-hidden rounded-full bg-black/40">
+            <div
+              className="h-full rounded-full bg-yellow-300 transition-all duration-300"
+              style={{
+                width: `${(shuffleProgress.current / shuffleProgress.total) * 100}%`,
+              }}
+            />
+          </div>
+          <p className="mt-4 text-sm font-bold text-emerald-50/70">
+            Updating the list live...
+          </p>
         </div>
       </div>
     )}
@@ -531,15 +581,17 @@ export default function RandomizerClient({ isLoggedIn }: { isLoggedIn: boolean }
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => shuffleNameList(1)}
-                  className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15"
+                  onClick={() => void shuffleNameList(1)}
+                  disabled={Boolean(shuffleProgress)}
+                  className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Shuffle Once
                 </button>
                 <button
                   type="button"
-                  onClick={rollShuffleDice}
-                  className="rounded-xl border border-yellow-300/30 bg-yellow-300/15 px-4 py-3 text-sm font-black text-yellow-100 transition hover:bg-yellow-300/20"
+                  onClick={() => void rollShuffleDice()}
+                  disabled={Boolean(shuffleProgress)}
+                  className="rounded-xl border border-yellow-300/30 bg-yellow-300/15 px-4 py-3 text-sm font-black text-yellow-100 transition hover:bg-yellow-300/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Roll Dice Shuffle
                 </button>
