@@ -4,6 +4,7 @@ export function proxy(request: NextRequest) {
   const host = request.headers.get("host")?.toLowerCase().split(":")[0] || "";
   const isRandomizerHost = host === "randomizer.crestedcritters.com";
   const isAdminHost = host === "admin.crestedcritters.com";
+  const isShopHost = host === "shop.crestedcritters.com";
 
   if (isAdminHost) {
     const url = request.nextUrl.clone();
@@ -24,6 +25,31 @@ export function proxy(request: NextRequest) {
 
     if (!url.pathname.startsWith("/admin")) {
       url.pathname = `/admin${url.pathname}`;
+      return NextResponse.rewrite(url);
+    }
+
+    return NextResponse.next();
+  }
+
+  if (isShopHost) {
+    const url = request.nextUrl.clone();
+
+    if (url.pathname === "/") {
+      url.pathname = "/shop";
+      return NextResponse.rewrite(url);
+    }
+
+    if (url.pathname.startsWith("/api/")) {
+      return NextResponse.next();
+    }
+
+    if (url.pathname === "/checkout/success") {
+      url.pathname = "/shop/checkout/success";
+      return NextResponse.rewrite(url);
+    }
+
+    if (!url.pathname.startsWith("/shop")) {
+      url.pathname = `/shop${url.pathname}`;
       return NextResponse.rewrite(url);
     }
 

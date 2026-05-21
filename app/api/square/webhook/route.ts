@@ -21,7 +21,12 @@ function verifySquareSignature(rawBody: string, signature: string | null) {
   );
 }
 
-async function grantOrder(squareOrderId: string, squarePaymentId: string) {
+type ShopWebhookItem = {
+  productId?: string;
+  quantity?: number;
+};
+
+async function grantRandomizerOrder(squareOrderId: string, squarePaymentId: string) {
   const supabase = createSupabaseAdminClient();
   const { data: order, error: readError } = await supabase
     .from("randomizer_orders")
@@ -71,6 +76,60 @@ async function grantOrder(squareOrderId: string, squarePaymentId: string) {
   if (orderError) throw orderError;
 }
 
+async function markShopOrderPaid(squareOrderId: string, squarePaymentId: string) {
+  const supabase = createSupabaseAdminClient();
+  const { data: order, error: readError } = await supabase
+    .from("shop_orders")
+    .select("*")
+    .eq("square_order_id", squareOrderId)
+    .maybeSingle();
+
+  if (readError) {
+    if (readError.code === "42P01") return;
+    throw readError;
+  }
+  if (!order || order.status === "paid") return;
+
+  const now = new Date().toISOString();
+  const { error: orderError } = await supabase
+    .from("shop_orders")
+    .update({
+      status: "paid",
+      square_payment_id: squarePaymentId,
+      completed_at: now,
+      updated_at: now,
+    })
+    .eq("id", order.id);
+
+  if (orderError) throw orderError;
+
+  const items = Array.isArray(order.items) ? (order.items as ShopWebhookItem[]) : [];
+
+  for (const item of items) {
+    if (!item.productId) continue;
+    const quantity = Math.max(0, Math.floor(Number(item.quantity || 0)));
+    if (quantity <= 0) continue;
+
+    const { data: product, error: productError } = await supabase
+      .from("shop_products")
+      .select("inventory")
+      .eq("id", item.productId)
+      .maybeSingle();
+
+    if (productError || !product) continue;
+
+    const nextInventory = Math.max(0, Number(product.inventory || 0) - quantity);
+    await supabase
+      .from("shop_products")
+      .update({
+        inventory: nextInventory,
+        sold_out: nextInventory <= 0,
+        updated_at: now,
+      })
+      .eq("id", item.productId);
+  }
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text();
   const signature = request.headers.get("x-square-hmacsha256-signature");
@@ -87,7 +146,8 @@ export async function POST(request: Request) {
     payment?.id &&
     (payment.status === "COMPLETED" || payment.status === "APPROVED")
   ) {
-    await grantOrder(payment.order_id, payment.id);
+    await grantRandomizerOrder(payment.order_id, payment.id);
+    await markShopOrderPaid(payment.order_id, payment.id);
   }
 
   return NextResponse.json({ ok: true });

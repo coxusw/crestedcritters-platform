@@ -208,6 +208,10 @@ async function getAdminSnapshots() {
     randomizerLifetime,
     randomizerAccounts,
     randomizerResults,
+    shopProducts,
+    shopActive,
+    shopPendingOrders,
+    shopPaidOrders,
     bookkeepingRows,
   ] = await Promise.all([
     safeCount(supabase.from("isopedia_species").select("id", { count: "exact", head: true })),
@@ -223,6 +227,10 @@ async function getAdminSnapshots() {
     safeCount(supabase.from("randomizer_accounts").select("user_id", { count: "exact", head: true }).eq("lifetime_access", true)),
     safeRows<{ credits: number | null }>(supabase.from("randomizer_accounts").select("credits").limit(5000)),
     safeCount(supabase.from("randomizer_results").select("id", { count: "exact", head: true })),
+    safeCount(supabase.from("shop_products").select("id", { count: "exact", head: true })),
+    safeCount(supabase.from("shop_products").select("id", { count: "exact", head: true }).eq("active", true)),
+    safeCount(supabase.from("shop_orders").select("id", { count: "exact", head: true }).eq("status", "pending")),
+    safeCount(supabase.from("shop_orders").select("id", { count: "exact", head: true }).eq("status", "paid")),
     safeRows<BookkeepingRow>(
       supabase
         .from("bookkeeping_transactions")
@@ -252,6 +260,12 @@ async function getAdminSnapshots() {
       lifetimeUsers: randomizerLifetime,
       outstandingCredits,
       results: randomizerResults,
+    },
+    shop: {
+      products: shopProducts,
+      active: shopActive,
+      pendingOrders: shopPendingOrders,
+      paidOrders: shopPaidOrders,
     },
     bookkeeping,
   };
@@ -336,28 +350,36 @@ function buildTools(snapshots: Awaited<ReturnType<typeof getAdminSnapshots>>): A
     {
       title: "Shop",
       href: "/admin/shop",
-      status: "Prepared",
+      status: "Live",
       stats: [
-        { label: "Catalog", value: "Planned" },
-        { label: "Cart", value: "Planned" },
-        { label: "Square", value: "Planned" },
-        { label: "Inventory", value: "Planned" },
+        { label: "Products", value: snapshots.shop.products },
+        { label: "Active", value: snapshots.shop.active },
+        { label: "Pending Orders", value: snapshots.shop.pendingOrders, alert: snapshots.shop.pendingOrders > 0 },
+        { label: "Paid Orders", value: snapshots.shop.paidOrders },
       ],
-      links: [{ href: "/admin/shop", label: "Roadmap" }],
+      links: [{ href: "https://shop.crestedcritters.com", label: "Open Shop" }],
     },
   ];
 }
 
 async function safeCount(query: PromiseLike<{ count: number | null; error: { message: string } | null }>) {
-  const result = await query;
-  if (result.error) return 0;
-  return result.count || 0;
+  try {
+    const result = await query;
+    if (result.error) return 0;
+    return result.count || 0;
+  } catch {
+    return 0;
+  }
 }
 
 async function safeRows<T>(query: PromiseLike<{ data: T[] | null; error: { message: string } | null }>) {
-  const result = await query;
-  if (result.error) return [];
-  return result.data || [];
+  try {
+    const result = await query;
+    if (result.error) return [];
+    return result.data || [];
+  } catch {
+    return [];
+  }
 }
 
 function summarizeBookkeeping(rows: BookkeepingRow[]) {
