@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import sanitizeHtml from "sanitize-html";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 
 type Profile = {
   id: string;
@@ -241,12 +242,14 @@ export default async function VerifySuggestedEditsPage({
   return (
     <main className="min-h-screen bg-[#0c1710] px-4 py-10 text-slate-100">
       <div className="mx-auto max-w-6xl">
+        <IsopediaNav active="review" />
+
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <Link
             href="/isopedia/review"
             className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
           >
-            ← Back to Review Queue
+            Back to Review Queue
           </Link>
 
           <Link
@@ -369,7 +372,7 @@ export default async function VerifySuggestedEditsPage({
                           href={`/isopedia/${edit.isopedia_species.slug}`}
                           className="mt-3 inline-block text-sm font-semibold text-emerald-300 hover:text-emerald-200"
                         >
-                          View species page →
+                          View species page
                         </Link>
                       )}
                     </div>

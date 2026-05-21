@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSpeciesAnnouncementForSubmission } from "@/lib/content-agent/isopedia";
+import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 
 type Profile = {
   id: string;
@@ -192,9 +193,11 @@ export default async function VerifySubmissionsPage({
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100">
       <div className="mx-auto max-w-6xl space-y-6">
+        <IsopediaNav active="review" />
+
         <div className="flex flex-wrap gap-3 text-sm">
           <Link className="text-emerald-300 underline" href="/isopedia/review">
-            ← Back to Review Queue
+            Back to Review Queue
           </Link>
           <Link className="text-emerald-300 underline" href="/isopedia">
             Browse Species

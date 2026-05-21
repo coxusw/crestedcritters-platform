@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
+import { filterReviewableGalleryImages } from "@/lib/isopedia-gallery-review";
 
 type Profile = {
   id: string;
@@ -16,6 +17,7 @@ type Species = {
   id: number;
   common_name: string;
   slug: string;
+  image_url: string | null;
 };
 
 type GalleryImage = {
@@ -41,9 +43,14 @@ async function verifyAdminGalleryImage(formData: FormData) {
 
   if (!imageId) redirect("/admin/isopedia/verify-images?error=missing-image");
 
-  const { error } = await supabase.rpc("verify_isopedia_species_image", {
-    image_id: imageId,
-  });
+  const { error } = await supabase
+    .from("isopedia_species_images")
+    .update({
+      status: "verified",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", imageId)
+    .eq("status", "unverified");
 
   if (error) {
     redirect(`/admin/isopedia/verify-images?error=${encodeURIComponent(error.message || "verify-failed")}`);
@@ -68,9 +75,14 @@ async function rejectAdminGalleryImage(formData: FormData) {
 
   if (!imageId) redirect("/admin/isopedia/verify-images?error=missing-image");
 
-  const { error } = await supabase.rpc("reject_isopedia_species_image", {
-    image_id: imageId,
-  });
+  const { error } = await supabase
+    .from("isopedia_species_images")
+    .update({
+      status: "rejected",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", imageId)
+    .eq("status", "unverified");
 
   if (error) {
     redirect(`/admin/isopedia/verify-images?error=${encodeURIComponent(error.message || "reject-failed")}`);
@@ -97,7 +109,8 @@ export default async function AdminVerifyGalleryImagesPage({
 
   const params = await searchParams;
   const supabase = createSupabaseAdminClient();
-  const { data: images, error } = await supabase
+  const [{ data: rawImages, error }, { data: verifiedImages }] = await Promise.all([
+    supabase
     .from("isopedia_species_images")
     .select(
       `
@@ -118,15 +131,23 @@ export default async function AdminVerifyGalleryImagesPage({
       isopedia_species:species_id (
         id,
         common_name,
-        slug
+        slug,
+        image_url
       )
     `
     )
     .eq("status", "unverified")
     .order("created_at", { ascending: true })
-    .returns<GalleryImage[]>();
+    .returns<GalleryImage[]>(),
+    supabase
+      .from("isopedia_species_images")
+      .select("species_id, image_url")
+      .eq("status", "verified"),
+  ]);
 
   if (error) throw new Error(error.message);
+
+  const images = filterReviewableGalleryImages(rawImages, verifiedImages);
 
   return (
     <main className="min-h-screen bg-[#0c1710] px-4 py-10 text-slate-100">

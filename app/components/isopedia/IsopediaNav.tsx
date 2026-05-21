@@ -92,9 +92,7 @@ export default async function IsopediaNav({
         </div>
 
         <nav className="flex flex-wrap items-center justify-center gap-2">
-          {mainNavItems
-            .filter((item) => !(item.key === "review" && canAccessAdmin))
-            .map((item) => {
+          {mainNavItems.map((item) => {
             const isActive = active === item.key;
 
             return (

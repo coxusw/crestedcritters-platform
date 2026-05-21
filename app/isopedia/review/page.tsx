@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
+import { filterReviewableGalleryImages } from "@/lib/isopedia-gallery-review";
 
 type Profile = {
   id: string;
@@ -29,7 +30,7 @@ export default async function IsopediaReviewPage() {
     redirect("/account?error=profile-required");
   }
 
-  const [submissionsResult, editsResult, imagesResult] = await Promise.all([
+  const [submissionsResult, editsResult, imagesResult, verifiedImagesResult] = await Promise.all([
     supabase
       .from("isopedia_submissions")
       .select("id", { count: "exact", head: true })
@@ -42,13 +43,29 @@ export default async function IsopediaReviewPage() {
 
     supabase
       .from("isopedia_species_images")
-      .select("id", { count: "exact", head: true })
+      .select(
+        `
+        id,
+        species_id,
+        image_url,
+        isopedia_species:species_id (
+          image_url
+        )
+        `
+      )
       .eq("status", "unverified"),
+    supabase
+      .from("isopedia_species_images")
+      .select("species_id, image_url")
+      .eq("status", "verified"),
   ]);
 
   const submissionCount = submissionsResult.count || 0;
   const editCount = editsResult.count || 0;
-  const imageCount = imagesResult.count || 0;
+  const imageCount = filterReviewableGalleryImages(
+    imagesResult.data,
+    verifiedImagesResult.data
+  ).length;
   const totalCount = submissionCount + editCount + imageCount;
 
   return (
@@ -93,7 +110,7 @@ export default async function IsopediaReviewPage() {
             title="Verify Submissions"
             description="Review full new species entries submitted by contributors. Approved submissions become public Isopedia pages."
             count={submissionCount}
-            buttonText="Open submission queue →"
+            buttonText="Open submission queue ->"
           />
 
           <ReviewCard
@@ -102,7 +119,7 @@ export default async function IsopediaReviewPage() {
             title="Verify Suggested Edits"
             description="Review corrections, care updates, taxonomy changes, and image suggestions for existing species pages."
             count={editCount}
-            buttonText="Open edit queue →"
+            buttonText="Open edit queue ->"
           />
 
           <ReviewCard
@@ -111,7 +128,7 @@ export default async function IsopediaReviewPage() {
             title="Verify Gallery Images"
             description="Review uploaded species gallery images before they appear publicly on species pages."
             count={imageCount}
-            buttonText="Open image queue →"
+            buttonText="Open image queue ->"
           />
         </section>
       </div>

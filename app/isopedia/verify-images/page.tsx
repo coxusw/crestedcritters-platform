@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
+import { filterReviewableGalleryImages } from "@/lib/isopedia-gallery-review";
 
 type Profile = {
   id: string;
@@ -15,6 +17,7 @@ type Species = {
   id: number;
   common_name: string;
   slug: string;
+  image_url: string | null;
 };
 
 type GalleryImage = {
@@ -132,44 +135,55 @@ export default async function VerifyGalleryImagesPage({
   const isModerator = currentProfile.role === "moderator";
   const isStaff = isAdmin || isModerator;
 
-  const { data: images } = await supabase
-    .from("isopedia_species_images")
-    .select(
+  const [{ data: rawImages }, { data: verifiedImages }] = await Promise.all([
+    supabase
+      .from("isopedia_species_images")
+      .select(
+        `
+        id,
+        species_id,
+        image_url,
+        caption,
+        credit_user_id,
+        status,
+        created_at,
+        profiles:credit_user_id (
+          id,
+          username,
+          display_name,
+          business_name,
+          role
+        ),
+        isopedia_species:species_id (
+          id,
+          common_name,
+          slug,
+          image_url
+        )
       `
-      id,
-      species_id,
-      image_url,
-      caption,
-      credit_user_id,
-      status,
-      created_at,
-      profiles:credit_user_id (
-        id,
-        username,
-        display_name,
-        business_name,
-        role
-      ),
-      isopedia_species:species_id (
-        id,
-        common_name,
-        slug
       )
-    `
-    )
-    .eq("status", "unverified")
-    .order("created_at", { ascending: true })
-    .returns<GalleryImage[]>();
+      .eq("status", "unverified")
+      .order("created_at", { ascending: true })
+      .returns<GalleryImage[]>(),
+    supabase
+      .from("isopedia_species_images")
+      .select("species_id, image_url")
+      .eq("status", "verified"),
+  ]);
+
+  const images = filterReviewableGalleryImages(rawImages, verifiedImages);
 
   return (
     <main className="min-h-screen bg-[#0c1710] px-4 py-10 text-slate-100">
       <div className="mx-auto max-w-6xl">
+        <IsopediaNav active="review" />
+
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <Link
             href="/isopedia/review"
             className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
           >
-            ← Back to Review Queue
+            Back to Review Queue
           </Link>
 
           <Link
@@ -301,7 +315,7 @@ export default async function VerifyGalleryImagesPage({
                               href={`/isopedia/${image.isopedia_species.slug}`}
                               className="mt-3 inline-block text-sm font-semibold text-emerald-300 hover:text-emerald-200"
                             >
-                              View species page →
+                              View species page
                             </Link>
                           )}
                         </div>

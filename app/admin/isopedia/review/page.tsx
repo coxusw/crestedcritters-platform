@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
+import { filterReviewableGalleryImages } from "@/lib/isopedia-gallery-review";
 
 export default async function AdminIsopediaReviewPage() {
   await requireContentAgentAdmin();
 
   const supabase = createSupabaseAdminClient();
-  const [submissions, edits, images] = await Promise.all([
+  const [submissions, edits, images, verifiedImages] = await Promise.all([
     supabase
       .from("isopedia_submissions")
       .select("id", { count: "exact", head: true })
@@ -17,13 +18,26 @@ export default async function AdminIsopediaReviewPage() {
       .eq("status", "unverified"),
     supabase
       .from("isopedia_species_images")
-      .select("id", { count: "exact", head: true })
+      .select(
+        `
+        id,
+        species_id,
+        image_url,
+        isopedia_species:species_id (
+          image_url
+        )
+        `
+      )
       .eq("status", "unverified"),
+    supabase
+      .from("isopedia_species_images")
+      .select("species_id, image_url")
+      .eq("status", "verified"),
   ]);
 
   const submissionCount = submissions.count || 0;
   const editCount = edits.count || 0;
-  const imageCount = images.count || 0;
+  const imageCount = filterReviewableGalleryImages(images.data, verifiedImages.data).length;
 
   return (
     <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
