@@ -663,7 +663,7 @@ function CartPage({
                       <span className="block font-black text-[#e9ecef]">{option.serviceName}</span>
                       {option.surchargeCents > 0 && (
                         <span className="mt-1 block text-xs text-[#a8b0b8]">
-                          Includes {formatShopMoney(option.surchargeCents)} live packaging
+                          Includes {formatShopMoney(option.surchargeCents)} Live packaging fee.
                         </span>
                       )}
                     </span>

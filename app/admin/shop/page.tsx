@@ -304,7 +304,7 @@ async function ShippingTester({
               <p className="mt-1 text-slate-400">
                 {option.carrier}
                 {option.surchargeCents > 0
-                  ? ` - includes ${formatShopMoney(option.surchargeCents)} live packaging.`
+                  ? ` - includes ${formatShopMoney(option.surchargeCents)} Live packaging fee.`
                   : ""}
               </p>
             </div>
