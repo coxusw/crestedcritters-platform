@@ -20,6 +20,7 @@ type PageProps = {
     classification?: string;
     review?: string;
     q?: string;
+    tab?: string;
   }>;
 };
 
@@ -71,6 +72,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
   const classificationFilter = params?.classification || "all";
   const reviewFilter = params?.review || "all";
   const searchTerm = (params?.q || "").trim();
+  const activeTab = params?.tab === "add" ? "add" : "ledger";
 
   const supabase = createSupabaseAdminClient();
   const [transactionsResult, categoriesResult] = await Promise.all([
@@ -134,7 +136,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           </div>
         )}
 
-        <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+        <section className="grid gap-2 md:grid-cols-3 lg:grid-cols-5 2xl:grid-cols-9">
           <StatCard label="Square Ledger Balance" value={summary.squareBalance} money alert={summary.squareBalance < 0} />
           <StatCard label="Cash On Hand" value={summary.cashOnHand} money alert={summary.cashOnHand < 0} />
           <StatCard label="Income" value={summary.income} money />
@@ -145,6 +147,15 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           <StatCard label="Mileage Deduction" value={summary.mileageDeduction} money />
           <StatCard label="Needs Review" value={summary.needsReview} alert={summary.needsReview > 0} />
         </section>
+
+        <nav className="flex flex-wrap gap-2 rounded-lg border border-white/10 bg-white/[0.05] p-2">
+          <BookkeepingTab href="/admin/bookkeeping" active={activeTab === "ledger"}>
+            Ledger
+          </BookkeepingTab>
+          <BookkeepingTab href="/admin/bookkeeping?tab=add" active={activeTab === "add"}>
+            Add Transaction
+          </BookkeepingTab>
+        </nav>
 
         <section className="grid gap-4 xl:grid-cols-3">
           <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
@@ -210,103 +221,107 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
           </div>
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-lg border border-emerald-300/20 bg-emerald-400/[0.06] p-4">
-            <h2 className="font-bold">Record Cash Deposit</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              Use this when cash sales were already counted as income and you
-              are only depositing that cash into Square.
-            </p>
-            <form action={createCashDepositTransaction} className="mt-3 grid gap-3 sm:grid-cols-[9rem_1fr_8rem_auto]">
-              <input
-                type="date"
-                name="transaction_date"
-                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-              />
-              <input
-                name="description"
-                placeholder="Description"
-                defaultValue="Cash deposited into Square"
-                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-              />
-              <input
-                name="amount"
-                placeholder="Amount"
-                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-              />
-              <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
-                Record
-              </button>
-              <textarea
-                name="notes"
-                placeholder="Notes"
-                rows={2}
-                className="sm:col-span-4 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-              />
-            </form>
-          </div>
+        {activeTab === "add" && (
+          <section className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+            <div className="rounded-lg border border-emerald-300/20 bg-emerald-400/[0.06] p-4">
+              <h2 className="font-bold">Record Cash Deposit</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Use this when cash sales were already counted as income and you
+                are only depositing that cash into Square.
+              </p>
+              <form action={createCashDepositTransaction} className="mt-3 grid gap-3 sm:grid-cols-[8rem_1fr_7rem_auto]">
+                <input
+                  type="date"
+                  name="transaction_date"
+                  className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+                />
+                <input
+                  name="description"
+                  placeholder="Description"
+                  defaultValue="Cash deposited into Square"
+                  className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+                />
+                <input
+                  name="amount"
+                  placeholder="Amount"
+                  className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+                />
+                <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
+                  Record
+                </button>
+                <textarea
+                  name="notes"
+                  placeholder="Notes"
+                  rows={2}
+                  className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100 sm:col-span-4"
+                />
+              </form>
+            </div>
 
-          <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
-          <h2 className="font-bold">Add Manual Entry</h2>
-          <form action={createManualBookkeepingTransaction} className="mt-3 grid gap-3 lg:grid-cols-[9rem_8rem_12rem_12rem_1fr_8rem_10rem_6rem_7rem_auto]">
-              <input
-                type="date"
-                name="transaction_date"
-                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-              />
-              <SelectBox name="type" defaultValue="expense" options={["income", "expense", "equity", "tax", "mileage", "transfer"]} />
-              <SelectBox name="classification" defaultValue="business" options={CLASSIFICATION_OPTIONS} />
-              <input
-                name="category"
-                placeholder="Category"
-                list="bookkeeping-categories"
-                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-              />
-              <input
-                name="description"
-                placeholder="Description"
-                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-              />
-              <input
-                name="amount"
-                placeholder="Amount"
-                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-              />
-              <input
-                name="payment_method"
-                placeholder="cash/personal"
-                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-              />
-              <input
-                name="mileage"
-                placeholder="Miles"
-                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-              />
-              <input
-                name="mileage_deduction"
-                placeholder="Mileage $"
-                className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-              />
-              <label className="flex items-center gap-2 text-xs text-slate-300">
-                <input type="checkbox" name="reviewed" defaultChecked />
-                Reviewed
-              </label>
-              <textarea
-                name="notes"
-                placeholder="Notes"
-                rows={2}
-                className="lg:col-span-9 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-              />
-              <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
-                Add
-              </button>
-          </form>
-          </div>
-        </section>
+            <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
+              <h2 className="font-bold">Add Transaction</h2>
+              <form action={createManualBookkeepingTransaction} className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <input
+                  type="date"
+                  name="transaction_date"
+                  className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+                />
+                <SelectBox name="type" defaultValue="expense" options={["income", "expense", "equity", "tax", "mileage", "transfer"]} />
+                <SelectBox name="classification" defaultValue="business" options={CLASSIFICATION_OPTIONS} />
+                <input
+                  name="category"
+                  placeholder="Category"
+                  list="bookkeeping-categories"
+                  className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+                />
+                <input
+                  name="description"
+                  placeholder="Description"
+                  className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100 md:col-span-2"
+                />
+                <input
+                  name="amount"
+                  placeholder="Amount"
+                  className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+                />
+                <input
+                  name="payment_method"
+                  placeholder="cash/personal"
+                  className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+                />
+                <input
+                  name="mileage"
+                  placeholder="Miles"
+                  className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+                />
+                <input
+                  name="mileage_deduction"
+                  placeholder="Mileage $"
+                  className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+                />
+                <label className="flex items-center gap-2 rounded-md border border-white/10 bg-slate-950/50 px-2 py-2 text-xs text-slate-300">
+                  <input type="checkbox" name="reviewed" defaultChecked />
+                  Reviewed
+                </label>
+                <textarea
+                  name="notes"
+                  placeholder="Notes"
+                  rows={3}
+                  className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100 md:col-span-2 xl:col-span-3"
+                />
+                <button className="rounded-md bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">
+                  Add
+                </button>
+              </form>
+            </div>
+          </section>
+        )}
 
-        <section className="grid gap-4">
-          <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
-            <form action="/admin/bookkeeping" className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+        {activeTab === "ledger" && (
+          <>
+          <section className="grid gap-4">
+            <div className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
+              <form action="/admin/bookkeeping" className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto]">
               {typeFilter !== "all" && <input type="hidden" name="type" value={typeFilter} />}
               {classificationFilter !== "all" && <input type="hidden" name="classification" value={classificationFilter} />}
               {reviewFilter !== "all" && <input type="hidden" name="review" value={reviewFilter} />}
@@ -326,8 +341,8 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                   </Link>
                 )}
               </div>
-            </form>
-            <div className="flex flex-wrap gap-2">
+              </form>
+              <div className="flex flex-wrap gap-2">
               <FilterLink href="/admin/bookkeeping" active={typeFilter === "all" && classificationFilter === "all" && reviewFilter === "all"}>
                 All
               </FilterLink>
@@ -348,11 +363,11 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
               <FilterLink href="/admin/bookkeeping?review=needs" active={reviewFilter === "needs"}>
                 Needs Review
               </FilterLink>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="rounded-lg border border-white/10 bg-white/[0.05]">
+          <section className="rounded-lg border border-white/10 bg-white/[0.05]">
           <form id="bulk-bookkeeping-form" action={bulkUpdateBookkeepingTransactions}>
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 p-4">
               <div>
@@ -377,8 +392,8 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
             </div>
 
             <div className="overflow-x-auto">
-              <table className="min-w-[1360px] w-full text-left text-sm">
-                <thead className="border-b border-white/10 bg-slate-950/70 text-xs uppercase tracking-wide text-slate-400">
+              <table className="w-full min-w-[1120px] text-left text-xs">
+                <thead className="border-b border-white/10 bg-slate-950/70 text-[10px] uppercase tracking-wide text-slate-400">
                   <tr>
                     <th className="px-3 py-2">Delete</th>
                     <th className="px-3 py-2">Date</th>
@@ -424,7 +439,9 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
               </button>
             </div>
           </form>
-        </section>
+          </section>
+          </>
+        )}
       </div>
     </main>
   );
@@ -548,34 +565,34 @@ function TransactionRowEditor({
 
   return (
     <tr className={`border-b align-top ${transaction.reviewed ? "border-white/5" : "border-red-400/25 bg-red-500/10"}`}>
-      <td className="w-20 px-2 py-2">
-        <label className="flex items-center gap-2 text-xs text-red-100">
+      <td className="w-12 px-1.5 py-1.5">
+        <label className="flex items-center justify-center text-xs text-red-100">
           <input type="checkbox" name="delete_transaction_id" value={transaction.id} />
-          Delete
+          <span className="sr-only">Delete</span>
         </label>
       </td>
-      <td className="w-32 px-2 py-2">
+      <td className="w-28 px-1.5 py-1.5">
         <input type="hidden" name="transaction_id" value={transaction.id} />
         <input
           type="date"
           name={fieldName("transaction_date")}
           defaultValue={transaction.transaction_date || ""}
-          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
+          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-1.5 py-1 text-xs text-slate-100"
         />
         <div className="mt-1 text-xs text-slate-500">{transaction.imported_from || transaction.source}</div>
       </td>
-      <td className="w-24 px-2 py-2">
+      <td className="w-20 px-1.5 py-1.5">
         <SelectInput name={fieldName("type")} defaultValue={transaction.type} options={["income", "expense", "equity", "tax", "mileage", "transfer"]} />
       </td>
-      <td className="w-40 px-2 py-2">
+      <td className="w-32 px-1.5 py-1.5">
         <SelectInput name={fieldName("classification")} defaultValue={transaction.classification} options={CLASSIFICATION_OPTIONS} />
       </td>
-      <td className="w-44 px-2 py-2">
+      <td className="w-36 px-1.5 py-1.5">
         <input
           name={fieldName("category")}
           defaultValue={transaction.category || ""}
           list="bookkeeping-categories"
-          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
+          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-1.5 py-1 text-xs text-slate-100"
         />
         <datalist id="bookkeeping-categories">
           {categories.map((category) => (
@@ -583,11 +600,11 @@ function TransactionRowEditor({
           ))}
         </datalist>
       </td>
-      <td className="min-w-[18rem] px-2 py-2">
+      <td className="min-w-[14rem] px-1.5 py-1.5">
         <input
           name={fieldName("description")}
           defaultValue={transaction.description || ""}
-          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
+          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-1.5 py-1 text-xs text-slate-100"
         />
         {(transaction.customer_name || transaction.product_name) && (
           <div className="mt-1 text-xs text-slate-500">
@@ -595,43 +612,43 @@ function TransactionRowEditor({
           </div>
         )}
       </td>
-      <td className="w-24 px-2 py-2">
+      <td className="w-20 px-1.5 py-1.5">
         <input
           name={fieldName("amount")}
           defaultValue={Number(transaction.amount || 0).toFixed(2)}
-          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-right text-sm text-slate-100"
+          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-1.5 py-1 text-right text-xs text-slate-100"
         />
       </td>
-      <td className="w-32 px-2 py-2">
+      <td className="w-28 px-1.5 py-1.5">
         <input
           name={fieldName("payment_method")}
           defaultValue={transaction.payment_method || transaction.money_destination || ""}
-          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
+          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-1.5 py-1 text-xs text-slate-100"
         />
       </td>
-      <td className="w-40 px-2 py-2">
-        <div className="grid grid-cols-2 gap-2">
+      <td className="w-32 px-1.5 py-1.5">
+        <div className="grid grid-cols-2 gap-1">
           <input
             name={fieldName("mileage")}
             defaultValue={transaction.mileage ? Number(transaction.mileage).toFixed(2) : ""}
             placeholder="Miles"
-            className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-right text-sm text-slate-100"
+            className="w-full rounded-md border border-white/10 bg-slate-950/80 px-1.5 py-1 text-right text-xs text-slate-100"
           />
           <input
             name={fieldName("mileage_deduction")}
             defaultValue={transaction.mileage_deduction ? Number(transaction.mileage_deduction).toFixed(2) : ""}
             placeholder="$"
-            className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-right text-sm text-slate-100"
+            className="w-full rounded-md border border-white/10 bg-slate-950/80 px-1.5 py-1 text-right text-xs text-slate-100"
           />
         </div>
         <div className="mt-1 text-xs text-slate-500">miles / deduction</div>
       </td>
-      <td className="min-w-[16rem] px-2 py-2">
+      <td className="min-w-[12rem] px-1.5 py-1.5">
         <textarea
           name={fieldName("notes")}
           defaultValue={transaction.notes || ""}
-          rows={2}
-          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
+          rows={1}
+          className="w-full rounded-md border border-white/10 bg-slate-950/80 px-1.5 py-1 text-xs text-slate-100"
         />
         {(transaction.receipt_status || transaction.receipt_location) && (
           <div className="mt-1 text-xs text-slate-500">
@@ -639,8 +656,8 @@ function TransactionRowEditor({
           </div>
         )}
       </td>
-      <td className="w-24 px-2 py-2">
-        <label className="flex items-center gap-2">
+      <td className="w-20 px-1.5 py-1.5">
+        <label className="flex items-center gap-1">
           <input type="checkbox" name={fieldName("reviewed")} defaultChecked={transaction.reviewed} />
           <span className="text-xs">Reviewed</span>
         </label>
@@ -662,7 +679,7 @@ function SelectBox({
     <select
       name={name}
       defaultValue={defaultValue}
-      className="rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+      className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
     >
       {options.map((option) => (
         <option key={option} value={option}>
@@ -686,7 +703,7 @@ function SelectInput({
     <select
       name={name}
       defaultValue={defaultValue}
-      className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-sm text-slate-100"
+      className="w-full rounded-md border border-white/10 bg-slate-950/80 px-1.5 py-1 text-xs text-slate-100"
     >
       {options.map((option) => (
         <option key={option} value={option}>
@@ -720,6 +737,29 @@ function FilterLink({
   );
 }
 
+function BookkeepingTab({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`rounded-md px-4 py-2 text-sm font-black transition ${
+        active
+          ? "bg-emerald-400 text-slate-950"
+          : "border border-white/10 bg-slate-950/70 text-slate-200 hover:border-emerald-300/50"
+      }`}
+    >
+      {children}
+    </Link>
+  );
+}
+
 function StatCard({
   label,
   value,
@@ -732,8 +772,8 @@ function StatCard({
   alert?: boolean;
 }) {
   return (
-    <div className={`rounded-lg border p-4 ${alert ? "border-amber-400/40 bg-amber-400/10" : "border-white/10 bg-white/[0.05]"}`}>
-      <div className="text-2xl font-bold">{money ? formatMoney(value) : value}</div>
+    <div className={`rounded-lg border p-3 ${alert ? "border-amber-400/40 bg-amber-400/10" : "border-white/10 bg-white/[0.05]"}`}>
+      <div className="text-xl font-bold">{money ? formatMoney(value) : value}</div>
       <div className="mt-1 text-xs uppercase tracking-wide text-slate-400">{label}</div>
     </div>
   );

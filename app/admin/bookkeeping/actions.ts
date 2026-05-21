@@ -40,6 +40,17 @@ function redirectWithError(error: unknown): never {
   redirect(`/admin/bookkeeping?error=${encodeURIComponent(message.slice(0, 1400))}`);
 }
 
+function redirectAddTabWithNotice(message: string): never {
+  revalidatePath("/admin/bookkeeping");
+  redirect(`/admin/bookkeeping?tab=add&notice=${encodeURIComponent(message)}`);
+}
+
+function redirectAddTabWithError(error: unknown): never {
+  const message = error instanceof Error ? error.message : String(error);
+  revalidatePath("/admin/bookkeeping");
+  redirect(`/admin/bookkeeping?tab=add&error=${encodeURIComponent(message.slice(0, 1400))}`);
+}
+
 export async function createManualBookkeepingTransaction(formData: FormData) {
   await requireContentAgentAdmin();
 
@@ -71,10 +82,10 @@ export async function createManualBookkeepingTransaction(formData: FormData) {
 
     if (error) throw new Error(error.message);
   } catch (error) {
-    redirectWithError(error);
+    redirectAddTabWithError(error);
   }
 
-  redirectWithNotice("Added manual bookkeeping entry.");
+  redirectAddTabWithNotice("Added manual bookkeeping entry.");
 }
 
 export async function createCashDepositTransaction(formData: FormData) {
@@ -107,10 +118,10 @@ export async function createCashDepositTransaction(formData: FormData) {
 
     if (error) throw new Error(error.message);
   } catch (error) {
-    redirectWithError(error);
+    redirectAddTabWithError(error);
   }
 
-  redirectWithNotice("Recorded cash deposit as a transfer from cash on hand to Square.");
+  redirectAddTabWithNotice("Recorded cash deposit as a transfer from cash on hand to Square.");
 }
 
 export async function pullSquareBookkeepingTransactions() {
