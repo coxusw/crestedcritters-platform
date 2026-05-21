@@ -1,0 +1,56 @@
+{
+  "originZip": "46341",
+  "packageLengthIn": 8,
+  "packageWidthIn": 8,
+  "packageHeightIn": 7,
+  "packageWeightLb": 2,
+  "useRevAddress": true,
+  "blockedLiveStates": [
+    "AK",
+    "HI",
+    "FL",
+    "CA",
+    "OR"
+  ],
+  "fallbackRatesCents": {
+    "usps_1_day": [
+      0,
+      3295,
+      3495,
+      3895,
+      4495,
+      5295,
+      6095,
+      6995,
+      7895
+    ],
+    "usps_2_day": [
+      0,
+      965,
+      1010,
+      1115,
+      1275,
+      1425,
+      1595,
+      1745,
+      1895
+    ],
+    "usps_ground": [
+      0,
+      795,
+      840,
+      895,
+      965,
+      1075,
+      1195,
+      1295,
+      1395
+    ]
+  },
+  "seasonalSurchargesCents": {
+    "spring": 500,
+    "summer": 1000,
+    "october": 500,
+    "november": 1000
+  }
+}

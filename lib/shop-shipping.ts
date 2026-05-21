@@ -1,4 +1,5 @@
 import type { ShopProduct } from "@/lib/shop";
+import { DEFAULT_SHIPPING_SETTINGS, getShopShippingSettings } from "@/lib/shop-shipping-settings";
 
 export type ShippingOption = {
   serviceKey: string;
@@ -91,13 +92,16 @@ export function normalizeZip(value: string) {
 }
 
 export function blockedLiveStates() {
-  return (process.env.SHOP_LIVE_BLOCKED_STATES || "AK,HI,FL,CA,OR")
-    .split(",")
-    .map((state) => normalizeState(state))
-    .filter(Boolean);
+  return DEFAULT_SHIPPING_SETTINGS.blockedLiveStates;
 }
 
-export function getLiveShippingSeason(date = new Date()) {
+export async function getBlockedLiveStates() {
+  const settings = await getShopShippingSettings();
+  return settings.blockedLiveStates.map((state) => normalizeState(state)).filter(Boolean);
+}
+
+export async function getLiveShippingSeason(date = new Date()) {
+  const settings = await getShopShippingSettings();
   const { month, day } = centralMonthDay(date);
   const monthDay = month * 100 + day;
 
@@ -110,18 +114,18 @@ export function getLiveShippingSeason(date = new Date()) {
   }
 
   if (monthDay >= 325 && monthDay <= 630) {
-    return { blocked: false, surchargeCents: 500, message: "" };
+    return { blocked: false, surchargeCents: settings.seasonalSurchargesCents.spring, message: "" };
   }
 
   if (monthDay >= 701 && monthDay <= 930) {
-    return { blocked: false, surchargeCents: 1000, message: "" };
+    return { blocked: false, surchargeCents: settings.seasonalSurchargesCents.summer, message: "" };
   }
 
   if (monthDay >= 1001 && monthDay <= 1031) {
-    return { blocked: false, surchargeCents: 500, message: "" };
+    return { blocked: false, surchargeCents: settings.seasonalSurchargesCents.october, message: "" };
   }
 
-  return { blocked: false, surchargeCents: 1000, message: "" };
+  return { blocked: false, surchargeCents: settings.seasonalSurchargesCents.november, message: "" };
 }
 
 export async function getShippingOptions({
@@ -131,23 +135,25 @@ export async function getShippingOptions({
   destinationZip: string;
   hasLiveItems: boolean;
 }) {
+  const settings = await getShopShippingSettings();
   const zip = normalizeZip(destinationZip);
-  const originZip = process.env.SHOP_ORIGIN_ZIP || "46341";
   const packageInfo = {
-    weight: Number(process.env.SHOP_PACKAGE_WEIGHT_LB || 2),
-    length: Number(process.env.SHOP_PACKAGE_LENGTH_IN || 8),
-    width: Number(process.env.SHOP_PACKAGE_WIDTH_IN || 8),
-    height: Number(process.env.SHOP_PACKAGE_HEIGHT_IN || 7),
+    weight: settings.packageWeightLb,
+    length: settings.packageLengthIn,
+    width: settings.packageWidthIn,
+    height: settings.packageHeightIn,
   };
 
-  const liveSeason = hasLiveItems ? getLiveShippingSeason() : null;
+  const liveSeason = hasLiveItems ? await getLiveShippingSeason() : null;
   const surchargeCents = liveSeason?.surchargeCents || 0;
-  const rates = await fetchRevAddressRates({
-    originZip,
-    destinationZip: zip,
-    ...packageInfo,
-  });
-  const sourceRates = rates.length > 0 ? rates : fallbackRates(zip);
+  const rates = settings.useRevAddress
+    ? await fetchRevAddressRates({
+        originZip: settings.originZip,
+        destinationZip: zip,
+        ...packageInfo,
+      })
+    : [];
+  const sourceRates = rates.length > 0 ? rates : fallbackRates(zip, settings.fallbackRatesCents);
   const allowed = hasLiveItems
     ? sourceRates.filter((rate) => rate.serviceKey === "usps_1_day" || rate.serviceKey === "usps_2_day")
     : sourceRates.filter((rate) =>
@@ -260,11 +266,14 @@ function mapServiceKey(label: string, record: Record<string, unknown>) {
   return "";
 }
 
-function fallbackRates(destinationZip: string): ShippingOption[] {
+function fallbackRates(
+  destinationZip: string,
+  fallbackRatesCents = DEFAULT_SHIPPING_SETTINGS.fallbackRatesCents
+): ShippingOption[] {
   const zone = estimateZone(destinationZip);
-  const priorityTwoDay = [0, 965, 1010, 1115, 1275, 1425, 1595, 1745, 1895][zone] || 1595;
-  const ground = [0, 795, 840, 895, 965, 1075, 1195, 1295, 1395][zone] || 1195;
-  const express = [0, 3295, 3495, 3895, 4495, 5295, 6095, 6995, 7895][zone] || 6095;
+  const priorityTwoDay = fallbackRatesCents.usps_2_day[zone] || fallbackRatesCents.usps_2_day[5] || 1595;
+  const ground = fallbackRatesCents.usps_ground[zone] || fallbackRatesCents.usps_ground[5] || 1195;
+  const express = fallbackRatesCents.usps_1_day[zone] || fallbackRatesCents.usps_1_day[5] || 6095;
 
   return [
     fallbackOption("usps_ground", ground, 4),

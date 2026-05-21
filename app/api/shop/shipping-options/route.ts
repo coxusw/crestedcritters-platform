@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
-  blockedLiveStates,
+  getBlockedLiveStates,
   getLiveShippingSeason,
   getShippingOptions,
   hasLiveProducts,
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
   const hasLiveItems = hasLiveProducts(cartProducts);
 
   if (hasLiveItems) {
-    const season = getLiveShippingSeason();
+    const season = await getLiveShippingSeason();
 
     if (season.blocked) {
       return NextResponse.json({
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       });
     }
 
-    if (blockedLiveStates().includes(shippingState)) {
+    if ((await getBlockedLiveStates()).includes(shippingState)) {
       return NextResponse.json({
         hasLiveItems,
         blocked: true,

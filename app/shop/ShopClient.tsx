@@ -112,6 +112,7 @@ export default function ShopClient({
   const [email, setEmail] = useState("");
   const [shippingState, setShippingState] = useState("");
   const [shippingPostalCode, setShippingPostalCode] = useState("");
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [selectedShippingKey, setSelectedShippingKey] = useState("");
   const [shippingBusy, setShippingBusy] = useState(false);
@@ -211,6 +212,7 @@ export default function ShopClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customerEmail: email,
+          marketingOptIn,
           shippingState,
           shippingPostalCode,
           shippingServiceKey: selectedShippingKey,
@@ -295,6 +297,8 @@ export default function ShopClient({
         setShippingState={setShippingState}
         shippingPostalCode={shippingPostalCode}
         setShippingPostalCode={setShippingPostalCode}
+        marketingOptIn={marketingOptIn}
+        setMarketingOptIn={setMarketingOptIn}
         shippingBusy={shippingBusy}
         loadShippingOptions={loadShippingOptions}
         hasLiveItems={hasLiveItems}
@@ -449,6 +453,8 @@ function CartPage({
   setShippingState,
   shippingPostalCode,
   setShippingPostalCode,
+  marketingOptIn,
+  setMarketingOptIn,
   shippingBusy,
   loadShippingOptions,
   hasLiveItems,
@@ -474,6 +480,8 @@ function CartPage({
   setShippingState: (value: string) => void;
   shippingPostalCode: string;
   setShippingPostalCode: (value: string) => void;
+  marketingOptIn: boolean;
+  setMarketingOptIn: (value: boolean) => void;
   shippingBusy: boolean;
   loadShippingOptions: () => void;
   hasLiveItems: boolean;
@@ -697,6 +705,16 @@ function CartPage({
             placeholder="you@example.com"
             className="mt-2 w-full rounded-md border border-white/[0.12] bg-[#101214] px-3 py-3 text-white placeholder:text-white/35"
           />
+        </label>
+
+        <label className="mt-3 flex items-start gap-2 rounded-md border border-white/[0.08] bg-[#101214] p-3 text-sm font-bold text-[#a8b0b8]">
+          <input
+            type="checkbox"
+            checked={marketingOptIn}
+            onChange={(event) => setMarketingOptIn(event.target.checked)}
+            className="mt-1"
+          />
+          Email me future Crested Critters sales and updates.
         </label>
 
         {error && (

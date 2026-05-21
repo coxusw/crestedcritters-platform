@@ -4,17 +4,27 @@ import type { ReactNode } from "react";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { formatShopMoney, type ShopProduct } from "@/lib/shop";
+import { getShippingOptions } from "@/lib/shop-shipping";
+import { getShopShippingSettings, type ShopShippingSettings } from "@/lib/shop-shipping-settings";
 import {
   archiveShopProductAction,
   createShopProductAction,
+  updateShippingSettingsAction,
   updateShopProductAction,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminShopPage() {
+export default async function AdminShopPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ zip?: string; live?: string }>;
+}) {
   await requireAdmin();
+  const params = await searchParams;
   const products = await getProducts();
+  const shippingSettings = await getShopShippingSettings();
+  const { orders, subscribers } = await getShopAdminData();
   const categories = Array.from(new Set(products.map((product) => product.category))).sort();
   const activeCount = products.filter((product) => product.active).length;
   const soldOutCount = products.filter((product) => product.sold_out || product.inventory <= 0).length;
@@ -54,6 +64,16 @@ export default async function AdminShopPage() {
         <section className="rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-5">
           <h2 className="text-xl font-black text-emerald-50">Add Product</h2>
           <ProductForm action={createShopProductAction} categories={categories} submitLabel="Add Product" />
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+          <ShippingSettingsPanel settings={shippingSettings} />
+          <ShippingTester searchParams={params} />
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+          <OrdersPanel orders={orders} />
+          <SubscribersPanel subscribers={subscribers} />
         </section>
 
         <section className="space-y-3">
@@ -134,6 +154,27 @@ async function getProducts() {
   return (data || []) as ShopProduct[];
 }
 
+async function getShopAdminData() {
+  const supabase = createSupabaseAdminClient();
+  const [ordersResult, subscribersResult] = await Promise.all([
+    supabase
+      .from("shop_orders")
+      .select("id,customer_email,status,subtotal_cents,shipping_cents,total_cents,created_at,items,square_checkout_url")
+      .order("created_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("shop_email_subscribers")
+      .select("email,marketing_opt_in,source,last_order_at,updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(50),
+  ]);
+
+  return {
+    orders: ordersResult.data || [],
+    subscribers: subscribersResult.data || [],
+  };
+}
+
 function Stat({
   label,
   value,
@@ -154,6 +195,170 @@ function Stat({
         {label}
       </div>
     </div>
+  );
+}
+
+function ShippingSettingsPanel({ settings }: { settings: ShopShippingSettings }) {
+  return (
+    <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
+      <h2 className="text-xl font-black">Shipping Settings</h2>
+      <p className="mt-1 text-sm leading-6 text-slate-400">
+        Edit the temporary USPS/RevAddress setup, blocked live states, seasonal packaging costs, and fallback zone rates.
+      </p>
+      <form action={updateShippingSettingsAction} className="mt-4 grid gap-3">
+        <div className="grid gap-3 md:grid-cols-5">
+          <Field label="Ship ZIP">
+            <input name="originZip" defaultValue={settings.originZip} className={inputClass} />
+          </Field>
+          <Field label="Length">
+            <input name="packageLengthIn" type="number" step="0.1" defaultValue={settings.packageLengthIn} className={inputClass} />
+          </Field>
+          <Field label="Width">
+            <input name="packageWidthIn" type="number" step="0.1" defaultValue={settings.packageWidthIn} className={inputClass} />
+          </Field>
+          <Field label="Height">
+            <input name="packageHeightIn" type="number" step="0.1" defaultValue={settings.packageHeightIn} className={inputClass} />
+          </Field>
+          <Field label="Weight lb">
+            <input name="packageWeightLb" type="number" step="0.1" defaultValue={settings.packageWeightLb} className={inputClass} />
+          </Field>
+        </div>
+
+        <Field label="Blocked live states">
+          <input name="blockedLiveStates" defaultValue={settings.blockedLiveStates.join(",")} className={inputClass} />
+        </Field>
+
+        <div className="grid gap-3 md:grid-cols-4">
+          <Field label="Spring $">
+            <input name="springSurcharge" type="number" step="0.01" defaultValue={settings.seasonalSurchargesCents.spring / 100} className={inputClass} />
+          </Field>
+          <Field label="Summer $">
+            <input name="summerSurcharge" type="number" step="0.01" defaultValue={settings.seasonalSurchargesCents.summer / 100} className={inputClass} />
+          </Field>
+          <Field label="October $">
+            <input name="octoberSurcharge" type="number" step="0.01" defaultValue={settings.seasonalSurchargesCents.october / 100} className={inputClass} />
+          </Field>
+          <Field label="November $">
+            <input name="novemberSurcharge" type="number" step="0.01" defaultValue={settings.seasonalSurchargesCents.november / 100} className={inputClass} />
+          </Field>
+        </div>
+
+        <Field label="Fallback USPS 1 Day by zone 0-8">
+          <input name="oneDayRates" defaultValue={formatZoneRates(settings.fallbackRatesCents.usps_1_day)} className={inputClass} />
+        </Field>
+        <Field label="Fallback USPS 2 Day by zone 0-8">
+          <input name="twoDayRates" defaultValue={formatZoneRates(settings.fallbackRatesCents.usps_2_day)} className={inputClass} />
+        </Field>
+        <Field label="Fallback USPS Ground by zone 0-8">
+          <input name="groundRates" defaultValue={formatZoneRates(settings.fallbackRatesCents.usps_ground)} className={inputClass} />
+        </Field>
+
+        <Check name="useRevAddress" label="Use RevAddress first" defaultChecked={settings.useRevAddress} />
+
+        <button className="w-fit rounded-md bg-emerald-300 px-5 py-3 font-black text-slate-950 hover:bg-emerald-200">
+          Save Shipping Settings
+        </button>
+      </form>
+    </section>
+  );
+}
+
+async function ShippingTester({
+  searchParams,
+}: {
+  searchParams?: { state?: string; zip?: string; live?: string };
+}) {
+  const zip = searchParams?.zip || "";
+  const live = searchParams?.live === "on";
+  const options = zip.length === 5 ? await getShippingOptions({ destinationZip: zip, hasLiveItems: live }) : [];
+
+  return (
+    <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
+      <h2 className="text-xl font-black">Shipping Tester</h2>
+      <form className="mt-4 grid gap-3">
+        <Field label="ZIP code">
+          <input name="zip" defaultValue={zip} className={inputClass} />
+        </Field>
+        <Check name="live" label="Live cart" defaultChecked={live} />
+        <button className="w-fit rounded-md border border-white/10 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-white/10">
+          Test Rates
+        </button>
+      </form>
+      <div className="mt-4 grid gap-2">
+        {options.length === 0 ? (
+          <p className="text-sm text-slate-400">Enter a ZIP to preview rates.</p>
+        ) : (
+          options.map((option) => (
+            <div key={option.serviceKey} className="rounded-md bg-black/20 p-3 text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="font-black">{option.serviceName}</span>
+                <span className="font-black text-emerald-200">{formatShopMoney(option.totalCents)}</span>
+              </div>
+              {option.surchargeCents > 0 && (
+                <p className="mt-1 text-slate-400">Includes {formatShopMoney(option.surchargeCents)} live packaging.</p>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
+type ShopOrderAdminRow = {
+  id: string;
+  customer_email: string | null;
+  status: string;
+  total_cents: number | null;
+  created_at: string;
+};
+
+type ShopSubscriberAdminRow = {
+  email: string;
+  marketing_opt_in: boolean | null;
+};
+
+function OrdersPanel({ orders }: { orders: ShopOrderAdminRow[] }) {
+  return (
+    <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
+      <h2 className="text-xl font-black">Recent Orders</h2>
+      <div className="mt-4 grid gap-2">
+        {orders.map((order) => (
+          <div key={order.id} className="rounded-md bg-black/20 p-3 text-sm">
+            <div className="flex flex-wrap justify-between gap-2">
+              <span className="font-black">{order.customer_email || "No email"}</span>
+              <span className="rounded-md border border-white/10 px-2 py-1 text-xs font-black uppercase">{order.status}</span>
+            </div>
+            <p className="mt-1 text-slate-400">{new Date(order.created_at).toLocaleString()}</p>
+            <p className="mt-2 font-black text-emerald-100">
+              {formatShopMoney(Number(order.total_cents || 0))}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SubscribersPanel({ subscribers }: { subscribers: ShopSubscriberAdminRow[] }) {
+  return (
+    <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
+      <h2 className="text-xl font-black">Email List</h2>
+      <div className="mt-4 grid gap-2">
+        {subscribers.length === 0 ? (
+          <p className="text-sm text-slate-400">No emails collected yet.</p>
+        ) : (
+          subscribers.map((subscriber) => (
+            <div key={subscriber.email} className="rounded-md bg-black/20 p-3 text-sm">
+              <div className="font-black">{subscriber.email}</div>
+              <div className="mt-1 text-slate-400">
+                {subscriber.marketing_opt_in ? "Marketing opt-in" : "Order contact only"}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -293,6 +498,10 @@ function Check({
       {label}
     </label>
   );
+}
+
+function formatZoneRates(values: number[]) {
+  return values.map((value) => (value / 100).toFixed(2)).join(",");
 }
 
 function StatusPill({ product }: { product: ShopProduct }) {

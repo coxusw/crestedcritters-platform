@@ -8,7 +8,7 @@ import {
   type ShopOrderItem,
 } from "@/lib/shop";
 import {
-  blockedLiveStates,
+  getBlockedLiveStates,
   getLiveShippingSeason,
   getShippingOptions,
   hasLiveProducts,
@@ -19,6 +19,7 @@ import { cleanCartItems, fetchCartProducts, matchCartProducts } from "@/lib/shop
 
 type CheckoutRequest = {
   customerEmail?: string;
+  marketingOptIn?: boolean;
   items?: ShopCartItem[];
   shippingState?: string;
   shippingPostalCode?: string;
@@ -121,13 +122,13 @@ export async function POST(request: Request) {
   const hasLiveItems = hasLiveProducts(matchedProducts.map((match) => match.product!).filter(Boolean));
 
   if (hasLiveItems) {
-    const season = getLiveShippingSeason();
+    const season = await getLiveShippingSeason();
 
     if (season.blocked) {
       return NextResponse.json({ error: season.message }, { status: 400 });
     }
 
-    if (blockedLiveStates().includes(shippingState)) {
+    if ((await getBlockedLiveStates()).includes(shippingState)) {
       return NextResponse.json(
         {
           error: `Crested Critters cannot live ship to ${shippingState} at this time due to permitting restrictions.`,
@@ -179,6 +180,20 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: orderError?.message || "Could not create order." },
       { status: 500 }
+    );
+  }
+
+  const customerEmail = normalizeEmail(body.customerEmail);
+  if (customerEmail) {
+    await supabase.from("shop_email_subscribers").upsert(
+      {
+        email: customerEmail,
+        marketing_opt_in: Boolean(body.marketingOptIn),
+        source: Boolean(body.marketingOptIn) ? "checkout_opt_in" : "checkout_order",
+        last_order_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "email" }
     );
   }
 
