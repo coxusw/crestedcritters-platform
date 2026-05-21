@@ -3,7 +3,14 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { formatShopMoney, type ShopProduct } from "@/lib/shop";
+import {
+  formatOrderItemName,
+  formatProductPrice,
+  formatShopMoney,
+  normalizeProductOptions,
+  type ShopOrderItem,
+  type ShopProduct,
+} from "@/lib/shop";
 import { getShippingOptions } from "@/lib/shop-shipping";
 import { getShopShippingSettings, type ShopShippingSettings } from "@/lib/shop-shipping-settings";
 import {
@@ -96,7 +103,7 @@ export default async function AdminShopPage({
                     </p>
                     <h3 className="mt-1 text-xl font-black">{product.name}</h3>
                     <p className="mt-1 text-sm text-slate-400">
-                      {formatShopMoney(product.price_cents)} - {product.inventory} in stock
+                      {formatProductPrice(product)} - {product.inventory} in stock
                     </p>
                   </div>
                   <StatusPill product={product} />
@@ -321,6 +328,7 @@ type ShopOrderAdminRow = {
   status: string;
   total_cents: number | null;
   created_at: string;
+  items?: ShopOrderItem[] | null;
 };
 
 type ShopSubscriberAdminRow = {
@@ -343,6 +351,16 @@ function OrdersPanel({ orders }: { orders: ShopOrderAdminRow[] }) {
             <p className="mt-2 font-black text-emerald-100">
               {formatShopMoney(Number(order.total_cents || 0))}
             </p>
+            {Array.isArray(order.items) && order.items.length > 0 && (
+              <div className="mt-2 space-y-1 border-t border-white/10 pt-2 text-xs text-slate-300">
+                {order.items.map((item, index) => (
+                  <div key={`${order.id}-${index}`} className="flex justify-between gap-2">
+                    <span>{formatOrderItemName(item)}</span>
+                    <span className="font-bold">x{item.quantity}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -462,6 +480,30 @@ function ProductForm({
         </Field>
       </div>
 
+      <div className="grid gap-3 md:grid-cols-[180px_1fr]">
+        <Field label="Option Name">
+          <input
+            name="option_name"
+            defaultValue={product?.option_name || ""}
+            placeholder="Example: Size"
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Options / Variants">
+          <textarea
+            name="options"
+            rows={4}
+            defaultValue={formatProductOptionsInput(product)}
+            placeholder={"Small\nMedium\nLarge\n6 inch | 40\n8 inch | 55 | 10"}
+            className={`${inputClass} min-h-28`}
+          />
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            One option per line. Use <span className="font-black text-slate-300">Label | Price | Inventory</span>.
+            Leave price blank when the option uses the product price.
+          </p>
+        </Field>
+      </div>
+
       <Field label="Description">
         <textarea
           name="description"
@@ -512,6 +554,18 @@ function Check({
 
 function formatZoneRates(values: number[]) {
   return values.map((value) => (value / 100).toFixed(2)).join(",");
+}
+
+function formatProductOptionsInput(product?: ShopProduct) {
+  if (!product) return "";
+
+  return normalizeProductOptions(product)
+    .map((option) => {
+      const price = typeof option.price_cents === "number" ? (option.price_cents / 100).toFixed(2) : "";
+      const inventory = typeof option.inventory === "number" ? String(option.inventory) : "";
+      return [option.label, price, inventory].join(" | ").replace(/( \| )+$/g, "");
+    })
+    .join("\n");
 }
 
 function StatusPill({ product }: { product: ShopProduct }) {

@@ -2,6 +2,11 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
+  formatOrderItemName,
+  getProductOption,
+  normalizeProductOptions,
+  productAvailableQuantity,
+  productUnitPrice,
   shopBaseUrl,
   squareApiBase,
   type ShopCartItem,
@@ -90,16 +95,28 @@ export async function POST(request: Request) {
       );
     }
 
-    if (product.sold_out || product.inventory <= 0) {
+    const productOptions = normalizeProductOptions(product);
+    const selectedOption = productOptions.length > 0 ? getProductOption(product, item.optionId) : null;
+
+    if (productOptions.length > 0 && !selectedOption) {
+      return NextResponse.json(
+        { error: `Choose a ${product.option_name || "size"} for ${product.name}.` },
+        { status: 400 }
+      );
+    }
+
+    const availableQuantity = productAvailableQuantity(product, selectedOption);
+
+    if (product.sold_out || availableQuantity <= 0) {
       return NextResponse.json(
         { error: `${product.name} is sold out.` },
         { status: 400 }
       );
     }
 
-    if (item.quantity > product.inventory) {
+    if (item.quantity > availableQuantity) {
       return NextResponse.json(
-        { error: `${product.name} only has ${product.inventory} available.` },
+        { error: `${formatOrderItemName({ name: product.name, optionName: product.option_name, optionLabel: selectedOption?.label })} only has ${availableQuantity} available.` },
         { status: 400 }
       );
     }
@@ -108,8 +125,11 @@ export async function POST(request: Request) {
       productId: product.id,
       slug: product.slug,
       name: product.name,
+      optionName: selectedOption ? product.option_name || "Option" : null,
+      optionId: selectedOption?.id || null,
+      optionLabel: selectedOption?.label || null,
       quantity: item.quantity,
-      priceCents: product.price_cents,
+      priceCents: productUnitPrice(product, selectedOption),
       shippingCents: product.shipping_cents,
       imageUrl: product.image_url,
     });
@@ -199,7 +219,7 @@ export async function POST(request: Request) {
   }
 
   const lineItems = orderItems.map((item) => ({
-    name: item.name,
+    name: formatOrderItemName(item),
     quantity: String(item.quantity),
     item_type: "ITEM",
     base_price_money: {

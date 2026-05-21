@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
+import { normalizeProductOptions } from "@/lib/shop";
 
 function verifySquareSignature(rawBody: string, signature: string | null) {
   const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
@@ -23,6 +24,7 @@ function verifySquareSignature(rawBody: string, signature: string | null) {
 
 type ShopWebhookItem = {
   productId?: string;
+  optionId?: string | null;
   quantity?: number;
 };
 
@@ -112,20 +114,34 @@ async function markShopOrderPaid(squareOrderId: string, squarePaymentId: string)
 
     const { data: product, error: productError } = await supabase
       .from("shop_products")
-      .select("inventory")
+      .select("*")
       .eq("id", item.productId)
       .maybeSingle();
 
     if (productError || !product) continue;
 
     const nextInventory = Math.max(0, Number(product.inventory || 0) - quantity);
+    const productOptions = normalizeProductOptions(product);
+    const shouldUpdateOptions = Object.prototype.hasOwnProperty.call(product, "options");
+    const nextOptions =
+      item.optionId && productOptions.some((option) => option.id === item.optionId && typeof option.inventory === "number")
+        ? productOptions.map((option) =>
+            option.id === item.optionId && typeof option.inventory === "number"
+              ? { ...option, inventory: Math.max(0, option.inventory - quantity) }
+              : option
+          )
+        : product.options;
+    const updatePayload: Record<string, unknown> = {
+      inventory: nextInventory,
+      sold_out: nextInventory <= 0,
+      updated_at: now,
+    };
+
+    if (shouldUpdateOptions) updatePayload.options = nextOptions;
+
     await supabase
       .from("shop_products")
-      .update({
-        inventory: nextInventory,
-        sold_out: nextInventory <= 0,
-        updated_at: now,
-      })
+      .update(updatePayload)
       .eq("id", item.productId);
   }
 }

@@ -5,6 +5,8 @@ export type CleanCartItem = {
   productId: string;
   slug: string;
   name: string;
+  optionId: string;
+  optionLabel: string;
   quantity: number;
 };
 
@@ -13,11 +15,20 @@ export function cleanCartItems(items: unknown) {
 
   return items
     .map((item) => {
-      const candidate = item as { productId?: unknown; slug?: unknown; name?: unknown; quantity?: unknown };
+      const candidate = item as {
+        productId?: unknown;
+        slug?: unknown;
+        name?: unknown;
+        optionId?: unknown;
+        optionLabel?: unknown;
+        quantity?: unknown;
+      };
       return {
         productId: String(candidate.productId || ""),
         slug: String(candidate.slug || ""),
         name: String(candidate.name || ""),
+        optionId: String(candidate.optionId || ""),
+        optionLabel: String(candidate.optionLabel || ""),
         quantity: Math.max(1, Math.min(99, Math.floor(Number(candidate.quantity || 1)))),
       };
     })

@@ -125,10 +125,40 @@ function productPayload(formData: FormData) {
     inventory: Math.max(0, Math.floor(Number(formData.get("inventory") || 0))),
     shipping_mode: String(formData.get("shipping_mode") || "shipping"),
     shipping_cents: parseDollarToCents(formData.get("shipping")),
+    option_name: String(formData.get("option_name") || "").trim() || null,
+    options: parseProductOptions(formData.get("options")),
     sold_out: formData.get("sold_out") === "on",
     featured: formData.get("featured") === "on",
     active: formData.get("active") === "on",
   };
+}
+
+function parseProductOptions(value: FormDataEntryValue | null) {
+  const seen = new Map<string, number>();
+
+  return String(value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [rawLabel, rawPrice, rawInventory] = line.split("|").map((part) => part.trim());
+      const label = rawLabel || "";
+      const baseId = slugifyProductName(label);
+      const count = seen.get(baseId) || 0;
+      seen.set(baseId, count + 1);
+      const id = count > 0 ? `${baseId}-${count + 1}` : baseId;
+      const priceText = rawPrice || "";
+      const inventoryText = rawInventory || "";
+
+      return {
+        id,
+        label,
+        price_cents: priceText ? parseDollarToCents(priceText) : null,
+        inventory: inventoryText ? Math.max(0, Math.floor(Number(inventoryText))) : null,
+        active: true,
+      };
+    })
+    .filter((option) => option.id && option.label);
 }
 
 function parseZoneRateList(value: FormDataEntryValue | null, fallback: number[]) {

@@ -1,14 +1,33 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ShopProduct } from "@/lib/shop";
-import { formatShopMoney } from "@/lib/shop";
+import type { ShopProduct, ShopProductOption } from "@/lib/shop";
+import {
+  formatOrderItemName,
+  formatProductPrice,
+  formatShopMoney,
+  getProductOption,
+  normalizeProductOptions,
+  productAvailableQuantity,
+  productUnitPrice,
+} from "@/lib/shop";
 
 type CartLine = {
   productId: string;
   slug?: string;
   name?: string;
+  optionId?: string;
+  optionLabel?: string;
   quantity: number;
+};
+
+type CartProductLine = {
+  product: ShopProduct;
+  option: ShopProductOption | null;
+  quantity: number;
+  unitPriceCents: number;
+  availableQuantity: number;
+  lineKey: string;
 };
 
 type CheckoutPayload = {
@@ -97,6 +116,10 @@ function isLiveProduct(product: Pick<ShopProduct, "category">) {
   return category.includes("isopod") || category.includes("springtail") || category.includes("spring tail");
 }
 
+function cartLineKey(productId: string, optionId?: string) {
+  return `${productId}:${optionId || ""}`;
+}
+
 export default function ShopClient({
   products,
   view = "shop",
@@ -146,15 +169,28 @@ export default function ShopClient({
           (item) => item.id === line.productId || (line.slug && item.slug === line.slug)
         );
         if (!product) return null;
-        const quantity = Math.min(line.quantity, Math.max(0, product.inventory));
-        return { product, quantity };
+        const productOptions = normalizeProductOptions(product);
+        const option = productOptions.length > 0 ? getProductOption(product, line.optionId) : null;
+        const availableQuantity = productOptions.length > 0 && !option
+          ? 0
+          : productAvailableQuantity(product, option);
+        const quantity = Math.min(line.quantity, Math.max(0, availableQuantity));
+
+        return {
+          product,
+          option,
+          quantity,
+          unitPriceCents: productUnitPrice(product, option),
+          availableQuantity,
+          lineKey: cartLineKey(product.id, option?.id || line.optionId),
+        };
       })
-      .filter((line): line is { product: ShopProduct; quantity: number } => Boolean(line && line.quantity > 0));
+      .filter((line): line is CartProductLine => Boolean(line && line.quantity > 0));
   }, [cart, products]);
 
   const itemCount = cartProducts.reduce((total, line) => total + line.quantity, 0);
   const subtotalCents = cartProducts.reduce(
-    (total, line) => total + line.product.price_cents * line.quantity,
+    (total, line) => total + line.unitPriceCents * line.quantity,
     0
   );
   const hasLiveItems = cartProducts.some((line) => isLiveProduct(line.product));
@@ -169,35 +205,48 @@ export default function ShopClient({
     setLiveWarning("");
   }, [shippingState, shippingPostalCode, cartProducts.length]);
 
-  function addToCart(product: ShopProduct) {
+  function addToCart(product: ShopProduct, option?: ShopProductOption | null) {
     setError("");
     setCart((current) => {
-      const existing = current.find((line) => line.productId === product.id);
+      const key = cartLineKey(product.id, option?.id);
+      const availableQuantity = productAvailableQuantity(product, option);
+      const existing = current.find((line) => cartLineKey(line.productId, line.optionId) === key);
       if (existing) {
         return current.map((line) =>
-          line.productId === product.id
+          cartLineKey(line.productId, line.optionId) === key
             ? {
                 ...line,
                 slug: product.slug,
                 name: product.name,
-                quantity: Math.min(product.inventory, line.quantity + 1),
+                optionId: option?.id || "",
+                optionLabel: option?.label || "",
+                quantity: Math.min(availableQuantity, line.quantity + 1),
               }
             : line
         );
       }
       return [
         ...current,
-        { productId: product.id, slug: product.slug, name: product.name, quantity: 1 },
+        {
+          productId: product.id,
+          slug: product.slug,
+          name: product.name,
+          optionId: option?.id || "",
+          optionLabel: option?.label || "",
+          quantity: 1,
+        },
       ];
     });
   }
 
-  function updateQuantity(product: ShopProduct, quantity: number) {
+  function updateQuantity(lineKey: string, quantity: number, availableQuantity: number) {
     setCart((current) => {
-      if (quantity <= 0) return current.filter((line) => line.productId !== product.id);
+      if (quantity <= 0) {
+        return current.filter((line) => cartLineKey(line.productId, line.optionId) !== lineKey);
+      }
       return current.map((line) =>
-        line.productId === product.id
-          ? { ...line, quantity: Math.min(product.inventory, quantity) }
+        cartLineKey(line.productId, line.optionId) === lineKey
+          ? { ...line, quantity: Math.min(availableQuantity, quantity) }
           : line
       );
     });
@@ -222,6 +271,8 @@ export default function ShopClient({
             productId: line.product.id,
             slug: line.product.slug,
             name: line.product.name,
+            optionId: line.option?.id || "",
+            optionLabel: line.option?.label || "",
             quantity: line.quantity,
           })),
         }),
@@ -371,8 +422,16 @@ function ProductCard({
   addToCart,
 }: {
   product: ShopProduct;
-  addToCart: (product: ShopProduct) => void;
+  addToCart: (product: ShopProduct, option?: ShopProductOption | null) => void;
 }) {
+  const productOptions = normalizeProductOptions(product);
+  const [selectedOptionId, setSelectedOptionId] = useState("");
+  const selectedOption = productOptions.find((option) => option.id === selectedOptionId) || null;
+  const requiresOption = productOptions.length > 0;
+  const availableQuantity = productAvailableQuantity(product, selectedOption);
+  const unavailable = isUnavailable(product) || (requiresOption && selectedOption ? availableQuantity <= 0 : false);
+  const canAdd = !unavailable && (!requiresOption || Boolean(selectedOption));
+
   return (
     <article className="flex min-h-[430px] flex-col overflow-hidden rounded-lg border border-white/[0.08] bg-[#141618] shadow-[0_10px_40px_rgba(0,0,0,0.35)] transition hover:-translate-y-1 hover:border-[#d6c06f]/30">
       <div className="relative aspect-[4/3] bg-[#101214]">
@@ -409,7 +468,7 @@ function ProductCard({
             <p className="text-sm text-[#a8b0b8]">{product.category}</p>
             <h2 className="mt-1 text-lg font-black leading-tight text-[#e9ecef]">{product.name}</h2>
           </div>
-          <div className="text-lg font-black text-[#d6c06f]">{formatShopMoney(product.price_cents)}</div>
+          <div className="text-lg font-black text-[#d6c06f]">{formatProductPrice(product)}</div>
         </div>
 
         <p className="mt-3 flex-1 text-sm leading-6 text-[#a8b0b8]">
@@ -417,6 +476,31 @@ function ProductCard({
         </p>
 
         <div className="mt-4 space-y-3">
+          {productOptions.length > 0 && (
+            <label className="block text-sm font-bold text-[#a8b0b8]">
+              {product.option_name || "Option"}
+              <select
+                value={selectedOptionId}
+                onChange={(event) => setSelectedOptionId(event.target.value)}
+                className="mt-1 w-full rounded-md border border-white/[0.12] bg-[#101214] px-3 py-2 text-[#e9ecef] [color-scheme:dark]"
+              >
+                <option value="" className="bg-[#101214] text-[#e9ecef]">
+                  Choose {product.option_name?.toLowerCase() || "option"}
+                </option>
+                {productOptions.map((option) => {
+                  const optionPrice = productUnitPrice(product, option);
+                  const optionInventory = productAvailableQuantity(product, option);
+                  return (
+                    <option key={option.id} value={option.id} className="bg-[#101214] text-[#e9ecef]">
+                      {option.label}
+                      {optionPrice !== product.price_cents ? ` - ${formatShopMoney(optionPrice)}` : ""}
+                      {optionInventory <= 0 ? " - Sold out" : ""}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+          )}
           <p className="text-xs font-bold uppercase tracking-wide text-[#a8b0b8]">
             {product.shipping_mode === "contact"
               ? "Contact us for shipping"
@@ -426,11 +510,11 @@ function ProductCard({
           </p>
           <button
             type="button"
-            onClick={() => addToCart(product)}
-            disabled={isUnavailable(product)}
+            onClick={() => addToCart(product, selectedOption)}
+            disabled={!canAdd}
             className="inline-flex w-full items-center justify-center rounded-md bg-[#7fb069] px-4 py-3 text-sm font-black text-[#0b0d0b] transition hover:bg-[#92c37d] disabled:cursor-not-allowed disabled:border disabled:border-white/[0.08] disabled:bg-transparent disabled:text-[#a8b0b8]"
           >
-            {isUnavailable(product) ? "Sold Out" : "Add to Cart"}
+            {unavailable ? "Sold Out" : requiresOption && !selectedOption ? `Choose ${product.option_name || "Option"}` : "Add to Cart"}
           </button>
         </div>
       </div>
@@ -466,7 +550,7 @@ function CartPage({
   clearCart,
   checkout,
 }: {
-  cartProducts: Array<{ product: ShopProduct; quantity: number }>;
+  cartProducts: CartProductLine[];
   email: string;
   setEmail: (value: string) => void;
   busy: boolean;
@@ -489,7 +573,7 @@ function CartPage({
   liveWarning: string;
   reviewedLiveShipping: boolean;
   setReviewedLiveShipping: (value: boolean) => void;
-  updateQuantity: (product: ShopProduct, quantity: number) => void;
+  updateQuantity: (lineKey: string, quantity: number, availableQuantity: number) => void;
   clearCart: () => void;
   checkout: () => void;
 }) {
@@ -528,9 +612,9 @@ function CartPage({
               Your cart is empty.
             </p>
           ) : (
-            cartProducts.map(({ product, quantity }) => (
+            cartProducts.map(({ product, option, quantity, unitPriceCents, availableQuantity, lineKey }) => (
               <div
-                key={product.id}
+                key={lineKey}
                 className="grid gap-4 rounded-md border border-white/[0.08] bg-[#101214] p-4 md:grid-cols-[88px_1fr_auto]"
               >
                 <div className="h-20 w-20 overflow-hidden rounded-md bg-black/30">
@@ -541,14 +625,20 @@ function CartPage({
                 </div>
                 <div>
                   <p className="text-sm text-[#a8b0b8]">{product.category}</p>
-                  <h3 className="mt-1 font-black text-[#e9ecef]">{product.name}</h3>
+                  <h3 className="mt-1 font-black text-[#e9ecef]">
+                    {formatOrderItemName({
+                      name: product.name,
+                      optionName: option ? product.option_name || "Option" : null,
+                      optionLabel: option?.label || null,
+                    })}
+                  </h3>
                   <p className="mt-1 text-sm text-[#a8b0b8]">
-                    {formatShopMoney(product.price_cents)} each
+                    {formatShopMoney(unitPriceCents)} each
                   </p>
                   <div className="mt-3 flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => updateQuantity(product, quantity - 1)}
+                      onClick={() => updateQuantity(lineKey, quantity - 1, availableQuantity)}
                       className="h-9 w-9 rounded-md border border-white/[0.12] font-black hover:bg-white/10"
                     >
                       -
@@ -556,19 +646,19 @@ function CartPage({
                     <input
                       aria-label={`${product.name} quantity`}
                       value={quantity}
-                      onChange={(event) => updateQuantity(product, Number(event.target.value))}
+                      onChange={(event) => updateQuantity(lineKey, Number(event.target.value), availableQuantity)}
                       className="h-9 w-16 rounded-md border border-white/[0.12] bg-black/20 text-center font-black text-white"
                     />
                     <button
                       type="button"
-                      onClick={() => updateQuantity(product, quantity + 1)}
+                      onClick={() => updateQuantity(lineKey, quantity + 1, availableQuantity)}
                       className="h-9 w-9 rounded-md border border-white/[0.12] font-black hover:bg-white/10"
                     >
                       +
                     </button>
                     <button
                       type="button"
-                      onClick={() => updateQuantity(product, 0)}
+                      onClick={() => updateQuantity(lineKey, 0, availableQuantity)}
                       className="rounded-md px-2 py-2 text-xs font-bold text-[#a8b0b8] hover:bg-white/10 hover:text-white"
                     >
                       Remove
@@ -576,7 +666,7 @@ function CartPage({
                   </div>
                 </div>
                 <div className="text-right text-lg font-black text-[#d6c06f]">
-                  {formatShopMoney(product.price_cents * quantity)}
+                  {formatShopMoney(unitPriceCents * quantity)}
                 </div>
               </div>
             ))
