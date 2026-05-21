@@ -16,8 +16,84 @@ type CheckoutPayload = {
   error?: string;
 };
 
+type ShippingOption = {
+  serviceKey: string;
+  serviceName: string;
+  baseCents: number;
+  surchargeCents: number;
+  totalCents: number;
+  deliveryDays: number | null;
+};
+
+type ShippingOptionsPayload = {
+  options?: ShippingOption[];
+  blocked?: boolean;
+  blockedReason?: string;
+  liveWarning?: string;
+  hasLiveItems?: boolean;
+  error?: string;
+};
+
+const US_STATES = [
+  "AL",
+  "AK",
+  "AZ",
+  "AR",
+  "CA",
+  "CO",
+  "CT",
+  "DE",
+  "FL",
+  "GA",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "WA",
+  "WV",
+  "WI",
+  "WY",
+];
+
 function isUnavailable(product: ShopProduct) {
   return product.sold_out || product.inventory <= 0;
+}
+
+function isLiveProduct(product: Pick<ShopProduct, "category">) {
+  const category = product.category.toLowerCase();
+  return category.includes("isopod") || category.includes("springtail");
 }
 
 export default function ShopClient({
@@ -34,6 +110,13 @@ export default function ShopClient({
   const [category, setCategory] = useState("All");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [email, setEmail] = useState("");
+  const [shippingState, setShippingState] = useState("");
+  const [shippingPostalCode, setShippingPostalCode] = useState("");
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
+  const [selectedShippingKey, setSelectedShippingKey] = useState("");
+  const [shippingBusy, setShippingBusy] = useState(false);
+  const [liveWarning, setLiveWarning] = useState("");
+  const [reviewedLiveShipping, setReviewedLiveShipping] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -72,10 +155,17 @@ export default function ShopClient({
     (total, line) => total + line.product.price_cents * line.quantity,
     0
   );
-  const shippingCents = cartProducts.reduce(
-    (total, line) => total + line.product.shipping_cents * line.quantity,
-    0
+  const hasLiveItems = cartProducts.some((line) => isLiveProduct(line.product));
+  const selectedShipping = shippingOptions.find(
+    (option) => option.serviceKey === selectedShippingKey
   );
+  const shippingCents = selectedShipping?.totalCents || 0;
+
+  useEffect(() => {
+    setShippingOptions([]);
+    setSelectedShippingKey("");
+    setLiveWarning("");
+  }, [shippingState, shippingPostalCode, cartProducts.length]);
 
   function addToCart(product: ShopProduct) {
     setError("");
@@ -121,6 +211,10 @@ export default function ShopClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customerEmail: email,
+          shippingState,
+          shippingPostalCode,
+          shippingServiceKey: selectedShippingKey,
+          reviewedLiveShipping,
           items: cartProducts.map((line) => ({
             productId: line.product.id,
             slug: line.product.slug,
@@ -144,6 +238,45 @@ export default function ShopClient({
     }
   }
 
+  async function loadShippingOptions() {
+    setShippingBusy(true);
+    setError("");
+    setShippingOptions([]);
+    setSelectedShippingKey("");
+    setLiveWarning("");
+
+    try {
+      const response = await fetch("/api/shop/shipping-options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shippingState,
+          shippingPostalCode,
+          items: cartProducts.map((line) => ({
+            productId: line.product.id,
+            slug: line.product.slug,
+            name: line.product.name,
+            quantity: line.quantity,
+          })),
+        }),
+      });
+      const payload = (await response.json()) as ShippingOptionsPayload;
+
+      if (!response.ok || payload.blocked || payload.error) {
+        throw new Error(payload.blockedReason || payload.error || "Could not load shipping options.");
+      }
+
+      const options = payload.options || [];
+      setShippingOptions(options);
+      setLiveWarning(payload.liveWarning || "");
+      setSelectedShippingKey(options[0]?.serviceKey || "");
+    } catch (shippingError) {
+      setError(shippingError instanceof Error ? shippingError.message : "Could not load shipping options.");
+    } finally {
+      setShippingBusy(false);
+    }
+  }
+
   if (view === "cart") {
     return (
       <CartPage
@@ -154,6 +287,20 @@ export default function ShopClient({
         error={error}
         subtotalCents={subtotalCents}
         shippingCents={shippingCents}
+        selectedShipping={selectedShipping}
+        shippingOptions={shippingOptions}
+        selectedShippingKey={selectedShippingKey}
+        setSelectedShippingKey={setSelectedShippingKey}
+        shippingState={shippingState}
+        setShippingState={setShippingState}
+        shippingPostalCode={shippingPostalCode}
+        setShippingPostalCode={setShippingPostalCode}
+        shippingBusy={shippingBusy}
+        loadShippingOptions={loadShippingOptions}
+        hasLiveItems={hasLiveItems}
+        liveWarning={liveWarning}
+        reviewedLiveShipping={reviewedLiveShipping}
+        setReviewedLiveShipping={setReviewedLiveShipping}
         updateQuantity={updateQuantity}
         clearCart={() => setCart([])}
         checkout={checkout}
@@ -294,6 +441,20 @@ function CartPage({
   error,
   subtotalCents,
   shippingCents,
+  selectedShipping,
+  shippingOptions,
+  selectedShippingKey,
+  setSelectedShippingKey,
+  shippingState,
+  setShippingState,
+  shippingPostalCode,
+  setShippingPostalCode,
+  shippingBusy,
+  loadShippingOptions,
+  hasLiveItems,
+  liveWarning,
+  reviewedLiveShipping,
+  setReviewedLiveShipping,
   updateQuantity,
   clearCart,
   checkout,
@@ -305,6 +466,20 @@ function CartPage({
   error: string;
   subtotalCents: number;
   shippingCents: number;
+  selectedShipping?: ShippingOption;
+  shippingOptions: ShippingOption[];
+  selectedShippingKey: string;
+  setSelectedShippingKey: (value: string) => void;
+  shippingState: string;
+  setShippingState: (value: string) => void;
+  shippingPostalCode: string;
+  setShippingPostalCode: (value: string) => void;
+  shippingBusy: boolean;
+  loadShippingOptions: () => void;
+  hasLiveItems: boolean;
+  liveWarning: string;
+  reviewedLiveShipping: boolean;
+  setReviewedLiveShipping: (value: boolean) => void;
   updateQuantity: (product: ShopProduct, quantity: number) => void;
   clearCart: () => void;
   checkout: () => void;
@@ -402,6 +577,100 @@ function CartPage({
 
       <aside className="h-fit rounded-lg border border-white/[0.08] bg-[#141618] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.35)] lg:sticky lg:top-24">
         <h2 className="text-xl font-black">Order Summary</h2>
+        <div className="mt-4 rounded-md border border-white/[0.08] bg-[#101214] p-3">
+          <h3 className="font-black">Shipping</h3>
+          <div className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr] lg:grid-cols-1">
+            <label className="block text-sm font-bold text-[#a8b0b8]">
+              State
+              <select
+                value={shippingState}
+                onChange={(event) => setShippingState(event.target.value)}
+                className="mt-1 w-full rounded-md border border-white/[0.12] bg-black/20 px-3 py-2 text-white"
+              >
+                <option value="">Select</option>
+                {US_STATES.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm font-bold text-[#a8b0b8]">
+              ZIP code
+              <input
+                value={shippingPostalCode}
+                onChange={(event) => setShippingPostalCode(event.target.value.replace(/\D/g, "").slice(0, 5))}
+                inputMode="numeric"
+                placeholder="46341"
+                className="mt-1 w-full rounded-md border border-white/[0.12] bg-black/20 px-3 py-2 text-white placeholder:text-white/35"
+              />
+            </label>
+          </div>
+
+          <button
+            type="button"
+            onClick={loadShippingOptions}
+            disabled={shippingBusy || cartProducts.length === 0}
+            className="mt-3 w-full rounded-md border border-[#7fb069]/35 px-4 py-2 text-sm font-black text-[#e9ecef] hover:bg-[#7fb069]/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {shippingBusy ? "Loading USPS..." : "Load USPS Rates"}
+          </button>
+
+          {liveWarning && (
+            <div className="mt-3 rounded-md border border-[#d6c06f]/35 bg-[#d6c06f]/10 p-3 text-sm leading-6 text-[#f0e4ac]">
+              {liveWarning}
+              <label className="mt-3 flex items-start gap-2 font-bold text-[#e9ecef]">
+                <input
+                  type="checkbox"
+                  checked={reviewedLiveShipping}
+                  onChange={(event) => setReviewedLiveShipping(event.target.checked)}
+                  className="mt-1"
+                />
+                I reviewed Live Shipping FAQ.
+              </label>
+            </div>
+          )}
+
+          {shippingOptions.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {shippingOptions.map((option) => (
+                <label
+                  key={option.serviceKey}
+                  className={`flex cursor-pointer items-start justify-between gap-3 rounded-md border p-3 text-sm ${
+                    selectedShippingKey === option.serviceKey
+                      ? "border-[#7fb069]/50 bg-[#7fb069]/10"
+                      : "border-white/[0.08] bg-black/15"
+                  }`}
+                >
+                  <span className="flex gap-2">
+                    <input
+                      type="radio"
+                      name="shippingOption"
+                      checked={selectedShippingKey === option.serviceKey}
+                      onChange={() => setSelectedShippingKey(option.serviceKey)}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="block font-black text-[#e9ecef]">{option.serviceName}</span>
+                      {option.surchargeCents > 0 && (
+                        <span className="mt-1 block text-xs text-[#a8b0b8]">
+                          Includes {formatShopMoney(option.surchargeCents)} live packaging
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                  <span className="font-black text-[#d6c06f]">{formatShopMoney(option.totalCents)}</span>
+                </label>
+              ))}
+            </div>
+          )}
+
+          {hasLiveItems && !liveWarning && (
+            <p className="mt-3 text-xs leading-5 text-[#a8b0b8]">
+              Live items require USPS 1 Day or USPS 2 Day shipping.
+            </p>
+          )}
+        </div>
         <div className="mt-4 space-y-2 border-y border-white/[0.08] py-4 text-sm">
           <div className="flex justify-between">
             <span className="text-[#a8b0b8]">Subtotal</span>
@@ -410,7 +679,7 @@ function CartPage({
           <div className="flex justify-between gap-4">
             <span className="text-[#a8b0b8]">Shipping</span>
             <span className="text-right font-black">
-              {shippingCents > 0 ? formatShopMoney(shippingCents) : "Handled in order notes"}
+              {selectedShipping ? formatShopMoney(shippingCents) : "Select rate"}
             </span>
           </div>
           <div className="flex justify-between border-t border-white/[0.08] pt-3 text-lg">
@@ -439,7 +708,12 @@ function CartPage({
         <button
           type="button"
           onClick={checkout}
-          disabled={busy || cartProducts.length === 0}
+          disabled={
+            busy ||
+            cartProducts.length === 0 ||
+            !selectedShipping ||
+            (hasLiveItems && !reviewedLiveShipping)
+          }
           className="mt-4 w-full rounded-md bg-[#7fb069] px-5 py-3 font-black text-[#0b0d0b] transition hover:bg-[#92c37d] disabled:cursor-not-allowed disabled:border disabled:border-white/[0.08] disabled:bg-transparent disabled:text-[#a8b0b8]"
         >
           {busy ? "Opening Square..." : "Checkout with Square"}

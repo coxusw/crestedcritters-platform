@@ -6,12 +6,24 @@ import {
   squareApiBase,
   type ShopCartItem,
   type ShopOrderItem,
-  type ShopProduct,
 } from "@/lib/shop";
+import {
+  blockedLiveStates,
+  getLiveShippingSeason,
+  getShippingOptions,
+  hasLiveProducts,
+  normalizeState,
+  normalizeZip,
+} from "@/lib/shop-shipping";
+import { cleanCartItems, fetchCartProducts, matchCartProducts } from "@/lib/shop-server";
 
 type CheckoutRequest = {
   customerEmail?: string;
   items?: ShopCartItem[];
+  shippingState?: string;
+  shippingPostalCode?: string;
+  shippingServiceKey?: string;
+  reviewedLiveShipping?: boolean;
 };
 
 export async function POST(request: Request) {
@@ -33,18 +45,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON payload." }, { status: 400 });
   }
 
-  const requestedItems = Array.isArray(body.items) ? body.items : [];
-  const cleanItems = requestedItems
-    .map((item) => ({
-      productId: String(item.productId || ""),
-      slug: String(item.slug || ""),
-      name: String(item.name || ""),
-      quantity: Math.max(1, Math.min(99, Math.floor(Number(item.quantity || 1)))),
-    }))
-    .filter((item) => item.productId || item.slug);
+  const cleanItems = cleanCartItems(body.items);
+  const shippingState = normalizeState(String(body.shippingState || ""));
+  const shippingPostalCode = normalizeZip(String(body.shippingPostalCode || ""));
+  const shippingServiceKey = String(body.shippingServiceKey || "");
 
   if (cleanItems.length === 0) {
     return NextResponse.json({ error: "Add at least one item before checkout." }, { status: 400 });
+  }
+
+  if (!shippingState || !shippingPostalCode || shippingPostalCode.length !== 5) {
+    return NextResponse.json({ error: "Enter a shipping state and 5-digit ZIP code." }, { status: 400 });
+  }
+
+  if (!shippingServiceKey) {
+    return NextResponse.json({ error: "Select a USPS shipping option." }, { status: 400 });
   }
 
   const productIds = Array.from(
@@ -58,13 +73,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: products.error }, { status: 500 });
   }
 
-  const productsData = products.data || [];
-  const productById = new Map(productsData.map((product) => [product.id, product]));
-  const productBySlug = new Map(productsData.map((product) => [product.slug, product]));
+  const matchedProducts = matchCartProducts(products.data || [], cleanItems);
   const orderItems: ShopOrderItem[] = [];
 
-  for (const item of cleanItems) {
-    const product = productById.get(item.productId) || productBySlug.get(item.slug);
+  for (const { item, product } of matchedProducts) {
 
     if (!product) {
       return NextResponse.json(
@@ -106,10 +118,45 @@ export async function POST(request: Request) {
     (total, item) => total + item.priceCents * item.quantity,
     0
   );
-  const shippingCents = orderItems.reduce(
-    (total, item) => total + item.shippingCents * item.quantity,
-    0
+  const hasLiveItems = hasLiveProducts(matchedProducts.map((match) => match.product!).filter(Boolean));
+
+  if (hasLiveItems) {
+    const season = getLiveShippingSeason();
+
+    if (season.blocked) {
+      return NextResponse.json({ error: season.message }, { status: 400 });
+    }
+
+    if (blockedLiveStates().includes(shippingState)) {
+      return NextResponse.json(
+        {
+          error: `Crested Critters cannot live ship to ${shippingState} at this time due to permitting restrictions.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!body.reviewedLiveShipping) {
+      return NextResponse.json(
+        { error: "Please review Live Shipping FAQ before checkout." },
+        { status: 400 }
+      );
+    }
+  }
+
+  const shippingOptions = await getShippingOptions({
+    destinationZip: shippingPostalCode,
+    hasLiveItems,
+  });
+  const selectedShipping = shippingOptions.find(
+    (option) => option.serviceKey === shippingServiceKey
   );
+
+  if (!selectedShipping) {
+    return NextResponse.json({ error: "Select an available USPS shipping option." }, { status: 400 });
+  }
+
+  const shippingCents = selectedShipping.totalCents;
   const totalCents = subtotalCents + shippingCents;
 
   if (totalCents <= 0) {
@@ -147,7 +194,7 @@ export async function POST(request: Request) {
 
   if (shippingCents > 0) {
     lineItems.push({
-      name: "Shipping",
+      name: `Shipping - ${selectedShipping.serviceName}`,
       quantity: "1",
       item_type: "ITEM",
       base_price_money: {
@@ -215,35 +262,4 @@ export async function POST(request: Request) {
 function normalizeEmail(value: unknown) {
   const email = String(value || "").trim().toLowerCase();
   return email && email.includes("@") ? email : null;
-}
-
-async function fetchCartProducts(
-  supabase: ReturnType<typeof createSupabaseAdminClient>,
-  productIds: string[],
-  slugs: string[]
-) {
-  if (productIds.length === 0 && slugs.length === 0) {
-    return { data: [] as ShopProduct[], error: null as string | null };
-  }
-
-  const results = await Promise.all([
-    productIds.length > 0
-      ? supabase.from("shop_products").select("*").eq("active", true).in("id", productIds)
-      : Promise.resolve({ data: [] as ShopProduct[] | null, error: null }),
-    slugs.length > 0
-      ? supabase.from("shop_products").select("*").eq("active", true).in("slug", slugs)
-      : Promise.resolve({ data: [] as ShopProduct[] | null, error: null }),
-  ]);
-
-  const firstError = results.find((result) => result.error)?.error;
-  if (firstError) return { data: [] as ShopProduct[], error: firstError.message };
-
-  const merged = new Map<string, ShopProduct>();
-  for (const result of results) {
-    for (const product of (result.data || []) as ShopProduct[]) {
-      merged.set(product.id, product);
-    }
-  }
-
-  return { data: Array.from(merged.values()), error: null as string | null };
 }
