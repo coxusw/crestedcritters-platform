@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { createLatestSpeciesAnnouncement } from "@/lib/content-agent/isopedia";
+import { createSpeciesAnnouncementForSubmission } from "@/lib/content-agent/isopedia";
 
 type Profile = {
   id: string;
@@ -77,7 +77,7 @@ async function verifySubmission(formData: FormData) {
   }
 
   try {
-    await createLatestSpeciesAnnouncement();
+    await createSpeciesAnnouncementForSubmission(submissionId);
   } catch (autoPostError) {
     console.error("Failed to auto-create Isopedia species announcement:", autoPostError);
   }
@@ -220,7 +220,7 @@ export default async function VerifySubmissionsPage({
 
         {params.verified === "true" && (
           <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-emerald-100">
-            Submission verified, published, and queued for an Isopedia Facebook draft.
+            Submission verified, published to Isopedia, and sent to the Isopedia smart poster.
           </div>
         )}
 

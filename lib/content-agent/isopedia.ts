@@ -1,6 +1,7 @@
 import { createSupabaseAdminClient } from "./supabase-admin";
 import { getPage, insertGeneratedPost, logContentAgent } from "./db";
 import { generatePostText } from "./openai";
+import { publishSingleContentPost } from "./generator";
 import type { ContentAgentTopic, NextSlot } from "./types";
 
 type ProfileLite = {
@@ -25,6 +26,11 @@ type SubmissionLite = {
 };
 
 type SpeciesLite = {
+  id?: string | number | null;
+  slug?: string | null;
+  organism_type?: string | null;
+  difficulty?: string | null;
+  created_at?: string | null;
   common_name: string | null;
   scientific_name: string | null;
   genus: string | null;
@@ -174,6 +180,42 @@ async function findMatchingVerifiedSubmission(species: SpeciesLite) {
 
   const submissions = (data || []) as SubmissionLite[];
   return submissions.find((item) => speciesMatchesSubmission(species, item)) || null;
+}
+
+async function findMatchingSpeciesForSubmission(submission: SubmissionLite) {
+  const supabase = createSupabaseAdminClient();
+
+  const { data, error } = await supabase
+    .from("isopedia_species")
+    .select(
+      `
+      id,
+      common_name,
+      scientific_name,
+      slug,
+      organism_type,
+      genus,
+      species,
+      morph,
+      difficulty,
+      image_url,
+      created_at
+      `
+    )
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (error) {
+    await logContentAgent(
+      "find_matching_species_for_submission",
+      "ERROR",
+      error.message
+    );
+    return null;
+  }
+
+  const speciesRows = (data || []) as SpeciesLite[];
+  return speciesRows.find((item) => speciesMatchesSubmission(item, submission)) || null;
 }
 
 async function getProfilesByIds(ids: Array<string | null | undefined>) {
@@ -349,6 +391,164 @@ export async function createLatestSpeciesAnnouncement() {
   );
 
   return `Created species announcement draft for ${species.common_name || species.slug}.`;
+}
+
+export async function createSpeciesAnnouncementForSubmission(submissionId: string) {
+  const supabase = createSupabaseAdminClient();
+  const page = await getPage("isopedia");
+
+  if (!page) throw new Error("Isopedia content agent page is missing.");
+
+  const { data: submission, error: submissionError } = await supabase
+    .from("isopedia_submissions")
+    .select(
+      `
+      id,
+      common_name,
+      scientific_name,
+      genus,
+      species,
+      morph,
+      image_url,
+      submitted_by,
+      verified_by,
+      verified_at,
+      created_at
+      `
+    )
+    .eq("id", submissionId)
+    .eq("status", "verified")
+    .maybeSingle();
+
+  if (submissionError) throw new Error(submissionError.message);
+  if (!submission) {
+    return `Verified submission ${submissionId} was not found for announcement.`;
+  }
+
+  const species = await findMatchingSpeciesForSubmission(submission as SubmissionLite);
+
+  if (!species?.id) {
+    return `Could not find the published species for ${submission.common_name || submissionId}.`;
+  }
+
+  const existing = await supabase
+    .from("content_agent_posts")
+    .select("id")
+    .eq("source_type", "isopedia_species_verified")
+    .eq("source_ref_id", String(species.id))
+    .maybeSingle();
+
+  if (existing.error) throw new Error(existing.error.message);
+
+  if (existing.data) {
+    return `Verified species already has a content post: ${species.common_name || species.slug}.`;
+  }
+
+  const profilesById = await getProfilesByIds([
+    submission.submitted_by,
+    submission.verified_by,
+  ]);
+
+  const submitterProfile = submission.submitted_by
+    ? profilesById.get(submission.submitted_by)
+    : null;
+
+  const verifierProfile = submission.verified_by
+    ? profilesById.get(submission.verified_by)
+    : null;
+
+  const submitterName = profileName(submitterProfile, "the contributing keeper");
+  const verifierName = profileName(verifierProfile, "the Isopedia verification team");
+  const speciesUrl = `${siteUrl()}/isopedia/${species.slug}`;
+
+  const topic: ContentAgentTopic = {
+    id: "virtual-isopedia-species",
+    page_key: "isopedia",
+    topic: `New verified species: ${species.common_name || species.slug}`,
+    post_type: "Verified Species Announcement",
+    notes: [
+      `Common name: ${species.common_name || "Unknown"}`,
+      species.scientific_name ? `Scientific name: ${species.scientific_name}` : "",
+      species.organism_type ? `Type: ${species.organism_type}` : "",
+      species.genus ? `Genus: ${species.genus}` : "",
+      species.species ? `Species: ${species.species}` : "",
+      species.morph ? `Morph: ${species.morph}` : "",
+      species.difficulty ? `Difficulty: ${species.difficulty}` : "",
+      `URL: ${speciesUrl}`,
+      `Submitted by: ${submitterName}`,
+      `Verified by: ${verifierName}`,
+      "IMPORTANT: Include a short thank-you/shoutout to both the submitter and verifier in the caption.",
+      "Mention that this species is now live in the Isopedia database.",
+      "Invite keepers to view the entry, discuss, and contribute knowledge.",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    active: true,
+    last_used_at: null,
+    use_count: 0,
+  };
+
+  const slot: NextSlot = {
+    pageKey: "isopedia",
+    pageName: page.page_name,
+    scheduledAt: new Date(),
+    postType: "Verified Species Announcement",
+  };
+
+  const generated = await generatePostText({ page, slot, topic });
+  const captionWithCredit = appendCreditToCaption(
+    generated.caption,
+    submitterName,
+    verifierName
+  );
+
+  const post = await insertGeneratedPost({
+    pageKey: "isopedia",
+    scheduledAt: slot.scheduledAt,
+    postType: slot.postType,
+    topicId: null,
+    topic: generated.topic || topic.topic,
+    caption: captionWithCredit,
+    hashtags: generated.hashtags || page.default_hashtags || "",
+    imagePrompt: generated.imagePrompt || "",
+    status: "Approved",
+    sourceType: "isopedia_species_verified",
+    sourceRefId: String(species.id),
+    rawPayload: {
+      species,
+      speciesUrl,
+      matchingSubmission: submission,
+      credits: {
+        submitterName,
+        verifierName,
+      },
+      generated,
+    },
+  });
+
+  if (species.image_url) {
+    const { error: updateError } = await supabase
+      .from("content_agent_posts")
+      .update({
+        image_url: species.image_url,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", post.id);
+
+    if (updateError) throw new Error(updateError.message);
+  }
+
+  await logContentAgent(
+    "isopedia_species_announcement",
+    "OK",
+    `Approved post for ${species.common_name || species.slug} with submitter=${submitterName}, verifier=${verifierName}`,
+    "post",
+    post.id
+  );
+
+  const publishResult = await publishSingleContentPost(post.id);
+
+  return `Created and published species announcement for ${species.common_name || species.slug}. ${publishResult}`;
 }
 
 export async function createIsopediaStatsPost() {
