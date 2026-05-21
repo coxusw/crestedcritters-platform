@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     blocked: false,
     blockedReason: "",
     liveWarning: hasLiveItems
-      ? "Please review Live Shipping FAQ before checkout. Live orders can only use USPS 1 Day or USPS 2 Day shipping."
+      ? "Please review Live Shipping FAQ before checkout. Live orders can only use UPS Next Day Air or UPS 2nd Day Air."
       : "",
     options,
   });

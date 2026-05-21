@@ -94,7 +94,7 @@ function isUnavailable(product: ShopProduct) {
 
 function isLiveProduct(product: Pick<ShopProduct, "category">) {
   const category = product.category.toLowerCase();
-  return category.includes("isopod") || category.includes("springtail");
+  return category.includes("isopod") || category.includes("springtail") || category.includes("spring tail");
 }
 
 export default function ShopClient({
@@ -676,7 +676,7 @@ function CartPage({
 
           {hasLiveItems && !liveWarning && (
             <p className="mt-3 text-xs leading-5 text-[#a8b0b8]">
-              Live items require 1 Day or 2 Day shipping.
+              Live items require UPS Next Day Air or UPS 2nd Day Air.
             </p>
           )}
         </div>

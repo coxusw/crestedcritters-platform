@@ -77,7 +77,7 @@ const ZIP_ZONE_PREFIXES: Record<number, number[]> = {
 
 export function isLiveProduct(product: Pick<ShopProduct, "category">) {
   const category = product.category.toLowerCase();
-  return category.includes("isopod") || category.includes("springtail");
+  return category.includes("isopod") || category.includes("springtail") || category.includes("spring tail");
 }
 
 export function hasLiveProducts(products: Pick<ShopProduct, "category">[]) {
@@ -173,13 +173,17 @@ export async function getShippingOptions({
         : fallbackRates(zip, settings.fallbackRatesCents);
   const allowed = hasLiveItems
     ? sourceRates.filter((rate) =>
-        ["usps_1_day", "usps_2_day", "ups_1_day", "ups_2_day"].includes(rate.serviceKey)
+        ["ups_1_day", "ups_2_day"].includes(rate.serviceKey)
       )
-    : sourceRates.filter((rate) =>
-        ["usps_1_day", "usps_2_day", "usps_ground", "ups_1_day", "ups_2_day", "ups_ground"].includes(rate.serviceKey)
-      );
+    : sourceRates.filter((rate) => rate.serviceKey === "usps_ground");
+  const finalRates =
+    allowed.length > 0
+      ? allowed
+      : hasLiveItems
+        ? fallbackUpsLiveRates(settings.fallbackRatesCents, zip)
+        : fallbackUspsGroundRates(settings.fallbackRatesCents, zip);
 
-  return allowed.map((rate) => ({
+  return finalRates.map((rate) => ({
     ...rate,
     surchargeCents,
     totalCents: rate.baseCents + surchargeCents,
@@ -362,7 +366,7 @@ function normalizeShippoRates(rateOptions: unknown[]) {
     if (!existing || baseCents < existing.baseCents) {
       normalized.set(serviceKey, {
         serviceKey,
-        serviceName: serviceNameValue || serviceName(serviceKey),
+        serviceName: serviceName(serviceKey),
         carrier: serviceCarrier(serviceKey),
         baseCents,
         surchargeCents: 0,
@@ -388,10 +392,24 @@ function mapShippoServiceKey(provider: string, serviceToken: string, serviceName
   const token = `${provider} ${serviceToken} ${serviceNameValue}`.toUpperCase();
 
   if (provider.includes("UPS") || token.includes("UPS")) {
-    if (token.includes("NEXT_DAY") || token.includes("NEXT DAY") || token.includes("1DAY") || token.includes("1 DAY")) {
+    const isDisallowedAirVariant =
+      token.includes("SAVER") ||
+      token.includes("EARLY") ||
+      token.includes("EARLY_AM") ||
+      token.includes("EARLY AM") ||
+      token.includes(" A.M.") ||
+      token.includes(" AM ");
+
+    if (
+      !isDisallowedAirVariant &&
+      (token.includes("NEXT_DAY_AIR") || token.includes("NEXT DAY AIR") || token.includes("1DAY") || token.includes("1 DAY"))
+    ) {
       return "ups_1_day";
     }
-    if (token.includes("2ND_DAY") || token.includes("2ND DAY") || token.includes("2DAY") || token.includes("2 DAY")) {
+    if (
+      !isDisallowedAirVariant &&
+      (token.includes("2ND_DAY_AIR") || token.includes("2ND DAY AIR") || token.includes("2DAY") || token.includes("2 DAY"))
+    ) {
       return "ups_2_day";
     }
     if (token.includes("GROUND")) return "ups_ground";
@@ -422,6 +440,29 @@ function fallbackRates(
   ];
 }
 
+function fallbackUpsLiveRates(
+  fallbackRatesCents: typeof DEFAULT_SHIPPING_SETTINGS.fallbackRatesCents,
+  destinationZip: string
+) {
+  const zone = estimateZone(destinationZip);
+  const twoDay = fallbackRatesCents.usps_2_day[zone] || fallbackRatesCents.usps_2_day[5] || 1595;
+  const oneDay = fallbackRatesCents.usps_1_day[zone] || fallbackRatesCents.usps_1_day[5] || 6095;
+
+  return [
+    fallbackOption("ups_2_day", twoDay, 2),
+    fallbackOption("ups_1_day", oneDay, 1),
+  ];
+}
+
+function fallbackUspsGroundRates(
+  fallbackRatesCents: typeof DEFAULT_SHIPPING_SETTINGS.fallbackRatesCents,
+  destinationZip: string
+) {
+  const zone = estimateZone(destinationZip);
+  const ground = fallbackRatesCents.usps_ground[zone] || fallbackRatesCents.usps_ground[5] || 1195;
+  return [fallbackOption("usps_ground", ground, 4)];
+}
+
 function fallbackOption(serviceKey: string, baseCents: number, deliveryDays: number): ShippingOption {
   return {
     serviceKey,
@@ -435,12 +476,12 @@ function fallbackOption(serviceKey: string, baseCents: number, deliveryDays: num
 }
 
 function serviceName(serviceKey: string) {
-  if (serviceKey === "ups_1_day") return "UPS 1 Day";
-  if (serviceKey === "ups_2_day") return "UPS 2 Day";
+  if (serviceKey === "ups_1_day") return "UPS Next Day Air";
+  if (serviceKey === "ups_2_day") return "UPS 2nd Day Air";
   if (serviceKey === "ups_ground") return "UPS Ground";
   if (serviceKey === "usps_1_day") return "USPS 1 Day";
   if (serviceKey === "usps_2_day") return "USPS 2 Day";
-  return "USPS Ground";
+  return "USPS Ground Advantage";
 }
 
 function serviceCarrier(serviceKey: string) {

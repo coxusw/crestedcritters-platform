@@ -243,13 +243,13 @@ function ShippingSettingsPanel({ settings }: { settings: ShopShippingSettings })
           </Field>
         </div>
 
-        <Field label="Fallback USPS 1 Day by zone 0-8">
+        <Field label="Fallback 1 Day by zone 0-8">
           <input name="oneDayRates" defaultValue={formatZoneRates(settings.fallbackRatesCents.usps_1_day)} className={inputClass} />
         </Field>
-        <Field label="Fallback USPS 2 Day by zone 0-8">
+        <Field label="Fallback 2 Day by zone 0-8">
           <input name="twoDayRates" defaultValue={formatZoneRates(settings.fallbackRatesCents.usps_2_day)} className={inputClass} />
         </Field>
-        <Field label="Fallback USPS Ground by zone 0-8">
+        <Field label="Fallback Ground by zone 0-8">
           <input name="groundRates" defaultValue={formatZoneRates(settings.fallbackRatesCents.usps_ground)} className={inputClass} />
         </Field>
 
