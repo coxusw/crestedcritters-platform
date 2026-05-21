@@ -18,6 +18,8 @@ export type ShopProduct = {
 
 export type ShopCartItem = {
   productId: string;
+  slug?: string;
+  name?: string;
   quantity: number;
 };
 

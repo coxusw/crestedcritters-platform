@@ -37,34 +37,44 @@ export async function POST(request: Request) {
   const cleanItems = requestedItems
     .map((item) => ({
       productId: String(item.productId || ""),
+      slug: String(item.slug || ""),
+      name: String(item.name || ""),
       quantity: Math.max(1, Math.min(99, Math.floor(Number(item.quantity || 1)))),
     }))
-    .filter((item) => item.productId);
+    .filter((item) => item.productId || item.slug);
 
   if (cleanItems.length === 0) {
     return NextResponse.json({ error: "Add at least one item before checkout." }, { status: 400 });
   }
 
-  const productIds = Array.from(new Set(cleanItems.map((item) => item.productId)));
+  const productIds = Array.from(
+    new Set(cleanItems.map((item) => item.productId).filter(Boolean))
+  );
+  const slugs = Array.from(new Set(cleanItems.map((item) => item.slug).filter(Boolean)));
   const supabase = createSupabaseAdminClient();
-  const { data: products, error: productsError } = await supabase
-    .from("shop_products")
-    .select("*")
-    .in("id", productIds)
-    .eq("active", true);
+  const products = await fetchCartProducts(supabase, productIds, slugs);
 
-  if (productsError) {
-    return NextResponse.json({ error: productsError.message }, { status: 500 });
+  if (products.error) {
+    return NextResponse.json({ error: products.error }, { status: 500 });
   }
 
-  const productMap = new Map((products || []).map((product) => [product.id, product as ShopProduct]));
+  const productsData = products.data || [];
+  const productById = new Map(productsData.map((product) => [product.id, product]));
+  const productBySlug = new Map(productsData.map((product) => [product.slug, product]));
   const orderItems: ShopOrderItem[] = [];
 
   for (const item of cleanItems) {
-    const product = productMap.get(item.productId);
+    const product = productById.get(item.productId) || productBySlug.get(item.slug);
 
     if (!product) {
-      return NextResponse.json({ error: "One cart item is no longer available." }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: `${
+            item.name || "One cart item"
+          } is no longer available. Remove it from the cart and add it again.`,
+        },
+        { status: 400 }
+      );
     }
 
     if (product.sold_out || product.inventory <= 0) {
@@ -205,4 +215,35 @@ export async function POST(request: Request) {
 function normalizeEmail(value: unknown) {
   const email = String(value || "").trim().toLowerCase();
   return email && email.includes("@") ? email : null;
+}
+
+async function fetchCartProducts(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  productIds: string[],
+  slugs: string[]
+) {
+  if (productIds.length === 0 && slugs.length === 0) {
+    return { data: [] as ShopProduct[], error: null as string | null };
+  }
+
+  const results = await Promise.all([
+    productIds.length > 0
+      ? supabase.from("shop_products").select("*").eq("active", true).in("id", productIds)
+      : Promise.resolve({ data: [] as ShopProduct[] | null, error: null }),
+    slugs.length > 0
+      ? supabase.from("shop_products").select("*").eq("active", true).in("slug", slugs)
+      : Promise.resolve({ data: [] as ShopProduct[] | null, error: null }),
+  ]);
+
+  const firstError = results.find((result) => result.error)?.error;
+  if (firstError) return { data: [] as ShopProduct[], error: firstError.message };
+
+  const merged = new Map<string, ShopProduct>();
+  for (const result of results) {
+    for (const product of (result.data || []) as ShopProduct[]) {
+      merged.set(product.id, product);
+    }
+  }
+
+  return { data: Array.from(merged.values()), error: null as string | null };
 }

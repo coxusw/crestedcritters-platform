@@ -6,6 +6,8 @@ import { formatShopMoney } from "@/lib/shop";
 
 type CartLine = {
   productId: string;
+  slug?: string;
+  name?: string;
   quantity: number;
 };
 
@@ -55,7 +57,9 @@ export default function ShopClient({
   const cartProducts = useMemo(() => {
     return cart
       .map((line) => {
-        const product = products.find((item) => item.id === line.productId);
+        const product = products.find(
+          (item) => item.id === line.productId || (line.slug && item.slug === line.slug)
+        );
         if (!product) return null;
         const quantity = Math.min(line.quantity, Math.max(0, product.inventory));
         return { product, quantity };
@@ -80,11 +84,19 @@ export default function ShopClient({
       if (existing) {
         return current.map((line) =>
           line.productId === product.id
-            ? { ...line, quantity: Math.min(product.inventory, line.quantity + 1) }
+            ? {
+                ...line,
+                slug: product.slug,
+                name: product.name,
+                quantity: Math.min(product.inventory, line.quantity + 1),
+              }
             : line
         );
       }
-      return [...current, { productId: product.id, quantity: 1 }];
+      return [
+        ...current,
+        { productId: product.id, slug: product.slug, name: product.name, quantity: 1 },
+      ];
     });
   }
 
@@ -111,6 +123,8 @@ export default function ShopClient({
           customerEmail: email,
           items: cartProducts.map((line) => ({
             productId: line.product.id,
+            slug: line.product.slug,
+            name: line.product.name,
             quantity: line.quantity,
           })),
         }),
