@@ -48,6 +48,11 @@ export function proxy(request: NextRequest) {
       return NextResponse.rewrite(url);
     }
 
+    if (url.pathname === "/cart") {
+      url.pathname = "/shop/cart";
+      return NextResponse.rewrite(url);
+    }
+
     if (!url.pathname.startsWith("/shop")) {
       url.pathname = `/shop${url.pathname}`;
       return NextResponse.rewrite(url);

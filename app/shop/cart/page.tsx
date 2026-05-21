@@ -1,16 +1,16 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type { ShopProduct } from "@/lib/shop";
-import ShopClient from "./ShopClient";
-import ShopShell from "./ShopShell";
+import ShopClient from "../ShopClient";
+import ShopShell from "../ShopShell";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Shop | Crested Critters",
-  description: "Shop Crested Critters isopods, botanicals, merch, and accessories.",
+  title: "Cart | Crested Critters Shop",
+  description: "Review your Crested Critters cart and check out securely with Square.",
 };
 
-export default async function ShopPage() {
+export default async function ShopCartPage() {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("shop_products")
@@ -22,7 +22,7 @@ export default async function ShopPage() {
 
   return (
     <ShopShell>
-      <ShopClient products={(data || []) as ShopProduct[]} view="shop" />
+      <ShopClient products={(data || []) as ShopProduct[]} view="cart" />
     </ShopShell>
   );
 }
