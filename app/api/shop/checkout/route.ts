@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
   if (!accessToken || !locationId) {
     return NextResponse.json(
-      { error: "Square checkout is not configured yet." },
+      { error: "Checkout is temporarily unavailable. Please contact Crested Critters to place this order." },
       { status: 500 }
     );
   }
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
   }
 
   if (!shippingServiceKey) {
-    return NextResponse.json({ error: "Select a USPS shipping option." }, { status: 400 });
+    return NextResponse.json({ error: "Select a shipping option." }, { status: 400 });
   }
 
   const productIds = Array.from(
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
     if ((await getBlockedLiveStates()).includes(shippingState)) {
       return NextResponse.json(
         {
-          error: `Crested Critters cannot live ship to ${shippingState} at this time due to permitting restrictions.`,
+          error: `Crested Critters cannot ship live isopods or springtails to ${shippingState} at this time.`,
         },
         { status: 400 }
       );
@@ -155,7 +155,7 @@ export async function POST(request: Request) {
   );
 
   if (!selectedShipping) {
-    return NextResponse.json({ error: "Select an available USPS shipping option." }, { status: 400 });
+    return NextResponse.json({ error: "Select an available shipping option." }, { status: 400 });
   }
 
   const shippingCents = selectedShipping.totalCents;

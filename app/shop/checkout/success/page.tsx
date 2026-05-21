@@ -21,7 +21,7 @@ export default async function ShopCheckoutSuccessPage({
         </p>
         <h1 className="mt-2 text-3xl font-black">Thank you for your order.</h1>
         <p className="mt-3 leading-7 text-[#405545]">
-          Square is confirming your payment. The shop webhook marks the order paid and updates inventory when Square sends the payment confirmation.
+          We received your order and Square is confirming the payment. We will send updates using the email entered at checkout.
         </p>
 
         {order && (

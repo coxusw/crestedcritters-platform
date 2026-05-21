@@ -32,7 +32,7 @@ export default function ShopShell({ children }: { children: ReactNode }) {
             </p>
             <h1 className="mt-2 text-4xl font-black leading-tight md:text-5xl">Shop</h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-[#a8b0b8]">
-              Isopods, springtails, botanicals, accessories, and merch in one cart with secure Square checkout.
+              Isopods, springtails, botanicals, accessories, and merch from Crested Critters.
             </p>
           </div>
           <div className="rounded-md border border-white/[0.08] bg-[#141618] px-4 py-3 text-sm font-bold text-[#a8b0b8] shadow-[0_18px_60px_rgba(0,0,0,0.35)]">

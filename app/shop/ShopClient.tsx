@@ -352,7 +352,7 @@ export default function ShopClient({
 
         {products.length === 0 ? (
           <div className="rounded-lg border border-white/[0.08] bg-[#141618] p-6 text-[#a8b0b8]">
-            No shop products are active yet. Add products from the shop admin panel.
+            The shop is being stocked. Please check back soon.
           </div>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -419,10 +419,10 @@ function ProductCard({
         <div className="mt-4 space-y-3">
           <p className="text-xs font-bold uppercase tracking-wide text-[#a8b0b8]">
             {product.shipping_mode === "contact"
-              ? "Shipping coordinated"
+              ? "Contact us for shipping"
               : product.shipping_cents > 0
                 ? `${formatShopMoney(product.shipping_cents)} shipping`
-                : "Shipping set at checkout"}
+                : "Shipping calculated at checkout"}
           </p>
           <button
             type="button"
@@ -678,7 +678,7 @@ function CartPage({
 
           {hasLiveItems && !liveWarning && (
             <p className="mt-3 text-xs leading-5 text-[#a8b0b8]">
-              Live items require UPS Next Day Air or UPS 2nd Day Air.
+              Live items ship by UPS Next Day Air or UPS 2nd Day Air.
             </p>
           )}
         </div>
@@ -717,7 +717,7 @@ function CartPage({
             onChange={(event) => setMarketingOptIn(event.target.checked)}
             className="mt-1"
           />
-          Email me future Crested Critters sales and updates.
+          Email me future Crested Critters sales and shop updates.
         </label>
 
         {error && (
