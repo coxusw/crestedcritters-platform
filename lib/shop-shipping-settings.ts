@@ -7,6 +7,7 @@ export type ShopShippingSettings = {
   packageWidthIn: number;
   packageHeightIn: number;
   packageWeightLb: number;
+  useShippo: boolean;
   useRevAddress: boolean;
   blockedLiveStates: string[];
   fallbackRatesCents: {
@@ -30,6 +31,7 @@ export const DEFAULT_SHIPPING_SETTINGS: ShopShippingSettings = {
   packageWidthIn: 8,
   packageHeightIn: 7,
   packageWeightLb: 2,
+  useShippo: true,
   useRevAddress: true,
   blockedLiveStates: ["AK", "HI", "FL", "CA", "OR"],
   fallbackRatesCents: {

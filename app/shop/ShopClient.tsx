@@ -19,6 +19,7 @@ type CheckoutPayload = {
 type ShippingOption = {
   serviceKey: string;
   serviceName: string;
+  carrier: string;
   baseCents: number;
   surchargeCents: number;
   totalCents: number;
@@ -621,7 +622,7 @@ function CartPage({
             disabled={shippingBusy || cartProducts.length === 0}
             className="mt-3 w-full rounded-md border border-[#7fb069]/35 px-4 py-2 text-sm font-black text-[#e9ecef] hover:bg-[#7fb069]/10 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {shippingBusy ? "Loading USPS..." : "Load USPS Rates"}
+            {shippingBusy ? "Loading rates..." : "Load Shipping Rates"}
           </button>
 
           {liveWarning && (
@@ -675,7 +676,7 @@ function CartPage({
 
           {hasLiveItems && !liveWarning && (
             <p className="mt-3 text-xs leading-5 text-[#a8b0b8]">
-              Live items require USPS 1 Day or USPS 2 Day shipping.
+              Live items require 1 Day or 2 Day shipping.
             </p>
           )}
         </div>

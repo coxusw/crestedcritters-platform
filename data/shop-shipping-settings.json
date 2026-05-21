@@ -4,6 +4,7 @@
   "packageWidthIn": 8,
   "packageHeightIn": 7,
   "packageWeightLb": 2,
+  "useShippo": true,
   "useRevAddress": true,
   "blockedLiveStates": [
     "AK",

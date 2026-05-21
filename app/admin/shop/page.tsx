@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminShopPage({
   searchParams,
 }: {
-  searchParams: Promise<{ zip?: string; live?: string }>;
+  searchParams: Promise<{ state?: string; zip?: string; live?: string }>;
 }) {
   await requireAdmin();
   const params = await searchParams;
@@ -203,7 +203,7 @@ function ShippingSettingsPanel({ settings }: { settings: ShopShippingSettings })
     <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
       <h2 className="text-xl font-black">Shipping Settings</h2>
       <p className="mt-1 text-sm leading-6 text-slate-400">
-        Edit the temporary USPS/RevAddress setup, blocked live states, seasonal packaging costs, and fallback zone rates.
+        Edit Shippo/RevAddress setup, blocked live states, seasonal packaging costs, and fallback USPS zone rates.
       </p>
       <form action={updateShippingSettingsAction} className="mt-4 grid gap-3">
         <div className="grid gap-3 md:grid-cols-5">
@@ -253,7 +253,10 @@ function ShippingSettingsPanel({ settings }: { settings: ShopShippingSettings })
           <input name="groundRates" defaultValue={formatZoneRates(settings.fallbackRatesCents.usps_ground)} className={inputClass} />
         </Field>
 
-        <Check name="useRevAddress" label="Use RevAddress first" defaultChecked={settings.useRevAddress} />
+        <div className="flex flex-wrap gap-3">
+          <Check name="useShippo" label="Use Shippo first" defaultChecked={settings.useShippo} />
+          <Check name="useRevAddress" label="Use RevAddress fallback" defaultChecked={settings.useRevAddress} />
+        </div>
 
         <button className="w-fit rounded-md bg-emerald-300 px-5 py-3 font-black text-slate-950 hover:bg-emerald-200">
           Save Shipping Settings
@@ -268,14 +271,18 @@ async function ShippingTester({
 }: {
   searchParams?: { state?: string; zip?: string; live?: string };
 }) {
+  const state = searchParams?.state || "";
   const zip = searchParams?.zip || "";
   const live = searchParams?.live === "on";
-  const options = zip.length === 5 ? await getShippingOptions({ destinationZip: zip, hasLiveItems: live }) : [];
+  const options = zip.length === 5 ? await getShippingOptions({ destinationZip: zip, destinationState: state, hasLiveItems: live }) : [];
 
   return (
     <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
       <h2 className="text-xl font-black">Shipping Tester</h2>
       <form className="mt-4 grid gap-3">
+        <Field label="State">
+          <input name="state" defaultValue={state} className={inputClass} />
+        </Field>
         <Field label="ZIP code">
           <input name="zip" defaultValue={zip} className={inputClass} />
         </Field>
@@ -294,9 +301,12 @@ async function ShippingTester({
                 <span className="font-black">{option.serviceName}</span>
                 <span className="font-black text-emerald-200">{formatShopMoney(option.totalCents)}</span>
               </div>
-              {option.surchargeCents > 0 && (
-                <p className="mt-1 text-slate-400">Includes {formatShopMoney(option.surchargeCents)} live packaging.</p>
-              )}
+              <p className="mt-1 text-slate-400">
+                {option.carrier}
+                {option.surchargeCents > 0
+                  ? ` - includes ${formatShopMoney(option.surchargeCents)} live packaging.`
+                  : ""}
+              </p>
             </div>
           ))
         )}

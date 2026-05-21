@@ -67,6 +67,7 @@ export async function updateShippingSettingsAction(formData: FormData) {
     packageWidthIn: Number(formData.get("packageWidthIn") || current.packageWidthIn),
     packageHeightIn: Number(formData.get("packageHeightIn") || current.packageHeightIn),
     packageWeightLb: Number(formData.get("packageWeightLb") || current.packageWeightLb),
+    useShippo: formData.get("useShippo") === "on",
     useRevAddress: formData.get("useRevAddress") === "on",
     blockedLiveStates: String(formData.get("blockedLiveStates") || "")
       .split(",")

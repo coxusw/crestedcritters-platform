@@ -147,6 +147,7 @@ export async function POST(request: Request) {
 
   const shippingOptions = await getShippingOptions({
     destinationZip: shippingPostalCode,
+    destinationState: shippingState,
     hasLiveItems,
   });
   const selectedShipping = shippingOptions.find(

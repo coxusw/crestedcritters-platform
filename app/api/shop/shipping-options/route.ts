@@ -83,6 +83,7 @@ export async function POST(request: Request) {
 
   const options = await getShippingOptions({
     destinationZip: shippingPostalCode,
+    destinationState: shippingState,
     hasLiveItems,
   });
 

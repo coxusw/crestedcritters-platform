@@ -4,6 +4,7 @@ import { DEFAULT_SHIPPING_SETTINGS, getShopShippingSettings } from "@/lib/shop-s
 export type ShippingOption = {
   serviceKey: string;
   serviceName: string;
+  carrier: string;
   baseCents: number;
   surchargeCents: number;
   totalCents: number;
@@ -130,13 +131,16 @@ export async function getLiveShippingSeason(date = new Date()) {
 
 export async function getShippingOptions({
   destinationZip,
+  destinationState,
   hasLiveItems,
 }: {
   destinationZip: string;
+  destinationState?: string;
   hasLiveItems: boolean;
 }) {
   const settings = await getShopShippingSettings();
   const zip = normalizeZip(destinationZip);
+  const state = normalizeState(destinationState || "");
   const packageInfo = {
     weight: settings.packageWeightLb,
     length: settings.packageLengthIn,
@@ -146,18 +150,33 @@ export async function getShippingOptions({
 
   const liveSeason = hasLiveItems ? await getLiveShippingSeason() : null;
   const surchargeCents = liveSeason?.surchargeCents || 0;
-  const rates = settings.useRevAddress
+  const shippoRates = settings.useShippo
+    ? await fetchShippoRates({
+        originZip: settings.originZip,
+        destinationZip: zip,
+        destinationState: state,
+        ...packageInfo,
+      })
+    : [];
+  const revAddressRates = shippoRates.length === 0 && settings.useRevAddress
     ? await fetchRevAddressRates({
         originZip: settings.originZip,
         destinationZip: zip,
         ...packageInfo,
       })
     : [];
-  const sourceRates = rates.length > 0 ? rates : fallbackRates(zip, settings.fallbackRatesCents);
+  const sourceRates =
+    shippoRates.length > 0
+      ? shippoRates
+      : revAddressRates.length > 0
+        ? revAddressRates
+        : fallbackRates(zip, settings.fallbackRatesCents);
   const allowed = hasLiveItems
-    ? sourceRates.filter((rate) => rate.serviceKey === "usps_1_day" || rate.serviceKey === "usps_2_day")
+    ? sourceRates.filter((rate) =>
+        ["usps_1_day", "usps_2_day", "ups_1_day", "ups_2_day"].includes(rate.serviceKey)
+      )
     : sourceRates.filter((rate) =>
-        ["usps_1_day", "usps_2_day", "usps_ground"].includes(rate.serviceKey)
+        ["usps_1_day", "usps_2_day", "usps_ground", "ups_1_day", "ups_2_day", "ups_ground"].includes(rate.serviceKey)
       );
 
   return allowed.map((rate) => ({
@@ -165,6 +184,68 @@ export async function getShippingOptions({
     surchargeCents,
     totalCents: rate.baseCents + surchargeCents,
   }));
+}
+
+async function fetchShippoRates({
+  originZip,
+  destinationZip,
+  destinationState,
+  weight,
+  length,
+  width,
+  height,
+}: {
+  originZip: string;
+  destinationZip: string;
+  destinationState: string;
+  weight: number;
+  length: number;
+  width: number;
+  height: number;
+}) {
+  const token = process.env.SHIPPO_API_TOKEN;
+  if (!token) return [];
+
+  try {
+    const response = await fetch("https://api.goshippo.com/shipments/", {
+      method: "POST",
+      headers: {
+        Authorization: `ShippoToken ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        address_from: {
+          name: "Crested Critters",
+          zip: originZip,
+          country: "US",
+        },
+        address_to: {
+          name: "Crested Critters Customer",
+          state: destinationState || undefined,
+          zip: destinationZip,
+          country: "US",
+        },
+        parcels: [
+          {
+            length: String(length),
+            width: String(width),
+            height: String(height),
+            distance_unit: "in",
+            weight: String(weight),
+            mass_unit: "lb",
+          },
+        ],
+        async: false,
+      }),
+    });
+
+    if (!response.ok) return [];
+    const payload = await response.json();
+    const rates = Array.isArray(payload.rates) ? payload.rates : [];
+    return normalizeShippoRates(rates);
+  } catch {
+    return [];
+  }
 }
 
 async function fetchRevAddressRates({
@@ -246,6 +327,43 @@ function normalizeRateOptions(rateOptions: unknown[]) {
       normalized.set(serviceKey, {
         serviceKey,
         serviceName: serviceName(serviceKey),
+        carrier: serviceCarrier(serviceKey),
+        baseCents,
+        surchargeCents: 0,
+        totalCents: baseCents,
+        deliveryDays,
+      });
+    }
+  }
+
+  return Array.from(normalized.values()).sort((left, right) => left.totalCents - right.totalCents);
+}
+
+function normalizeShippoRates(rateOptions: unknown[]) {
+  const normalized = new Map<string, ShippingOption>();
+
+  for (const option of rateOptions) {
+    if (!option || typeof option !== "object") continue;
+    const record = option as Record<string, unknown>;
+    const serviceLevel = (record.servicelevel || {}) as Record<string, unknown>;
+    const provider = String(record.provider || "").toUpperCase();
+    const serviceToken = String(serviceLevel.token || record.servicelevel_token || "").toUpperCase();
+    const serviceNameValue = String(serviceLevel.name || record.servicelevel_name || record.service || "");
+    const serviceKey = mapShippoServiceKey(provider, serviceToken, serviceNameValue);
+    if (!serviceKey) continue;
+
+    const amount = Number(record.amount || record.price || 0);
+    const baseCents = Math.round(amount * 100);
+    if (!Number.isFinite(baseCents) || baseCents <= 0) continue;
+
+    const deliveryDays = Number(record.estimated_days || record.duration_terms || 0) || null;
+    const existing = normalized.get(serviceKey);
+
+    if (!existing || baseCents < existing.baseCents) {
+      normalized.set(serviceKey, {
+        serviceKey,
+        serviceName: serviceNameValue || serviceName(serviceKey),
+        carrier: serviceCarrier(serviceKey),
         baseCents,
         surchargeCents: 0,
         totalCents: baseCents,
@@ -263,6 +381,28 @@ function mapServiceKey(label: string, record: Record<string, unknown>) {
   if (label.includes("EXPRESS") || days === 1) return "usps_1_day";
   if (label.includes("PRIORITY") || days === 2) return "usps_2_day";
   if (label.includes("GROUND") || label.includes("ADVANTAGE")) return "usps_ground";
+  return "";
+}
+
+function mapShippoServiceKey(provider: string, serviceToken: string, serviceNameValue: string) {
+  const token = `${provider} ${serviceToken} ${serviceNameValue}`.toUpperCase();
+
+  if (provider.includes("UPS") || token.includes("UPS")) {
+    if (token.includes("NEXT_DAY") || token.includes("NEXT DAY") || token.includes("1DAY") || token.includes("1 DAY")) {
+      return "ups_1_day";
+    }
+    if (token.includes("2ND_DAY") || token.includes("2ND DAY") || token.includes("2DAY") || token.includes("2 DAY")) {
+      return "ups_2_day";
+    }
+    if (token.includes("GROUND")) return "ups_ground";
+  }
+
+  if (provider.includes("USPS") || token.includes("USPS")) {
+    if (token.includes("EXPRESS")) return "usps_1_day";
+    if (token.includes("PRIORITY")) return "usps_2_day";
+    if (token.includes("GROUND") || token.includes("ADVANTAGE") || token.includes("PARCEL")) return "usps_ground";
+  }
+
   return "";
 }
 
@@ -286,6 +426,7 @@ function fallbackOption(serviceKey: string, baseCents: number, deliveryDays: num
   return {
     serviceKey,
     serviceName: serviceName(serviceKey),
+    carrier: serviceCarrier(serviceKey),
     baseCents,
     surchargeCents: 0,
     totalCents: baseCents,
@@ -294,9 +435,16 @@ function fallbackOption(serviceKey: string, baseCents: number, deliveryDays: num
 }
 
 function serviceName(serviceKey: string) {
+  if (serviceKey === "ups_1_day") return "UPS 1 Day";
+  if (serviceKey === "ups_2_day") return "UPS 2 Day";
+  if (serviceKey === "ups_ground") return "UPS Ground";
   if (serviceKey === "usps_1_day") return "USPS 1 Day";
   if (serviceKey === "usps_2_day") return "USPS 2 Day";
   return "USPS Ground";
+}
+
+function serviceCarrier(serviceKey: string) {
+  return serviceKey.startsWith("ups_") ? "UPS" : "USPS";
 }
 
 function estimateZone(destinationZip: string) {
