@@ -594,11 +594,13 @@ function CartPage({
               <select
                 value={shippingState}
                 onChange={(event) => setShippingState(event.target.value)}
-                className="mt-1 w-full rounded-md border border-white/[0.12] bg-black/20 px-3 py-2 text-white"
+                className="mt-1 w-full rounded-md border border-white/[0.12] bg-[#101214] px-3 py-2 text-[#e9ecef] [color-scheme:dark]"
               >
-                <option value="">Select</option>
+                <option value="" className="bg-[#101214] text-[#e9ecef]">
+                  Select
+                </option>
                 {US_STATES.map((state) => (
-                  <option key={state} value={state}>
+                  <option key={state} value={state} className="bg-[#101214] text-[#e9ecef]">
                     {state}
                   </option>
                 ))}
