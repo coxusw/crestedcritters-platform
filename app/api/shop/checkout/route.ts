@@ -11,6 +11,7 @@ import {
   squareApiBase,
   type ShopCartItem,
   type ShopOrderItem,
+  type ShopShippingAddress,
 } from "@/lib/shop";
 import {
   getBlockedLiveStates,
@@ -25,6 +26,7 @@ import { cleanCartItems, fetchCartProducts, matchCartProducts } from "@/lib/shop
 type CheckoutRequest = {
   customerEmail?: string;
   marketingOptIn?: boolean;
+  shippingAddress?: Partial<ShopShippingAddress>;
   items?: ShopCartItem[];
   shippingState?: string;
   shippingPostalCode?: string;
@@ -52,9 +54,11 @@ export async function POST(request: Request) {
   }
 
   const cleanItems = cleanCartItems(body.items);
-  const shippingState = normalizeState(String(body.shippingState || ""));
-  const shippingPostalCode = normalizeZip(String(body.shippingPostalCode || ""));
+  const shippingAddress = normalizeShippingAddress(body.shippingAddress);
+  const shippingState = shippingAddress.state || normalizeState(String(body.shippingState || ""));
+  const shippingPostalCode = shippingAddress.postalCode || normalizeZip(String(body.shippingPostalCode || ""));
   const shippingServiceKey = String(body.shippingServiceKey || "");
+  const customerEmail = normalizeEmail(body.customerEmail || shippingAddress.email);
 
   if (cleanItems.length === 0) {
     return NextResponse.json({ error: "Add at least one item before checkout." }, { status: 400 });
@@ -62,6 +66,10 @@ export async function POST(request: Request) {
 
   if (!shippingState || !shippingPostalCode || shippingPostalCode.length !== 5) {
     return NextResponse.json({ error: "Enter a shipping state and 5-digit ZIP code." }, { status: 400 });
+  }
+
+  if (!shippingAddress.name || !shippingAddress.email || !shippingAddress.address1 || !shippingAddress.city) {
+    return NextResponse.json({ error: "Enter your full shipping address before checkout." }, { status: 400 });
   }
 
   if (!shippingServiceKey) {
@@ -188,7 +196,9 @@ export async function POST(request: Request) {
   const { data: order, error: orderError } = await supabase
     .from("shop_orders")
     .insert({
-      customer_email: normalizeEmail(body.customerEmail),
+      customer_email: customerEmail,
+      shipping_address: shippingAddress,
+      marketing_opt_in: Boolean(body.marketingOptIn),
       subtotal_cents: subtotalCents,
       shipping_cents: shippingCents,
       total_cents: totalCents,
@@ -201,20 +211,6 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: orderError?.message || "Could not create order." },
       { status: 500 }
-    );
-  }
-
-  const customerEmail = normalizeEmail(body.customerEmail);
-  if (customerEmail) {
-    await supabase.from("shop_email_subscribers").upsert(
-      {
-        email: customerEmail,
-        marketing_opt_in: Boolean(body.marketingOptIn),
-        source: Boolean(body.marketingOptIn) ? "checkout_opt_in" : "checkout_order",
-        last_order_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "email" }
     );
   }
 
@@ -257,8 +253,8 @@ export async function POST(request: Request) {
       checkout_options: {
         redirect_url: `${shopBaseUrl(request)}/checkout/success?order=${order.id}`,
       },
-      pre_populated_data: normalizeEmail(body.customerEmail)
-        ? { buyer_email: normalizeEmail(body.customerEmail) }
+      pre_populated_data: customerEmail
+        ? { buyer_email: customerEmail }
         : undefined,
     }),
   });
@@ -298,4 +294,23 @@ export async function POST(request: Request) {
 function normalizeEmail(value: unknown) {
   const email = String(value || "").trim().toLowerCase();
   return email && email.includes("@") ? email : null;
+}
+
+function normalizeShippingAddress(value: unknown): ShopShippingAddress {
+  const record = (value && typeof value === "object" ? value : {}) as Partial<ShopShippingAddress>;
+  return {
+    name: cleanText(record.name),
+    email: normalizeEmail(record.email) || "",
+    phone: cleanText(record.phone || ""),
+    address1: cleanText(record.address1),
+    address2: cleanText(record.address2 || ""),
+    city: cleanText(record.city),
+    state: normalizeState(String(record.state || "")),
+    postalCode: normalizeZip(String(record.postalCode || "")),
+    country: "US",
+  };
+}
+
+function cleanText(value: unknown) {
+  return String(value || "").trim().replace(/\s+/g, " ");
 }

@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
-import { normalizeProductOptions } from "@/lib/shop";
+import { formatOrderItemName, formatShopMoney, normalizeProductOptions, type ShopOrderItem, type ShopShippingAddress } from "@/lib/shop";
 
 function verifySquareSignature(rawBody: string, signature: string | null) {
   const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
@@ -26,6 +26,19 @@ type ShopWebhookItem = {
   productId?: string;
   optionId?: string | null;
   quantity?: number;
+};
+
+type PaidShopOrder = {
+  id: string;
+  customer_email: string | null;
+  marketing_opt_in?: boolean | null;
+  shipping_address?: ShopShippingAddress | null;
+  items?: ShopOrderItem[] | null;
+  subtotal_cents?: number | null;
+  shipping_cents?: number | null;
+  total_cents?: number | null;
+  square_checkout_url?: string | null;
+  status: string;
 };
 
 async function grantRandomizerOrder(squareOrderId: string, squarePaymentId: string) {
@@ -91,6 +104,7 @@ async function markShopOrderPaid(squareOrderId: string, squarePaymentId: string)
     throw readError;
   }
   if (!order || order.status === "paid") return;
+  const shopOrder = order as PaidShopOrder;
 
   const now = new Date().toISOString();
   const { error: orderError } = await supabase
@@ -104,6 +118,9 @@ async function markShopOrderPaid(squareOrderId: string, squarePaymentId: string)
     .eq("id", order.id);
 
   if (orderError) throw orderError;
+
+  await savePaidShopLead(supabase, shopOrder, now);
+  await sendPaidShopOrderEmail(shopOrder);
 
   const items = Array.isArray(order.items) ? (order.items as ShopWebhookItem[]) : [];
 
@@ -144,6 +161,103 @@ async function markShopOrderPaid(squareOrderId: string, squarePaymentId: string)
       .update(updatePayload)
       .eq("id", item.productId);
   }
+}
+
+async function savePaidShopLead(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  order: PaidShopOrder,
+  paidAt: string
+) {
+  const address = order.shipping_address;
+  const email = normalizeEmail(order.customer_email || address?.email);
+  if (!email) return;
+
+  const leadPayload: Record<string, unknown> = {
+    email,
+    name: address?.name || null,
+    phone: address?.phone || null,
+    shipping_address: address || null,
+    marketing_opt_in: Boolean(order.marketing_opt_in),
+    source: Boolean(order.marketing_opt_in) ? "paid_order_opt_in" : "paid_order",
+    last_order_at: paidAt,
+    updated_at: paidAt,
+  };
+
+  const { error } = await supabase.from("shop_email_subscribers").upsert(leadPayload, { onConflict: "email" });
+
+  if (error?.message?.includes("shipping_address") || error?.message?.includes("name") || error?.message?.includes("phone")) {
+    await supabase.from("shop_email_subscribers").upsert(
+      {
+        email,
+        marketing_opt_in: Boolean(order.marketing_opt_in),
+        source: leadPayload.source,
+        last_order_at: paidAt,
+        updated_at: paidAt,
+      },
+      { onConflict: "email" }
+    );
+  }
+}
+
+async function sendPaidShopOrderEmail(order: PaidShopOrder) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: process.env.SHOP_ORDER_EMAIL_FROM || "Crested Critters Shop <orders@crestedcritters.com>",
+        to: [process.env.SHOP_ORDER_EMAIL_TO || "sales@crestedcritters.com"],
+        subject: `Paid shop order ${order.id.slice(0, 8)} - ${formatShopMoney(Number(order.total_cents || 0))}`,
+        text: buildPaidShopOrderEmail(order),
+      }),
+    });
+  } catch {
+    return;
+  }
+}
+
+function buildPaidShopOrderEmail(order: PaidShopOrder) {
+  const address = order.shipping_address;
+  const items = Array.isArray(order.items) ? order.items : [];
+
+  return [
+    "A paid Crested Critters shop order is ready to process.",
+    "",
+    `Order ID: ${order.id}`,
+    `Customer: ${address?.name || "Not provided"}`,
+    `Email: ${order.customer_email || address?.email || "Not provided"}`,
+    `Phone: ${address?.phone || "Not provided"}`,
+    "",
+    "Shipping address:",
+    address
+      ? [
+          address.name,
+          address.address1,
+          address.address2,
+          `${address.city}, ${address.state} ${address.postalCode}`,
+          address.country || "US",
+        ].filter(Boolean).join("\n")
+      : "Not provided",
+    "",
+    "Items:",
+    ...items.map((item) => `- ${formatOrderItemName(item)} x${item.quantity} (${formatShopMoney(item.priceCents)} each)`),
+    "",
+    `Subtotal: ${formatShopMoney(Number(order.subtotal_cents || 0))}`,
+    `Shipping: ${formatShopMoney(Number(order.shipping_cents || 0))}`,
+    `Total: ${formatShopMoney(Number(order.total_cents || 0))}`,
+    order.square_checkout_url ? `Square checkout: ${order.square_checkout_url}` : "",
+  ].filter((line) => line !== "").join("\n");
+}
+
+function normalizeEmail(value: unknown) {
+  const email = String(value || "").trim().toLowerCase();
+  return email && email.includes("@") ? email : null;
 }
 
 export async function POST(request: Request) {

@@ -9,6 +9,7 @@ import {
   formatShopMoney,
   normalizeProductOptions,
   type ShopOrderItem,
+  type ShopShippingAddress,
   type ShopProduct,
 } from "@/lib/shop";
 import { getShippingOptions } from "@/lib/shop-shipping";
@@ -166,12 +167,12 @@ async function getShopAdminData() {
   const [ordersResult, subscribersResult] = await Promise.all([
     supabase
       .from("shop_orders")
-      .select("id,customer_email,status,subtotal_cents,shipping_cents,total_cents,created_at,items,square_checkout_url")
+      .select("id,customer_email,status,subtotal_cents,shipping_cents,total_cents,created_at,items,shipping_address,square_checkout_url")
       .order("created_at", { ascending: false })
       .limit(20),
     supabase
       .from("shop_email_subscribers")
-      .select("email,marketing_opt_in,source,last_order_at,updated_at")
+      .select("email,name,phone,marketing_opt_in,source,last_order_at,updated_at,shipping_address")
       .order("updated_at", { ascending: false })
       .limit(50),
   ]);
@@ -329,11 +330,15 @@ type ShopOrderAdminRow = {
   total_cents: number | null;
   created_at: string;
   items?: ShopOrderItem[] | null;
+  shipping_address?: ShopShippingAddress | null;
 };
 
 type ShopSubscriberAdminRow = {
   email: string;
+  name?: string | null;
+  phone?: string | null;
   marketing_opt_in: boolean | null;
+  shipping_address?: ShopShippingAddress | null;
 };
 
 function OrdersPanel({ orders }: { orders: ShopOrderAdminRow[] }) {
@@ -351,6 +356,17 @@ function OrdersPanel({ orders }: { orders: ShopOrderAdminRow[] }) {
             <p className="mt-2 font-black text-emerald-100">
               {formatShopMoney(Number(order.total_cents || 0))}
             </p>
+            {order.shipping_address && (
+              <div className="mt-2 rounded-md border border-white/10 bg-black/20 p-2 text-xs leading-5 text-slate-300">
+                <div className="font-black text-slate-100">{order.shipping_address.name}</div>
+                <div>{order.shipping_address.address1}</div>
+                {order.shipping_address.address2 && <div>{order.shipping_address.address2}</div>}
+                <div>
+                  {order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.postalCode}
+                </div>
+                {order.shipping_address.phone && <div>Phone: {order.shipping_address.phone}</div>}
+              </div>
+            )}
             {Array.isArray(order.items) && order.items.length > 0 && (
               <div className="mt-2 space-y-1 border-t border-white/10 pt-2 text-xs text-slate-300">
                 {order.items.map((item, index) => (
@@ -378,7 +394,9 @@ function SubscribersPanel({ subscribers }: { subscribers: ShopSubscriberAdminRow
         ) : (
           subscribers.map((subscriber) => (
             <div key={subscriber.email} className="rounded-md bg-black/20 p-3 text-sm">
-              <div className="font-black">{subscriber.email}</div>
+              <div className="font-black">{subscriber.name || subscriber.email}</div>
+              {subscriber.name && <div className="mt-1 text-slate-300">{subscriber.email}</div>}
+              {subscriber.phone && <div className="mt-1 text-slate-400">{subscriber.phone}</div>}
               <div className="mt-1 text-slate-400">
                 {subscriber.marketing_opt_in ? "Marketing opt-in" : "Order contact only"}
               </div>

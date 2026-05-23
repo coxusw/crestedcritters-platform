@@ -48,6 +48,18 @@ export type ShopOrderItem = {
   imageUrl: string | null;
 };
 
+export type ShopShippingAddress = {
+  name: string;
+  email: string;
+  phone?: string | null;
+  address1: string;
+  address2?: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+};
+
 export function formatShopMoney(cents: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",

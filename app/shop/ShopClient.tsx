@@ -54,6 +54,17 @@ type ShippingOptionsPayload = {
   error?: string;
 };
 
+type CheckoutContact = {
+  name: string;
+  email: string;
+  phone: string;
+  address1: string;
+  address2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+};
+
 const US_STATES = [
   "AL",
   "AK",
@@ -133,9 +144,16 @@ export default function ShopClient({
   );
   const [category, setCategory] = useState("All");
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [email, setEmail] = useState("");
-  const [shippingState, setShippingState] = useState("");
-  const [shippingPostalCode, setShippingPostalCode] = useState("");
+  const [contact, setContact] = useState<CheckoutContact>({
+    name: "",
+    email: "",
+    phone: "",
+    address1: "",
+    address2: "",
+    city: "",
+    state: "",
+    postalCode: "",
+  });
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [selectedShippingKey, setSelectedShippingKey] = useState("");
@@ -198,12 +216,19 @@ export default function ShopClient({
     (option) => option.serviceKey === selectedShippingKey
   );
   const shippingCents = selectedShipping?.totalCents || 0;
+  const contactComplete =
+    contact.name.trim() &&
+    contact.email.trim() &&
+    contact.address1.trim() &&
+    contact.city.trim() &&
+    contact.state.trim() &&
+    contact.postalCode.trim().length === 5;
 
   useEffect(() => {
     setShippingOptions([]);
     setSelectedShippingKey("");
     setLiveWarning("");
-  }, [shippingState, shippingPostalCode, cartProducts.length]);
+  }, [contact.state, contact.postalCode, cartProducts.length]);
 
   function addToCart(product: ShopProduct, option?: ShopProductOption | null) {
     setError("");
@@ -261,10 +286,21 @@ export default function ShopClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerEmail: email,
+          customerEmail: contact.email,
+          shippingAddress: {
+            name: contact.name,
+            email: contact.email,
+            phone: contact.phone,
+            address1: contact.address1,
+            address2: contact.address2,
+            city: contact.city,
+            state: contact.state,
+            postalCode: contact.postalCode,
+            country: "US",
+          },
           marketingOptIn,
-          shippingState,
-          shippingPostalCode,
+          shippingState: contact.state,
+          shippingPostalCode: contact.postalCode,
           shippingServiceKey: selectedShippingKey,
           reviewedLiveShipping,
           items: cartProducts.map((line) => ({
@@ -304,8 +340,8 @@ export default function ShopClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          shippingState,
-          shippingPostalCode,
+          shippingState: contact.state,
+          shippingPostalCode: contact.postalCode,
           items: cartProducts.map((line) => ({
             productId: line.product.id,
             slug: line.product.slug,
@@ -335,8 +371,9 @@ export default function ShopClient({
     return (
       <CartPage
         cartProducts={cartProducts}
-        email={email}
-        setEmail={setEmail}
+        contact={contact}
+        setContact={setContact}
+        contactComplete={Boolean(contactComplete)}
         busy={busy}
         error={error}
         subtotalCents={subtotalCents}
@@ -345,10 +382,6 @@ export default function ShopClient({
         shippingOptions={shippingOptions}
         selectedShippingKey={selectedShippingKey}
         setSelectedShippingKey={setSelectedShippingKey}
-        shippingState={shippingState}
-        setShippingState={setShippingState}
-        shippingPostalCode={shippingPostalCode}
-        setShippingPostalCode={setShippingPostalCode}
         marketingOptIn={marketingOptIn}
         setMarketingOptIn={setMarketingOptIn}
         shippingBusy={shippingBusy}
@@ -524,8 +557,9 @@ function ProductCard({
 
 function CartPage({
   cartProducts,
-  email,
-  setEmail,
+  contact,
+  setContact,
+  contactComplete,
   busy,
   error,
   subtotalCents,
@@ -534,10 +568,6 @@ function CartPage({
   shippingOptions,
   selectedShippingKey,
   setSelectedShippingKey,
-  shippingState,
-  setShippingState,
-  shippingPostalCode,
-  setShippingPostalCode,
   marketingOptIn,
   setMarketingOptIn,
   shippingBusy,
@@ -551,8 +581,9 @@ function CartPage({
   checkout,
 }: {
   cartProducts: CartProductLine[];
-  email: string;
-  setEmail: (value: string) => void;
+  contact: CheckoutContact;
+  setContact: (value: CheckoutContact) => void;
+  contactComplete: boolean;
   busy: boolean;
   error: string;
   subtotalCents: number;
@@ -561,10 +592,6 @@ function CartPage({
   shippingOptions: ShippingOption[];
   selectedShippingKey: string;
   setSelectedShippingKey: (value: string) => void;
-  shippingState: string;
-  setShippingState: (value: string) => void;
-  shippingPostalCode: string;
-  setShippingPostalCode: (value: string) => void;
   marketingOptIn: boolean;
   setMarketingOptIn: (value: boolean) => void;
   shippingBusy: boolean;
@@ -577,6 +604,17 @@ function CartPage({
   clearCart: () => void;
   checkout: () => void;
 }) {
+  function updateContact(field: keyof CheckoutContact, value: string) {
+    setContact({
+      ...contact,
+      [field]: field === "state"
+        ? value.toUpperCase().slice(0, 2)
+        : field === "postalCode"
+          ? value.replace(/\D/g, "").slice(0, 5)
+          : value,
+    });
+  }
+
   return (
     <section className="grid gap-5 lg:grid-cols-[1fr_340px]">
       <div className="rounded-lg border border-white/[0.08] bg-[#141618] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.35)]">
@@ -677,41 +715,45 @@ function CartPage({
       <aside className="h-fit rounded-lg border border-white/[0.08] bg-[#141618] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.35)] lg:sticky lg:top-24">
         <h2 className="text-xl font-black">Order Summary</h2>
         <div className="mt-4 rounded-md border border-white/[0.08] bg-[#101214] p-3">
-          <h3 className="font-black">Shipping</h3>
-          <div className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr] lg:grid-cols-1">
-            <label className="block text-sm font-bold text-[#a8b0b8]">
-              State
-              <select
-                value={shippingState}
-                onChange={(event) => setShippingState(event.target.value)}
-                className="mt-1 w-full rounded-md border border-white/[0.12] bg-[#101214] px-3 py-2 text-[#e9ecef] [color-scheme:dark]"
-              >
-                <option value="" className="bg-[#101214] text-[#e9ecef]">
-                  Select
-                </option>
-                {US_STATES.map((state) => (
-                  <option key={state} value={state} className="bg-[#101214] text-[#e9ecef]">
-                    {state}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm font-bold text-[#a8b0b8]">
-              ZIP code
-              <input
-                value={shippingPostalCode}
-                onChange={(event) => setShippingPostalCode(event.target.value.replace(/\D/g, "").slice(0, 5))}
-                inputMode="numeric"
-                placeholder="46341"
-                className="mt-1 w-full rounded-md border border-white/[0.12] bg-black/20 px-3 py-2 text-white placeholder:text-white/35"
-              />
-            </label>
+          <h3 className="font-black">Shipping Address</h3>
+          <div className="mt-3 grid gap-2">
+            <TextInput label="Full name" value={contact.name} onChange={(value) => updateContact("name", value)} placeholder="Your name" />
+            <TextInput label="Email" type="email" value={contact.email} onChange={(value) => updateContact("email", value)} placeholder="you@example.com" />
+            <TextInput label="Phone" type="tel" value={contact.phone} onChange={(value) => updateContact("phone", value)} placeholder="Optional" />
+            <TextInput label="Address" value={contact.address1} onChange={(value) => updateContact("address1", value)} placeholder="Street address" />
+            <TextInput label="Apartment / suite" value={contact.address2} onChange={(value) => updateContact("address2", value)} placeholder="Optional" />
+            <div className="grid gap-2 sm:grid-cols-[1fr_84px_110px] lg:grid-cols-1">
+              <TextInput label="City" value={contact.city} onChange={(value) => updateContact("city", value)} placeholder="City" />
+              <label className="block text-sm font-bold text-[#a8b0b8]">
+                State
+                <select
+                  value={contact.state}
+                  onChange={(event) => updateContact("state", event.target.value)}
+                  className="mt-1 w-full rounded-md border border-white/[0.12] bg-[#101214] px-3 py-2 text-[#e9ecef] [color-scheme:dark]"
+                >
+                  <option value="" className="bg-[#101214] text-[#e9ecef]">Select</option>
+                  {US_STATES.map((state) => (
+                    <option key={state} value={state} className="bg-[#101214] text-[#e9ecef]">
+                      {state}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <TextInput label="ZIP code" value={contact.postalCode} onChange={(value) => updateContact("postalCode", value)} placeholder="46341" inputMode="numeric" />
+            </div>
           </div>
+        </div>
+
+        <div className="mt-4 rounded-md border border-white/[0.08] bg-[#101214] p-3">
+          <h3 className="font-black">Shipping</h3>
+          <p className="mt-2 text-xs leading-5 text-[#a8b0b8]">
+            Rates use the state and ZIP from the shipping address above.
+          </p>
 
           <button
             type="button"
             onClick={loadShippingOptions}
-            disabled={shippingBusy || cartProducts.length === 0}
+            disabled={shippingBusy || cartProducts.length === 0 || !contact.state || contact.postalCode.length !== 5}
             className="mt-3 w-full rounded-md border border-[#7fb069]/35 px-4 py-2 text-sm font-black text-[#e9ecef] hover:bg-[#7fb069]/10 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {shippingBusy ? "Loading rates..." : "Load Shipping Rates"}
@@ -789,17 +831,6 @@ function CartPage({
           </div>
         </div>
 
-        <label className="mt-4 block text-sm font-bold text-[#a8b0b8]">
-          Email for order updates
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@example.com"
-            className="mt-2 w-full rounded-md border border-white/[0.12] bg-[#101214] px-3 py-3 text-white placeholder:text-white/35"
-          />
-        </label>
-
         <label className="mt-3 flex items-start gap-2 rounded-md border border-white/[0.08] bg-[#101214] p-3 text-sm font-bold text-[#a8b0b8]">
           <input
             type="checkbox"
@@ -822,6 +853,7 @@ function CartPage({
           disabled={
             busy ||
             cartProducts.length === 0 ||
+            !contactComplete ||
             !selectedShipping ||
             (hasLiveItems && !reviewedLiveShipping)
           }
@@ -831,5 +863,35 @@ function CartPage({
         </button>
       </aside>
     </section>
+  );
+}
+
+function TextInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  inputMode,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+  inputMode?: "numeric";
+}) {
+  return (
+    <label className="block text-sm font-bold text-[#a8b0b8]">
+      {label}
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        inputMode={inputMode}
+        className="mt-1 w-full rounded-md border border-white/[0.12] bg-black/20 px-3 py-2 text-white placeholder:text-white/35"
+      />
+    </label>
   );
 }
