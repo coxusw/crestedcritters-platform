@@ -131,6 +131,14 @@ function cartLineKey(productId: string, optionId?: string) {
   return `${productId}:${optionId || ""}`;
 }
 
+function categorySlug(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
 export default function ShopClient({
   products,
   view = "shop",
@@ -171,6 +179,20 @@ export default function ShopClient({
       setCart([]);
     }
   }, []);
+
+  useEffect(() => {
+    function applyHashCategory() {
+      const hash = window.location.hash.replace(/^#/, "");
+      if (!hash) return;
+
+      const match = categories.find((item) => categorySlug(item) === hash);
+      if (match) setCategory(match);
+    }
+
+    applyHashCategory();
+    window.addEventListener("hashchange", applyHashCategory);
+    return () => window.removeEventListener("hashchange", applyHashCategory);
+  }, [categories]);
 
   useEffect(() => {
     window.localStorage.setItem("crested-shop-cart", JSON.stringify(cart));
