@@ -17,6 +17,7 @@ import { getShopShippingSettings, type ShopShippingSettings } from "@/lib/shop-s
 import {
   archiveShopProductAction,
   createShopProductAction,
+  deletePendingShopOrderAction,
   updateShippingSettingsAction,
   updateShopProductAction,
 } from "./actions";
@@ -32,7 +33,7 @@ export default async function AdminShopPage({
   const params = await searchParams;
   const products = await getProducts();
   const shippingSettings = await getShopShippingSettings();
-  const { orders, subscribers } = await getShopAdminData();
+  const { orders, pendingOrders, subscribers } = await getShopAdminData();
   const categories = Array.from(new Set(products.map((product) => product.category))).sort();
   const activeCount = products.filter((product) => product.active).length;
   const soldOutCount = products.filter((product) => product.sold_out || product.inventory <= 0).length;
@@ -80,8 +81,12 @@ export default async function AdminShopPage({
         </section>
 
         <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-          <OrdersPanel orders={orders} />
+          <PendingOrdersPanel orders={pendingOrders} />
           <SubscribersPanel subscribers={subscribers} />
+        </section>
+
+        <section>
+          <OrdersPanel orders={orders} />
         </section>
 
         <section className="space-y-3">
@@ -164,12 +169,18 @@ async function getProducts() {
 
 async function getShopAdminData() {
   const supabase = createSupabaseAdminClient();
-  const [ordersResult, subscribersResult] = await Promise.all([
+  const [ordersResult, pendingOrdersResult, subscribersResult] = await Promise.all([
     supabase
       .from("shop_orders")
       .select("id,customer_email,status,subtotal_cents,shipping_cents,total_cents,created_at,items,shipping_address,square_checkout_url")
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase
+      .from("shop_orders")
+      .select("id,customer_email,status,subtotal_cents,shipping_cents,total_cents,created_at,items,shipping_address,square_checkout_url")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(50),
     supabase
       .from("shop_email_subscribers")
       .select("email,name,phone,marketing_opt_in,source,last_order_at,updated_at,shipping_address")
@@ -179,6 +190,7 @@ async function getShopAdminData() {
 
   return {
     orders: ordersResult.data || [],
+    pendingOrders: pendingOrdersResult.data || [],
     subscribers: subscribersResult.data || [],
   };
 }
@@ -331,6 +343,7 @@ type ShopOrderAdminRow = {
   created_at: string;
   items?: ShopOrderItem[] | null;
   shipping_address?: ShopShippingAddress | null;
+  square_checkout_url?: string | null;
 };
 
 type ShopSubscriberAdminRow = {
@@ -341,46 +354,113 @@ type ShopSubscriberAdminRow = {
   shipping_address?: ShopShippingAddress | null;
 };
 
+function PendingOrdersPanel({ orders }: { orders: ShopOrderAdminRow[] }) {
+  return (
+    <section className="rounded-lg border border-amber-300/20 bg-amber-300/10 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-black text-amber-50">Pending Orders</h2>
+          <p className="mt-1 text-sm leading-6 text-amber-100/80">
+            These customers started checkout but Square has not marked the order paid yet.
+          </p>
+        </div>
+        <span className="rounded-md border border-amber-200/25 px-2 py-1 text-xs font-black uppercase text-amber-50">
+          {orders.length} pending
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        {orders.length === 0 ? (
+          <p className="text-sm text-amber-100/75">No pending orders right now.</p>
+        ) : (
+          orders.map((order) => (
+            <OrderCard key={order.id} order={order} pending />
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
 function OrdersPanel({ orders }: { orders: ShopOrderAdminRow[] }) {
   return (
     <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
       <h2 className="text-xl font-black">Recent Orders</h2>
       <div className="mt-4 grid gap-2">
         {orders.map((order) => (
-          <div key={order.id} className="rounded-md bg-black/20 p-3 text-sm">
-            <div className="flex flex-wrap justify-between gap-2">
-              <span className="font-black">{order.customer_email || "No email"}</span>
-              <span className="rounded-md border border-white/10 px-2 py-1 text-xs font-black uppercase">{order.status}</span>
-            </div>
-            <p className="mt-1 text-slate-400">{new Date(order.created_at).toLocaleString()}</p>
-            <p className="mt-2 font-black text-emerald-100">
-              {formatShopMoney(Number(order.total_cents || 0))}
-            </p>
-            {order.shipping_address && (
-              <div className="mt-2 rounded-md border border-white/10 bg-black/20 p-2 text-xs leading-5 text-slate-300">
-                <div className="font-black text-slate-100">{order.shipping_address.name}</div>
-                <div>{order.shipping_address.address1}</div>
-                {order.shipping_address.address2 && <div>{order.shipping_address.address2}</div>}
-                <div>
-                  {order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.postalCode}
-                </div>
-                {order.shipping_address.phone && <div>Phone: {order.shipping_address.phone}</div>}
-              </div>
-            )}
-            {Array.isArray(order.items) && order.items.length > 0 && (
-              <div className="mt-2 space-y-1 border-t border-white/10 pt-2 text-xs text-slate-300">
-                {order.items.map((item, index) => (
-                  <div key={`${order.id}-${index}`} className="flex justify-between gap-2">
-                    <span>{formatOrderItemName(item)}</span>
-                    <span className="font-bold">x{item.quantity}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <OrderCard key={order.id} order={order} />
         ))}
       </div>
     </section>
+  );
+}
+
+function OrderCard({ order, pending = false }: { order: ShopOrderAdminRow; pending?: boolean }) {
+  const reminderEmail = order.customer_email || order.shipping_address?.email || "";
+  const reminderHref = reminderEmail
+    ? `mailto:${encodeURIComponent(reminderEmail)}?subject=${encodeURIComponent("Your Crested Critters checkout")}&body=${encodeURIComponent(
+        `Hi ${order.shipping_address?.name || ""},\n\nI noticed your Crested Critters checkout was started but has not been completed yet. If you had any trouble checking out or need help with your order, just reply here and I can help.\n\nThank you,\nCrested Critters`
+      )}`
+    : "";
+
+  return (
+    <div className="rounded-md bg-black/20 p-3 text-sm">
+      <div className="flex flex-wrap justify-between gap-2">
+        <span className="font-black">{order.customer_email || order.shipping_address?.email || "No email"}</span>
+        <span className="rounded-md border border-white/10 px-2 py-1 text-xs font-black uppercase">{order.status}</span>
+      </div>
+      <p className="mt-1 text-slate-400">{new Date(order.created_at).toLocaleString()}</p>
+      <p className="mt-2 font-black text-emerald-100">
+        {formatShopMoney(Number(order.total_cents || 0))}
+      </p>
+      {order.shipping_address && (
+        <div className="mt-2 rounded-md border border-white/10 bg-black/20 p-2 text-xs leading-5 text-slate-300">
+          <div className="font-black text-slate-100">{order.shipping_address.name}</div>
+          <div>{order.shipping_address.address1}</div>
+          {order.shipping_address.address2 && <div>{order.shipping_address.address2}</div>}
+          <div>
+            {order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.postalCode}
+          </div>
+          {order.shipping_address.phone && <div>Phone: {order.shipping_address.phone}</div>}
+        </div>
+      )}
+      {Array.isArray(order.items) && order.items.length > 0 && (
+        <div className="mt-2 space-y-1 border-t border-white/10 pt-2 text-xs text-slate-300">
+          {order.items.map((item, index) => (
+            <div key={`${order.id}-${index}`} className="flex justify-between gap-2">
+              <span>{formatOrderItemName(item)}</span>
+              <span className="font-bold">x{item.quantity}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {pending && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {order.square_checkout_url && (
+            <a
+              href={order.square_checkout_url}
+              className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-slate-100 hover:bg-white/10"
+            >
+              Open Checkout Link
+            </a>
+          )}
+          {reminderHref && (
+            <a
+              href={reminderHref}
+              className="rounded-md border border-emerald-300/30 px-3 py-2 text-xs font-black text-emerald-100 hover:bg-emerald-300/10"
+            >
+              Email Reminder
+            </a>
+          )}
+          <form action={deletePendingShopOrderAction}>
+            <input type="hidden" name="id" value={order.id} />
+            <button className="rounded-md border border-red-300/30 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-400/10">
+              Delete Pending
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
   );
 }
 

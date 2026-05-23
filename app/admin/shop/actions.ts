@@ -57,6 +57,24 @@ export async function archiveShopProductAction(formData: FormData) {
   revalidatePath("/shop");
 }
 
+export async function deletePendingShopOrderAction(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") || "");
+  if (!id) throw new Error("Missing order id.");
+
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase
+    .from("shop_orders")
+    .delete()
+    .eq("id", id)
+    .eq("status", "pending");
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/shop");
+}
+
 export async function updateShippingSettingsAction(formData: FormData) {
   await requireAdmin();
   const current = await getShopShippingSettings();

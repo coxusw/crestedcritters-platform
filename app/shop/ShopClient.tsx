@@ -300,6 +300,11 @@ export default function ShopClient({
   }
 
   async function checkout() {
+    if (!contactComplete) {
+      setError("Enter your full shipping address and email before checkout.");
+      return;
+    }
+
     setBusy(true);
     setError("");
 
@@ -875,7 +880,6 @@ function CartPage({
           disabled={
             busy ||
             cartProducts.length === 0 ||
-            !contactComplete ||
             !selectedShipping ||
             (hasLiveItems && !reviewedLiveShipping)
           }
