@@ -27,7 +27,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminShopPage({
   searchParams,
 }: {
-  searchParams: Promise<{ state?: string; zip?: string; live?: string }>;
+  searchParams: Promise<{ state?: string; zip?: string; live?: string; category?: string }>;
 }) {
   await requireAdmin();
   const params = await searchParams;
@@ -35,8 +35,21 @@ export default async function AdminShopPage({
   const shippingSettings = await getShopShippingSettings();
   const { orders, pendingOrders, subscribers } = await getShopAdminData();
   const categories = Array.from(new Set(products.map((product) => product.category))).sort();
+  const selectedCategory = categories.includes(params.category || "") ? params.category || "" : "";
+  const catalogProducts = selectedCategory
+    ? products.filter((product) => product.category === selectedCategory)
+    : products;
   const activeCount = products.filter((product) => product.active).length;
   const soldOutCount = products.filter((product) => product.sold_out || product.inventory <= 0).length;
+  const categoryHref = (category?: string) => {
+    const nextParams = new URLSearchParams();
+    if (params.state) nextParams.set("state", params.state);
+    if (params.zip) nextParams.set("zip", params.zip);
+    if (params.live) nextParams.set("live", params.live);
+    if (category) nextParams.set("category", category);
+    const query = nextParams.toString();
+    return query ? `/admin/shop?${query}` : "/admin/shop";
+  };
 
   return (
     <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
@@ -89,46 +102,91 @@ export default async function AdminShopPage({
           <OrdersPanel orders={orders} />
         </section>
 
-        <section className="space-y-3">
+        <section className="space-y-4 rounded-lg border border-white/10 bg-white/[0.04] p-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-2xl font-black">Catalog</h2>
               <p className="mt-1 text-sm text-slate-400">
-                Edit a product and save. Archive hides it from the shop without deleting order history.
+                Filter by category, then click a product name to open its editor.
               </p>
             </div>
+            <span className="rounded-md border border-white/10 px-3 py-2 text-sm font-black text-slate-300">
+              {catalogProducts.length} shown
+            </span>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            {products.map((product) => (
-              <article key={product.id} className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
-                <div className="mb-4 flex items-start justify-between gap-3 border-b border-white/10 pb-3">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">
-                      {product.category}
-                    </p>
-                    <h3 className="mt-1 text-xl font-black">{product.name}</h3>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={categoryHref()}
+              className={`rounded-md border px-3 py-2 text-sm font-black ${
+                !selectedCategory
+                  ? "border-emerald-300/40 bg-emerald-300 text-slate-950"
+                  : "border-white/10 text-slate-200 hover:bg-white/10"
+              }`}
+            >
+              All
+            </Link>
+            {categories.map((category) => (
+              <Link
+                key={category}
+                href={categoryHref(category)}
+                className={`rounded-md border px-3 py-2 text-sm font-black ${
+                  selectedCategory === category
+                    ? "border-emerald-300/40 bg-emerald-300 text-slate-950"
+                    : "border-white/10 text-slate-200 hover:bg-white/10"
+                }`}
+              >
+                {category}
+              </Link>
+            ))}
+          </div>
+
+          <div className="grid gap-2">
+            {catalogProducts.map((product) => (
+              <details key={product.id} className="group rounded-lg border border-white/10 bg-black/20">
+                <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 marker:hidden">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-black text-white">{product.name}</h3>
+                      <span className="rounded-md border border-white/10 px-2 py-1 text-xs font-bold text-slate-300">
+                        {product.category}
+                      </span>
+                    </div>
                     <p className="mt-1 text-sm text-slate-400">
                       {formatProductPrice(product)} - {product.inventory} in stock
                     </p>
                   </div>
-                  <StatusPill product={product} />
+                  <div className="flex items-center gap-3">
+                    <StatusPill product={product} />
+                    <span className="rounded-md border border-white/10 px-2 py-1 text-xs font-black text-emerald-200 group-open:hidden">
+                      Open
+                    </span>
+                    <span className="hidden rounded-md border border-white/10 px-2 py-1 text-xs font-black text-slate-300 group-open:inline">
+                      Close
+                    </span>
+                  </div>
+                </summary>
+
+                <div className="border-t border-white/10 p-4">
+                  <p className="mb-4 text-sm text-slate-400">
+                    Edit a product and save. Archive hides it from the shop without deleting order history.
+                  </p>
+
+                  <ProductForm
+                    action={updateShopProductAction}
+                    categories={categories}
+                    product={product}
+                    submitLabel="Save Changes"
+                  />
+
+                  <form action={archiveShopProductAction} className="mt-3">
+                    <input type="hidden" name="id" value={product.id} />
+                    <button className="rounded-md border border-red-300/30 px-3 py-2 text-sm font-bold text-red-100 hover:bg-red-400/10">
+                      Archive Product
+                    </button>
+                  </form>
                 </div>
-
-                <ProductForm
-                  action={updateShopProductAction}
-                  categories={categories}
-                  product={product}
-                  submitLabel="Save Changes"
-                />
-
-                <form action={archiveShopProductAction} className="mt-3">
-                  <input type="hidden" name="id" value={product.id} />
-                  <button className="rounded-md border border-red-300/30 px-3 py-2 text-sm font-bold text-red-100 hover:bg-red-400/10">
-                    Archive Product
-                  </button>
-                </form>
-              </article>
+              </details>
             ))}
           </div>
         </section>
