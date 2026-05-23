@@ -108,7 +108,7 @@ export default async function AdminShopPage({
           </div>
         </details>
 
-        <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <section className="grid items-start gap-4 xl:grid-cols-[1.2fr_0.8fr]">
           <ShippingSettingsPanel settings={shippingSettings} />
           <ShippingTester searchParams={params} />
         </section>
@@ -395,9 +395,22 @@ async function ShippingTester({
   const options = zip.length === 5 ? await getShippingOptions({ destinationZip: zip, destinationState: state, hasLiveItems: live }) : [];
 
   return (
-    <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
-      <h2 className="text-xl font-black">Shipping Tester</h2>
-      <form className="mt-4 grid gap-3">
+    <details className="group rounded-lg border border-white/10 bg-white/[0.05]">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-5 py-4 marker:hidden">
+        <div>
+          <h2 className="text-xl font-black">Shipping Tester</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-400">
+            Preview shop shipping rates by destination.
+          </p>
+        </div>
+        <span className="rounded-md border border-white/10 px-3 py-2 text-sm font-black text-slate-200 group-open:hidden">
+          Open
+        </span>
+        <span className="hidden rounded-md border border-white/10 px-3 py-2 text-sm font-black text-slate-200 group-open:inline">
+          Close
+        </span>
+      </summary>
+      <form className="grid gap-3 border-t border-white/10 px-5 pb-5 pt-4">
         <Field label="State">
           <input name="state" defaultValue={state} className={inputClass} />
         </Field>
@@ -409,7 +422,7 @@ async function ShippingTester({
           Test Rates
         </button>
       </form>
-      <div className="mt-4 grid gap-2">
+      <div className="grid gap-2 px-5 pb-5">
         {options.length === 0 ? (
           <p className="text-sm text-slate-400">Enter a ZIP to preview rates.</p>
         ) : (
@@ -429,7 +442,7 @@ async function ShippingTester({
           ))
         )}
       </div>
-    </section>
+    </details>
   );
 }
 
