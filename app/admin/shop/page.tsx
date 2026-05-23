@@ -27,7 +27,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminShopPage({
   searchParams,
 }: {
-  searchParams: Promise<{ state?: string; zip?: string; live?: string; category?: string }>;
+  searchParams: Promise<{ state?: string; zip?: string; live?: string; category?: string; catalog?: string }>;
 }) {
   await requireAdmin();
   const params = await searchParams;
@@ -35,18 +35,23 @@ export default async function AdminShopPage({
   const shippingSettings = await getShopShippingSettings();
   const { orders, pendingOrders, subscribers } = await getShopAdminData();
   const categories = Array.from(new Set(products.map((product) => product.category))).sort();
+  const soldOutProducts = products.filter((product) => product.sold_out || product.inventory <= 0);
+  const showingSoldOut = params.catalog === "sold-out";
   const selectedCategory = categories.includes(params.category || "") ? params.category || "" : "";
-  const catalogProducts = selectedCategory
+  const catalogProducts = showingSoldOut
+    ? soldOutProducts
+    : selectedCategory
     ? products.filter((product) => product.category === selectedCategory)
     : products;
   const activeCount = products.filter((product) => product.active).length;
-  const soldOutCount = products.filter((product) => product.sold_out || product.inventory <= 0).length;
-  const categoryHref = (category?: string) => {
+  const soldOutCount = soldOutProducts.length;
+  const categoryHref = (category?: string, catalog?: string) => {
     const nextParams = new URLSearchParams();
     if (params.state) nextParams.set("state", params.state);
     if (params.zip) nextParams.set("zip", params.zip);
     if (params.live) nextParams.set("live", params.live);
     if (category) nextParams.set("category", category);
+    if (catalog) nextParams.set("catalog", catalog);
     const query = nextParams.toString();
     return query ? `/admin/shop?${query}` : "/admin/shop";
   };
@@ -134,7 +139,7 @@ export default async function AdminShopPage({
             <Link
               href={categoryHref()}
               className={`rounded-md border px-3 py-2 text-sm font-black ${
-                !selectedCategory
+                !selectedCategory && !showingSoldOut
                   ? "border-emerald-300/40 bg-emerald-300 text-slate-950"
                   : "border-white/10 text-slate-200 hover:bg-white/10"
               }`}
@@ -146,7 +151,7 @@ export default async function AdminShopPage({
                 key={category}
                 href={categoryHref(category)}
                 className={`rounded-md border px-3 py-2 text-sm font-black ${
-                  selectedCategory === category
+                  selectedCategory === category && !showingSoldOut
                     ? "border-emerald-300/40 bg-emerald-300 text-slate-950"
                     : "border-white/10 text-slate-200 hover:bg-white/10"
                 }`}
@@ -154,6 +159,16 @@ export default async function AdminShopPage({
                 {category}
               </Link>
             ))}
+            <Link
+              href={categoryHref(undefined, "sold-out")}
+              className={`rounded-md border px-3 py-2 text-sm font-black ${
+                showingSoldOut
+                  ? "border-amber-300/40 bg-amber-300 text-slate-950"
+                  : "border-white/10 text-slate-200 hover:bg-white/10"
+              }`}
+            >
+              Sold Out
+            </Link>
           </div>
 
           <div className="grid gap-2">
