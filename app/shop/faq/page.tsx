@@ -54,31 +54,21 @@ const sections = [
       "For questions about timing, weather holds, or state restrictions, contact us before placing your order.",
     ],
   },
+  {
+    title: "Responsible keeping and disposal",
+    body: [
+      "Please never release isopods, springtails, or enclosure material outdoors. Even small cleanup crews can become invasive when introduced outside of their proper environment.",
+      "Used substrate, leaf litter, cork, moss, and any other enclosure material should be frozen for at least 72 hours before disposal.",
+      "This helps prevent accidental introduction of non-native species and protects local ecosystems.",
+    ],
+  },
 ];
 
 export default function ShopFaqPage() {
   return (
     <ShopShell>
-      <section className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-        <div className="rounded-md border border-white/[0.08] bg-[#141618] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.35)]">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d6c06f]">
-            Shipping FAQ
-          </p>
-          <h2 className="mt-3 text-3xl font-black leading-tight text-white">
-            Live shipping, order policies, and safe arrival
-          </h2>
-          <p className="mt-4 text-sm leading-7 text-[#a8b0b8]">
-            Here is how we handle live shipping, seasonal packaging, state
-            restrictions, and live arrival concerns before your order leaves
-            Crested Critters.
-          </p>
-          <div className="mt-5 rounded-md border border-[#7fb069]/25 bg-[#7fb069]/10 p-4 text-sm font-bold leading-6 text-[#d7ead0]">
-            Live orders ship by UPS Next Day Air or UPS 2nd Day Air. Non-live
-            orders ship by USPS Ground Advantage.
-          </div>
-        </div>
-
-        <div className="grid gap-4">
+      <section className="mx-auto max-w-5xl">
+        <div className="grid gap-4 md:grid-cols-2">
           {sections.map((section) => (
             <article
               key={section.title}
