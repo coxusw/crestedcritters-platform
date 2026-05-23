@@ -83,10 +83,25 @@ export default async function AdminShopPage({
           <Stat label="Categories" value={categories.length} />
         </section>
 
-        <section className="rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-5">
-          <h2 className="text-xl font-black text-emerald-50">Add Product</h2>
-          <ProductForm action={createShopProductAction} categories={categories} submitLabel="Add Product" />
-        </section>
+        <details className="group rounded-lg border border-emerald-300/20 bg-emerald-300/10">
+          <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-5 py-4 marker:hidden">
+            <div>
+              <h2 className="text-xl font-black text-emerald-50">Add Product</h2>
+              <p className="mt-1 text-sm text-emerald-100/75">
+                Open this when you are adding a new shop item.
+              </p>
+            </div>
+            <span className="rounded-md border border-emerald-100/20 px-3 py-2 text-sm font-black text-emerald-50 group-open:hidden">
+              Open
+            </span>
+            <span className="hidden rounded-md border border-emerald-100/20 px-3 py-2 text-sm font-black text-emerald-50 group-open:inline">
+              Close
+            </span>
+          </summary>
+          <div className="border-t border-emerald-100/10 px-5 pb-5">
+            <ProductForm action={createShopProductAction} categories={categories} submitLabel="Add Product" />
+          </div>
+        </details>
 
         <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
           <ShippingSettingsPanel settings={shippingSettings} />
@@ -278,12 +293,22 @@ function Stat({
 
 function ShippingSettingsPanel({ settings }: { settings: ShopShippingSettings }) {
   return (
-    <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
-      <h2 className="text-xl font-black">Shipping Settings</h2>
-      <p className="mt-1 text-sm leading-6 text-slate-400">
-        Edit Shippo/RevAddress setup, blocked live states, seasonal packaging costs, and fallback USPS zone rates.
-      </p>
-      <form action={updateShippingSettingsAction} className="mt-4 grid gap-3">
+    <details className="group rounded-lg border border-white/10 bg-white/[0.05]">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-5 py-4 marker:hidden">
+        <div>
+          <h2 className="text-xl font-black">Shipping Settings</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-400">
+            Edit Shippo/RevAddress setup, blocked live states, packaging costs, and fallback rates.
+          </p>
+        </div>
+        <span className="rounded-md border border-white/10 px-3 py-2 text-sm font-black text-slate-200 group-open:hidden">
+          Open
+        </span>
+        <span className="hidden rounded-md border border-white/10 px-3 py-2 text-sm font-black text-slate-200 group-open:inline">
+          Close
+        </span>
+      </summary>
+      <form action={updateShippingSettingsAction} className="grid gap-3 border-t border-white/10 px-5 pb-5 pt-4">
         <div className="grid gap-3 md:grid-cols-5">
           <Field label="Ship ZIP">
             <input name="originZip" defaultValue={settings.originZip} className={inputClass} />
@@ -340,7 +365,7 @@ function ShippingSettingsPanel({ settings }: { settings: ShopShippingSettings })
           Save Shipping Settings
         </button>
       </form>
-    </section>
+    </details>
   );
 }
 
