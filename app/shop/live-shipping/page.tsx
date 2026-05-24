@@ -20,6 +20,13 @@ const sections = [
     ],
   },
   {
+    title: "Live shipping days",
+    body: [
+      "Crested Critters will only ship live orders on Mondays or Tuesdays unless arranged otherwise with Crested Critters.",
+      "If you have any questions, please reach out using the Contact button on our website.",
+    ],
+  },
+  {
     title: "Restricted states",
     body: [
       `Live isopods and springtails cannot currently ship to ${restrictedStates.join(", ")}.`,
