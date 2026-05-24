@@ -19,12 +19,17 @@ import {
   type ShopShippingSettings,
 } from "@/lib/shop-shipping-settings";
 
+const SHOP_PRODUCT_IMAGE_BUCKET = "shop-product-images";
+const SHOP_PRODUCT_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const SHOP_PRODUCT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+
 export async function createShopProductAction(formData: FormData) {
   await requireAdmin();
 
   try {
     const supabase = createSupabaseAdminClient();
-    const payload = productPayload(formData);
+    const imageUrls = await productImageUrlsFromFormData(supabase, formData);
+    const payload = productPayload(formData, imageUrls);
     const { error } = await supabase.from("shop_products").insert(payload);
     if (error) throw new Error(error.message);
 
@@ -46,7 +51,8 @@ export async function updateShopProductAction(formData: FormData) {
     if (!id) throw new Error("Missing product id.");
 
     const supabase = createSupabaseAdminClient();
-    const payload = productPayload(formData);
+    const imageUrls = await productImageUrlsFromFormData(supabase, formData);
+    const payload = productPayload(formData, imageUrls);
     const { error } = await supabase
       .from("shop_products")
       .update({ ...payload, updated_at: new Date().toISOString() })
@@ -283,14 +289,13 @@ async function requireAdmin() {
   if (!adminProfile) redirect("/admin/login");
 }
 
-function productPayload(formData: FormData) {
+function productPayload(formData: FormData, imageUrls: string[]) {
   const name = String(formData.get("name") || "").trim();
   const slugInput = String(formData.get("slug") || "").trim();
   const slug = slugifyProductName(slugInput || name);
   const cardDescription = String(formData.get("card_description") || "").trim();
   const fullDescription = String(formData.get("full_description") || "").trim();
   const sourceNote = String(formData.get("source_note") || "").trim();
-  const imageUrls = parseProductImageUrls(formData.get("image_urls"));
 
   if (!name) throw new Error("Product name is required.");
   if (!slug) throw new Error("Product slug is required.");
@@ -317,17 +322,92 @@ function productPayload(formData: FormData) {
   };
 }
 
+async function productImageUrlsFromFormData(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  formData: FormData
+) {
+  const name = String(formData.get("name") || "").trim();
+  const slugInput = String(formData.get("slug") || "").trim();
+  const slug = slugifyProductName(slugInput || name || "product");
+  const existingImageUrls = parseProductImageUrls(formData.get("existing_image_urls"));
+  const uploadedImageUrls = await uploadShopProductImages(supabase, formData.getAll("image_files"), slug);
+  return uniqueImageUrls([...existingImageUrls, ...uploadedImageUrls]);
+}
+
 function parseProductImageUrls(value: FormDataEntryValue | null) {
+  return uniqueImageUrls(String(value || "").split(/\r?\n/));
+}
+
+function uniqueImageUrls(values: unknown[]) {
   const seen = new Set<string>();
 
-  return String(value || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => {
-      if (!line || seen.has(line)) return false;
-      seen.add(line);
+  return values
+    .map((value) => String(value || "").trim())
+    .filter((value) => {
+      if (!value || seen.has(value)) return false;
+      seen.add(value);
       return true;
     });
+}
+
+async function uploadShopProductImages(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  entries: FormDataEntryValue[],
+  slug: string
+) {
+  const files = entries.filter((entry): entry is File => entry instanceof File && entry.size > 0);
+  if (files.length === 0) return [] as string[];
+
+  await ensureShopProductImageBucket(supabase);
+
+  const uploadedUrls: string[] = [];
+  for (const [index, file] of files.entries()) {
+    if (!SHOP_PRODUCT_IMAGE_TYPES.includes(file.type)) {
+      throw new Error("Product images must be JPG, PNG, WEBP, or GIF.");
+    }
+
+    if (file.size > SHOP_PRODUCT_IMAGE_MAX_BYTES) {
+      throw new Error("Each product image must be smaller than 8MB.");
+    }
+
+    const extension = getFileExtension(file.name);
+    const fileSlug = slugifyProductName(file.name.replace(/\.[^.]+$/, "")) || "image";
+    const filePath = `${slug}/${Date.now()}-${index + 1}-${fileSlug}.${extension}`;
+    const { error } = await supabase.storage
+      .from(SHOP_PRODUCT_IMAGE_BUCKET)
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type,
+      });
+
+    if (error) throw new Error(error.message);
+
+    const { data } = supabase.storage.from(SHOP_PRODUCT_IMAGE_BUCKET).getPublicUrl(filePath);
+    uploadedUrls.push(data.publicUrl);
+  }
+
+  return uploadedUrls;
+}
+
+async function ensureShopProductImageBucket(supabase: ReturnType<typeof createSupabaseAdminClient>) {
+  const { data } = await supabase.storage.getBucket(SHOP_PRODUCT_IMAGE_BUCKET);
+  if (data) return;
+
+  const { error } = await supabase.storage.createBucket(SHOP_PRODUCT_IMAGE_BUCKET, {
+    public: true,
+    fileSizeLimit: SHOP_PRODUCT_IMAGE_MAX_BYTES,
+    allowedMimeTypes: SHOP_PRODUCT_IMAGE_TYPES,
+  });
+
+  if (error && !error.message.toLowerCase().includes("already exists")) {
+    throw new Error(error.message);
+  }
+}
+
+function getFileExtension(fileName: string) {
+  const extension = fileName.split(".").pop()?.toLowerCase() || "jpg";
+  return extension.replace(/[^a-z0-9]/g, "") || "jpg";
 }
 
 function parseProductOptions(value: FormDataEntryValue | null) {

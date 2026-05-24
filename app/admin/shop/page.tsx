@@ -894,16 +894,31 @@ function ProductForm({
           />
         </Field>
         <Field label="Product Images">
-          <textarea
-            name="image_urls"
-            rows={4}
-            defaultValue={formatProductImagesInput(product)}
-            placeholder={"One image URL per line. The first image is used as the main shop image."}
-            className={`${inputClass} min-h-28`}
+          <input type="hidden" name="existing_image_urls" value={formatProductImagesInput(product)} />
+          <input
+            name="image_files"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            className={`${inputClass} file:mr-3 file:rounded-md file:border-0 file:bg-emerald-300 file:px-3 file:py-2 file:text-sm file:font-black file:text-slate-950`}
           />
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Add one image URL per line. The first image appears first on cards, product pages, cart, and order emails.
+            Upload JPG, PNG, WEBP, or GIF images. Existing images are kept when you save; new uploads are added after them.
           </p>
+          {product && normalizeShopProductImages(product).length > 0 && (
+            <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
+              {normalizeShopProductImages(product).map((imageUrl, index) => (
+                <div key={imageUrl} className="overflow-hidden rounded-md border border-white/10 bg-black/20 p-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageUrl}
+                    alt={`${product.name} image ${index + 1}`}
+                    className="aspect-square w-full object-contain"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </Field>
       </div>
 
