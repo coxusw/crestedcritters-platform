@@ -18,6 +18,13 @@ const sections = [
     ],
   },
   {
+    title: "Botanicals",
+    body: [
+      "All botanicals are sanitized by Crested Critters for safe delivery.",
+      "It is still advised that all shipments be sanitized before use.",
+    ],
+  },
+  {
     title: "Live products",
     body: [
       "Live isopods and springtails have separate shipping rules because weather, transit time, and state restrictions matter.",
