@@ -796,7 +796,7 @@ function CartPage({
                   onChange={(event) => setReviewedLiveShipping(event.target.checked)}
                   className="mt-1"
                 />
-                I reviewed Live Shipping FAQ.
+                I reviewed the <a href="/live-shipping" className="underline decoration-[#d6c06f]/70 underline-offset-2 hover:text-[#d6c06f]">Live Shipping</a> page.
               </label>
             </div>
           )}

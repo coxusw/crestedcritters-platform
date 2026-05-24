@@ -167,7 +167,7 @@ export async function POST(request: Request) {
 
     if (!body.reviewedLiveShipping) {
       return NextResponse.json(
-        { error: "Please review Live Shipping FAQ before checkout." },
+        { error: "Please review the Live Shipping page before checkout." },
         { status: 400 }
       );
     }

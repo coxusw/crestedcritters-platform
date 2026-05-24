@@ -17,6 +17,7 @@ export default function ShopShell({ children }: { children: ReactNode }) {
             <a href="/" className="hover:text-[#7fb069]">Shop</a>
             <a href="/cart" className="hover:text-[#7fb069]">Cart</a>
             <a href="/faq" className="hover:text-[#7fb069]">FAQ</a>
+            <a href="/live-shipping" className="hover:text-[#7fb069]">Live Shipping</a>
             <a href="https://crestedcritters.com/contact/" className="hover:text-[#7fb069]">Contact</a>
             <a href="https://isopedia.crestedcritters.com/" className="hover:text-[#7fb069]">Isopedia</a>
             <a href="https://randomizer.crestedcritters.com/" className="hover:text-[#7fb069]">Randomizer</a>

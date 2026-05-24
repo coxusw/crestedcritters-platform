@@ -1,57 +1,43 @@
 import ShopShell from "../ShopShell";
 
-const liveStates = ["Alaska", "Hawaii", "Florida", "California", "Oregon"];
-
 const sections = [
   {
-    title: "How shop shipping works",
+    title: "How checkout works",
     body: [
-      "Live products are isopods and springtails. If a cart contains any live product, checkout will only show UPS Next Day Air and UPS 2nd Day Air.",
-      "Non-live orders use USPS Ground Advantage. This includes supplies, botanicals, accessories, 3D prints, and merch when no live product is in the cart.",
-      "Shipping is calculated at checkout after you enter your shipping state and ZIP code.",
+      "Add the items you want to your cart, enter your shipping address, choose an available shipping option, then complete payment through Square.",
+      "If something in your cart is no longer available, checkout will stop and ask you to update the cart before payment.",
+      "After payment, Crested Critters receives the order details and the shipping address you entered at checkout.",
     ],
   },
   {
-    title: "Live shipping season",
+    title: "Non-live shipping",
     body: [
-      "Crested Critters begins live shipping the last week of March and ships live orders through November when weather allows.",
-      "Live orders are not available from December through the last week of March. If your cart contains isopods or springtails during that window, checkout will not continue with the live order.",
-      "We may hold live orders during unsafe weather. Safe arrival matters more than rushing a box into conditions that are not good for the animals.",
+      "Non-live products include supplies, botanicals, accessories, 3D prints, and merch when no live products are in the cart.",
+      "Non-live orders ship using USPS Ground Advantage.",
+      "Shipping is calculated at checkout after you enter your shipping address.",
     ],
   },
   {
-    title: "Seasonal live packaging",
+    title: "Live products",
     body: [
-      "Live shipments require extra packaging to ensure safe arrival especially with seasonal weather.",
-      "From the last week of March - June, live orders include a $5 packaging charge.",
-      "July - September includes a $10 temperature-control packaging charge.",
-      "October live orders include a $5 packaging charge.",
-      "November includes a $10 temperature-control packaging charge.",
-      "These charges are added only to live orders, and are to help cover the actual packaging needed for safe and live transit.",
+      "Live isopods and springtails have separate shipping rules because weather, transit time, and state restrictions matter.",
+      "Please review the Live Shipping page before placing a live order.",
+    ],
+    href: "/live-shipping",
+    linkLabel: "View Live Shipping",
+  },
+  {
+    title: "Marketing emails",
+    body: [
+      "You can choose to receive Crested Critters updates during checkout.",
+      "Marketing emails include an unsubscribe link, and unsubscribing keeps your email on order records while removing it from future marketing sends.",
     ],
   },
   {
-    title: "States currently excluded for live shipping",
+    title: "Order questions",
     body: [
-      `Live isopods and springtails cannot currently ship to ${liveStates.join(", ")}.`,
-      "These states are currently excluded because of permitting and live-animal shipping restrictions.",
-      "Non-live products can still be ordered to those states as long as the cart does not contain isopods or springtails.",
-    ],
-  },
-  {
-    title: "Live arrival guarantee",
-    body: [
-      "Our live arrival guarantee applies to live orders shipped with the required UPS air service and delivered on the first delivery attempt.",
-      "Please be available for delivery and bring the package inside quickly. Heat, cold, missed deliveries, and packages left outside can affect the guarantee.",
-      "If there is a problem with a live shipment, contact us on the delivery day with your order number, clear photos of the unopened containers, and photos of the shipping box and packing materials.",
-    ],
-  },
-  {
-    title: "Before placing a live order",
-    body: [
-      "Please review your shipping address, weather, and delivery schedule before checkout. Live orders should ship to an address where someone can receive the package.",
-      "If your cart has live items, checkout will ask you to confirm that you reviewed this page before payment.",
-      "For questions about timing, weather holds, or state restrictions, contact us before placing your order.",
+      "If you have a question about an order, shipping timing, product availability, or live shipping, contact Crested Critters before placing the order.",
+      "For paid orders, include the email used at checkout so the order can be found faster.",
     ],
   },
   {
@@ -80,6 +66,14 @@ export default function ShopFaqPage() {
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
+              {section.href && (
+                <a
+                  href={section.href}
+                  className="mt-4 inline-flex rounded-md border border-[#7fb069]/35 px-4 py-2 text-sm font-black text-[#d7ead0] hover:bg-[#7fb069]/10"
+                >
+                  {section.linkLabel}
+                </a>
+              )}
             </article>
           ))}
         </div>

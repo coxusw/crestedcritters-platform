@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     blocked: false,
     blockedReason: "",
     liveWarning: hasLiveItems
-      ? "Please review the Live Shipping FAQ before checkout. Live orders ship by UPS Next Day Air or UPS 2nd Day Air."
+      ? "Please review the Live Shipping page before checkout. Live orders ship by UPS Next Day Air or UPS 2nd Day Air."
       : "",
     options,
   });
