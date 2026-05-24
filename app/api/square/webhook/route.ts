@@ -1,7 +1,14 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
-import { formatOrderItemName, formatShopMoney, normalizeProductOptions, type ShopOrderItem, type ShopShippingAddress } from "@/lib/shop";
+import {
+  formatOrderItemName,
+  formatShopMoney,
+  normalizeProductOptions,
+  productTotalAvailableQuantity,
+  type ShopOrderItem,
+  type ShopShippingAddress,
+} from "@/lib/shop";
 
 function verifySquareSignature(rawBody: string, signature: string | null) {
   const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
@@ -137,9 +144,9 @@ async function markShopOrderPaid(squareOrderId: string, squarePaymentId: string)
 
     if (productError || !product) continue;
 
-    const nextInventory = Math.max(0, Number(product.inventory || 0) - quantity);
     const productOptions = normalizeProductOptions(product);
-    const shouldUpdateOptions = Object.prototype.hasOwnProperty.call(product, "options");
+    const hasOptions = productOptions.length > 0;
+    const nextInventory = hasOptions ? Number(product.inventory || 0) : Math.max(0, Number(product.inventory || 0) - quantity);
     const nextOptions =
       item.optionId && productOptions.some((option) => option.id === item.optionId && typeof option.inventory === "number")
         ? productOptions.map((option) =>
@@ -148,13 +155,18 @@ async function markShopOrderPaid(squareOrderId: string, squarePaymentId: string)
               : option
           )
         : product.options;
+    const nextProduct = {
+      ...product,
+      inventory: nextInventory,
+      options: nextOptions,
+    };
     const updatePayload: Record<string, unknown> = {
       inventory: nextInventory,
-      sold_out: nextInventory <= 0,
+      sold_out: productTotalAvailableQuantity(nextProduct) <= 0,
       updated_at: now,
     };
 
-    if (shouldUpdateOptions) updatePayload.options = nextOptions;
+    if (Object.prototype.hasOwnProperty.call(product, "options")) updatePayload.options = nextOptions;
 
     await supabase
       .from("shop_products")

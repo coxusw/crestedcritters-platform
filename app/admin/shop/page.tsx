@@ -9,6 +9,7 @@ import {
   formatShopMoney,
   normalizeProductOptions,
   normalizeShopProductImages,
+  productTotalAvailableQuantity,
   type ShopOrderItem,
   type ShopShippingAddress,
   type ShopProduct,
@@ -48,7 +49,7 @@ export default async function AdminShopPage({
   const { orders, pendingOrders, subscribers, marketingSubscribers, unsubscribedSubscribers } = await getShopAdminData();
   const categories = Array.from(new Set(products.map((product) => product.category))).sort();
   const activeTab = params.tab === "marketing" ? "marketing" : "manage";
-  const soldOutProducts = products.filter((product) => product.sold_out || product.inventory <= 0);
+  const soldOutProducts = products.filter((product) => isShopProductSoldOut(product));
   const showingSoldOut = params.catalog === "sold-out";
   const selectedCategory = categories.includes(params.category || "") ? params.category || "" : "";
   const catalogProducts = showingSoldOut
@@ -225,7 +226,7 @@ export default async function AdminShopPage({
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-slate-400">
-                      {formatProductPrice(product)} - {product.inventory} in stock
+                      {formatProductPrice(product)} - {productTotalAvailableQuantity(product)} in stock
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -1039,7 +1040,7 @@ function formatProductImagesInput(product?: ShopProduct) {
 function StatusPill({ product }: { product: ShopProduct }) {
   const label = !product.active
     ? "Archived"
-    : product.sold_out || product.inventory <= 0
+    : isShopProductSoldOut(product)
       ? "Sold Out"
       : "Active";
   const tone =
@@ -1052,6 +1053,10 @@ function StatusPill({ product }: { product: ShopProduct }) {
       {label}
     </span>
   );
+}
+
+function isShopProductSoldOut(product: ShopProduct) {
+  return product.sold_out || productTotalAvailableQuantity(product) <= 0;
 }
 
 const inputClass =

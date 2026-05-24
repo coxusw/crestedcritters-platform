@@ -126,6 +126,18 @@ export function productAvailableQuantity(
   return typeof option?.inventory === "number" ? option.inventory : product.inventory;
 }
 
+export function productTotalAvailableQuantity(
+  product: Pick<ShopProduct, "inventory" | "options">
+) {
+  const options = normalizeProductOptions(product);
+  if (options.length === 0) return product.inventory;
+
+  return options.reduce(
+    (total, option) => total + productAvailableQuantity(product, option),
+    0
+  );
+}
+
 export function formatProductPrice(product: Pick<ShopProduct, "price_cents" | "options">) {
   const prices = [
     product.price_cents,

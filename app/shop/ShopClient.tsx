@@ -9,6 +9,7 @@ import {
   getProductOption,
   normalizeProductOptions,
   productAvailableQuantity,
+  productTotalAvailableQuantity,
   productUnitPrice,
   normalizeShopProductImages,
   shopProductCardDescription,
@@ -122,7 +123,7 @@ const US_STATES = [
 ];
 
 function isUnavailable(product: ShopProduct) {
-  return product.sold_out || product.inventory <= 0;
+  return product.sold_out || productTotalAvailableQuantity(product) <= 0;
 }
 
 function isLiveProduct(product: Pick<ShopProduct, "category">) {
@@ -492,6 +493,7 @@ function ProductCard({
   const selectedOption = productOptions.find((option) => option.id === selectedOptionId) || null;
   const requiresOption = productOptions.length > 0;
   const availableQuantity = productAvailableQuantity(product, selectedOption);
+  const totalAvailableQuantity = productTotalAvailableQuantity(product);
   const unavailable = isUnavailable(product) || (requiresOption && selectedOption ? availableQuantity <= 0 : false);
   const canAdd = !unavailable && (!requiresOption || Boolean(selectedOption));
 
@@ -507,13 +509,13 @@ function ProductCard({
           <span className="absolute bottom-3 left-3 rounded-full border border-white/15 bg-red-900/35 px-3 py-1 text-xs font-black text-white backdrop-blur">
             Sold Out
           </span>
-        ) : product.inventory <= 4 ? (
+        ) : totalAvailableQuantity <= 4 ? (
           <span className="absolute bottom-3 left-3 rounded-full border border-[#d6c06f]/40 bg-[#d6c06f]/20 px-3 py-1 text-xs font-black text-[#e9ecef] backdrop-blur">
-            Low stock: {product.inventory}
+            Low stock: {totalAvailableQuantity}
           </span>
         ) : (
           <span className="absolute bottom-3 left-3 rounded-full border border-white/15 bg-[#7fb069]/20 px-3 py-1 text-xs font-black text-[#e9ecef] backdrop-blur">
-            {product.inventory} in stock
+            {totalAvailableQuantity} in stock
           </span>
         )}
       </div>

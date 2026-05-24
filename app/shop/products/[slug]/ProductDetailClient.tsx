@@ -7,6 +7,7 @@ import {
   formatShopMoney,
   normalizeProductOptions,
   productAvailableQuantity,
+  productTotalAvailableQuantity,
   productUnitPrice,
 } from "@/lib/shop";
 
@@ -20,7 +21,7 @@ type CartLine = {
 };
 
 function isUnavailable(product: ShopProduct) {
-  return product.sold_out || product.inventory <= 0;
+  return product.sold_out || productTotalAvailableQuantity(product) <= 0;
 }
 
 function cartLineKey(productId: string, optionId?: string) {
@@ -35,6 +36,7 @@ export default function ProductDetailClient({ product }: { product: ShopProduct 
   const selectedOption = productOptions.find((option) => option.id === selectedOptionId) || null;
   const requiresOption = productOptions.length > 0;
   const availableQuantity = productAvailableQuantity(product, selectedOption);
+  const totalAvailableQuantity = productTotalAvailableQuantity(product);
   const unavailable = isUnavailable(product) || (requiresOption && selectedOption ? availableQuantity <= 0 : false);
   const canAdd = !unavailable && (!requiresOption || Boolean(selectedOption));
   const unitPrice = productUnitPrice(product, selectedOption);
@@ -133,7 +135,11 @@ export default function ProductDetailClient({ product }: { product: ShopProduct 
           <div className="mt-2 flex justify-between gap-3">
             <span className="text-[#a8b0b8]">Available</span>
             <span className="font-black text-[#e9ecef]">
-              {isUnavailable(product) ? "Sold out" : availableQuantity}
+              {isUnavailable(product)
+                ? "Sold out"
+                : requiresOption && !selectedOption
+                  ? `${totalAvailableQuantity} across options`
+                  : availableQuantity}
             </span>
           </div>
         </div>
