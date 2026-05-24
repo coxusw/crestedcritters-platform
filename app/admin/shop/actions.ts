@@ -21,34 +21,47 @@ import {
 
 export async function createShopProductAction(formData: FormData) {
   await requireAdmin();
-  const supabase = createSupabaseAdminClient();
-  const payload = productPayload(formData);
 
-  const { error } = await supabase.from("shop_products").insert(payload);
-  if (error) throw new Error(error.message);
+  try {
+    const supabase = createSupabaseAdminClient();
+    const payload = productPayload(formData);
+    const { error } = await supabase.from("shop_products").insert(payload);
+    if (error) throw new Error(error.message);
 
-  revalidatePath("/admin/shop");
-  revalidatePath("/shop");
-  revalidatePath(`/shop/products/${payload.slug}`);
+    revalidatePath("/admin/shop");
+    revalidatePath("/shop");
+    revalidatePath(`/shop/products/${payload.slug}`);
+  } catch (error) {
+    redirectShopAdminWithError(error);
+  }
+
+  redirectShopAdminWithNotice("Product added.");
 }
 
 export async function updateShopProductAction(formData: FormData) {
   await requireAdmin();
-  const id = String(formData.get("id") || "");
-  if (!id) throw new Error("Missing product id.");
 
-  const supabase = createSupabaseAdminClient();
-  const payload = productPayload(formData);
-  const { error } = await supabase
-    .from("shop_products")
-    .update({ ...payload, updated_at: new Date().toISOString() })
-    .eq("id", id);
+  try {
+    const id = String(formData.get("id") || "");
+    if (!id) throw new Error("Missing product id.");
 
-  if (error) throw new Error(error.message);
+    const supabase = createSupabaseAdminClient();
+    const payload = productPayload(formData);
+    const { error } = await supabase
+      .from("shop_products")
+      .update({ ...payload, updated_at: new Date().toISOString() })
+      .eq("id", id);
 
-  revalidatePath("/admin/shop");
-  revalidatePath("/shop");
-  revalidatePath(`/shop/products/${payload.slug}`);
+    if (error) throw new Error(error.message);
+
+    revalidatePath("/admin/shop");
+    revalidatePath("/shop");
+    revalidatePath(`/shop/products/${payload.slug}`);
+  } catch (error) {
+    redirectShopAdminWithError(error);
+  }
+
+  redirectShopAdminWithNotice("Product saved.");
 }
 
 export async function archiveShopProductAction(formData: FormData) {
