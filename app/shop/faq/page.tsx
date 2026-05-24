@@ -25,6 +25,13 @@ const sections = [
     ],
   },
   {
+    title: "Source",
+    body: [
+      "All products are from Crested Critters' own stock unless otherwise stated.",
+      "Some products may come from other sources, and the product listing will state this.",
+    ],
+  },
+  {
     title: "Live products",
     body: [
       "Live isopods and springtails have separate shipping rules because weather, transit time, and state restrictions matter.",
