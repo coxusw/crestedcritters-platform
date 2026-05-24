@@ -10,8 +10,10 @@ import {
   normalizeProductOptions,
   productAvailableQuantity,
   productUnitPrice,
+  normalizeShopProductImages,
   shopProductCardDescription,
 } from "@/lib/shop";
+import ProductImageCarousel from "./ProductImageCarousel";
 
 type CartLine = {
   productId: string;
@@ -496,18 +498,11 @@ function ProductCard({
   return (
     <article className="flex min-h-[430px] flex-col overflow-hidden rounded-lg border border-white/[0.08] bg-[#141618] shadow-[0_10px_40px_rgba(0,0,0,0.35)] transition hover:-translate-y-1 hover:border-[#d6c06f]/30">
       <div className="relative aspect-[4/3] bg-[#101214]">
-        {product.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={product.image_url}
-            alt={product.name}
-            className="h-full w-full object-contain object-center p-3"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm font-bold text-[#a8b0b8]">
-            No image
-          </div>
-        )}
+        <ProductImageCarousel
+          images={normalizeShopProductImages(product)}
+          productName={product.name}
+          compact
+        />
         {isUnavailable(product) ? (
           <span className="absolute bottom-3 left-3 rounded-full border border-white/15 bg-red-900/35 px-3 py-1 text-xs font-black text-white backdrop-blur">
             Sold Out

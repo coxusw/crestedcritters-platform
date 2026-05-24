@@ -8,6 +8,7 @@ export type ShopProduct = {
   full_description?: string | null;
   source_note?: string | null;
   image_url: string | null;
+  image_urls?: string[] | null;
   price_cents: number;
   inventory: number;
   sold_out: boolean;
@@ -148,6 +149,24 @@ export function shopProductFullDescription(
   product: Pick<ShopProduct, "full_description" | "card_description" | "description">
 ) {
   return product.full_description || product.description || product.card_description || "";
+}
+
+export function normalizeShopProductImages(
+  product: Pick<ShopProduct, "image_url" | "image_urls">
+) {
+  const values = [
+    product.image_url,
+    ...(Array.isArray(product.image_urls) ? product.image_urls : []),
+  ];
+  const seen = new Set<string>();
+
+  return values
+    .map((value) => String(value || "").trim())
+    .filter((value) => {
+      if (!value || seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    });
 }
 
 export function formatOrderItemName(item: Pick<ShopOrderItem, "name" | "optionName" | "optionLabel">) {

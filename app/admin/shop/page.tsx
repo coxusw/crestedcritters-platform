@@ -8,6 +8,7 @@ import {
   formatProductPrice,
   formatShopMoney,
   normalizeProductOptions,
+  normalizeShopProductImages,
   type ShopOrderItem,
   type ShopShippingAddress,
   type ShopProduct,
@@ -892,8 +893,17 @@ function ProductForm({
             className={inputClass}
           />
         </Field>
-        <Field label="Image URL">
-          <input name="image_url" defaultValue={product?.image_url || ""} className={inputClass} />
+        <Field label="Product Images">
+          <textarea
+            name="image_urls"
+            rows={4}
+            defaultValue={formatProductImagesInput(product)}
+            placeholder={"One image URL per line. The first image is used as the main shop image."}
+            className={`${inputClass} min-h-28`}
+          />
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Add one image URL per line. The first image appears first on cards, product pages, cart, and order emails.
+          </p>
         </Field>
       </div>
 
@@ -1004,6 +1014,11 @@ function formatProductOptionsInput(product?: ShopProduct) {
       return [option.label, price, inventory].join(" | ").replace(/( \| )+$/g, "");
     })
     .join("\n");
+}
+
+function formatProductImagesInput(product?: ShopProduct) {
+  if (!product) return "";
+  return normalizeShopProductImages(product).join("\n");
 }
 
 function StatusPill({ product }: { product: ShopProduct }) {

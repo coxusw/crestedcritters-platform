@@ -290,6 +290,7 @@ function productPayload(formData: FormData) {
   const cardDescription = String(formData.get("card_description") || "").trim();
   const fullDescription = String(formData.get("full_description") || "").trim();
   const sourceNote = String(formData.get("source_note") || "").trim();
+  const imageUrls = parseProductImageUrls(formData.get("image_urls"));
 
   if (!name) throw new Error("Product name is required.");
   if (!slug) throw new Error("Product slug is required.");
@@ -302,7 +303,8 @@ function productPayload(formData: FormData) {
     card_description: cardDescription || null,
     full_description: fullDescription || null,
     source_note: sourceNote || null,
-    image_url: String(formData.get("image_url") || "").trim() || null,
+    image_url: imageUrls[0] || null,
+    image_urls: imageUrls.length > 0 ? imageUrls : null,
     price_cents: parseDollarToCents(formData.get("price")),
     inventory: Math.max(0, Math.floor(Number(formData.get("inventory") || 0))),
     shipping_mode: String(formData.get("shipping_mode") || "shipping"),
@@ -313,6 +315,19 @@ function productPayload(formData: FormData) {
     featured: formData.get("featured") === "on",
     active: formData.get("active") === "on",
   };
+}
+
+function parseProductImageUrls(value: FormDataEntryValue | null) {
+  const seen = new Set<string>();
+
+  return String(value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => {
+      if (!line || seen.has(line)) return false;
+      seen.add(line);
+      return true;
+    });
 }
 
 function parseProductOptions(value: FormDataEntryValue | null) {

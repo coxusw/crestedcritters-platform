@@ -5,9 +5,11 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type { ShopProduct } from "@/lib/shop";
 import {
   shopBaseUrl,
+  normalizeShopProductImages,
   shopProductCardDescription,
   shopProductFullDescription,
 } from "@/lib/shop";
+import ProductImageCarousel from "../../ProductImageCarousel";
 import ShopShell from "../../ShopShell";
 import ProductDetailClient from "./ProductDetailClient";
 
@@ -54,7 +56,9 @@ export async function generateMetadata({
       description,
       url,
       siteName: "Crested Critters Shop",
-      images: product.image_url ? [{ url: product.image_url, alt: product.name }] : undefined,
+      images: normalizeShopProductImages(product)[0]
+        ? [{ url: normalizeShopProductImages(product)[0], alt: product.name }]
+        : undefined,
     },
   };
 }
@@ -82,18 +86,10 @@ export default async function ProductPage({
         <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
           <div className="overflow-hidden rounded-lg border border-white/[0.08] bg-[#141618] shadow-[0_10px_40px_rgba(0,0,0,0.35)]">
             <div className="aspect-[4/3] bg-[#101214]">
-              {product.image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  className="h-full w-full object-contain object-center p-4"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm font-bold text-[#a8b0b8]">
-                  No image
-                </div>
-              )}
+              <ProductImageCarousel
+                images={normalizeShopProductImages(product)}
+                productName={product.name}
+              />
             </div>
           </div>
 
