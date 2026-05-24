@@ -18,6 +18,7 @@ import {
   archiveShopProductAction,
   createShopProductAction,
   deletePendingShopOrderAction,
+  sendPendingShopOrderReminderAction,
   updateShippingSettingsAction,
   updateShopProductAction,
 } from "./actions";
@@ -27,7 +28,15 @@ export const dynamic = "force-dynamic";
 export default async function AdminShopPage({
   searchParams,
 }: {
-  searchParams: Promise<{ state?: string; zip?: string; live?: string; category?: string; catalog?: string }>;
+  searchParams: Promise<{
+    state?: string;
+    zip?: string;
+    live?: string;
+    category?: string;
+    catalog?: string;
+    notice?: string;
+    error?: string;
+  }>;
 }) {
   await requireAdmin();
   const params = await searchParams;
@@ -80,6 +89,18 @@ export default async function AdminShopPage({
             Manage the new Supabase-backed catalog. The storefront uses these saved prices and quantities when it creates a multi-item Square checkout.
           </p>
         </header>
+
+        {(params.notice || params.error) && (
+          <div
+            className={`rounded-lg border p-4 text-sm font-bold ${
+              params.error
+                ? "border-red-300/30 bg-red-500/10 text-red-100"
+                : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
+            }`}
+          >
+            {params.error || params.notice}
+          </div>
+        )}
 
         <section className="grid gap-3 md:grid-cols-4">
           <Stat label="Products" value={products.length} />
@@ -508,11 +529,6 @@ function OrdersPanel({ orders }: { orders: ShopOrderAdminRow[] }) {
 
 function OrderCard({ order, pending = false }: { order: ShopOrderAdminRow; pending?: boolean }) {
   const reminderEmail = order.customer_email || order.shipping_address?.email || "";
-  const reminderHref = reminderEmail
-    ? `mailto:${encodeURIComponent(reminderEmail)}?subject=${encodeURIComponent("Your Crested Critters checkout")}&body=${encodeURIComponent(
-        `Hi ${order.shipping_address?.name || ""},\n\nI noticed your Crested Critters checkout was started but has not been completed yet. If you had any trouble checking out or need help with your order, just reply here and I can help.\n\nThank you,\nCrested Critters`
-      )}`
-    : "";
 
   return (
     <div className="rounded-md bg-black/20 p-3 text-sm">
@@ -555,13 +571,13 @@ function OrderCard({ order, pending = false }: { order: ShopOrderAdminRow; pendi
               Open Checkout Link
             </a>
           )}
-          {reminderHref && (
-            <a
-              href={reminderHref}
-              className="rounded-md border border-emerald-300/30 px-3 py-2 text-xs font-black text-emerald-100 hover:bg-emerald-300/10"
-            >
-              Email Reminder
-            </a>
+          {reminderEmail && (
+            <form action={sendPendingShopOrderReminderAction}>
+              <input type="hidden" name="id" value={order.id} />
+              <button className="rounded-md border border-emerald-300/30 px-3 py-2 text-xs font-black text-emerald-100 hover:bg-emerald-300/10">
+                Send Reminder Email
+              </button>
+            </form>
           )}
           <form action={deletePendingShopOrderAction}>
             <input type="hidden" name="id" value={order.id} />

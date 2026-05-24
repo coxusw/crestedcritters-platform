@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { parseDollarToCents, slugifyProductName } from "@/lib/shop";
+import {
+  formatOrderItemName,
+  formatShopMoney,
+  parseDollarToCents,
+  slugifyProductName,
+  type ShopOrderItem,
+  type ShopShippingAddress,
+} from "@/lib/shop";
 import {
   getShopShippingSettings,
   saveShopShippingSettings,
@@ -73,6 +80,66 @@ export async function deletePendingShopOrderAction(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/admin/shop");
+}
+
+export async function sendPendingShopOrderReminderAction(formData: FormData) {
+  await requireAdmin();
+
+  try {
+    const id = String(formData.get("id") || "");
+    if (!id) throw new Error("Missing order id.");
+
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error("Missing RESEND_API_KEY in Vercel. Add it before sending reminder emails.");
+    }
+
+    const supabase = createSupabaseAdminClient();
+    const { data: order, error } = await supabase
+      .from("shop_orders")
+      .select("id,customer_email,status,total_cents,items,shipping_address,square_checkout_url")
+      .eq("id", id)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!order) throw new Error("Pending order was not found. It may already be paid or deleted.");
+
+    const address = order.shipping_address as ShopShippingAddress | null;
+    const email = order.customer_email || address?.email || "";
+    if (!email) throw new Error("This pending order does not have an email address.");
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from:
+          process.env.SHOP_REMINDER_EMAIL_FROM ||
+          "Crested Critters <Sales@crestedcritters.com>",
+        to: [email],
+        reply_to: process.env.SHOP_REPLY_TO_EMAIL || "Sales@crestedcritters.com",
+        subject: "Your Crested Critters checkout",
+        text: buildPendingOrderReminderEmail({
+          customerName: address?.name || "",
+          totalCents: Number(order.total_cents || 0),
+          items: Array.isArray(order.items) ? (order.items as ShopOrderItem[]) : [],
+          checkoutUrl: order.square_checkout_url || "",
+        }),
+      }),
+    });
+
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(`Resend failed to send the reminder. ${details.slice(0, 500)}`);
+    }
+  } catch (error) {
+    redirectShopAdminWithError(error);
+  }
+
+  redirectShopAdminWithNotice("Pending order reminder email sent.");
 }
 
 export async function updateShippingSettingsAction(formData: FormData) {
@@ -187,4 +254,45 @@ function parseZoneRateList(value: FormDataEntryValue | null, fallback: number[])
 
   if (parsed.length < 9) return fallback;
   return parsed.slice(0, 9);
+}
+
+function redirectShopAdminWithNotice(message: string): never {
+  revalidatePath("/admin/shop");
+  redirect(`/admin/shop?notice=${encodeURIComponent(message)}`);
+}
+
+function redirectShopAdminWithError(error: unknown): never {
+  const message = error instanceof Error ? error.message : String(error);
+  revalidatePath("/admin/shop");
+  redirect(`/admin/shop?error=${encodeURIComponent(message.slice(0, 1400))}`);
+}
+
+function buildPendingOrderReminderEmail({
+  customerName,
+  totalCents,
+  items,
+  checkoutUrl,
+}: {
+  customerName: string;
+  totalCents: number;
+  items: ShopOrderItem[];
+  checkoutUrl: string;
+}) {
+  return [
+    `Hi ${customerName || "there"},`,
+    "",
+    "I noticed your Crested Critters checkout was started but has not been completed yet.",
+    "If you had any trouble checking out or need help with your order, just reply to this email and I can help.",
+    "",
+    checkoutUrl ? `You can return to your checkout here: ${checkoutUrl}` : "",
+    "",
+    "Order summary:",
+    ...items.map((item) => `- ${formatOrderItemName(item)} x${item.quantity}`),
+    `Total: ${formatShopMoney(totalCents)}`,
+    "",
+    "Thank you,",
+    "Crested Critters",
+  ]
+    .filter((line, index, lines) => line || lines[index - 1] !== "")
+    .join("\n");
 }
