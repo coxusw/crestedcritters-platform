@@ -501,7 +501,7 @@ function ProductCard({
           <img
             src={product.image_url}
             alt={product.name}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain object-center p-3"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm font-bold text-[#a8b0b8]">
@@ -692,7 +692,7 @@ function CartPage({
                 <div className="h-20 w-20 overflow-hidden rounded-md bg-black/30">
                   {product.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+                    <img src={product.image_url} alt={product.name} className="h-full w-full object-contain object-center p-1" />
                   ) : null}
                 </div>
                 <div>
