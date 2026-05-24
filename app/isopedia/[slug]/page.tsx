@@ -193,7 +193,9 @@ export async function generateMetadata({
     stripHtml(species.notes) ||
     `${species.common_name} care information on Isopedia.`;
 
-  const image = species.image_url || "/crest-logo.png";
+  const image =
+    species.image_url ||
+    "https://isopedia.crestedcritters.com/isopedia-social-preview.jpg";
 
   return {
     title,

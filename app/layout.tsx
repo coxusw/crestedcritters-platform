@@ -12,9 +12,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  "https://www.crestedcritters.com";
+const siteUrl = "https://isopedia.crestedcritters.com";
+const isopediaPreviewImage = `${siteUrl}/isopedia-social-preview.jpg`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -44,14 +43,14 @@ export const metadata: Metadata = {
     title: "Isopedia",
     description:
       "Community-driven bioactive database for isopods, springtails, millipedes, beetles, and more.",
-    url: `${siteUrl}/isopedia`,
+    url: siteUrl,
     siteName: "Isopedia",
     images: [
       {
-        url: "/crest-logo.png",
+        url: isopediaPreviewImage,
         width: 1200,
         height: 630,
-        alt: "Isopedia",
+        alt: "Isopedia community bioactive database",
       },
     ],
     locale: "en_US",
@@ -63,7 +62,7 @@ export const metadata: Metadata = {
     title: "Isopedia",
     description:
       "Community-driven bioactive database for isopods, springtails, millipedes, beetles, and more.",
-    images: ["/crest-logo.png"],
+    images: [isopediaPreviewImage],
   },
 
   robots: {
@@ -72,7 +71,7 @@ export const metadata: Metadata = {
   },
 
   alternates: {
-    canonical: `${siteUrl}/isopedia`,
+    canonical: siteUrl,
   },
 
   icons: {
