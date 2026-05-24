@@ -142,6 +142,80 @@ export async function sendPendingShopOrderReminderAction(formData: FormData) {
   redirectShopAdminWithNotice("Pending order reminder email sent.");
 }
 
+export async function sendShopMarketingEmailAction(formData: FormData) {
+  await requireAdmin();
+  let notice = "";
+
+  try {
+    const subject = String(formData.get("subject") || "").trim();
+    const body = String(formData.get("body") || "").trim();
+    const testEmail = String(formData.get("test_email") || "").trim();
+    const sendMode = String(formData.get("send_mode") || "test");
+
+    if (!subject) throw new Error("Email subject is required.");
+    if (!body) throw new Error("Email body is required.");
+
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error("Missing RESEND_API_KEY in Vercel. Add it before sending marketing emails.");
+    }
+
+    const supabase = createSupabaseAdminClient();
+    const recipients =
+      sendMode === "all"
+        ? await getMarketingRecipients(supabase)
+        : testEmail
+          ? [{ email: testEmail, name: "Test recipient" }]
+          : [];
+
+    if (recipients.length === 0) {
+      throw new Error(
+        sendMode === "all"
+          ? "No marketing opt-in email addresses were found."
+          : "Enter a test email before sending a test."
+      );
+    }
+
+    const failed: string[] = [];
+    for (const recipient of recipients) {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from:
+            process.env.SHOP_MARKETING_EMAIL_FROM ||
+            process.env.SHOP_REMINDER_EMAIL_FROM ||
+            "Crested Critters <Sales@crestedcritters.com>",
+          to: [recipient.email],
+          reply_to: process.env.SHOP_REPLY_TO_EMAIL || "Sales@crestedcritters.com",
+          subject,
+          text: buildMarketingEmailText(body, recipient.name),
+        }),
+      });
+
+      if (!response.ok) {
+        failed.push(`${recipient.email}: ${(await response.text()).slice(0, 220)}`);
+      }
+    }
+
+    if (failed.length > 0) {
+      throw new Error(`Sent ${recipients.length - failed.length}, failed ${failed.length}. ${failed[0]}`);
+    }
+
+    notice =
+      sendMode === "all"
+        ? `Marketing email sent to ${recipients.length} subscriber${recipients.length === 1 ? "" : "s"}.`
+        : `Test marketing email sent to ${recipients[0].email}.`;
+  } catch (error) {
+    redirectShopAdminWithError(error);
+  }
+
+  redirectShopAdminWithNotice(notice);
+}
+
 export async function updateShippingSettingsAction(formData: FormData) {
   await requireAdmin();
   const current = await getShopShippingSettings();
@@ -295,4 +369,40 @@ function buildPendingOrderReminderEmail({
   ]
     .filter((line, index, lines) => line || lines[index - 1] !== "")
     .join("\n");
+}
+
+async function getMarketingRecipients(supabase: ReturnType<typeof createSupabaseAdminClient>) {
+  const { data, error } = await supabase
+    .from("shop_email_subscribers")
+    .select("email,name")
+    .eq("marketing_opt_in", true)
+    .order("updated_at", { ascending: false })
+    .limit(1000);
+
+  if (error) throw new Error(error.message);
+
+  const seen = new Set<string>();
+  return (data || [])
+    .map((subscriber) => ({
+      email: String(subscriber.email || "").trim().toLowerCase(),
+      name: String(subscriber.name || "").trim(),
+    }))
+    .filter((subscriber) => {
+      if (!subscriber.email || seen.has(subscriber.email)) return false;
+      seen.add(subscriber.email);
+      return true;
+    });
+}
+
+function buildMarketingEmailText(body: string, name: string) {
+  return [
+    name ? `Hi ${name},` : "Hi there,",
+    "",
+    body,
+    "",
+    "Thank you,",
+    "Crested Critters",
+    "",
+    "You are receiving this because you signed up for Crested Critters shop updates. Reply to this email if you no longer want shop updates.",
+  ].join("\n");
 }

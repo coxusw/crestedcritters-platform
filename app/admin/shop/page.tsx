@@ -18,6 +18,7 @@ import {
   archiveShopProductAction,
   createShopProductAction,
   deletePendingShopOrderAction,
+  sendShopMarketingEmailAction,
   sendPendingShopOrderReminderAction,
   updateShippingSettingsAction,
   updateShopProductAction,
@@ -34,6 +35,7 @@ export default async function AdminShopPage({
     live?: string;
     category?: string;
     catalog?: string;
+    tab?: string;
     notice?: string;
     error?: string;
   }>;
@@ -42,8 +44,9 @@ export default async function AdminShopPage({
   const params = await searchParams;
   const products = await getProducts();
   const shippingSettings = await getShopShippingSettings();
-  const { orders, pendingOrders, subscribers } = await getShopAdminData();
+  const { orders, pendingOrders, subscribers, marketingSubscribers } = await getShopAdminData();
   const categories = Array.from(new Set(products.map((product) => product.category))).sort();
+  const activeTab = params.tab === "marketing" ? "marketing" : "manage";
   const soldOutProducts = products.filter((product) => product.sold_out || product.inventory <= 0);
   const showingSoldOut = params.catalog === "sold-out";
   const selectedCategory = categories.includes(params.category || "") ? params.category || "" : "";
@@ -102,6 +105,22 @@ export default async function AdminShopPage({
           </div>
         )}
 
+        <nav className="flex flex-wrap gap-2 rounded-lg border border-white/10 bg-white/[0.04] p-2">
+          <ShopAdminTab href="/admin/shop" active={activeTab === "manage"}>
+            Manage Shop
+          </ShopAdminTab>
+          <ShopAdminTab href="/admin/shop?tab=marketing" active={activeTab === "marketing"}>
+            Marketing
+          </ShopAdminTab>
+        </nav>
+
+        {activeTab === "marketing" ? (
+          <MarketingPanel
+            subscribers={subscribers}
+            marketingSubscriberCount={marketingSubscribers.length}
+          />
+        ) : (
+          <>
         <section className="grid gap-3 md:grid-cols-4">
           <Stat label="Products" value={products.length} />
           <Stat label="Active" value={activeCount} />
@@ -241,6 +260,8 @@ export default async function AdminShopPage({
             ))}
           </div>
         </section>
+          </>
+        )}
       </div>
     </main>
   );
@@ -278,7 +299,7 @@ async function getProducts() {
 
 async function getShopAdminData() {
   const supabase = createSupabaseAdminClient();
-  const [ordersResult, pendingOrdersResult, subscribersResult] = await Promise.all([
+  const [ordersResult, pendingOrdersResult, subscribersResult, marketingSubscribersResult] = await Promise.all([
     supabase
       .from("shop_orders")
       .select("id,customer_email,status,subtotal_cents,shipping_cents,total_cents,created_at,items,shipping_address,square_checkout_url")
@@ -295,12 +316,19 @@ async function getShopAdminData() {
       .select("email,name,phone,marketing_opt_in,source,last_order_at,updated_at,shipping_address")
       .order("updated_at", { ascending: false })
       .limit(50),
+    supabase
+      .from("shop_email_subscribers")
+      .select("email,name")
+      .eq("marketing_opt_in", true)
+      .order("updated_at", { ascending: false })
+      .limit(1000),
   ]);
 
   return {
     orders: ordersResult.data || [],
     pendingOrders: pendingOrdersResult.data || [],
     subscribers: subscribersResult.data || [],
+    marketingSubscribers: marketingSubscribersResult.data || [],
   };
 }
 
@@ -324,6 +352,101 @@ function Stat({
         {label}
       </div>
     </div>
+  );
+}
+
+function ShopAdminTab({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`rounded-md px-4 py-2 text-sm font-black ${
+        active
+          ? "bg-emerald-300 text-slate-950"
+          : "border border-white/10 text-slate-200 hover:bg-white/10"
+      }`}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function MarketingPanel({
+  subscribers,
+  marketingSubscriberCount,
+}: {
+  subscribers: ShopSubscriberAdminRow[];
+  marketingSubscriberCount: number;
+}) {
+  return (
+    <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+      <div className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-black">Marketing Email</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-400">
+              Draft a shop update, send yourself a test, then send it to customers who opted into shop updates.
+            </p>
+          </div>
+          <span className="rounded-md border border-emerald-300/30 px-3 py-2 text-sm font-black text-emerald-100">
+            {marketingSubscriberCount} opt-in
+          </span>
+        </div>
+
+        <form action={sendShopMarketingEmailAction} className="mt-5 grid gap-3">
+          <Field label="Subject">
+            <input
+              name="subject"
+              required
+              placeholder="Example: New isopods and shop updates"
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Email body">
+            <textarea
+              name="body"
+              required
+              rows={10}
+              placeholder={"Write the email here. Keep it simple, friendly, and clear.\n\nExample:\nWe added new botanicals and 3D prints to the shop today..."}
+              className={`${inputClass} min-h-64`}
+            />
+          </Field>
+          <Field label="Test email">
+            <input
+              name="test_email"
+              type="email"
+              placeholder="sales@crestedcritters.com"
+              className={inputClass}
+            />
+          </Field>
+          <div className="flex flex-wrap gap-2">
+            <button
+              name="send_mode"
+              value="test"
+              className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-slate-100 hover:bg-white/10"
+            >
+              Send Test
+            </button>
+            <button
+              name="send_mode"
+              value="all"
+              className="rounded-md bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950 hover:bg-emerald-200"
+            >
+              Send To Opt-In List
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <SubscribersPanel subscribers={subscribers} />
+    </section>
   );
 }
 
