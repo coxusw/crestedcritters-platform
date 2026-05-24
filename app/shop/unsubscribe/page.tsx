@@ -27,6 +27,10 @@ export default async function ShopUnsubscribePage({ searchParams }: PageProps) {
           <p className="mt-4 rounded-md border border-red-300/30 bg-red-500/10 p-4 text-sm font-bold text-red-100">
             This unsubscribe link is invalid or expired.
           </p>
+        ) : status === "missing" ? (
+          <p className="mt-4 rounded-md border border-red-300/30 bg-red-500/10 p-4 text-sm font-bold text-red-100">
+            This email was not found on the Crested Critters update list.
+          </p>
         ) : (
           <>
             <p className="mt-3 leading-7 text-[#a8b0b8]">

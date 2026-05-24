@@ -333,7 +333,7 @@ async function getShopAdminData() {
       .from("shop_email_subscribers")
       .select("email,name,unsubscribe_reason,unsubscribed_at,updated_at")
       .eq("marketing_opt_in", false)
-      .not("unsubscribed_at", "is", null)
+      .or("unsubscribed_at.not.is.null,source.eq.unsubscribed")
       .order("unsubscribed_at", { ascending: false })
       .limit(200),
   ]);

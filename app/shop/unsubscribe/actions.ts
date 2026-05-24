@@ -19,7 +19,7 @@ export async function unsubscribeShopEmailAction(formData: FormData) {
 
   const supabase = createSupabaseAdminClient();
   const now = new Date().toISOString();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("shop_email_subscribers")
     .update({
       marketing_opt_in: false,
@@ -28,19 +28,29 @@ export async function unsubscribeShopEmailAction(formData: FormData) {
       source: "unsubscribed",
       updated_at: now,
     })
-    .eq("email", email);
+    .eq("email", email)
+    .select("email")
+    .maybeSingle();
 
   if (error?.message?.includes("unsubscribed_at") || error?.message?.includes("unsubscribe_reason")) {
-    await supabase
+    const { data: fallbackData, error: fallbackError } = await supabase
       .from("shop_email_subscribers")
       .update({
         marketing_opt_in: false,
         source: "unsubscribed",
         updated_at: now,
       })
-      .eq("email", email);
+      .eq("email", email)
+      .select("email")
+      .maybeSingle();
+
+    if (fallbackError || !fallbackData) {
+      redirect(`/unsubscribe?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}&status=error`);
+    }
   } else if (error) {
     redirect(`/unsubscribe?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}&status=error`);
+  } else if (!data) {
+    redirect(`/unsubscribe?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}&status=missing`);
   }
 
   redirect("/unsubscribe?status=done");
