@@ -296,7 +296,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                 />
                 <input
                   name="mileage_deduction"
-                  placeholder="Mileage $"
+                  placeholder="Auto: miles x $0.725"
                   className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
                 />
                 <label className="flex items-center gap-2 rounded-md border border-white/10 bg-slate-950/50 px-2 py-2 text-xs text-slate-300">
@@ -637,11 +637,11 @@ function TransactionRowEditor({
           <input
             name={fieldName("mileage_deduction")}
             defaultValue={transaction.mileage_deduction ? Number(transaction.mileage_deduction).toFixed(2) : ""}
-            placeholder="$"
+            placeholder="auto $"
             className="w-full rounded-md border border-white/10 bg-slate-950/80 px-1.5 py-1 text-right text-xs text-slate-100"
           />
         </div>
-        <div className="mt-1 text-xs text-slate-500">miles / deduction</div>
+        <div className="mt-1 text-xs text-slate-500">miles / auto deduction</div>
       </td>
       <td className="min-w-[12rem] px-1.5 py-1.5">
         <textarea

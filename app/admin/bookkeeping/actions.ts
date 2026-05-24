@@ -19,6 +19,7 @@ const CLASSIFICATIONS = new Set([
 ]);
 
 const TYPES = new Set(["income", "expense", "equity", "tax", "mileage", "transfer"]);
+const MILEAGE_DEDUCTION_RATE = 0.725;
 
 function textValue(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
@@ -27,6 +28,24 @@ function textValue(formData: FormData, key: string) {
 function numberValue(formData: FormData, key: string) {
   const parsed = Number(textValue(formData, key).replace(/[$,]/g, "") || 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function mileageValues(formData: FormData, mileageKey: string, deductionKey: string) {
+  const mileage = numberValue(formData, mileageKey);
+  const mileageDeduction =
+    mileage > 0 ? roundMoney(mileage * MILEAGE_DEDUCTION_RATE) : numberValue(formData, deductionKey);
+
+  return { mileage, mileageDeduction };
+}
+
+function amountValue(formData: FormData, amountKey: string, type: string, mileageDeduction: number) {
+  const rawAmount = textValue(formData, amountKey);
+  if (type === "mileage" && !rawAmount && mileageDeduction > 0) return mileageDeduction;
+  return numberValue(formData, amountKey);
 }
 
 function redirectWithNotice(message: string): never {
@@ -60,6 +79,7 @@ export async function createManualBookkeepingTransaction(formData: FormData) {
 
     if (!TYPES.has(type)) throw new Error("Invalid transaction type.");
     if (!CLASSIFICATIONS.has(classification)) throw new Error("Invalid classification.");
+    const { mileage, mileageDeduction } = mileageValues(formData, "mileage", "mileage_deduction");
 
     const supabase = createSupabaseAdminClient();
     const { error } = await supabase
@@ -70,10 +90,10 @@ export async function createManualBookkeepingTransaction(formData: FormData) {
         classification,
         category: textValue(formData, "category") || null,
         description: textValue(formData, "description") || null,
-        amount: numberValue(formData, "amount"),
+        amount: amountValue(formData, "amount", type, mileageDeduction),
         payment_method: textValue(formData, "payment_method") || null,
-        mileage: numberValue(formData, "mileage"),
-        mileage_deduction: numberValue(formData, "mileage_deduction"),
+        mileage,
+        mileage_deduction: mileageDeduction,
         source: "manual",
         imported_from: "Manual",
         notes: textValue(formData, "notes") || null,
@@ -240,6 +260,11 @@ export async function bulkUpdateBookkeepingTransactions(formData: FormData) {
 
       if (!TYPES.has(type)) throw new Error("Invalid transaction type.");
       if (!CLASSIFICATIONS.has(classification)) throw new Error("Invalid classification.");
+      const { mileage, mileageDeduction } = mileageValues(
+        formData,
+        `mileage:${id}`,
+        `mileage_deduction:${id}`
+      );
 
       return supabase
         .from("bookkeeping_transactions")
@@ -249,10 +274,10 @@ export async function bulkUpdateBookkeepingTransactions(formData: FormData) {
           classification,
           category: textValue(formData, `category:${id}`) || null,
           description: textValue(formData, `description:${id}`) || null,
-          amount: numberValue(formData, `amount:${id}`),
+          amount: amountValue(formData, `amount:${id}`, type, mileageDeduction),
           payment_method: textValue(formData, `payment_method:${id}`) || null,
-          mileage: numberValue(formData, `mileage:${id}`),
-          mileage_deduction: numberValue(formData, `mileage_deduction:${id}`),
+          mileage,
+          mileage_deduction: mileageDeduction,
           receipt_status: textValue(formData, `receipt_status:${id}`) || null,
           receipt_location: textValue(formData, `receipt_location:${id}`) || null,
           notes: textValue(formData, `notes:${id}`) || null,
@@ -351,6 +376,7 @@ export async function updateBookkeepingTransaction(formData: FormData) {
 
     if (!TYPES.has(type)) throw new Error("Invalid transaction type.");
     if (!CLASSIFICATIONS.has(classification)) throw new Error("Invalid classification.");
+    const { mileage, mileageDeduction } = mileageValues(formData, "mileage", "mileage_deduction");
 
     const supabase = createSupabaseAdminClient();
     const { error } = await supabase
@@ -361,10 +387,10 @@ export async function updateBookkeepingTransaction(formData: FormData) {
         classification,
         category: textValue(formData, "category") || null,
         description: textValue(formData, "description") || null,
-        amount: numberValue(formData, "amount"),
+        amount: amountValue(formData, "amount", type, mileageDeduction),
         payment_method: textValue(formData, "payment_method") || null,
-        mileage: numberValue(formData, "mileage"),
-        mileage_deduction: numberValue(formData, "mileage_deduction"),
+        mileage,
+        mileage_deduction: mileageDeduction,
         receipt_status: textValue(formData, "receipt_status") || null,
         receipt_location: textValue(formData, "receipt_location") || null,
         notes: textValue(formData, "notes") || null,
