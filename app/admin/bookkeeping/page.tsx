@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { effectiveMileageDeduction } from "@/lib/bookkeeping/mileage";
 import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
@@ -10,7 +11,9 @@ import {
   importSquareBankingCsv,
   pullSquareBookkeepingTransactions,
   rebalanceBookkeepingBalances,
+  recalculateBookkeepingMileageDeductions,
 } from "./actions";
+import MileageDeductionFields from "./MileageDeductionFields";
 
 type PageProps = {
   searchParams?: Promise<{
@@ -289,16 +292,7 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                   placeholder="cash/personal"
                   className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
                 />
-                <input
-                  name="mileage"
-                  placeholder="Miles"
-                  className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-                />
-                <input
-                  name="mileage_deduction"
-                  placeholder="Auto: miles x $0.725"
-                  className="min-w-0 rounded-md border border-white/10 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
-                />
+                <MileageDeductionFields mileageName="mileage" deductionName="mileage_deduction" />
                 <label className="flex items-center gap-2 rounded-md border border-white/10 bg-slate-950/50 px-2 py-2 text-xs text-slate-300">
                   <input type="checkbox" name="reviewed" defaultChecked />
                   Reviewed
@@ -388,6 +382,12 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                 >
                   Delete Selected
                 </button>
+                <button
+                  formAction={recalculateBookkeepingMileageDeductions}
+                  className="rounded-md border border-amber-300/40 bg-amber-300/10 px-4 py-2 text-sm font-bold text-amber-100 hover:bg-amber-300/20"
+                >
+                  Recalculate Mileage
+                </button>
               </div>
             </div>
 
@@ -436,6 +436,12 @@ export default async function AdminBookkeepingPage({ searchParams }: PageProps) 
                 className="rounded-md border border-red-300/40 bg-red-500/20 px-4 py-2 text-sm font-bold text-red-100 hover:bg-red-500/30"
               >
                 Delete Selected
+              </button>
+              <button
+                formAction={recalculateBookkeepingMileageDeductions}
+                className="rounded-md border border-amber-300/40 bg-amber-300/10 px-4 py-2 text-sm font-bold text-amber-100 hover:bg-amber-300/20"
+              >
+                Recalculate Mileage
               </button>
             </div>
           </form>
@@ -501,19 +507,28 @@ function summarizeTransactions(transactions: TransactionRow[]) {
         totals.cashOnHand += balanceEffect(transaction, amount);
       }
 
-      if (transaction.classification === "ignore" || isCashDepositTransaction(transaction)) return totals;
-      if (transaction.classification === "owner_contribution") {
-        totals.ownerContributions += amount;
-      } else if (transaction.classification === "owner_draw") {
-        totals.ownerDraws += amount;
-      } else if (transaction.type === "income") {
-        totals.income += amount;
-      } else if (transaction.type === "expense" || transaction.type === "mileage") {
-        totals.expenses += amount;
-      }
+      const mileageDeduction = effectiveMileageDeduction(
+        transaction.mileage,
+        transaction.mileage_deduction
+      );
+      const ledgerAmount = transaction.type === "mileage" && Number(transaction.mileage || 0) > 0
+        ? mileageDeduction
+        : amount;
 
       totals.miles += Number(transaction.mileage || 0);
-      totals.mileageDeduction += Number(transaction.mileage_deduction || 0);
+      totals.mileageDeduction += mileageDeduction;
+
+      if (transaction.classification === "ignore" || isCashDepositTransaction(transaction)) return totals;
+      if (transaction.classification === "owner_contribution") {
+        totals.ownerContributions += ledgerAmount;
+      } else if (transaction.classification === "owner_draw") {
+        totals.ownerDraws += ledgerAmount;
+      } else if (transaction.type === "income") {
+        totals.income += ledgerAmount;
+      } else if (transaction.type === "expense" || transaction.type === "mileage") {
+        totals.expenses += ledgerAmount;
+      }
+
       return totals;
     },
     {
@@ -562,6 +577,13 @@ function TransactionRowEditor({
   categories: CategoryRow[];
 }) {
   const fieldName = (field: string) => `${field}:${transaction.id}`;
+  const mileageDeduction = effectiveMileageDeduction(
+    transaction.mileage,
+    transaction.mileage_deduction
+  );
+  const amount = transaction.type === "mileage" && Number(transaction.mileage || 0) > 0
+    ? mileageDeduction
+    : Number(transaction.amount || 0);
 
   return (
     <tr className={`border-b align-top ${transaction.reviewed ? "border-white/5" : "border-red-400/25 bg-red-500/10"}`}>
@@ -615,7 +637,7 @@ function TransactionRowEditor({
       <td className="w-20 px-1.5 py-1.5">
         <input
           name={fieldName("amount")}
-          defaultValue={Number(transaction.amount || 0).toFixed(2)}
+          defaultValue={amount.toFixed(2)}
           className="w-full rounded-md border border-white/10 bg-slate-950/80 px-1.5 py-1 text-right text-xs text-slate-100"
         />
       </td>
@@ -628,17 +650,12 @@ function TransactionRowEditor({
       </td>
       <td className="w-32 px-1.5 py-1.5">
         <div className="grid grid-cols-2 gap-1">
-          <input
-            name={fieldName("mileage")}
-            defaultValue={transaction.mileage ? Number(transaction.mileage).toFixed(2) : ""}
-            placeholder="Miles"
-            className="w-full rounded-md border border-white/10 bg-slate-950/80 px-1.5 py-1 text-right text-xs text-slate-100"
-          />
-          <input
-            name={fieldName("mileage_deduction")}
-            defaultValue={transaction.mileage_deduction ? Number(transaction.mileage_deduction).toFixed(2) : ""}
-            placeholder="auto $"
-            className="w-full rounded-md border border-white/10 bg-slate-950/80 px-1.5 py-1 text-right text-xs text-slate-100"
+          <MileageDeductionFields
+            mileageName={fieldName("mileage")}
+            deductionName={fieldName("mileage_deduction")}
+            defaultMileage={transaction.mileage}
+            defaultDeduction={mileageDeduction}
+            variant="compact"
           />
         </div>
         <div className="mt-1 text-xs text-slate-500">miles / auto deduction</div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { postDueAction } from "@/app/admin/content-agent/actions";
+import { effectiveMileageDeduction } from "@/lib/bookkeeping/mileage";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
@@ -26,6 +27,8 @@ type BookkeepingRow = {
   amount: number | null;
   payment_method: string | null;
   money_destination: string | null;
+  mileage: number | null;
+  mileage_deduction: number | null;
   source: string | null;
   imported_from: string | null;
   reviewed: boolean | null;
@@ -234,7 +237,7 @@ async function getAdminSnapshots() {
     safeRows<BookkeepingRow>(
       supabase
         .from("bookkeeping_transactions")
-        .select("type, classification, category, amount, payment_method, money_destination, source, imported_from, reviewed")
+        .select("type, classification, category, amount, payment_method, money_destination, mileage, mileage_deduction, source, imported_from, reviewed")
         .gte("transaction_date", "2026-01-01")
         .limit(5000)
     ),
@@ -398,8 +401,11 @@ function summarizeBookkeeping(rows: BookkeepingRow[]) {
       }
 
       if (row.classification === "ignore" || isCashDepositRow(row)) return totals;
-      if (row.type === "income") totals.income += amount;
-      if (row.type === "expense" || row.type === "mileage") totals.expenses += amount;
+      const ledgerAmount = row.type === "mileage" && Number(row.mileage || 0) > 0
+        ? effectiveMileageDeduction(row.mileage, row.mileage_deduction)
+        : amount;
+      if (row.type === "income") totals.income += ledgerAmount;
+      if (row.type === "expense" || row.type === "mileage") totals.expenses += ledgerAmount;
       return totals;
     },
     { squareBalance: 0, cashOnHand: 0, income: 0, expenses: 0, needsReview: 0 }

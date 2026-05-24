@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { parseSquareBankingCsv } from "@/lib/bookkeeping/banking-csv";
+import { calculateMileageDeduction } from "@/lib/bookkeeping/mileage";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import {
@@ -19,7 +20,6 @@ const CLASSIFICATIONS = new Set([
 ]);
 
 const TYPES = new Set(["income", "expense", "equity", "tax", "mileage", "transfer"]);
-const MILEAGE_DEDUCTION_RATE = 0.725;
 
 function textValue(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
@@ -30,14 +30,10 @@ function numberValue(formData: FormData, key: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function roundMoney(value: number) {
-  return Math.round(value * 100) / 100;
-}
-
 function mileageValues(formData: FormData, mileageKey: string, deductionKey: string) {
   const mileage = numberValue(formData, mileageKey);
   const mileageDeduction =
-    mileage > 0 ? roundMoney(mileage * MILEAGE_DEDUCTION_RATE) : numberValue(formData, deductionKey);
+    mileage > 0 ? calculateMileageDeduction(mileage) : numberValue(formData, deductionKey);
 
   return { mileage, mileageDeduction };
 }
@@ -320,6 +316,43 @@ export async function deleteSelectedBookkeepingTransactions(formData: FormData) 
   }
 
   redirectWithNotice(`Deleted ${deletedCount} bookkeeping transaction${deletedCount === 1 ? "" : "s"}.`);
+}
+
+export async function recalculateBookkeepingMileageDeductions() {
+  await requireContentAgentAdmin();
+  let updatedCount = 0;
+
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data, error: fetchError } = await supabase
+      .from("bookkeeping_transactions")
+      .select("id,type,mileage")
+      .gt("mileage", 0)
+      .limit(5000);
+
+    if (fetchError) throw new Error(fetchError.message);
+
+    const updates = (data || []).map((row) => {
+      const mileageDeduction = calculateMileageDeduction(Number(row.mileage || 0));
+      return supabase
+        .from("bookkeeping_transactions")
+        .update({
+          mileage_deduction: mileageDeduction,
+          ...(row.type === "mileage" ? { amount: mileageDeduction } : {}),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.id);
+    });
+
+    const results = await Promise.all(updates);
+    const failed = results.find((result) => result.error);
+    if (failed?.error) throw new Error(failed.error.message);
+    updatedCount = updates.length;
+  } catch (error) {
+    redirectWithError(error);
+  }
+
+  redirectWithNotice(`Recalculated mileage deductions for ${updatedCount} transaction${updatedCount === 1 ? "" : "s"}.`);
 }
 
 export async function rebalanceBookkeepingBalances(formData: FormData) {
