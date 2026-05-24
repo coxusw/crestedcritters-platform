@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { shopUnsubscribeUrl } from "@/lib/shop-unsubscribe";
 import {
   formatOrderItemName,
   formatShopMoney,
@@ -192,7 +193,7 @@ export async function sendShopMarketingEmailAction(formData: FormData) {
           to: [recipient.email],
           reply_to: process.env.SHOP_REPLY_TO_EMAIL || "Sales@crestedcritters.com",
           subject,
-          text: buildMarketingEmailText(body, recipient.name),
+          text: buildMarketingEmailText(body, recipient.name, shopUnsubscribeUrl(recipient.email)),
         }),
       });
 
@@ -394,7 +395,7 @@ async function getMarketingRecipients(supabase: ReturnType<typeof createSupabase
     });
 }
 
-function buildMarketingEmailText(body: string, name: string) {
+function buildMarketingEmailText(body: string, name: string, unsubscribeUrl: string) {
   return [
     name ? `Hi ${name},` : "Hi there,",
     "",
@@ -403,6 +404,6 @@ function buildMarketingEmailText(body: string, name: string) {
     "Thank you,",
     "Crested Critters",
     "",
-    "You are receiving this because you signed up for Crested Critters shop updates. Reply to this email if you no longer want shop updates.",
+    `You are receiving this because you signed up for Crested Critters updates. Click the link to unsubscribe: ${unsubscribeUrl}`,
   ].join("\n");
 }

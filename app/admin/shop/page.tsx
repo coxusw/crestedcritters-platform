@@ -44,7 +44,7 @@ export default async function AdminShopPage({
   const params = await searchParams;
   const products = await getProducts();
   const shippingSettings = await getShopShippingSettings();
-  const { orders, pendingOrders, subscribers, marketingSubscribers } = await getShopAdminData();
+  const { orders, pendingOrders, subscribers, marketingSubscribers, unsubscribedSubscribers } = await getShopAdminData();
   const categories = Array.from(new Set(products.map((product) => product.category))).sort();
   const activeTab = params.tab === "marketing" ? "marketing" : "manage";
   const soldOutProducts = products.filter((product) => product.sold_out || product.inventory <= 0);
@@ -118,6 +118,7 @@ export default async function AdminShopPage({
           <MarketingPanel
             subscribers={subscribers}
             marketingSubscriberCount={marketingSubscribers.length}
+            unsubscribedSubscribers={unsubscribedSubscribers}
           />
         ) : (
           <>
@@ -299,7 +300,13 @@ async function getProducts() {
 
 async function getShopAdminData() {
   const supabase = createSupabaseAdminClient();
-  const [ordersResult, pendingOrdersResult, subscribersResult, marketingSubscribersResult] = await Promise.all([
+  const [
+    ordersResult,
+    pendingOrdersResult,
+    subscribersResult,
+    marketingSubscribersResult,
+    unsubscribedSubscribersResult,
+  ] = await Promise.all([
     supabase
       .from("shop_orders")
       .select("id,customer_email,status,subtotal_cents,shipping_cents,total_cents,created_at,items,shipping_address,square_checkout_url")
@@ -322,6 +329,13 @@ async function getShopAdminData() {
       .eq("marketing_opt_in", true)
       .order("updated_at", { ascending: false })
       .limit(1000),
+    supabase
+      .from("shop_email_subscribers")
+      .select("email,name,unsubscribe_reason,unsubscribed_at,updated_at")
+      .eq("marketing_opt_in", false)
+      .not("unsubscribed_at", "is", null)
+      .order("unsubscribed_at", { ascending: false })
+      .limit(200),
   ]);
 
   return {
@@ -329,6 +343,7 @@ async function getShopAdminData() {
     pendingOrders: pendingOrdersResult.data || [],
     subscribers: subscribersResult.data || [],
     marketingSubscribers: marketingSubscribersResult.data || [],
+    unsubscribedSubscribers: unsubscribedSubscribersResult.data || [],
   };
 }
 
@@ -381,9 +396,11 @@ function ShopAdminTab({
 function MarketingPanel({
   subscribers,
   marketingSubscriberCount,
+  unsubscribedSubscribers,
 }: {
   subscribers: ShopSubscriberAdminRow[];
   marketingSubscriberCount: number;
+  unsubscribedSubscribers: ShopUnsubscribedAdminRow[];
 }) {
   return (
     <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
@@ -445,7 +462,10 @@ function MarketingPanel({
         </form>
       </div>
 
-      <SubscribersPanel subscribers={subscribers} />
+      <div className="grid gap-4">
+        <SubscribersPanel subscribers={subscribers} />
+        <UnsubscribedPanel subscribers={unsubscribedSubscribers} />
+      </div>
     </section>
   );
 }
@@ -609,6 +629,14 @@ type ShopSubscriberAdminRow = {
   shipping_address?: ShopShippingAddress | null;
 };
 
+type ShopUnsubscribedAdminRow = {
+  email: string;
+  name?: string | null;
+  unsubscribe_reason?: string | null;
+  unsubscribed_at?: string | null;
+  updated_at?: string | null;
+};
+
 function PendingOrdersPanel({ orders }: { orders: ShopOrderAdminRow[] }) {
   return (
     <section className="rounded-lg border border-amber-300/20 bg-amber-300/10 p-5">
@@ -731,6 +759,47 @@ function SubscribersPanel({ subscribers }: { subscribers: ShopSubscriberAdminRow
                 {subscriber.marketing_opt_in ? "Marketing opt-in" : "Order contact only"}
               </div>
             </div>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
+function UnsubscribedPanel({ subscribers }: { subscribers: ShopUnsubscribedAdminRow[] }) {
+  return (
+    <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-black">Unsubscribed</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-400">
+            These emails stay in your list, but are excluded from marketing sends.
+          </p>
+        </div>
+        <span className="rounded-md border border-white/10 px-3 py-2 text-sm font-black text-slate-300">
+          {subscribers.length}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        {subscribers.length === 0 ? (
+          <p className="text-sm text-slate-400">No unsubscribes yet.</p>
+        ) : (
+          subscribers.map((subscriber) => (
+            <details key={subscriber.email} className="rounded-md bg-black/20 p-3 text-sm">
+              <summary className="cursor-pointer list-none font-black text-slate-100 marker:hidden">
+                {subscriber.email}
+              </summary>
+              {subscriber.name && <div className="mt-2 text-slate-300">{subscriber.name}</div>}
+              <div className="mt-1 text-xs text-slate-500">
+                {subscriber.unsubscribed_at
+                  ? new Date(subscriber.unsubscribed_at).toLocaleString()
+                  : "Unsubscribed"}
+              </div>
+              <div className="mt-3 rounded-md border border-white/10 bg-black/20 p-3 text-sm leading-6 text-slate-300">
+                {subscriber.unsubscribe_reason || "No reason provided."}
+              </div>
+            </details>
           ))
         )}
       </div>
