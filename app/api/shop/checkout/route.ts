@@ -214,6 +214,13 @@ export async function POST(request: Request) {
     );
   }
 
+  await saveCheckoutLead({
+    supabase,
+    email: customerEmail || "",
+    shippingAddress,
+    marketingOptIn: Boolean(body.marketingOptIn),
+  });
+
   const lineItems = orderItems.map((item) => ({
     name: formatOrderItemName(item),
     quantity: String(item.quantity),
@@ -313,4 +320,39 @@ function normalizeShippingAddress(value: unknown): ShopShippingAddress {
 
 function cleanText(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, " ");
+}
+
+async function saveCheckoutLead({
+  supabase,
+  email,
+  shippingAddress,
+  marketingOptIn,
+}: {
+  supabase: ReturnType<typeof createSupabaseAdminClient>;
+  email: string;
+  shippingAddress: ShopShippingAddress;
+  marketingOptIn: boolean;
+}) {
+  if (!email) return;
+
+  const now = new Date().toISOString();
+  const { data: existing } = await supabase
+    .from("shop_email_subscribers")
+    .select("marketing_opt_in")
+    .eq("email", email)
+    .maybeSingle();
+  const nextMarketingOptIn = Boolean(existing?.marketing_opt_in) || marketingOptIn;
+
+  await supabase.from("shop_email_subscribers").upsert(
+    {
+      email,
+      name: shippingAddress.name || null,
+      phone: shippingAddress.phone || null,
+      shipping_address: shippingAddress,
+      marketing_opt_in: nextMarketingOptIn,
+      source: nextMarketingOptIn ? "checkout_opt_in" : "checkout",
+      updated_at: now,
+    },
+    { onConflict: "email" }
+  );
 }

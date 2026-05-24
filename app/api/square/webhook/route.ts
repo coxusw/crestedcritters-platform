@@ -171,14 +171,20 @@ async function savePaidShopLead(
   const address = order.shipping_address;
   const email = normalizeEmail(order.customer_email || address?.email);
   if (!email) return;
+  const { data: existingLead } = await supabase
+    .from("shop_email_subscribers")
+    .select("marketing_opt_in")
+    .eq("email", email)
+    .maybeSingle();
+  const nextMarketingOptIn = Boolean(existingLead?.marketing_opt_in) || Boolean(order.marketing_opt_in);
 
   const leadPayload: Record<string, unknown> = {
     email,
     name: address?.name || null,
     phone: address?.phone || null,
     shipping_address: address || null,
-    marketing_opt_in: Boolean(order.marketing_opt_in),
-    source: Boolean(order.marketing_opt_in) ? "paid_order_opt_in" : "paid_order",
+    marketing_opt_in: nextMarketingOptIn,
+    source: nextMarketingOptIn ? "paid_order_opt_in" : "paid_order",
     last_order_at: paidAt,
     updated_at: paidAt,
   };
@@ -189,7 +195,7 @@ async function savePaidShopLead(
     await supabase.from("shop_email_subscribers").upsert(
       {
         email,
-        marketing_opt_in: Boolean(order.marketing_opt_in),
+        marketing_opt_in: nextMarketingOptIn,
         source: leadPayload.source,
         last_order_at: paidAt,
         updated_at: paidAt,
