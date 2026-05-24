@@ -27,13 +27,6 @@ const sections = [
     linkLabel: "View Live Shipping",
   },
   {
-    title: "Marketing emails",
-    body: [
-      "You can choose to receive Crested Critters updates during checkout.",
-      "Marketing emails include an unsubscribe link, and unsubscribing keeps your email on order records while removing it from future marketing sends.",
-    ],
-  },
-  {
     title: "Order questions",
     body: [
       "If you have a question about an order, shipping timing, product availability, or live shipping, contact Crested Critters before placing the order.",
