@@ -921,11 +921,32 @@ function ProductForm({
         </Field>
       </div>
 
-      <Field label="Description">
+      <Field label="Card Description">
         <textarea
-          name="description"
+          name="card_description"
           rows={3}
-          defaultValue={product?.description || ""}
+          defaultValue={product?.card_description || product?.description || ""}
+          placeholder="Short text shown on the product card."
+          className={`${inputClass} min-h-24`}
+        />
+      </Field>
+
+      <Field label="Full Product Description">
+        <textarea
+          name="full_description"
+          rows={8}
+          defaultValue={product?.full_description || ""}
+          placeholder="Longer product details shown on this product's page."
+          className={`${inputClass} min-h-48`}
+        />
+      </Field>
+
+      <Field label="Source Info">
+        <textarea
+          name="source_note"
+          rows={3}
+          defaultValue={product?.source_note || ""}
+          placeholder="Example: From Crested Critters stock unless otherwise stated."
           className={`${inputClass} min-h-24`}
         />
       </Field>

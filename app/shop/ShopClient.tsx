@@ -10,6 +10,7 @@ import {
   normalizeProductOptions,
   productAvailableQuantity,
   productUnitPrice,
+  shopProductCardDescription,
 } from "@/lib/shop";
 
 type CartLine = {
@@ -532,7 +533,7 @@ function ProductCard({
         </div>
 
         <p className="mt-3 flex-1 text-sm leading-6 text-[#a8b0b8]">
-          {product.description || "Product details coming soon."}
+          {shopProductCardDescription(product) || "Product details coming soon."}
         </p>
 
         <div className="mt-4 space-y-3">
@@ -568,6 +569,12 @@ function ProductCard({
                 ? `${formatShopMoney(product.shipping_cents)} shipping`
                 : "Shipping calculated at checkout"}
           </p>
+          <a
+            href={`/products/${product.slug}`}
+            className="inline-flex w-full items-center justify-center rounded-md border border-white/[0.1] px-4 py-3 text-sm font-black text-[#e9ecef] transition hover:border-[#d6c06f]/35 hover:bg-white/[0.04]"
+          >
+            View Details
+          </a>
           <button
             type="button"
             onClick={() => addToCart(product, selectedOption)}

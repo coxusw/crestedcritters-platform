@@ -29,6 +29,7 @@ export async function createShopProductAction(formData: FormData) {
 
   revalidatePath("/admin/shop");
   revalidatePath("/shop");
+  revalidatePath(`/shop/products/${payload.slug}`);
 }
 
 export async function updateShopProductAction(formData: FormData) {
@@ -37,15 +38,17 @@ export async function updateShopProductAction(formData: FormData) {
   if (!id) throw new Error("Missing product id.");
 
   const supabase = createSupabaseAdminClient();
+  const payload = productPayload(formData);
   const { error } = await supabase
     .from("shop_products")
-    .update({ ...productPayload(formData), updated_at: new Date().toISOString() })
+    .update({ ...payload, updated_at: new Date().toISOString() })
     .eq("id", id);
 
   if (error) throw new Error(error.message);
 
   revalidatePath("/admin/shop");
   revalidatePath("/shop");
+  revalidatePath(`/shop/products/${payload.slug}`);
 }
 
 export async function archiveShopProductAction(formData: FormData) {
@@ -271,6 +274,9 @@ function productPayload(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const slugInput = String(formData.get("slug") || "").trim();
   const slug = slugifyProductName(slugInput || name);
+  const cardDescription = String(formData.get("card_description") || "").trim();
+  const fullDescription = String(formData.get("full_description") || "").trim();
+  const sourceNote = String(formData.get("source_note") || "").trim();
 
   if (!name) throw new Error("Product name is required.");
   if (!slug) throw new Error("Product slug is required.");
@@ -279,7 +285,10 @@ function productPayload(formData: FormData) {
     name,
     slug,
     category: String(formData.get("category") || "Isopods").trim() || "Isopods",
-    description: String(formData.get("description") || "").trim() || null,
+    description: cardDescription || null,
+    card_description: cardDescription || null,
+    full_description: fullDescription || null,
+    source_note: sourceNote || null,
     image_url: String(formData.get("image_url") || "").trim() || null,
     price_cents: parseDollarToCents(formData.get("price")),
     inventory: Math.max(0, Math.floor(Number(formData.get("inventory") || 0))),

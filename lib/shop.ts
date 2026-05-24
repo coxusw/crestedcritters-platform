@@ -4,6 +4,9 @@ export type ShopProduct = {
   name: string;
   category: string;
   description: string | null;
+  card_description?: string | null;
+  full_description?: string | null;
+  source_note?: string | null;
   image_url: string | null;
   price_cents: number;
   inventory: number;
@@ -133,6 +136,18 @@ export function formatProductPrice(product: Pick<ShopProduct, "price_cents" | "o
 
   if (uniquePrices.length <= 1) return formatShopMoney(uniquePrices[0] || 0);
   return `${formatShopMoney(uniquePrices[0])} - ${formatShopMoney(uniquePrices[uniquePrices.length - 1])}`;
+}
+
+export function shopProductCardDescription(
+  product: Pick<ShopProduct, "card_description" | "description">
+) {
+  return product.card_description || product.description || "";
+}
+
+export function shopProductFullDescription(
+  product: Pick<ShopProduct, "full_description" | "card_description" | "description">
+) {
+  return product.full_description || product.description || product.card_description || "";
 }
 
 export function formatOrderItemName(item: Pick<ShopOrderItem, "name" | "optionName" | "optionLabel">) {
