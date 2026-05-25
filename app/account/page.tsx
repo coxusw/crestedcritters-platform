@@ -27,7 +27,7 @@ async function saveProfile(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?next=/isopedia");
+    redirect("/login?next=/account");
   }
 
   const username = cleanText(formData.get("username"))
@@ -71,7 +71,7 @@ async function saveProfile(formData: FormData) {
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; error?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string; welcome?: string }>;
 }) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
@@ -151,6 +151,12 @@ export default async function AccountPage({
         {params.saved === "true" && (
           <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-200">
             Profile saved successfully.
+          </div>
+        )}
+
+        {params.welcome === "true" && !profile?.username && (
+          <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-200">
+            Account created. Finish your profile so your submissions, photos, and reviews show who contributed them.
           </div>
         )}
 

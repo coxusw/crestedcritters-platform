@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
@@ -6,7 +7,7 @@ function cleanText(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function safeNextPath(value: string, fallback = "/isopedia") {
+function safeNextPath(value: string, fallback = "/account?welcome=true") {
   if (!value) return fallback;
   if (!value.startsWith("/")) return fallback;
   if (value.startsWith("//")) return fallback;
@@ -17,45 +18,63 @@ function appQuery(app: string) {
   return app ? `&app=${encodeURIComponent(app)}` : "";
 }
 
-async function signIn(formData: FormData) {
+async function currentOrigin() {
+  const headersList = await headers();
+  const host = headersList.get("x-forwarded-host") || headersList.get("host");
+  const protocol = headersList.get("x-forwarded-proto") || "https";
+  return host ? `${protocol}://${host}` : process.env.NEXT_PUBLIC_SITE_URL || "https://isopedia.crestedcritters.com";
+}
+
+async function createAccount(formData: FormData) {
   "use server";
 
   const supabase = await createSupabaseServerClient();
-
   const email = cleanText(formData.get("email"));
   const password = cleanText(formData.get("password"));
   const app = cleanText(formData.get("app"));
-  const fallback = app === "randomizer" ? "/" : "/isopedia";
+  const fallback = app === "randomizer" ? "/" : "/account?welcome=true";
   const next = safeNextPath(cleanText(formData.get("next")), fallback);
 
   if (!email || !password) {
-    redirect(`/login?error=missing-fields&next=${encodeURIComponent(next)}${appQuery(app)}`);
+    redirect(`/signup?error=missing-fields&next=${encodeURIComponent(next)}${appQuery(app)}`);
   }
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const origin = await currentOrigin();
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(next)}`,
+    },
   });
 
   if (error) {
-    redirect(`/login?error=login-failed&next=${encodeURIComponent(next)}${appQuery(app)}`);
+    redirect(`/signup?error=signup-failed&next=${encodeURIComponent(next)}${appQuery(app)}`);
+  }
+
+  if (!data.session) {
+    redirect(`/signup?message=check-email&next=${encodeURIComponent(next)}${appQuery(app)}`);
   }
 
   redirect(next);
 }
 
-export default async function LoginPage({
+export default async function SignupPage({
   searchParams,
 }: {
   searchParams: Promise<{
     error?: string;
+    message?: string;
     next?: string;
     app?: string;
   }>;
 }) {
   const params = await searchParams;
   const isRandomizer = params.app === "randomizer";
-  const next = safeNextPath(params.next || "", isRandomizer ? "/" : "/isopedia");
+  const next = safeNextPath(
+    params.next || "",
+    isRandomizer ? "/" : "/account?welcome=true"
+  );
 
   return (
     <main className="min-h-screen bg-[#07130c] px-4 py-10 text-white">
@@ -65,14 +84,20 @@ export default async function LoginPage({
             {isRandomizer ? "Randomizer" : "Isopedia"}
           </p>
 
-          <h1 className="mt-3 text-4xl font-black text-white">Sign In</h1>
+          <h1 className="mt-3 text-4xl font-black text-white">Create Account</h1>
 
           <p className="mt-4 text-base leading-7 text-emerald-50/70">
             {isRandomizer
-              ? "Sign in to use the official Randomizer."
-              : "Sign in to contribute to Isopedia."}
+              ? "Create your account for the official Randomizer."
+              : "Create your Isopedia account. After this, you will be sent straight to profile setup."}
           </p>
         </div>
+
+        {params.message === "check-email" && (
+          <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm leading-6 text-emerald-200">
+            Account created. Check your email to confirm the account, then you will be guided to finish your profile.
+          </div>
+        )}
 
         {params.error === "missing-fields" && (
           <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
@@ -80,14 +105,14 @@ export default async function LoginPage({
           </div>
         )}
 
-        {params.error === "login-failed" && (
-          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
-            Login failed. Check your email and password.
+        {params.error === "signup-failed" && (
+          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm leading-6 text-red-200">
+            Account creation failed. This email may already be registered or the password may not meet requirements.
           </div>
         )}
 
         <form
-          action={signIn}
+          action={createAccount}
           className="rounded-3xl border border-white/10 bg-[#102016] p-6 shadow-2xl shadow-black/30"
         >
           <input type="hidden" name="next" value={next} />
@@ -96,7 +121,6 @@ export default async function LoginPage({
           <div className="grid gap-5">
             <label className="grid gap-2">
               <span className="text-sm font-bold text-emerald-100">Email</span>
-
               <input
                 type="email"
                 name="email"
@@ -107,52 +131,38 @@ export default async function LoginPage({
             </label>
 
             <label className="grid gap-2">
-              <span className="text-sm font-bold text-emerald-100">
-                Password
-              </span>
-
+              <span className="text-sm font-bold text-emerald-100">Password</span>
               <input
                 type="password"
                 name="password"
-                placeholder="Your password"
+                placeholder="Create a password"
                 className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none ring-emerald-400/30 transition placeholder:text-emerald-50/30 focus:ring-4"
                 required
               />
             </label>
           </div>
 
-          <div className="mt-3 text-right">
-            <Link
-              href={isRandomizer ? "/reset-password?app=randomizer" : "/reset-password"}
-              className="text-sm font-semibold text-emerald-300 hover:text-emerald-200"
-            >
-              Forgot password?
-            </Link>
-          </div>
-
-          <div className="mt-8 grid gap-3">
-            <button
-              type="submit"
-              className="rounded-2xl bg-emerald-400 px-6 py-3 font-black text-slate-950 transition hover:bg-emerald-300"
-            >
-              Sign In
-            </button>
-          </div>
+          <button
+            type="submit"
+            className="mt-8 w-full rounded-2xl bg-emerald-400 px-6 py-3 font-black text-slate-950 transition hover:bg-emerald-300"
+          >
+            Create Account
+          </button>
         </form>
 
         <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm">
           <Link
-            href={`/signup?next=${encodeURIComponent(next)}${appQuery(params.app || "")}`}
+            href={`/login?next=${encodeURIComponent(next)}${appQuery(params.app || "")}`}
             className="font-bold text-emerald-300 hover:text-emerald-200"
           >
-            Create Account
+            Already have an account? Sign In
           </Link>
 
           <Link
             href={isRandomizer ? "/" : "/isopedia"}
             className="font-bold text-emerald-300 hover:text-emerald-200"
           >
-            {isRandomizer ? "Back to Randomizer" : "← Back to Isopedia"}
+            {isRandomizer ? "Back to Randomizer" : "Back to Isopedia"}
           </Link>
         </div>
       </div>

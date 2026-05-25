@@ -110,16 +110,18 @@ export default async function IsopediaNav({
             );
           })}
 
-          <Link
-            href={profileHref}
-            className={`rounded-xl border px-4 py-2 text-sm font-black transition ${
-              active === "profile"
-                ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
-                : "border-white/10 bg-[#07130c] text-white hover:bg-[#18291d]"
-            }`}
-          >
-            My Profile
-          </Link>
+          {user && (
+            <Link
+              href={profileHref}
+              className={`rounded-xl border px-4 py-2 text-sm font-black transition ${
+                active === "profile"
+                  ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+                  : "border-white/10 bg-[#07130c] text-white hover:bg-[#18291d]"
+              }`}
+            >
+              My Profile
+            </Link>
+          )}
 
           {canAccessAdmin && (
             <Link
@@ -142,12 +144,20 @@ export default async function IsopediaNav({
               Logout
             </Link>
           ) : (
-            <Link
-              href="/login?next=/isopedia"
-              className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
-            >
-              Login
-            </Link>
+            <>
+              <Link
+                href="/login?next=/isopedia"
+                className="rounded-xl border border-white/10 bg-[#07130c] px-4 py-2 text-sm font-black text-white transition hover:bg-[#18291d]"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/signup?next=/account?welcome=true"
+                className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
+              >
+                Create Account
+              </Link>
+            </>
           )}
         </nav>
       </div>
