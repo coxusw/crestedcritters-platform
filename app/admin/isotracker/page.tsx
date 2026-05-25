@@ -297,19 +297,22 @@ function SupportDocsPanel() {
   ];
 
   return (
-    <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <details className="group rounded-lg border border-white/10 bg-white/[0.05]">
+      <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 px-5 py-4 marker:hidden">
         <div>
           <h2 className="text-xl font-black">SOP / Support Doc Draft</h2>
           <p className="mt-1 text-sm leading-6 text-slate-400">
-            Reusable language for PPQ 526 drafts. Treat taxonomy as the item to verify before each submission.
+            Reusable PPQ 526 support language for packaging, containment, release prevention, and disposal.
           </p>
         </div>
-        <span className="rounded-md border border-white/10 px-3 py-2 text-sm font-black text-slate-300">
-          No soil
+        <span className="rounded-md border border-white/10 px-3 py-2 text-sm font-black text-slate-300 group-open:hidden">
+          Open
         </span>
-      </div>
-      <div className="mt-4 grid gap-2">
+        <span className="hidden rounded-md border border-white/10 px-3 py-2 text-sm font-black text-slate-300 group-open:inline">
+          Close
+        </span>
+      </summary>
+      <div className="grid gap-2 border-t border-white/10 px-5 pb-5 pt-4">
         {docs.map(([label, value]) => (
           <div key={label} className="rounded-md border border-white/10 bg-black/20 p-3">
             <div className="text-xs font-black uppercase tracking-wide text-emerald-200">{label}</div>
@@ -317,7 +320,7 @@ function SupportDocsPanel() {
           </div>
         ))}
       </div>
-    </section>
+    </details>
   );
 }
 
