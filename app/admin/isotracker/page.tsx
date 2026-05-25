@@ -289,11 +289,16 @@ function SupportDocsPanel() {
   const docs = [
     ["Origin", INITIAL_PERMIT_SUPPORT_DOC.originState],
     ["Use", INITIAL_PERMIT_SUPPORT_DOC.intendedUse],
+    ["Quantity", INITIAL_PERMIT_SUPPORT_DOC.maximumQuantityPerShipment],
+    ["Frequency", INITIAL_PERMIT_SUPPORT_DOC.estimatedShipmentFrequency],
+    ["Life Stage", INITIAL_PERMIT_SUPPORT_DOC.lifeStage],
     ["Source", INITIAL_PERMIT_SUPPORT_DOC.source],
     ["Shipping", INITIAL_PERMIT_SUPPORT_DOC.shipping],
     ["Containment", INITIAL_PERMIT_SUPPORT_DOC.containment],
     ["Release", INITIAL_PERMIT_SUPPORT_DOC.releasePrevention],
     ["Disposal", INITIAL_PERMIT_SUPPORT_DOC.disposal],
+    ["Escape Response", INITIAL_PERMIT_SUPPORT_DOC.escapeResponse],
+    ["Movement Type", INITIAL_PERMIT_SUPPORT_DOC.domesticMovement],
   ];
 
   return (

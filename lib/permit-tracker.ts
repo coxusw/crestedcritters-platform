@@ -128,7 +128,11 @@ export const STATE_NAME_BY_CODE = new Map<string, string>(US_STATES.map(([code, 
 
 export const INITIAL_PERMIT_SUPPORT_DOC = {
   originState: "Indiana",
-  intendedUse: "Cleanup crew and pets",
+  intendedUse:
+    "Contained vivarium/terrarium cleanup crew and pets; not for environmental release or agricultural release.",
+  maximumQuantityPerShipment: "100 individual organisms per shipment; most shipments will contain approximately 10 individual organisms.",
+  estimatedShipmentFrequency: "No more than 10 shipments per destination state per year.",
+  lifeStage: "Mixed juveniles and adults. Eggs are not intentionally shipped.",
   source:
     "Captive-bred/cultured stock purchased from expo vendors. Exact original collection or breeder lineage is not documented.",
   shipping:
@@ -136,9 +140,13 @@ export const INITIAL_PERMIT_SUPPORT_DOC = {
   containment:
     "Colonies are maintained in Sterilite bins with gasketed locking lids and stainless steel 200 mesh vents to reduce escape risk.",
   releasePrevention:
-    "Customers are instructed not to release organisms outdoors and to keep cultures contained.",
+    "Customers are instructed in writing to keep organisms indoors in secure, escape-resistant enclosures; not to release organisms outdoors; not to use organisms for environmental, agricultural, field, or biological-control release; and not to distribute organisms onward unless they comply with all applicable permit requirements.",
   disposal:
     "Disposal practice is deep freeze at 0 degrees F for 48 hours, followed by high heat in a closed metal container to ensure no viable life remains.",
+  escapeResponse:
+    "If an escape is observed, organisms are recovered immediately when possible. Any recovered escapees or exposed packing material that cannot be safely returned to containment are destroyed using the disposal procedure.",
+  domesticMovement:
+    "Shipments are domestic interstate movements within the United States only. This request does not cover importation into the United States.",
 };
 
 export function permitStatusLabel(status: string) {
