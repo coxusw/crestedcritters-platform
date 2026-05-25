@@ -215,6 +215,10 @@ async function getAdminSnapshots() {
     shopActive,
     shopPendingOrders,
     shopPaidOrders,
+    permitSpecies,
+    permitSubmitted,
+    permitIssued,
+    permitDrafting,
     bookkeepingRows,
   ] = await Promise.all([
     safeCount(supabase.from("isopedia_species").select("id", { count: "exact", head: true })),
@@ -234,6 +238,10 @@ async function getAdminSnapshots() {
     safeCount(supabase.from("shop_products").select("id", { count: "exact", head: true }).eq("active", true)),
     safeCount(supabase.from("shop_orders").select("id", { count: "exact", head: true }).eq("status", "pending")),
     safeCount(supabase.from("shop_orders").select("id", { count: "exact", head: true }).eq("status", "paid")),
+    safeCount(supabase.from("permit_species").select("id", { count: "exact", head: true }).eq("active", true)),
+    safeCount(supabase.from("permit_state_records").select("id", { count: "exact", head: true }).eq("status", "submitted")),
+    safeCount(supabase.from("permit_state_records").select("id", { count: "exact", head: true }).eq("status", "issued")),
+    safeCount(supabase.from("permit_state_records").select("id", { count: "exact", head: true }).eq("status", "drafting")),
     safeRows<BookkeepingRow>(
       supabase
         .from("bookkeeping_transactions")
@@ -269,6 +277,12 @@ async function getAdminSnapshots() {
       active: shopActive,
       pendingOrders: shopPendingOrders,
       paidOrders: shopPaidOrders,
+    },
+    permits: {
+      species: permitSpecies,
+      submitted: permitSubmitted,
+      issued: permitIssued,
+      drafting: permitDrafting,
     },
     bookkeeping,
   };
@@ -339,16 +353,16 @@ function buildTools(snapshots: Awaited<ReturnType<typeof getAdminSnapshots>>): A
       ],
     },
     {
-      title: "IsoTracker",
+      title: "Permit Tracker",
       href: "/admin/isotracker",
-      status: "Prepared",
+      status: "Live",
       stats: [
-        { label: "Mode", value: "Local" },
-        { label: "Server Sync", value: "Later" },
-        { label: "Backups", value: "Planned" },
-        { label: "Billing", value: "Planned" },
+        { label: "Species", value: snapshots.permits.species },
+        { label: "Drafts", value: snapshots.permits.drafting, alert: snapshots.permits.drafting > 0 },
+        { label: "Submitted", value: snapshots.permits.submitted },
+        { label: "Issued", value: snapshots.permits.issued },
       ],
-      links: [{ href: "/admin/isotracker", label: "Roadmap" }],
+      links: [{ href: "/admin/isotracker", label: "Open Permits" }],
     },
     {
       title: "Shop",
