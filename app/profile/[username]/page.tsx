@@ -244,6 +244,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
     suggestedEdits,
     verifiedEdits,
     imageEdits,
+    discussionPosts,
     badgeAssignments,
     collectionResult,
   ] = await Promise.all([
@@ -268,6 +269,11 @@ export default async function PublicProfilePage({ params }: PageProps) {
       .select("id", { count: "exact", head: true })
       .eq("suggested_by", profile.id)
       .eq("field_name", "image_url"),
+    supabase
+      .from("isopedia_discussions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", profile.id)
+      .eq("status", "active"),
     supabase
       .from("profile_badge_assignments")
       .select(
@@ -301,11 +307,13 @@ export default async function PublicProfilePage({ params }: PageProps) {
   const suggestedEditsCount = suggestedEdits.count || 0;
   const verifiedEditsCount = verifiedEdits.count || 0;
   const imageEditsCount = imageEdits.count || 0;
+  const discussionPostsCount = discussionPosts.count || 0;
   const isoTokens =
     submittedSpeciesCount +
     verifiedSpeciesCount +
     suggestedEditsCount +
-    verifiedEditsCount;
+    verifiedEditsCount +
+    discussionPostsCount;
   const trustLevel = getTrustLevel(isoTokens);
   const collectionItems = collectionResult.data || [];
   const ownedCount = collectionItems.filter((item) => item.status === "owned").length;
@@ -491,20 +499,21 @@ export default async function PublicProfilePage({ params }: PageProps) {
               )}
             </section>
 
-            <section className="rounded-2xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-6">
+            <section className="rounded-2xl border border-white/10 bg-[#102016] p-4 shadow-xl shadow-black/20 sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-xl font-black text-white">Contributor Stats</h2>
+                <h2 className="text-lg font-black text-white">Contributor Stats</h2>
                 <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-black text-emerald-200">
                   {isoTokens} IsoTokens
                 </span>
               </div>
 
-              <div className="mt-4 grid gap-2 sm:grid-cols-5">
+              <div className="mt-3 grid grid-cols-2 gap-2">
                 <TinyStat label="Submitted" value={submittedSpeciesCount} />
                 <TinyStat label="Verified" value={verifiedSpeciesCount} />
                 <TinyStat label="Edits" value={suggestedEditsCount} />
                 <TinyStat label="Edits Verified" value={verifiedEditsCount} />
                 <TinyStat label="Images" value={imageEditsCount} />
+                <TinyStat label="Discussions" value={discussionPostsCount} />
               </div>
             </section>
           </div>
@@ -581,11 +590,11 @@ function MiniMetric({ label, value }: { label: string; value: number }) {
 
 function TinyStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-[#07130c]/70 p-3">
+    <div className="rounded-xl border border-white/10 bg-[#07130c]/70 p-2.5">
       <p className="text-[10px] font-black uppercase tracking-widest text-emerald-100/40">
         {label}
       </p>
-      <p className="mt-1 text-xl font-black text-white">{value}</p>
+      <p className="mt-0.5 text-lg font-black text-white">{value}</p>
     </div>
   );
 }
