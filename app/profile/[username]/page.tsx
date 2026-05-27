@@ -370,9 +370,8 @@ export default async function PublicProfilePage({ params }: PageProps) {
                     </h1>
                   </div>
 
-                  <div className="mx-auto grid w-full max-w-56 grid-cols-2 gap-2 md:mx-0 md:w-56">
+                  <div className="mx-auto w-full max-w-32 md:mx-0">
                     <MiniMetric label="IsoTokens" value={isoTokens} />
-                    <MiniMetric label="Images" value={imageEditsCount} />
                   </div>
                 </div>
 
