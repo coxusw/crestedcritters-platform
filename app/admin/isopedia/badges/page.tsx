@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { productionIsopediaUrl } from "@/lib/isopedia-site";
 import AdminBadgesAssignmentForm from "@/app/components/isopedia/AdminBadgesAssignmentForm";
 
 type Profile = {
@@ -465,7 +466,7 @@ export default async function AdminBadgesPage({
 
                       {profile.username && (
                         <Link
-                          href={`/isopedia/profile/${profile.username}`}
+                          href={`${productionIsopediaUrl}/profile/${profile.username}`}
                           className="text-sm font-semibold text-emerald-300 hover:text-emerald-200"
                         >
                           @{profile.username}

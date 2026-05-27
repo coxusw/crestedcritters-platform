@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { filterReviewableGalleryImages } from "@/lib/isopedia-gallery-review";
+import { productionIsopediaUrl } from "@/lib/isopedia-site";
+import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
 
 type Profile = {
   id: string;
@@ -244,7 +246,7 @@ export default async function AdminVerifyGalleryImagesPage({
                           <p className="mt-3 text-sm text-slate-400">
                             Submitted by{" "}
                             {image.profiles?.username ? (
-                              <Link href={`/isopedia/profile/${image.profiles.username}`} className="font-semibold text-emerald-300 hover:text-emerald-200">
+                              <Link href={`${productionIsopediaUrl}/profile/${image.profiles.username}`} className="font-semibold text-emerald-300 hover:text-emerald-200">
                                 {contributorName}
                               </Link>
                             ) : (
@@ -253,7 +255,7 @@ export default async function AdminVerifyGalleryImagesPage({
                           </p>
 
                           {image.isopedia_species?.slug && (
-                            <Link href={`/isopedia/${image.isopedia_species.slug}`} className="mt-3 inline-block text-sm font-semibold text-emerald-300 hover:text-emerald-200">
+                            <Link href={`${productionIsopediaUrl}/${publicSpeciesSlug(image.isopedia_species.slug)}`} className="mt-3 inline-block text-sm font-semibold text-emerald-300 hover:text-emerald-200">
                               View species page
                             </Link>
                           )}

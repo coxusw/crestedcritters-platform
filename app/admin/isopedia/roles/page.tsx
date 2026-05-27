@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { productionIsopediaUrl } from "@/lib/isopedia-site";
 
 export const dynamic = "force-dynamic";
 
@@ -287,7 +288,7 @@ export default async function RoleManagementPage({
                             <span>Username: {profile.username}</span>
 
                             <a
-                              href={`/profile/${profile.username}`}
+                              href={`${productionIsopediaUrl}/profile/${profile.username}`}
                               className="font-bold text-emerald-300 hover:text-emerald-200"
                             >
                               View Profile →

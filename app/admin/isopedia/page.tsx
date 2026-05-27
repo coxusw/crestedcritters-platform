@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../lib/supabase-server";
+import { productionIsopediaUrl } from "@/lib/isopedia-site";
+import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
 import { deleteSpecies } from "./actions";
 
 type SpeciesRow = {
@@ -292,7 +294,7 @@ export default async function AdminIsopediaPage() {
               recentlyAdded.map((item) => (
                 <Link
                   key={item.id}
-                  href={`/isopedia/${item.slug}`}
+                  href={`${productionIsopediaUrl}/${publicSpeciesSlug(item.slug)}`}
                   className="rounded-lg border border-white/10 bg-black/20 p-4 transition hover:-translate-y-0.5 hover:border-emerald-300/50"
                 >
                   <h3 className="font-bold text-slate-100">{item.common_name}</h3>
@@ -351,7 +353,7 @@ export default async function AdminIsopediaPage() {
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-3 text-sm">
-                    <Link className="text-emerald-300 underline" href={`/isopedia/${item.slug}`}>
+                    <Link className="text-emerald-300 underline" href={`${productionIsopediaUrl}/${publicSpeciesSlug(item.slug)}`}>
                       View
                     </Link>
                     <Link className="text-sky-300 underline" href={`/admin/isopedia/${item.id}/edit`}>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { productionIsopediaUrl } from "@/lib/isopedia-site";
 import { updateExpo } from "@/app/admin/isopedia/expos/actions";
 
 type PageProps = {
@@ -156,7 +157,7 @@ export default async function EditExpoPage({ params }: PageProps) {
 
           {expo.status === "approved" && (
             <Link
-              href={`/isopedia/expos/${expo.slug}`}
+              href={`${productionIsopediaUrl}/expos/${expo.slug}`}
               className="rounded-xl border border-white/10 bg-[#142318] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#18291d]"
             >
               View Public Page

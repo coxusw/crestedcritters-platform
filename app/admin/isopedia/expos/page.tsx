@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { productionIsopediaUrl } from "@/lib/isopedia-site";
 import { deleteExpo } from "@/app/admin/isopedia/expos/actions";
 
 type ExpoRow = {
@@ -224,7 +225,7 @@ export default async function AdminExpoReviewPage({
               </Link>
 
               <Link
-                href="/isopedia/expos"
+                href={`${productionIsopediaUrl}/expos`}
                 className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
               >
                 Public Calendar
@@ -324,7 +325,7 @@ function ExpoCard({ expo }: { expo: ExpoRow }) {
           <div className="flex flex-wrap gap-2">
             {expo.status === "approved" && (
               <Link
-                href={`/isopedia/expos/${expo.slug}`}
+                href={`${productionIsopediaUrl}/expos/${expo.slug}`}
                 className="rounded-xl border border-white/10 bg-[#0b140d] px-4 py-2 text-sm font-bold text-emerald-200 transition hover:bg-[#18291d]"
               >
                 View
