@@ -417,13 +417,13 @@ export default async function PublicProfilePage({ params }: PageProps) {
                 </h2>
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   {facebookUrl && (
-                    <SocialButton href={facebookUrl} label="Facebook" mark="f" />
+                    <SocialButton href={facebookUrl} label="Facebook" kind="facebook" />
                   )}
                   {profileInstagramUrl && (
-                    <SocialButton href={profileInstagramUrl} label="Instagram" mark="IG" />
+                    <SocialButton href={profileInstagramUrl} label="Instagram" kind="instagram" />
                   )}
                   {websiteUrl && (
-                    <SocialButton href={websiteUrl} label="Website" mark="www" />
+                    <SocialButton href={websiteUrl} label="My Website" kind="website" />
                   )}
                 </div>
                 {!facebookUrl && !profileInstagramUrl && !websiteUrl && (
@@ -611,12 +611,17 @@ function TinyStat({ label, value }: { label: string; value: number }) {
 function SocialButton({
   href,
   label,
-  mark,
+  kind,
 }: {
   href: string;
   label: string;
-  mark: string;
+  kind: "facebook" | "instagram" | "website";
 }) {
+  const className =
+    kind === "facebook"
+      ? "flex h-14 items-center justify-center rounded-xl border border-[#1877f2]/40 bg-[#1877f2] text-3xl font-black leading-none text-white shadow-lg shadow-[#1877f2]/15 transition hover:bg-[#166fe5]"
+      : "flex h-14 items-center justify-center rounded-xl border border-white/10 bg-[#07130c]/70 text-xs font-black text-emerald-200 transition hover:border-emerald-400/50 hover:bg-emerald-400/10";
+
   return (
     <a
       href={href}
@@ -624,9 +629,16 @@ function SocialButton({
       rel="noopener noreferrer"
       aria-label={label}
       title={label}
-      className="flex h-12 items-center justify-center rounded-xl border border-white/10 bg-[#07130c]/70 text-xs font-black text-emerald-200 transition hover:border-emerald-400/50 hover:bg-emerald-400/10"
+      className={className}
     >
-      {mark}
+      {kind === "facebook" && <span className="-mb-1 font-sans">f</span>}
+      {kind === "instagram" && <span>IG</span>}
+      {kind === "website" && (
+        <span className="grid text-center text-[11px] uppercase leading-3 tracking-wide">
+          <span>My</span>
+          <span>Website</span>
+        </span>
+      )}
     </a>
   );
 }
