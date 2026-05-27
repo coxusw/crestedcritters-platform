@@ -12,6 +12,7 @@ export default function ProfileQrButton({ title, username }: Props) {
   const [open, setOpen] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
   const [pageUrl, setPageUrl] = useState("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -25,6 +26,15 @@ export default function ProfileQrButton({ title, username }: Props) {
       errorCorrectionLevel: "H",
     }).then(setQrUrl);
   }, [open, username]);
+
+  async function copyUrl() {
+    const url = pageUrl || `${window.location.origin}/profile/${username}`;
+
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+
+    window.setTimeout(() => setCopied(false), 1800);
+  }
 
   return (
     <>
@@ -70,15 +80,19 @@ export default function ProfileQrButton({ title, username }: Props) {
               </div>
             )}
 
-            <p className="mt-4 break-all text-sm text-emerald-50/60">
-              {pageUrl || `/profile/${username}`}
-            </p>
+            <button
+              type="button"
+              onClick={copyUrl}
+              className="mt-5 inline-flex w-full justify-center rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/20"
+            >
+              {copied ? "Copied" : "Copy URL"}
+            </button>
 
             {qrUrl && (
               <a
                 href={qrUrl}
                 download={`${username}-profile-qr.png`}
-                className="mt-5 inline-flex w-full justify-center rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
+                className="mt-3 inline-flex w-full justify-center rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
               >
                 Download QR Code
               </a>
