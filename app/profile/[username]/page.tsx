@@ -80,12 +80,7 @@ const badgeColorClasses: Record<string, string> = {
 function publicProfileName(
   profile: Pick<Profile, "username" | "display_name" | "business_name">
 ) {
-  return (
-    profile.display_name ||
-    profile.business_name ||
-    profile.username ||
-    "Isopedia Contributor"
-  );
+  return profile.display_name || profile.username || "Isopedia User";
 }
 
 function cleanUrl(url: string | null) {
@@ -347,8 +342,8 @@ export default async function PublicProfilePage({ params }: PageProps) {
           <div className="space-y-5">
             <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#102016] shadow-2xl shadow-black/30">
               <div className="bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.16),transparent_38%),linear-gradient(135deg,rgba(6,78,59,0.55),rgba(7,19,12,0.95))] p-5 sm:p-7">
-                <div className="grid gap-5 md:grid-cols-[104px_1fr_auto] md:items-center">
-                  <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#07130c] text-4xl font-black uppercase text-emerald-300 shadow-xl shadow-black/20">
+                <div className="grid gap-5 text-center md:grid-cols-[104px_1fr_auto] md:items-center md:text-left">
+                  <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#07130c] text-4xl font-black uppercase text-emerald-300 shadow-xl shadow-black/20 md:mx-0">
                     {profile.profile_logo_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -362,25 +357,12 @@ export default async function PublicProfilePage({ params }: PageProps) {
                   </div>
 
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300">
-                      Isopedia Contributor
-                    </p>
-                    <h1 className="mt-2 break-words text-3xl font-black tracking-tight text-white sm:text-5xl">
+                    <h1 className="break-words text-3xl font-black tracking-tight text-white sm:text-5xl">
                       {publicName}
                     </h1>
-                    {profile.username && (
-                      <p className="mt-1 text-sm text-emerald-50/70">
-                        @{profile.username}
-                      </p>
-                    )}
-                    {profile.business_name && (
-                      <p className="mt-3 max-w-2xl text-base font-semibold text-emerald-50/90">
-                        {profile.business_name}
-                      </p>
-                    )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 md:w-56">
+                  <div className="mx-auto grid w-full max-w-56 grid-cols-2 gap-2 md:mx-0 md:w-56">
                     <MiniMetric label="IsoTokens" value={isoTokens} />
                     <MiniMetric label="Images" value={imageEditsCount} />
                   </div>
@@ -398,7 +380,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
             </section>
 
             <section className="grid gap-5 xl:grid-cols-[1fr_300px]">
-              <div className="rounded-2xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-6">
+              <div className="rounded-2xl border border-white/10 bg-[#102016] p-5 text-center shadow-xl shadow-black/20 sm:p-6 xl:text-left">
                 <h2 className="text-xl font-black text-white">About</h2>
                 {profile.bio ? (
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-emerald-50/75 sm:text-base">

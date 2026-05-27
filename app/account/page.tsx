@@ -20,6 +20,10 @@ function cleanText(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function slugifyUsername(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9_-]/g, "");
+}
+
 async function saveProfile(formData: FormData) {
   "use server";
 
@@ -33,12 +37,14 @@ async function saveProfile(formData: FormData) {
     redirect("/login?next=/account");
   }
 
-  const username = cleanText(formData.get("username"))
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]/g, "");
+  const existingProfile = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("id", user.id)
+    .maybeSingle<{ username: string | null }>();
 
   const display_name = cleanText(formData.get("display_name"));
-  const business_name = cleanText(formData.get("business_name"));
+  const username = existingProfile.data?.username || slugifyUsername(display_name);
   const bio = cleanText(formData.get("bio"));
   const profile_logo_url = cleanText(formData.get("profile_logo_url"));
   const website_url = cleanText(formData.get("website_url"));
@@ -53,7 +59,7 @@ async function saveProfile(formData: FormData) {
     id: user.id,
     username,
     display_name,
-    business_name,
+    business_name: null,
     bio,
     profile_logo_url: profile_logo_url || null,
     website_url,
@@ -239,42 +245,19 @@ export default async function AccountPage({
               </span>
 
               <input
-                name="username"
-                defaultValue={profile?.username || ""}
-                placeholder="example: crestedkeeper"
+                name="display_name"
+                defaultValue={profile?.display_name || profile?.username || ""}
+                placeholder="Your public name"
                 className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
                 required
               />
 
               <span className="text-xs text-slate-500">
-                Lowercase letters, numbers, dashes, and underscores only.
+                This is the name shown on your public profile.
+                {profile?.username
+                  ? " Your profile URL is locked after account setup."
+                  : " Your profile URL will be created from this name."}
               </span>
-            </label>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-slate-200">
-                Display Name
-              </span>
-
-              <input
-                name="display_name"
-                defaultValue={profile?.display_name || ""}
-                placeholder="Your public name"
-                className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
-              />
-            </label>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-slate-200">
-                Business Name
-              </span>
-
-              <input
-                name="business_name"
-                defaultValue={profile?.business_name || ""}
-                placeholder="Your business, page, or project name"
-                className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
-              />
             </label>
 
             <label className="grid gap-2">
