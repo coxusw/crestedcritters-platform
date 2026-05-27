@@ -5,6 +5,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import sanitizeHtml from "sanitize-html";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
+import { attachDiscussionLikes } from "@/lib/isopedia-discussion-likes";
 import { publicSpeciesSlug, storedSpeciesSlug } from "@/lib/isopedia-slugs";
 import CollectionButtons from "@/app/components/isopedia/CollectionButtons";
 import DiscussionStructuredData from "@/app/components/isopedia/DiscussionStructuredData";
@@ -365,6 +366,12 @@ export default async function SpeciesPage({ params }: PageProps) {
     .order("created_at", { ascending: false })
     .returns<DiscussionComment[]>();
 
+  const discussionCommentsWithLikes = await attachDiscussionLikes(
+    supabase,
+    discussionComments,
+    user?.id || null
+  );
+
   let relatedQuery = supabase
     .from("isopedia_species")
     .select(
@@ -434,7 +441,7 @@ export default async function SpeciesPage({ params }: PageProps) {
       <DiscussionStructuredData
         pagePath={`/${canonicalSlug}`}
         pageTitle={species.common_name}
-        comments={discussionComments || []}
+        comments={discussionCommentsWithLikes}
       />
 
       <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
@@ -567,7 +574,7 @@ export default async function SpeciesPage({ params }: PageProps) {
             entityType="species"
             entityId={String(species.id)}
             entityPath={`/${canonicalSlug}`}
-            comments={discussionComments || []}
+            comments={discussionCommentsWithLikes}
             isLoggedIn={Boolean(user)}
             currentUserId={user?.id || null}
             canModerate={false}

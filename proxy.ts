@@ -149,6 +149,7 @@ const reservedIsopediaPaths = new Set([
   "admin",
   "api",
   "auth",
+  "isotoken-store",
   "login",
   "logout",
   "profile",

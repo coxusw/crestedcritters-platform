@@ -255,6 +255,24 @@ export default async function AdminIsopediaPage() {
                 icon="⚠️"
                 alert={totalDiscussionReports > 0}
               />
+              <AdminActionCard
+                href="/admin/isopedia/feature-controls"
+                title="Feature Controls"
+                description="Toggle future profile features without code edits."
+                icon="Flags"
+              />
+              <AdminActionCard
+                href="/admin/isopedia/analytics"
+                title="Analytics"
+                description="Review traffic sources, top pages, profiles, and search events."
+                icon="Stats"
+              />
+              <AdminActionCard
+                href="/admin/isopedia/isotoken-shop"
+                title="IsoToken Shop"
+                description="Create IsoToken rewards, set prices, and choose active store items."
+                icon="Shop"
+              />
             </div>
           </div>
 

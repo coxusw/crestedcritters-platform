@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
+import { attachDiscussionLikes } from "@/lib/isopedia-discussion-likes";
 import DiscussionStructuredData from "@/app/components/isopedia/DiscussionStructuredData";
 import DiscussionSection from "@/app/components/isopedia/DiscussionSection";
 import {
@@ -283,6 +284,11 @@ export default async function ExpoDetailPage({ params }: PageProps) {
   const allRsvps = rsvps || [];
   const attending = allRsvps.filter((rsvp) => rsvp.status === "attending");
   const vending = allRsvps.filter((rsvp) => rsvp.status === "vending");
+  const discussionCommentsWithLikes = await attachDiscussionLikes(
+    supabase,
+    discussionComments,
+    user?.id || null
+  );
   const currentUserRsvp = user
     ? allRsvps.find((rsvp) => rsvp.user_id === user.id)
     : null;
@@ -326,7 +332,7 @@ export default async function ExpoDetailPage({ params }: PageProps) {
       <DiscussionStructuredData
         pagePath={pagePath}
         pageTitle={expo.name}
-        comments={(discussionComments || []).filter(
+        comments={discussionCommentsWithLikes.filter(
           (comment) => comment.status === "active"
         )}
       />
@@ -503,7 +509,7 @@ export default async function ExpoDetailPage({ params }: PageProps) {
           entityType="expo"
           entityId={String(expo.id)}
           entityPath={pagePath}
-          comments={discussionComments || []}
+          comments={discussionCommentsWithLikes}
           isLoggedIn={Boolean(user)}
           currentUserId={user?.id || null}
           canModerate={canModerate}

@@ -12,6 +12,7 @@ import {
   deleteDiscussionComment,
   editDiscussionComment,
   reportDiscussionComment,
+  toggleDiscussionLike,
 } from "@/app/components/isopedia/discussion-actions";
 
 type DiscussionComment = {
@@ -23,6 +24,8 @@ type DiscussionComment = {
   created_at: string;
   edited_at: string | null;
   deleted_at: string | null;
+  like_count?: number;
+  liked_by_current_user?: boolean;
   profiles: {
     username: string | null;
     display_name: string | null;
@@ -52,6 +55,55 @@ function getAuthorName(comment: DiscussionComment) {
     comment.profiles?.business_name ||
     comment.profiles?.username ||
     "Unknown User"
+  );
+}
+
+function LikeControl({
+  comment,
+  entityPath,
+  currentUserId,
+  isLoggedIn,
+  isDiscussionBanned,
+  isPending,
+}: {
+  comment: DiscussionComment;
+  entityPath: string;
+  currentUserId: string | null;
+  isLoggedIn: boolean;
+  isDiscussionBanned: boolean;
+  isPending: boolean;
+}) {
+  const likeCount = comment.like_count || 0;
+  const canLike =
+    comment.status === "active" &&
+    isLoggedIn &&
+    currentUserId !== comment.user_id &&
+    !isDiscussionBanned;
+
+  if (!canLike) {
+    return (
+      <span className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300">
+        {likeCount} like{likeCount === 1 ? "" : "s"}
+      </span>
+    );
+  }
+
+  return (
+    <form action={toggleDiscussionLike}>
+      <input type="hidden" name="comment_id" value={comment.id} />
+      <input type="hidden" name="return_path" value={entityPath} />
+      <button
+        type="submit"
+        disabled={isPending}
+        className={`rounded-xl border px-3 py-2 text-xs font-black transition disabled:opacity-50 ${
+          comment.liked_by_current_user
+            ? "border-emerald-400/40 bg-emerald-400/15 text-emerald-100 hover:bg-emerald-400/20"
+            : "border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
+        }`}
+      >
+        {comment.liked_by_current_user ? "Liked" : "Like"} - {likeCount}
+      </button>
+    </form>
   );
 }
 
@@ -90,6 +142,7 @@ export default function DiscussionSection({
   const [replyBodies, setReplyBodies] = useState<Record<string, string>>({});
   const [reportDetails, setReportDetails] = useState("");
   const [reportReason, setReportReason] = useState("Spam");
+  const [sortMode, setSortMode] = useState<"newest" | "most_liked">("newest");
 
   const isDiscussionBanned = Boolean(activeDiscussionBan);
 
@@ -107,18 +160,29 @@ export default function DiscussionSection({
       }
     }
 
-    topLevel.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    topLevel.sort((a, b) => {
+      if (sortMode === "most_liked") {
+        const likeDiff = (b.like_count || 0) - (a.like_count || 0);
+        if (likeDiff !== 0) return likeDiff;
+      }
+
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
     for (const [parentId, items] of replies.entries()) {
       replies.set(
         parentId,
-        items.sort(
-          (a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        )
+        items.sort((a, b) => {
+          if (sortMode === "most_liked") {
+            const likeDiff = (b.like_count || 0) - (a.like_count || 0);
+            if (likeDiff !== 0) return likeDiff;
+          }
+
+          return (
+            new Date(a.created_at).getTime() -
+            new Date(b.created_at).getTime()
+          );
+        })
       );
     }
 
@@ -126,7 +190,7 @@ export default function DiscussionSection({
       topLevelComments: topLevel,
       repliesByParent: replies,
     };
-  }, [comments]);
+  }, [comments, sortMode]);
 
   function submitTopLevelComment(formData: FormData) {
     startTransition(async () => {
@@ -227,6 +291,38 @@ export default function DiscussionSection({
           You must be logged in to participate in discussions.
         </div>
       )}
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm font-bold text-slate-400">
+          {topLevelComments.length} discussion thread
+          {topLevelComments.length === 1 ? "" : "s"}
+        </p>
+
+        <div className="flex rounded-xl border border-white/10 bg-slate-950/70 p-1">
+          <button
+            type="button"
+            onClick={() => setSortMode("newest")}
+            className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${
+              sortMode === "newest"
+                ? "bg-emerald-400 text-slate-950"
+                : "text-slate-300 hover:bg-white/10"
+            }`}
+          >
+            Newest
+          </button>
+          <button
+            type="button"
+            onClick={() => setSortMode("most_liked")}
+            className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${
+              sortMode === "most_liked"
+                ? "bg-emerald-400 text-slate-950"
+                : "text-slate-300 hover:bg-white/10"
+            }`}
+          >
+            Most Liked
+          </button>
+        </div>
+      </div>
 
       <div className="space-y-4">
         {topLevelComments.length > 0 ? (
@@ -501,8 +597,17 @@ function CommentCard({
         </div>
       )}
 
-      {(canEdit || canDelete || canReport) && !isEditing && (
+      {!isEditing && (
         <div className="mt-4 flex flex-wrap gap-2">
+          <LikeControl
+            comment={comment}
+            entityPath={entityPath}
+            currentUserId={currentUserId}
+            isLoggedIn={isLoggedIn}
+            isDiscussionBanned={isDiscussionBanned}
+            isPending={isPending}
+          />
+
           {canEdit && (
             <button
               type="button"

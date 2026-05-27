@@ -308,3 +308,69 @@ export async function reportDiscussionComment(formData: FormData) {
 
   revalidatePath(returnPath);
 }
+
+export async function toggleDiscussionLike(formData: FormData) {
+  const { supabase, user } = await getAuthContext();
+
+  const commentId = cleanText(formData.get("comment_id"));
+  const returnPath = cleanText(formData.get("return_path")) || "/";
+
+  if (!commentId) {
+    throw new Error("Missing comment.");
+  }
+
+  const { data: comment, error: commentError } = await supabase
+    .from("isopedia_discussions")
+    .select("id, user_id, status")
+    .eq("id", commentId)
+    .maybeSingle<{
+      id: string;
+      user_id: string;
+      status: string;
+    }>();
+
+  if (commentError) {
+    throw new Error(commentError.message);
+  }
+
+  if (!comment || comment.status !== "active") {
+    throw new Error("Comment not found.");
+  }
+
+  if (comment.user_id === user.id) {
+    throw new Error("You cannot like your own comment.");
+  }
+
+  const { data: existingLike, error: existingError } = await supabase
+    .from("isopedia_discussion_likes")
+    .select("id")
+    .eq("comment_id", commentId)
+    .eq("user_id", user.id)
+    .maybeSingle<{ id: string }>();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (existingLike) {
+    const { error } = await supabase
+      .from("isopedia_discussion_likes")
+      .delete()
+      .eq("id", existingLike.id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  } else {
+    const { error } = await supabase.from("isopedia_discussion_likes").insert({
+      comment_id: commentId,
+      user_id: user.id,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  revalidatePath(returnPath);
+}

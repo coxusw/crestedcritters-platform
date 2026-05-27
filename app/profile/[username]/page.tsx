@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
@@ -49,6 +51,35 @@ type CollectionItem = {
     slug: string;
     image_url: string | null;
     difficulty: string | null;
+  } | null;
+};
+
+type ProfileVisibilitySettings = {
+  recent_discussions_public: boolean;
+  expo_status_public: boolean;
+};
+
+type RecentDiscussion = {
+  id: string;
+  entity_type: "species" | "expo" | "guide";
+  entity_id: string;
+  body: string;
+  created_at: string;
+};
+
+type ExpoStatus = {
+  id: string;
+  status: "attending" | "vending";
+  isopedia_expos: {
+    id: string;
+    name: string;
+    slug: string;
+    city: string;
+    state: string;
+    venue: string | null;
+    starts_at: string;
+    ends_at: string | null;
+    status: string;
   } | null;
 };
 
@@ -218,6 +249,49 @@ export async function generateMetadata({
   };
 }
 
+async function updateProfileActivityVisibility(formData: FormData) {
+  "use server";
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("You must be logged in.");
+  }
+
+  const username = String(formData.get("username") || "").trim();
+  const section = String(formData.get("section") || "");
+  const isPublic = String(formData.get("is_public") || "") === "true";
+  const allowedColumns: Record<string, keyof ProfileVisibilitySettings> = {
+    recent_discussions: "recent_discussions_public",
+    expo_status: "expo_status_public",
+  };
+  const column = allowedColumns[section];
+
+  if (!column) {
+    throw new Error("Invalid profile visibility section.");
+  }
+
+  const { error } = await supabase.from("profile_visibility_settings").upsert(
+    {
+      profile_id: user.id,
+      [column]: isPublic,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "profile_id" }
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (username) {
+    revalidatePath(`/profile/${username}`);
+  }
+}
+
 export default async function PublicProfilePage({ params }: PageProps) {
   const { username } = await params;
   const supabase = await createSupabaseServerClient();
@@ -310,16 +384,34 @@ export default async function PublicProfilePage({ params }: PageProps) {
   const verifiedEditsCount = verifiedEdits.count || 0;
   const imageEditsCount = imageEdits.count || 0;
   const discussionPostsCount = discussionPosts.count || 0;
-  const isoTokens =
+  const discussionLikesReceivedCount = await getDiscussionLikesReceivedCount(
+    supabase,
+    profile.id
+  );
+  const spentIsoTokens = await getSpentIsoTokens(supabase, profile.id);
+  const isoTokens = Math.max(
+    0,
     submittedSpeciesCount +
-    verifiedSpeciesCount +
-    suggestedEditsCount +
-    verifiedEditsCount +
-    discussionPostsCount;
+      verifiedSpeciesCount +
+      suggestedEditsCount +
+      verifiedEditsCount +
+      discussionPostsCount +
+      discussionLikesReceivedCount -
+      spentIsoTokens
+  );
   const trustLevel = getTrustLevel(isoTokens);
   const collectionItems = collectionResult.data || [];
   const ownedCount = collectionItems.filter((item) => item.status === "owned").length;
   const wishlistCount = collectionItems.filter((item) => item.status === "wishlist").length;
+  const visibility = await getProfileVisibility(supabase, profile.id);
+  const recentDiscussions =
+    isOwner || visibility.recent_discussions_public
+      ? await getRecentProfileDiscussions(supabase, profile.id)
+      : [];
+  const expoStatuses =
+    isOwner || visibility.expo_status_public
+      ? await getProfileExpoStatuses(supabase, profile.id)
+      : [];
 
   const profileJsonLd = {
     "@context": "https://schema.org",
@@ -536,6 +628,94 @@ export default async function PublicProfilePage({ params }: PageProps) {
               )}
             </section>
 
+            {(isOwner ||
+              recentDiscussions.length > 0 ||
+              expoStatuses.length > 0) && (
+              <section className="grid gap-5 xl:grid-cols-2">
+                {(isOwner || visibility.recent_discussions_public) && (
+                  <ProfileActivityCard
+                    title="Recent Discussions"
+                    isOwner={isOwner}
+                    section="recent_discussions"
+                    username={usernameForLinks}
+                    isPublic={visibility.recent_discussions_public}
+                    emptyText={
+                      isOwner
+                        ? "Your recent public discussion posts will show here."
+                        : "No recent public discussion activity yet."
+                    }
+                  >
+                    {recentDiscussions.map((discussion) => (
+                      <Link
+                        key={discussion.id}
+                        href={discussion.href}
+                        className="block rounded-xl border border-white/10 bg-[#07130c]/70 p-3 transition hover:border-emerald-400/50"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-black text-white">
+                            {discussion.title}
+                          </p>
+                          <p className="text-[11px] font-bold text-emerald-100/40">
+                            {new Date(discussion.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <p className="mt-2 line-clamp-2 text-xs leading-5 text-emerald-50/55">
+                          {discussion.body}
+                        </p>
+                      </Link>
+                    ))}
+                  </ProfileActivityCard>
+                )}
+
+                {(isOwner || visibility.expo_status_public) && (
+                  <ProfileActivityCard
+                    title="Expo Status"
+                    isOwner={isOwner}
+                    section="expo_status"
+                    username={usernameForLinks}
+                    isPublic={visibility.expo_status_public}
+                    emptyText={
+                      isOwner
+                        ? "Mark yourself attending or vending on expo pages to show them here."
+                        : "No public expo status yet."
+                    }
+                  >
+                    {expoStatuses.map((status) => {
+                      const expo = status.isopedia_expos;
+                      if (!expo) return null;
+
+                      return (
+                        <Link
+                          key={status.id}
+                          href={`/expos/${expo.slug}`}
+                          className="block rounded-xl border border-white/10 bg-[#07130c]/70 p-3 transition hover:border-emerald-400/50"
+                        >
+                          <p className="text-sm font-black text-white">
+                            {status.status === "vending"
+                              ? `Vending at ${expo.name}`
+                              : `Attending ${expo.name}`}
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-emerald-50/55">
+                            {[expo.venue, expo.city, expo.state]
+                              .filter(Boolean)
+                              .join(" - ")}
+                          </p>
+                          <p className="mt-2 text-[11px] font-bold uppercase tracking-wide text-emerald-200/70">
+                            {new Date(expo.starts_at).toLocaleDateString()}
+                            {expo.ends_at
+                              ? ` - ${new Date(
+                                  expo.ends_at
+                                ).toLocaleDateString()}`
+                              : ""}
+                          </p>
+                        </Link>
+                      );
+                    })}
+                  </ProfileActivityCard>
+                )}
+              </section>
+            )}
+
             <section className="rounded-2xl border border-white/10 bg-[#102016] p-4 shadow-xl shadow-black/20 sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-black text-white">Contributor Stats</h2>
@@ -551,6 +731,8 @@ export default async function PublicProfilePage({ params }: PageProps) {
                 <TinyStat label="Edits Verified" value={verifiedEditsCount} />
                 <TinyStat label="Images" value={imageEditsCount} />
                 <TinyStat label="Discussions" value={discussionPostsCount} />
+                <TinyStat label="Likes Earned" value={discussionLikesReceivedCount} />
+                <TinyStat label="Spent" value={spentIsoTokens} />
               </div>
             </section>
           </div>
@@ -598,6 +780,169 @@ async function getCollectionPreview(
   return query.returns<CollectionItem[]>();
 }
 
+async function getProfileVisibility(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  profileId: string
+): Promise<ProfileVisibilitySettings> {
+  const defaults = {
+    recent_discussions_public: true,
+    expo_status_public: true,
+  };
+
+  const { data, error } = await supabase
+    .from("profile_visibility_settings")
+    .select("recent_discussions_public, expo_status_public")
+    .eq("profile_id", profileId)
+    .maybeSingle<ProfileVisibilitySettings>();
+
+  if (error || !data) return defaults;
+
+  return {
+    ...defaults,
+    ...data,
+  };
+}
+
+async function getDiscussionLikesReceivedCount(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  profileId: string
+) {
+  const { count, error } = await supabase
+    .from("isopedia_discussion_likes")
+    .select("id, isopedia_discussions!inner(user_id)", {
+      count: "exact",
+      head: true,
+    })
+    .eq("isopedia_discussions.user_id", profileId);
+
+  if (error) return 0;
+  return count || 0;
+}
+
+async function getSpentIsoTokens(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  profileId: string
+) {
+  const { data, error } = await supabase
+    .from("isotoken_purchases")
+    .select("price_paid")
+    .eq("profile_id", profileId)
+    .eq("status", "completed")
+    .returns<Array<{ price_paid: number }>>();
+
+  if (error) return 0;
+
+  return (data || []).reduce((total, purchase) => total + purchase.price_paid, 0);
+}
+
+async function getRecentProfileDiscussions(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  profileId: string
+) {
+  const { data, error } = await supabase
+    .from("isopedia_discussions")
+    .select("id, entity_type, entity_id, body, created_at")
+    .eq("user_id", profileId)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(3)
+    .returns<RecentDiscussion[]>();
+
+  if (error || !data) return [];
+
+  const speciesIds = data
+    .filter((item) => item.entity_type === "species")
+    .map((item) => Number(item.entity_id))
+    .filter(Number.isFinite);
+  const expoIds = data
+    .filter((item) => item.entity_type === "expo")
+    .map((item) => item.entity_id);
+
+  const [{ data: speciesRows }, { data: expoRows }] = await Promise.all([
+    speciesIds.length
+      ? supabase
+          .from("isopedia_species")
+          .select("id, common_name, slug")
+          .in("id", speciesIds)
+          .returns<Array<{ id: number; common_name: string; slug: string }>>()
+      : Promise.resolve({ data: [] }),
+    expoIds.length
+      ? supabase
+          .from("isopedia_expos")
+          .select("id, name, slug")
+          .in("id", expoIds)
+          .returns<Array<{ id: string; name: string; slug: string }>>()
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const speciesMap = new Map(
+    (speciesRows || []).map((item) => [
+      String(item.id),
+      {
+        title: item.common_name,
+        href: `/${publicSpeciesSlug(item.slug)}`,
+      },
+    ])
+  );
+  const expoMap = new Map(
+    (expoRows || []).map((item) => [
+      item.id,
+      {
+        title: item.name,
+        href: `/expos/${item.slug}`,
+      },
+    ])
+  );
+
+  return data.map((item) => {
+    const target =
+      item.entity_type === "species"
+        ? speciesMap.get(item.entity_id)
+        : item.entity_type === "expo"
+          ? expoMap.get(item.entity_id)
+          : null;
+
+    return {
+      ...item,
+      title: target?.title || "Discussion",
+      href: target?.href || "/",
+    };
+  });
+}
+
+async function getProfileExpoStatuses(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  profileId: string
+) {
+  const { data, error } = await supabase
+    .from("isopedia_expo_rsvps")
+    .select(
+      `
+      id,
+      status,
+      isopedia_expos:expo_id (
+        id,
+        name,
+        slug,
+        city,
+        state,
+        venue,
+        starts_at,
+        ends_at,
+        status
+      )
+    `
+    )
+    .eq("user_id", profileId)
+    .order("created_at", { ascending: false })
+    .limit(3)
+    .returns<ExpoStatus[]>();
+
+  if (error || !data) return [];
+
+  return data.filter((item) => item.isopedia_expos?.status === "approved");
+}
+
 function BadgeChip({ badge }: { badge: Badge }) {
   const colorKey = badge.color || "emerald";
   const classes =
@@ -634,6 +979,75 @@ function TinyStat({ label, value }: { label: string; value: number }) {
       </p>
       <p className="mt-0.5 text-lg font-black text-white">{value}</p>
     </div>
+  );
+}
+
+function ProfileActivityCard({
+  title,
+  isOwner,
+  section,
+  username,
+  isPublic,
+  emptyText,
+  children,
+}: {
+  title: string;
+  isOwner: boolean;
+  section: "recent_discussions" | "expo_status";
+  username: string;
+  isPublic: boolean;
+  emptyText: string;
+  children: ReactNode;
+}) {
+  const hasChildren = Array.isArray(children)
+    ? children.some(Boolean)
+    : Boolean(children);
+
+  return (
+    <section className="rounded-2xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-black text-white">{title}</h2>
+          {isOwner && (
+            <p className="mt-1 text-xs text-emerald-50/45">
+              Currently {isPublic ? "public" : "private"} on your profile.
+            </p>
+          )}
+        </div>
+
+        {isOwner && (
+          <form action={updateProfileActivityVisibility}>
+            <input type="hidden" name="username" value={username} />
+            <input type="hidden" name="section" value={section} />
+            <input
+              type="hidden"
+              name="is_public"
+              value={isPublic ? "false" : "true"}
+            />
+            <button
+              type="submit"
+              className={`rounded-xl border px-3 py-2 text-xs font-black transition ${
+                isPublic
+                  ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15"
+                  : "border-white/10 bg-black/20 text-emerald-50/70 hover:bg-black/30"
+              }`}
+            >
+              {isPublic ? "Make Private" : "Make Public"}
+            </button>
+          </form>
+        )}
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        {hasChildren ? (
+          children
+        ) : (
+          <p className="rounded-xl border border-white/10 bg-[#07130c]/70 p-4 text-sm text-emerald-50/50">
+            {emptyText}
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 

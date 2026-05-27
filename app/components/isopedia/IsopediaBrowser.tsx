@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
+import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 type Species = {
   id: number;
@@ -136,6 +137,38 @@ export default function IsopediaBrowser({ species }: Props) {
       );
     });
   }, [species, search, typeFilter, genusFilter, difficultyFilter]);
+
+  useEffect(() => {
+    const query = search.trim();
+    if (query.length < 2) return;
+
+    const timer = window.setTimeout(() => {
+      const supabase = createSupabaseBrowserClient();
+      const referrer = document.referrer
+        ? new URL(document.referrer).hostname
+        : null;
+
+      supabase
+        .from("isopedia_analytics_events")
+        .insert({
+          event_type: filteredSpecies.length > 0 ? "internal_search" : "internal_search_no_results",
+          entity_type: "search",
+          path: window.location.pathname,
+          referrer_domain: referrer,
+          traffic_source: referrer ? "referral" : "direct",
+          metadata: {
+            query,
+            result_count: filteredSpecies.length,
+            type_filter: typeFilter || null,
+            genus_filter: genusFilter || null,
+            difficulty_filter: difficultyFilter || null,
+          },
+        })
+        .then(() => undefined);
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [search, filteredSpecies.length, typeFilter, genusFilter, difficultyFilter]);
 
   function clearFilters() {
     setSearch("");
