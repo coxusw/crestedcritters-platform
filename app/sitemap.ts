@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { createClient } from "@supabase/supabase-js";
+import { getIsopediaBaseUrl, isStagingDeployment } from "@/lib/isopedia-site";
 
 type Species = {
   slug: string;
@@ -16,22 +17,24 @@ type Profile = {
 };
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://www.crestedcritters.com";
+  const baseUrl = getIsopediaBaseUrl();
+
+  if (isStagingDeployment()) {
+    return [
+      {
+        url: `${baseUrl}/`,
+        lastModified: new Date(),
+        changeFrequency: "monthly",
+        priority: 0.1,
+      },
+    ];
+  }
 
   const defaultPages: MetadataRoute.Sitemap = [
     {
       url: `${baseUrl}/`,
       lastModified: new Date(),
       changeFrequency: "weekly",
-      priority: 0.7,
-    },
-
-    {
-      url: `${baseUrl}/isopedia`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
       priority: 1,
     },
 

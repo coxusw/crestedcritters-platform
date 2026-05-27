@@ -1,6 +1,14 @@
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import IsopediaBrowser from "@/app/components/isopedia/IsopediaBrowser";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
+import { isopediaMetadata } from "@/app/isopedia/metadata";
+
+export const metadata = isopediaMetadata;
+
+export default async function IsopediaPage() {
+  redirect("/");
+}
 
 type Species = {
   id: number;
@@ -18,7 +26,7 @@ type Species = {
   image_url: string | null;
 };
 
-export default async function IsopediaPage() {
+export async function IsopediaLandingPage() {
   const supabase = await createSupabaseServerClient();
 
   const [

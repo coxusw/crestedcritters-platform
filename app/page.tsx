@@ -1,5 +1,2 @@
-import { redirect } from "next/navigation";
-
-export default function HomePage() {
-  redirect("/isopedia");
-}
+export { metadata } from "@/app/isopedia/page";
+export { IsopediaLandingPage as default } from "@/app/isopedia/page";
