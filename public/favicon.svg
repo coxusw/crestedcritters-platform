@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Isopedia isopod favicon">
+  <rect width="64" height="64" rx="14" fill="#07130c"/>
+  <ellipse cx="32" cy="34" rx="24" ry="17" fill="#1f2f24"/>
+  <path d="M13 34c0-9.4 8.5-17 19-17s19 7.6 19 17-8.5 17-19 17-19-7.6-19-17Z" fill="#2f3f33"/>
+  <path d="M17 27c3.4-4.4 8.6-7 15-7s11.6 2.6 15 7" fill="none" stroke="#9bd6ad" stroke-width="3" stroke-linecap="round"/>
+  <path d="M14 34h36M17 42c3.4 4 8.6 6.3 15 6.3S43.6 46 47 42" fill="none" stroke="#132015" stroke-width="3" stroke-linecap="round"/>
+  <path d="M24 18c-2.7 7.9-2.7 22.1 0 30M32 17c-2.2 8.8-2.2 24.2 0 33M40 18c2.7 7.9 2.7 22.1 0 30" fill="none" stroke="#132015" stroke-width="3" stroke-linecap="round"/>
+  <path d="M22 27c2.4-1.6 4.8-2.4 7.4-2.4M35 25c2.6.1 5 .9 7 2.4M20 38c2.3 1.5 4.8 2.3 7.5 2.4M36.5 40.4c2.7-.1 5.2-.9 7.5-2.4" fill="none" stroke="#f6f3e8" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="24" cy="25" r="2.2" fill="#f6f3e8"/>
+  <circle cx="40" cy="25" r="2.2" fill="#f6f3e8"/>
+  <path d="M14 29 7 24M14 39 7 44M50 29l7-5M50 39l7 5" fill="none" stroke="#9bd6ad" stroke-width="2.4" stroke-linecap="round"/>
+</svg>
