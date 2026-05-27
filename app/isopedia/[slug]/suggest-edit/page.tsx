@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { publicSpeciesSlug, storedSpeciesSlug } from "@/lib/isopedia-slugs";
 import SuggestedEditInput from "@/app/components/isopedia/SuggestedEditInput";
 
 type PageProps = {
@@ -88,6 +89,7 @@ async function submitSuggestedEdit(formData: FormData) {
 
   const species_id = Number(formData.get("species_id"));
   const species_slug = cleanText(formData.get("species_slug"));
+  const public_species_slug = publicSpeciesSlug(species_slug);
   const field_name = cleanText(formData.get("field_name"));
   const proposed_value = cleanText(formData.get("proposed_value"));
 
@@ -109,11 +111,11 @@ async function submitSuggestedEdit(formData: FormData) {
   }
 
   if (!allowedFields.includes(field_name)) {
-    redirect(`/${species_slug}/suggest-edit?error=invalid-field`);
+    redirect(`/${public_species_slug}/suggest-edit?error=invalid-field`);
   }
 
   if (!proposed_value || isBlankRichText(proposed_value)) {
-    redirect(`/${species_slug}/suggest-edit?error=value-required`);
+    redirect(`/${public_species_slug}/suggest-edit?error=value-required`);
   }
 
   const { data: species } = await supabase
@@ -154,10 +156,10 @@ async function submitSuggestedEdit(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/${species_slug}/suggest-edit?error=save-failed`);
+    redirect(`/${public_species_slug}/suggest-edit?error=save-failed`);
   }
 
-  redirect(`/${species_slug}/suggest-edit?submitted=true`);
+  redirect(`/${public_species_slug}/suggest-edit?submitted=true`);
 }
 
 export default async function SuggestEditPage({
@@ -165,6 +167,7 @@ export default async function SuggestEditPage({
   searchParams,
 }: PageProps) {
   const { slug } = await params;
+  const lookupSlug = storedSpeciesSlug(slug);
   const query = await searchParams;
 
   const supabase = await createSupabaseServerClient();
@@ -205,19 +208,21 @@ export default async function SuggestEditPage({
       image_url
     `
     )
-    .eq("slug", slug)
+    .eq("slug", lookupSlug)
     .maybeSingle<Species>();
 
   if (!species) {
     redirect("/");
   }
 
+  const publicSlug = publicSpeciesSlug(species.slug);
+
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
       <div className="mx-auto max-w-5xl">
         <div className="mb-6">
           <Link
-            href={`/${species.slug}`}
+            href={`/${publicSlug}`}
             className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
           >
             ← Back to {species.common_name}

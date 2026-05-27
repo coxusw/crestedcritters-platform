@@ -1,6 +1,8 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
 import EditCollectionItemModal from "@/app/components/isopedia/EditCollectionItemModal";
 import CollectionQrButton from "@/app/components/isopedia/CollectionQrButton";
 
@@ -465,13 +467,15 @@ function CollectionSection({
                 key={item.id}
                 className="overflow-hidden rounded-3xl border border-emerald-900/40 bg-[#142318] shadow-xl shadow-black/20 transition hover:border-emerald-400/40"
               >
-                <Link href={`/${species.slug}`} className="group block">
+                <Link href={`/${publicSpeciesSlug(species.slug)}`} className="group block">
                   <div className="flex h-48 w-full items-center justify-center bg-[#0b140d] p-3">
                     {species.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Image
                         src={species.image_url}
                         alt={species.common_name}
+                        width={360}
+                        height={240}
+                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                         className="h-full w-full object-contain transition group-hover:scale-[1.03]"
                       />
                     ) : (
@@ -515,7 +519,7 @@ function CollectionSection({
                     )}
                   </div>
 
-                  <Link href={`/${species.slug}`}>
+                  <Link href={`/${publicSpeciesSlug(species.slug)}`}>
                     <h3 className="text-2xl font-black text-white transition hover:text-emerald-300">
                       {species.common_name}
                     </h3>
@@ -561,7 +565,7 @@ function CollectionSection({
 
                   <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
                     <Link
-                      href={`/${species.slug}`}
+                      href={`/${publicSpeciesSlug(species.slug)}`}
                       className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
                     >
                       View Species →

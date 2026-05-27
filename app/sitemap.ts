@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { createClient } from "@supabase/supabase-js";
 import { getIsopediaBaseUrl, isStagingDeployment } from "@/lib/isopedia-site";
+import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
 
 type Species = {
   slug: string;
@@ -45,19 +46,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
 
-    {
-      url: `${baseUrl}/submit`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
-
-    {
-      url: `${baseUrl}/review`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.5,
-    },
   ];
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -99,7 +87,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const speciesPages =
     speciesResult.data?.map((entry) => ({
-      url: `${baseUrl}/${entry.slug}`,
+      url: `${baseUrl}/${publicSpeciesSlug(entry.slug)}`,
       lastModified: entry.updated_at
         ? new Date(entry.updated_at)
         : new Date(),

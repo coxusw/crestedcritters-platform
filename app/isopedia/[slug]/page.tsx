@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import sanitizeHtml from "sanitize-html";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
+import { publicSpeciesSlug, storedSpeciesSlug } from "@/lib/isopedia-slugs";
 import CollectionButtons from "@/app/components/isopedia/CollectionButtons";
+import DiscussionStructuredData from "@/app/components/isopedia/DiscussionStructuredData";
 import DiscussionSection from "@/app/components/isopedia/DiscussionSection";
 import SpeciesQrButton from "@/app/components/isopedia/SpeciesQrButton";
 import SpeciesStructuredData from "@/app/components/isopedia/SpeciesStructuredData";
@@ -158,6 +161,7 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const supabase = await createSupabaseServerClient();
+  const lookupSlug = storedSpeciesSlug(slug);
 
   const { data: species } = await supabase
     .from("isopedia_species")
@@ -172,7 +176,7 @@ export async function generateMetadata({
       image_url
     `
     )
-    .eq("slug", slug)
+    .eq("slug", lookupSlug)
     .maybeSingle<{
       common_name: string;
       scientific_name: string | null;
@@ -189,7 +193,7 @@ export async function generateMetadata({
     };
   }
 
-  const title = `${species.common_name} Care Guide | Isopedia`;
+  const title = `${species.common_name} Care Guide`;
   const description =
     stripHtml(species.notes) ||
     `${species.common_name} care information on Isopedia.`;
@@ -197,7 +201,8 @@ export async function generateMetadata({
   const image =
     species.image_url ||
     absoluteIsopediaUrl("/isopedia-social-preview.jpg");
-  const canonical = absoluteIsopediaUrl(`/${species.slug}`);
+  const canonicalSlug = publicSpeciesSlug(species.slug);
+  const canonical = absoluteIsopediaUrl(`/${canonicalSlug}`);
 
   return {
     title,
@@ -229,6 +234,7 @@ export async function generateMetadata({
 export default async function SpeciesPage({ params }: PageProps) {
   const { slug } = await params;
   const supabase = await createSupabaseServerClient();
+  const lookupSlug = storedSpeciesSlug(slug);
 
   const { data: species, error } = await supabase
     .from("isopedia_species")
@@ -254,11 +260,17 @@ export default async function SpeciesPage({ params }: PageProps) {
       updated_at
     `
     )
-    .eq("slug", slug)
+    .eq("slug", lookupSlug)
     .maybeSingle<Species>();
 
   if (error || !species) {
     notFound();
+  }
+
+  const canonicalSlug = publicSpeciesSlug(species.slug);
+
+  if (slug !== canonicalSlug) {
+    permanentRedirect(`/${canonicalSlug}`);
   }
 
   const {
@@ -406,7 +418,7 @@ export default async function SpeciesPage({ params }: PageProps) {
       <SpeciesStructuredData
         speciesName={species.common_name}
         scientificName={species.scientific_name}
-        slug={species.slug}
+        slug={canonicalSlug}
         description={seoDescription}
         imageUrl={species.image_url}
         organismType={species.organism_type}
@@ -417,6 +429,12 @@ export default async function SpeciesPage({ params }: PageProps) {
         origin={species.origin}
         temperature={species.temperature}
         humidity={species.humidity}
+      />
+
+      <DiscussionStructuredData
+        pagePath={`/${canonicalSlug}`}
+        pageTitle={species.common_name}
+        comments={discussionComments || []}
       />
 
       <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
@@ -432,18 +450,18 @@ export default async function SpeciesPage({ params }: PageProps) {
             <div className="flex flex-wrap gap-2">
               <SpeciesQrButton
                 speciesName={species.common_name}
-                speciesSlug={species.slug}
+                speciesSlug={canonicalSlug}
               />
 
               <Link
-                href={`/${species.slug}/suggest-edit`}
+                href={`/${canonicalSlug}/suggest-edit`}
                 className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
               >
                 Suggest Edit
               </Link>
 
               <Link
-                href={`/${species.slug}/submit-image`}
+                href={`/${canonicalSlug}/submit-image`}
                 className="rounded-xl bg-amber-300 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-amber-200"
               >
                 Add Image
@@ -526,7 +544,7 @@ export default async function SpeciesPage({ params }: PageProps) {
               <h2 className="text-2xl font-black text-white">Care Notes</h2>
 
               <Link
-                href={`/${species.slug}/suggest-edit`}
+                href={`/${canonicalSlug}/suggest-edit`}
                 className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
               >
                 Suggest an improvement →
@@ -548,7 +566,7 @@ export default async function SpeciesPage({ params }: PageProps) {
           <DiscussionSection
             entityType="species"
             entityId={String(species.id)}
-            entityPath={`/${species.slug}`}
+            entityPath={`/${canonicalSlug}`}
             comments={discussionComments || []}
             isLoggedIn={Boolean(user)}
             currentUserId={user?.id || null}
@@ -576,15 +594,17 @@ export default async function SpeciesPage({ params }: PageProps) {
                 {relatedSpecies.map((related) => (
                   <Link
                     key={related.id}
-                    href={`/${related.slug}`}
+                    href={`/${publicSpeciesSlug(related.slug)}`}
                     className="group overflow-hidden rounded-3xl border border-white/10 bg-[#102016] shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-emerald-400/50"
                   >
                     <div className="flex h-48 items-center justify-center bg-[#07130c]/70 p-3">
                       {related.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <Image
                           src={related.image_url}
                           alt={related.common_name}
+                          width={360}
+                          height={240}
+                          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                           className="h-full w-full object-contain transition group-hover:scale-[1.03]"
                         />
                       ) : (

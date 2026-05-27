@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
+import { publicSpeciesSlug, storedSpeciesSlug } from "@/lib/isopedia-slugs";
 
 type Species = {
   id: number;
@@ -16,6 +17,7 @@ export default function SubmitSpeciesImagePage() {
   const router = useRouter();
 
   const slug = String(params.slug);
+  const lookupSlug = storedSpeciesSlug(slug);
 
   const [species, setSpecies] = useState<Species | null>(null);
 
@@ -38,7 +40,7 @@ export default function SubmitSpeciesImagePage() {
       const { data, error } = await supabase
         .from("isopedia_species")
         .select("id, common_name, slug")
-        .eq("slug", slug)
+        .eq("slug", lookupSlug)
         .maybeSingle();
 
       if (error || !data) {
@@ -52,7 +54,7 @@ export default function SubmitSpeciesImagePage() {
     }
 
     loadSpecies();
-  }, [slug]);
+  }, [lookupSlug]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -129,7 +131,7 @@ export default function SubmitSpeciesImagePage() {
       setSuccess("Gallery image submitted for review.");
 
       setTimeout(() => {
-        router.push(`/${species.slug}`);
+        router.push(`/${publicSpeciesSlug(species.slug)}`);
       }, 1500);
     } catch {
       setError("Failed to submit image.");
@@ -151,7 +153,7 @@ export default function SubmitSpeciesImagePage() {
       <div className="mx-auto max-w-2xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <Link
-            href={`/${slug}`}
+            href={`/${species ? publicSpeciesSlug(species.slug) : slug}`}
             className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
           >
             ← Back to Species

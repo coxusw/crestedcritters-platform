@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 
 type Expo = {
@@ -76,6 +79,38 @@ const STATES = [
   "WI",
   "WY",
 ];
+
+export const metadata: Metadata = {
+  title: "Reptile & Bioactive Expos",
+  description:
+    "Find upcoming reptile, isopod, bioactive, and terrarium expos shared by the Isopedia community.",
+  alternates: {
+    canonical: absoluteIsopediaUrl("/expos"),
+  },
+  openGraph: {
+    title: "Reptile & Bioactive Expos",
+    description:
+      "Find upcoming reptile, isopod, bioactive, and terrarium expos shared by the Isopedia community.",
+    url: absoluteIsopediaUrl("/expos"),
+    siteName: "Isopedia",
+    type: "website",
+    images: [
+      {
+        url: absoluteIsopediaUrl("/isopedia-social-preview.jpg"),
+        width: 1200,
+        height: 630,
+        alt: "Isopedia expo calendar",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Reptile & Bioactive Expos",
+    description:
+      "Find upcoming reptile, isopod, bioactive, and terrarium expos shared by the Isopedia community.",
+    images: [absoluteIsopediaUrl("/isopedia-social-preview.jpg")],
+  },
+};
 
 function addDays(date: Date, days: number) {
   const copy = new Date(date);
@@ -378,10 +413,12 @@ export default async function ExposPage({ searchParams }: PageProps) {
                     >
                       <div className="flex h-32 w-full items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#102016] sm:h-36 md:h-24 md:w-28">
                         {expo.flyer_image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
+                          <Image
                             src={expo.flyer_image_url}
                             alt={`${expo.name} flyer`}
+                            width={160}
+                            height={128}
+                            sizes="(min-width: 768px) 112px, 100vw"
                             className="h-full w-full object-cover"
                           />
                         ) : (

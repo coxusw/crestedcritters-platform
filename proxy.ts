@@ -12,12 +12,12 @@ export function proxy(request: NextRequest) {
 
     if (url.pathname === "/isopedia") {
       url.pathname = "/";
-      return NextResponse.redirect(url);
+      return NextResponse.redirect(url, 308);
     }
 
     if (url.pathname.startsWith("/isopedia/")) {
       url.pathname = url.pathname.replace(/^\/isopedia/, "") || "/";
-      return NextResponse.redirect(url);
+      return NextResponse.redirect(url, 308);
     }
 
     const cleanIsopediaPath = toInternalIsopediaPath(url.pathname);

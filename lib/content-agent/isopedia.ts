@@ -3,6 +3,7 @@ import { getPage, insertGeneratedPost, logContentAgent } from "./db";
 import { generatePostText } from "./openai";
 import { publishSingleContentPost } from "./generator";
 import type { ContentAgentTopic, NextSlot } from "./types";
+import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
 
 type ProfileLite = {
   id: string;
@@ -303,7 +304,7 @@ export async function createLatestSpeciesAnnouncement() {
   const submitterName = profileName(submitterProfile, "the contributing keeper");
   const verifierName = profileName(verifierProfile, "the Isopedia verification team");
 
-  const speciesUrl = `${siteUrl()}/isopedia/${species.slug}`;
+  const speciesUrl = `${siteUrl()}/${publicSpeciesSlug(String(species.slug || ""))}`;
 
   const topic: ContentAgentTopic = {
     id: "virtual-isopedia-species",
@@ -459,7 +460,7 @@ export async function createSpeciesAnnouncementForSubmission(submissionId: strin
 
   const submitterName = profileName(submitterProfile, "the contributing keeper");
   const verifierName = profileName(verifierProfile, "the Isopedia verification team");
-  const speciesUrl = `${siteUrl()}/isopedia/${species.slug}`;
+  const speciesUrl = `${siteUrl()}/${publicSpeciesSlug(String(species.slug || ""))}`;
 
   const topic: ContentAgentTopic = {
     id: "virtual-isopedia-species",
@@ -607,7 +608,7 @@ export async function createIsopediaStatsPost() {
       "Make this sound like a community progress update.",
       "Plead with keepers to join in and help Isopedia grow for the whole community.",
       "Ask the community to contribute species, expo listings, corrections, images, and keeper experience.",
-      `Main URL: ${page.website_url || `${siteUrl()}/isopedia`}`,
+      `Main URL: ${page.website_url || `${siteUrl()}/`}`,
     ].join("\n"),
     active: true,
     last_used_at: null,
@@ -703,7 +704,7 @@ export async function createSubmissionReviewAlertPost(submissionId: string) {
     ? profilesById.get(submission.submitted_by)
     : null;
   const submitterName = profileName(submitterProfile, "a community keeper");
-  const reviewUrl = `${siteUrl()}/isopedia/review`;
+  const reviewUrl = `${siteUrl()}/review`;
 
   const topic: ContentAgentTopic = {
     id: "virtual-isopedia-submission-review",
@@ -825,7 +826,7 @@ export async function createExpoRoundupPost() {
 
   if (error) throw new Error(error.message);
 
-  const expoUrl = `${siteUrl()}/isopedia/expos`;
+  const expoUrl = `${siteUrl()}/expos`;
   const expoCount = (expos || []).length;
 
   const topic: ContentAgentTopic = {
@@ -914,7 +915,7 @@ export async function createExpoAlertPost(expoId: string) {
   if (existing.error) throw new Error(existing.error.message);
   if (existing.data) return `Expo alert already exists for ${expo.name}.`;
 
-  const expoUrl = `${siteUrl()}/isopedia/expos/${expo.slug}`;
+  const expoUrl = `${siteUrl()}/expos/${expo.slug}`;
 
   const topic: ContentAgentTopic = {
     id: "virtual-isopedia-expo-alert",

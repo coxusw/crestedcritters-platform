@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
 
 type Species = {
   id: number;
@@ -217,15 +219,17 @@ export default function IsopediaBrowser({ species }: Props) {
           {filteredSpecies.map((item) => (
             <Link
               key={item.id}
-              href={`/${item.slug}`}
+              href={`/${publicSpeciesSlug(item.slug)}`}
               className="group overflow-hidden rounded-3xl border border-emerald-900/40 bg-[#142318] shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-emerald-400/60 hover:bg-[#18291d]"
             >
               <div className="flex h-48 w-full items-center justify-center bg-[#0b140d] p-3">
                 {item.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Image
                     src={item.image_url}
                     alt={item.common_name}
+                    width={360}
+                    height={240}
+                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                     className="h-full w-full object-contain transition group-hover:scale-[1.03]"
                   />
                 ) : (

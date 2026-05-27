@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
+import DiscussionStructuredData from "@/app/components/isopedia/DiscussionStructuredData";
 import DiscussionSection from "@/app/components/isopedia/DiscussionSection";
 import {
   removeExpoRsvp,
@@ -96,6 +99,69 @@ function profileHref(
     | null
 ) {
   return profile?.username ? `/profile/${profile.username}` : null;
+}
+
+function expoDescription(expo: Pick<Expo, "name" | "city" | "state" | "venue" | "description">) {
+  return (
+    expo.description ||
+    `${expo.name} in ${expo.city}, ${expo.state}${
+      expo.venue ? ` at ${expo.venue}` : ""
+    }.`
+  );
+}
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const supabase = await createSupabaseServerClient();
+
+  const { data: expo } = await supabase
+    .from("isopedia_expos")
+    .select("id, name, slug, city, state, venue, starts_at, ends_at, description, status")
+    .eq("slug", slug)
+    .eq("status", "approved")
+    .maybeSingle<Expo>();
+
+  if (!expo) {
+    return {
+      title: "Expo Not Found",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const canonical = absoluteIsopediaUrl(`/expos/${expo.slug}`);
+  const title = expo.name;
+  const description = expoDescription(expo);
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      siteName: "Isopedia",
+      type: "website",
+      images: [
+        {
+          url: absoluteIsopediaUrl("/isopedia-social-preview.jpg"),
+          width: 1200,
+          height: 630,
+          alt: `${expo.name} expo listing`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [absoluteIsopediaUrl("/isopedia-social-preview.jpg")],
+    },
+  };
 }
 
 export default async function ExpoDetailPage({ params }: PageProps) {
@@ -220,9 +286,51 @@ export default async function ExpoDetailPage({ params }: PageProps) {
   const currentUserRsvp = user
     ? allRsvps.find((rsvp) => rsvp.user_id === user.id)
     : null;
+  const pagePath = `/expos/${expo.slug}`;
+  const eventJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    "@id": `${absoluteIsopediaUrl(pagePath)}#event`,
+    name: expo.name,
+    description: expoDescription(expo),
+    startDate: expo.starts_at,
+    endDate: expo.ends_at || undefined,
+    eventStatus: "https://schema.org/EventScheduled",
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    url: absoluteIsopediaUrl(pagePath),
+    location: {
+      "@type": "Place",
+      name: expo.venue || `${expo.city}, ${expo.state}`,
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: expo.city,
+        addressRegion: expo.state,
+        addressCountry: "US",
+      },
+    },
+    organizer: {
+      "@type": "Organization",
+      name: "Isopedia",
+      url: absoluteIsopediaUrl("/"),
+    },
+  };
 
   return (
-    <main className="min-h-screen bg-[#0c1710] px-4 py-10 text-white">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(eventJsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
+      <DiscussionStructuredData
+        pagePath={pagePath}
+        pageTitle={expo.name}
+        comments={(discussionComments || []).filter(
+          (comment) => comment.status === "active"
+        )}
+      />
+      <main className="min-h-screen bg-[#0c1710] px-4 py-10 text-white">
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link
@@ -394,7 +502,7 @@ export default async function ExpoDetailPage({ params }: PageProps) {
         <DiscussionSection
           entityType="expo"
           entityId={String(expo.id)}
-          entityPath={`/expos/${expo.slug}`}
+          entityPath={pagePath}
           comments={discussionComments || []}
           isLoggedIn={Boolean(user)}
           currentUserId={user?.id || null}
@@ -402,7 +510,8 @@ export default async function ExpoDetailPage({ params }: PageProps) {
           activeDiscussionBan={activeDiscussionBan}
         />
       </div>
-    </main>
+      </main>
+    </>
   );
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
 
 export type SpeciesCarouselImage = {
@@ -52,11 +53,13 @@ export default function SpeciesImageCarousel({
   return (
     <div className="space-y-4">
       <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-2xl bg-black/20">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={activeImage.imageUrl}
           alt={activeImage.alt || speciesName}
-          className="h-full w-full object-contain"
+          fill
+          priority={activeImage.isPrimary}
+          sizes="(min-width: 1024px) 420px, 100vw"
+          className="object-contain"
         />
 
         {cleanImages.length > 1 && (
@@ -120,10 +123,12 @@ export default function SpeciesImageCarousel({
               }`}
               aria-label={`View image ${index + 1}`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={image.imageUrl}
                 alt={image.alt || speciesName}
+                width={96}
+                height={96}
+                sizes="96px"
                 className="aspect-square w-full object-cover"
               />
             </button>

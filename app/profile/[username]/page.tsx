@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
+import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
 import ProfileQrButton from "@/app/components/isopedia/ProfileQrButton";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 
@@ -187,7 +189,7 @@ export async function generateMetadata({
 
   const name = publicProfileName(profile);
   const canonical = absoluteIsopediaUrl(`/profile/${profile.username || cleanUsername}`);
-  const title = `${name}'s Isopedia Profile | Isopedia`;
+  const title = `${name}'s Isopedia Profile`;
   const description =
     profile.bio ||
     `View ${name}'s public Isopedia profile, badges, collection, and IsoTokens.`;
@@ -319,8 +321,40 @@ export default async function PublicProfilePage({ params }: PageProps) {
   const ownedCount = collectionItems.filter((item) => item.status === "owned").length;
   const wishlistCount = collectionItems.filter((item) => item.status === "wishlist").length;
 
+  const profileJsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "ProfilePage",
+        "@id": absoluteIsopediaUrl(`/profile/${usernameForLinks}#profile`),
+        url: absoluteIsopediaUrl(`/profile/${usernameForLinks}`),
+        name: `${publicName}'s Isopedia Profile`,
+        about: {
+          "@type": "Person",
+          "@id": absoluteIsopediaUrl(`/profile/${usernameForLinks}#person`),
+          name: publicName,
+          description: profile.bio || undefined,
+          image: profile.profile_logo_url || undefined,
+          url: absoluteIsopediaUrl(`/profile/${usernameForLinks}`),
+          sameAs: [
+            websiteUrl,
+            facebookUrl,
+            profileInstagramUrl,
+          ].filter(Boolean),
+        },
+      },
+    ],
+  };
+
   return (
-    <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(profileJsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
+      <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
       <div className="mx-auto max-w-7xl">
         <IsopediaNav active="profile" />
 
@@ -353,10 +387,12 @@ export default async function PublicProfilePage({ params }: PageProps) {
                 <div className="grid gap-5 text-center md:grid-cols-[104px_1fr_auto] md:items-center md:text-left">
                   <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#07130c] text-4xl font-black uppercase text-emerald-300 shadow-xl shadow-black/20 md:mx-0">
                     {profile.profile_logo_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Image
                         src={profile.profile_logo_url}
                         alt={`${publicName} profile logo`}
+                        width={96}
+                        height={96}
+                        sizes="96px"
                         className="h-full w-full object-cover"
                       />
                     ) : (
@@ -448,15 +484,17 @@ export default async function PublicProfilePage({ params }: PageProps) {
                     return (
                       <Link
                         key={item.id}
-                        href={`/${species.slug}`}
+                        href={`/${publicSpeciesSlug(species.slug)}`}
                         className="grid grid-cols-[64px_1fr] gap-3 rounded-xl border border-white/10 bg-[#07130c]/70 p-2 transition hover:border-emerald-400/50"
                       >
                         <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-black/20">
                           {species.image_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
+                            <Image
                               src={species.image_url}
                               alt={species.common_name}
+                              width={64}
+                              height={64}
+                              sizes="64px"
                               className="h-full w-full object-cover"
                             />
                           ) : (
@@ -518,7 +556,8 @@ export default async function PublicProfilePage({ params }: PageProps) {
           </div>
         </div>
       </div>
-    </main>
+      </main>
+    </>
   );
 }
 
