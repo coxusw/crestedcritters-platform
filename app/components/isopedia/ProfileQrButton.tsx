@@ -16,7 +16,7 @@ export default function ProfileQrButton({ title, username }: Props) {
   useEffect(() => {
     if (!open) return;
 
-    const url = `${window.location.origin}/isopedia/profile/${username}`;
+    const url = `${window.location.origin}/profile/${username}`;
     setPageUrl(url);
 
     QRCode.toDataURL(url, {
@@ -71,7 +71,7 @@ export default function ProfileQrButton({ title, username }: Props) {
             )}
 
             <p className="mt-4 break-all text-sm text-emerald-50/60">
-              {pageUrl || `/isopedia/profile/${username}`}
+              {pageUrl || `/profile/${username}`}
             </p>
 
             {qrUrl && (

@@ -13,6 +13,7 @@ type Profile = {
   profile_logo_url: string | null;
   website_url: string | null;
   facebook_url: string | null;
+  instagram_url: string | null;
 };
 
 function cleanText(value: FormDataEntryValue | null) {
@@ -42,6 +43,7 @@ async function saveProfile(formData: FormData) {
   const profile_logo_url = cleanText(formData.get("profile_logo_url"));
   const website_url = cleanText(formData.get("website_url"));
   const facebook_url = cleanText(formData.get("facebook_url"));
+  const instagram_url = cleanText(formData.get("instagram_url"));
 
   if (!username) {
     redirect("/account?error=username-required");
@@ -56,14 +58,22 @@ async function saveProfile(formData: FormData) {
     profile_logo_url: profile_logo_url || null,
     website_url,
     facebook_url,
+    instagram_url,
     updated_at: new Date().toISOString(),
   };
 
   const { error } = await supabase.from("profiles").upsert(profileUpdate);
 
-  if (error && error.message.includes("profile_logo_url")) {
-    const { profile_logo_url: _profileLogoUrl, ...fallbackProfileUpdate } =
-      profileUpdate;
+  if (
+    error &&
+    (error.message.includes("profile_logo_url") ||
+      error.message.includes("instagram_url"))
+  ) {
+    const {
+      profile_logo_url: _profileLogoUrl,
+      instagram_url: _instagramUrl,
+      ...fallbackProfileUpdate
+    } = profileUpdate;
     const { error: fallbackError } = await supabase
       .from("profiles")
       .upsert(fallbackProfileUpdate);
@@ -111,22 +121,26 @@ export default async function AccountPage({
   const profileQuery = await supabase
     .from("profiles")
     .select(
-      "id, username, display_name, business_name, bio, profile_logo_url, website_url, facebook_url"
+      "id, username, display_name, business_name, bio, profile_logo_url, website_url, facebook_url, instagram_url"
     )
     .eq("id", user.id)
     .maybeSingle<Profile>();
 
   let profile = profileQuery.data;
 
-  if (profileQuery.error?.message.includes("profile_logo_url")) {
+  if (
+    profileQuery.error &&
+    (profileQuery.error.message.includes("profile_logo_url") ||
+      profileQuery.error.message.includes("instagram_url"))
+  ) {
     const fallbackQuery = await supabase
       .from("profiles")
       .select("id, username, display_name, business_name, bio, website_url, facebook_url")
       .eq("id", user.id)
-      .maybeSingle<Omit<Profile, "profile_logo_url">>();
+      .maybeSingle<Omit<Profile, "profile_logo_url" | "instagram_url">>();
 
     profile = fallbackQuery.data
-      ? { ...fallbackQuery.data, profile_logo_url: null }
+      ? { ...fallbackQuery.data, profile_logo_url: null, instagram_url: null }
       : null;
   }
 
@@ -301,6 +315,19 @@ export default async function AccountPage({
                 name="facebook_url"
                 defaultValue={profile?.facebook_url || ""}
                 placeholder="https://facebook.com/yourpage"
+                className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+              />
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-medium text-slate-200">
+                Instagram Link
+              </span>
+
+              <input
+                name="instagram_url"
+                defaultValue={profile?.instagram_url || ""}
+                placeholder="https://instagram.com/yourhandle or @yourhandle"
                 className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
               />
             </label>
