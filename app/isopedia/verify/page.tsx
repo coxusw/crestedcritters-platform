@@ -46,7 +46,7 @@ async function verifySubmission(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?next=/isopedia/verify");
+    redirect("/login?next=/verify");
   }
 
   const { error } = await supabase.rpc("verify_isopedia_submission", {
@@ -55,7 +55,7 @@ async function verifySubmission(formData: FormData) {
 
   if (error) {
     redirect(
-      `/isopedia/verify?error=${encodeURIComponent(
+      `/verify?error=${encodeURIComponent(
         error.message || "verify-failed"
       )}`
     );
@@ -71,7 +71,7 @@ async function verifySubmission(formData: FormData) {
 
   if (creditError) {
     redirect(
-      `/isopedia/verify?error=${encodeURIComponent(
+      `/verify?error=${encodeURIComponent(
         creditError.message || "verified-but-credit-tracking-failed"
       )}`
     );
@@ -83,12 +83,12 @@ async function verifySubmission(formData: FormData) {
     console.error("Failed to auto-create Isopedia species announcement:", autoPostError);
   }
 
-  revalidatePath("/isopedia/review");
-  revalidatePath("/isopedia/verify");
-  revalidatePath("/isopedia");
+  revalidatePath("/review");
+  revalidatePath("/verify");
+  revalidatePath("/");
   revalidatePath("/admin/isopedia");
   revalidatePath("/admin/content-agent");
-  redirect("/isopedia/verify?verified=true");
+  redirect("/verify?verified=true");
 }
 
 async function rejectSubmission(formData: FormData) {
@@ -103,16 +103,16 @@ async function rejectSubmission(formData: FormData) {
 
   if (error) {
     redirect(
-      `/isopedia/verify?error=${encodeURIComponent(
+      `/verify?error=${encodeURIComponent(
         error.message || "reject-failed"
       )}`
     );
   }
 
-  revalidatePath("/isopedia/review");
-  revalidatePath("/isopedia/verify");
+  revalidatePath("/review");
+  revalidatePath("/verify");
   revalidatePath("/admin/isopedia");
-  redirect("/isopedia/verify?rejected=true");
+  redirect("/verify?rejected=true");
 }
 
 export default async function VerifySubmissionsPage({
@@ -132,7 +132,7 @@ export default async function VerifySubmissionsPage({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?next=/isopedia/verify");
+    redirect("/login?next=/verify");
   }
 
   const { data: currentProfile } = await supabase
@@ -196,10 +196,10 @@ export default async function VerifySubmissionsPage({
         <IsopediaNav active="review" />
 
         <div className="flex flex-wrap gap-3 text-sm">
-          <Link className="text-emerald-300 underline" href="/isopedia/review">
+          <Link className="text-emerald-300 underline" href="/review">
             Back to Review Queue
           </Link>
-          <Link className="text-emerald-300 underline" href="/isopedia">
+          <Link className="text-emerald-300 underline" href="/">
             Browse Species
           </Link>
         </div>

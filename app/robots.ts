@@ -1,9 +1,20 @@
 import type { MetadataRoute } from "next";
+import { getIsopediaBaseUrl, isStagingDeployment } from "@/lib/isopedia-site";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://www.crestedcritters.com";
+  const baseUrl = getIsopediaBaseUrl();
+
+  if (isStagingDeployment()) {
+    return {
+      rules: [
+        {
+          userAgent: "*",
+          disallow: "/",
+        },
+      ],
+      sitemap: `${baseUrl}/sitemap.xml`,
+    };
+  }
 
   return {
     rules: [
@@ -11,9 +22,7 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: [
           "/",
-          "/isopedia",
-          "/isopedia/",
-          "/isopedia/expos",
+          "/expos",
           "/profile/",
         ],
         disallow: [

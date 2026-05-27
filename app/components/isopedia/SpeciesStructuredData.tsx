@@ -1,3 +1,5 @@
+import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
+
 type Props = {
   speciesName: string;
   scientificName: string | null;
@@ -29,7 +31,7 @@ export default function SpeciesStructuredData({
   temperature,
   humidity,
 }: Props) {
-  const path = `/isopedia/${slug}`;
+  const path = absoluteIsopediaUrl(`/${slug}`);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -49,7 +51,7 @@ export default function SpeciesStructuredData({
           name: "Isopedia",
           logo: {
             "@type": "ImageObject",
-            url: "/crest-logo.png",
+            url: absoluteIsopediaUrl("/crest-logo.png"),
           },
         },
         mainEntityOfPage: {
@@ -128,7 +130,7 @@ export default function SpeciesStructuredData({
             "@type": "ListItem",
             position: 1,
             name: "Isopedia",
-            item: "/isopedia",
+            item: absoluteIsopediaUrl("/"),
           },
           {
             "@type": "ListItem",

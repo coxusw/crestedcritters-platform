@@ -16,7 +16,7 @@ export default async function SubmitSpeciesPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?next=/isopedia/submit");
+    redirect("/login?next=/submit");
   }
 
   const { data: profile } = await supabase

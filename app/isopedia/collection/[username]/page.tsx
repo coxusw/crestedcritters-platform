@@ -160,7 +160,7 @@ export default async function PublicCollectionPage({ params }: PageProps) {
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <Link
-            href="/isopedia"
+            href="/"
             className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
           >
             ← Back to Isopedia
@@ -186,7 +186,7 @@ export default async function PublicCollectionPage({ params }: PageProps) {
             )}
 
             <Link
-              href="/isopedia"
+              href="/"
               className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
             >
               Browse Species
@@ -275,7 +275,7 @@ export default async function PublicCollectionPage({ params }: PageProps) {
                 </Link>
 
                 <Link
-                  href="/isopedia"
+                  href="/"
                   className="rounded-xl border border-white/10 bg-[#142318] px-4 py-3 text-sm font-semibold text-emerald-300 transition hover:bg-[#18291d]"
                 >
                   Browse Database
@@ -320,7 +320,7 @@ export default async function PublicCollectionPage({ params }: PageProps) {
           <EmptyOwnerSection
             title="Owned Species"
             text="You have not added any owned species yet. Browse the database and use + Owned on a species page."
-            href="/isopedia"
+            href="/"
             buttonText="Browse Species"
           />
         ) : null}
@@ -338,7 +338,7 @@ export default async function PublicCollectionPage({ params }: PageProps) {
           <EmptyOwnerSection
             title="Wishlist"
             text="You have not added anything to your wishlist yet. Use the gift box button on species pages."
-            href="/isopedia"
+            href="/"
             buttonText="Find Species"
           />
         ) : null}
@@ -465,7 +465,7 @@ function CollectionSection({
                 key={item.id}
                 className="overflow-hidden rounded-3xl border border-emerald-900/40 bg-[#142318] shadow-xl shadow-black/20 transition hover:border-emerald-400/40"
               >
-                <Link href={`/isopedia/${species.slug}`} className="group block">
+                <Link href={`/${species.slug}`} className="group block">
                   <div className="flex h-48 w-full items-center justify-center bg-[#0b140d] p-3">
                     {species.image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -515,7 +515,7 @@ function CollectionSection({
                     )}
                   </div>
 
-                  <Link href={`/isopedia/${species.slug}`}>
+                  <Link href={`/${species.slug}`}>
                     <h3 className="text-2xl font-black text-white transition hover:text-emerald-300">
                       {species.common_name}
                     </h3>
@@ -561,7 +561,7 @@ function CollectionSection({
 
                   <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
                     <Link
-                      href={`/isopedia/${species.slug}`}
+                      href={`/${species.slug}`}
                       className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
                     >
                       View Species →

@@ -80,10 +80,9 @@ async function saveProfile(formData: FormData) {
 
     if (!fallbackError) {
       revalidatePath("/account");
-      revalidatePath("/isopedia");
+      revalidatePath("/");
       revalidatePath(`/profile/${username}`);
-      revalidatePath(`/isopedia/profile/${username}`);
-      revalidatePath(`/isopedia/collection/${username}`);
+      revalidatePath(`/collection/${username}`);
 
       redirect("/account?error=logo-column-missing");
     }
@@ -94,10 +93,9 @@ async function saveProfile(formData: FormData) {
   }
 
   revalidatePath("/account");
-  revalidatePath("/isopedia");
+  revalidatePath("/");
   revalidatePath(`/profile/${username}`);
-  revalidatePath(`/isopedia/profile/${username}`);
-  revalidatePath(`/isopedia/collection/${username}`);
+  revalidatePath(`/collection/${username}`);
 
   redirect(`/profile/${username}`);
 }
@@ -115,7 +113,7 @@ export default async function AccountPage({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?next=/isopedia");
+    redirect("/login?next=/");
   }
 
   const profileQuery = await supabase
@@ -151,7 +149,7 @@ export default async function AccountPage({
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link
-            href="/isopedia"
+            href="/"
             className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
           >
             ← Back to Isopedia
@@ -168,7 +166,7 @@ export default async function AccountPage({
                 </Link>
 
                 <Link
-                  href={`/isopedia/collection/${username}`}
+                  href={`/collection/${username}`}
                   className="rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-800"
                 >
                   View Collection
@@ -335,7 +333,7 @@ export default async function AccountPage({
 
           <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
             <Link
-              href="/isopedia"
+              href="/"
               className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
             >
               Back to Isopedia

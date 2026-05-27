@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import sanitizeHtml from "sanitize-html";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import CollectionButtons from "@/app/components/isopedia/CollectionButtons";
 import DiscussionSection from "@/app/components/isopedia/DiscussionSection";
 import SpeciesQrButton from "@/app/components/isopedia/SpeciesQrButton";
@@ -188,21 +189,26 @@ export async function generateMetadata({
     };
   }
 
-  const title = `${species.common_name} | Isopedia`;
+  const title = `${species.common_name} Care Guide | Isopedia`;
   const description =
     stripHtml(species.notes) ||
     `${species.common_name} care information on Isopedia.`;
 
   const image =
     species.image_url ||
-    "https://isopedia.crestedcritters.com/isopedia-social-preview.jpg";
+    absoluteIsopediaUrl("/isopedia-social-preview.jpg");
+  const canonical = absoluteIsopediaUrl(`/${species.slug}`);
 
   return {
     title,
     description,
+    alternates: {
+      canonical,
+    },
     openGraph: {
       title,
       description,
+      url: canonical,
       type: "article",
       images: [
         {
@@ -417,7 +423,7 @@ export default async function SpeciesPage({ params }: PageProps) {
         <section className="mx-auto max-w-6xl">
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Link
-              href="/isopedia"
+              href="/"
               className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
             >
               ← Back to Isopedia
@@ -430,14 +436,14 @@ export default async function SpeciesPage({ params }: PageProps) {
               />
 
               <Link
-                href={`/isopedia/${species.slug}/suggest-edit`}
+                href={`/${species.slug}/suggest-edit`}
                 className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
               >
                 Suggest Edit
               </Link>
 
               <Link
-                href={`/isopedia/${species.slug}/submit-image`}
+                href={`/${species.slug}/submit-image`}
                 className="rounded-xl bg-amber-300 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-amber-200"
               >
                 Add Image
@@ -445,7 +451,7 @@ export default async function SpeciesPage({ params }: PageProps) {
 
               {!canAccessAdmin && (
                 <Link
-                  href="/isopedia/review"
+                  href="/review"
                   className="rounded-xl border border-white/10 bg-[#102016] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#14311f]"
                 >
                   Review Queue
@@ -520,7 +526,7 @@ export default async function SpeciesPage({ params }: PageProps) {
               <h2 className="text-2xl font-black text-white">Care Notes</h2>
 
               <Link
-                href={`/isopedia/${species.slug}/suggest-edit`}
+                href={`/${species.slug}/suggest-edit`}
                 className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
               >
                 Suggest an improvement →
@@ -542,7 +548,7 @@ export default async function SpeciesPage({ params }: PageProps) {
           <DiscussionSection
             entityType="species"
             entityId={String(species.id)}
-            entityPath={`/isopedia/${species.slug}`}
+            entityPath={`/${species.slug}`}
             comments={discussionComments || []}
             isLoggedIn={Boolean(user)}
             currentUserId={user?.id || null}
@@ -570,7 +576,7 @@ export default async function SpeciesPage({ params }: PageProps) {
                 {relatedSpecies.map((related) => (
                   <Link
                     key={related.id}
-                    href={`/isopedia/${related.slug}`}
+                    href={`/${related.slug}`}
                     className="group overflow-hidden rounded-3xl border border-white/10 bg-[#102016] shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-emerald-400/50"
                   >
                     <div className="flex h-48 items-center justify-center bg-[#07130c]/70 p-3">

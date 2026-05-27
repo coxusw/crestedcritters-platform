@@ -217,7 +217,7 @@ export default function IsopediaBrowser({ species }: Props) {
           {filteredSpecies.map((item) => (
             <Link
               key={item.id}
-              href={`/isopedia/${item.slug}`}
+              href={`/${item.slug}`}
               className="group overflow-hidden rounded-3xl border border-emerald-900/40 bg-[#142318] shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-emerald-400/60 hover:bg-[#18291d]"
             >
               <div className="flex h-48 w-full items-center justify-center bg-[#0b140d] p-3">

@@ -129,7 +129,7 @@ export default function SubmitSpeciesImagePage() {
       setSuccess("Gallery image submitted for review.");
 
       setTimeout(() => {
-        router.push(`/isopedia/${species.slug}`);
+        router.push(`/${species.slug}`);
       }, 1500);
     } catch {
       setError("Failed to submit image.");
@@ -151,14 +151,14 @@ export default function SubmitSpeciesImagePage() {
       <div className="mx-auto max-w-2xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <Link
-            href={`/isopedia/${slug}`}
+            href={`/${slug}`}
             className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
           >
             ← Back to Species
           </Link>
 
           <Link
-            href="/isopedia"
+            href="/"
             className="rounded-xl border border-white/10 bg-[#142318] px-4 py-2 text-sm font-semibold text-white hover:bg-[#18291d]"
           >
             Browse Species

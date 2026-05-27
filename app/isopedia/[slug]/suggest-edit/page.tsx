@@ -105,15 +105,15 @@ async function submitSuggestedEdit(formData: FormData) {
   ];
 
   if (!species_id || !species_slug) {
-    redirect("/isopedia?error=missing-species");
+    redirect("/?error=missing-species");
   }
 
   if (!allowedFields.includes(field_name)) {
-    redirect(`/isopedia/${species_slug}/suggest-edit?error=invalid-field`);
+    redirect(`/${species_slug}/suggest-edit?error=invalid-field`);
   }
 
   if (!proposed_value || isBlankRichText(proposed_value)) {
-    redirect(`/isopedia/${species_slug}/suggest-edit?error=value-required`);
+    redirect(`/${species_slug}/suggest-edit?error=value-required`);
   }
 
   const { data: species } = await supabase
@@ -138,7 +138,7 @@ async function submitSuggestedEdit(formData: FormData) {
     .maybeSingle<Species>();
 
   if (!species) {
-    redirect("/isopedia?error=missing-species");
+    redirect("/?error=missing-species");
   }
 
   const current_value = getCurrentValue(species, field_name);
@@ -154,10 +154,10 @@ async function submitSuggestedEdit(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/isopedia/${species_slug}/suggest-edit?error=save-failed`);
+    redirect(`/${species_slug}/suggest-edit?error=save-failed`);
   }
 
-  redirect(`/isopedia/${species_slug}/suggest-edit?submitted=true`);
+  redirect(`/${species_slug}/suggest-edit?submitted=true`);
 }
 
 export default async function SuggestEditPage({
@@ -174,7 +174,7 @@ export default async function SuggestEditPage({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/login?next=/isopedia/${slug}/suggest-edit`);
+    redirect(`/login?next=/${slug}/suggest-edit`);
   }
 
   const { data: profile } = await supabase
@@ -209,7 +209,7 @@ export default async function SuggestEditPage({
     .maybeSingle<Species>();
 
   if (!species) {
-    redirect("/isopedia");
+    redirect("/");
   }
 
   return (
@@ -217,7 +217,7 @@ export default async function SuggestEditPage({
       <div className="mx-auto max-w-5xl">
         <div className="mb-6">
           <Link
-            href={`/isopedia/${species.slug}`}
+            href={`/${species.slug}`}
             className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
           >
             ← Back to {species.common_name}

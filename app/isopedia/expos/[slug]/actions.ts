@@ -22,7 +22,7 @@ export async function setExpoRsvp(formData: FormData) {
   const status = cleanText(formData.get("status")) as RsvpStatus;
 
   if (!user) {
-    redirect(`/login?next=/isopedia/expos/${expoSlug}`);
+    redirect(`/login?next=/expos/${expoSlug}`);
   }
 
   if (!expoId || !expoSlug) {
@@ -49,7 +49,7 @@ export async function setExpoRsvp(formData: FormData) {
     throw new Error(error.message);
   }
 
-  revalidatePath(`/isopedia/expos/${expoSlug}`);
+  revalidatePath(`/expos/${expoSlug}`);
 }
 
 export async function removeExpoRsvp(formData: FormData) {
@@ -63,7 +63,7 @@ export async function removeExpoRsvp(formData: FormData) {
   const expoSlug = cleanText(formData.get("expo_slug"));
 
   if (!user) {
-    redirect(`/login?next=/isopedia/expos/${expoSlug}`);
+    redirect(`/login?next=/expos/${expoSlug}`);
   }
 
   if (!expoId || !expoSlug) {
@@ -80,5 +80,5 @@ export async function removeExpoRsvp(formData: FormData) {
     throw new Error(error.message);
   }
 
-  revalidatePath(`/isopedia/expos/${expoSlug}`);
+  revalidatePath(`/expos/${expoSlug}`);
 }

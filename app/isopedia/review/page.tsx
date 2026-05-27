@@ -17,7 +17,7 @@ export default async function IsopediaReviewPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?next=/isopedia/review");
+    redirect("/login?next=/review");
   }
 
   const { data: profile } = await supabase
@@ -105,7 +105,7 @@ export default async function IsopediaReviewPage() {
 
         <section className="mx-auto mt-8 grid max-w-5xl gap-6 lg:grid-cols-3">
           <ReviewCard
-            href="/isopedia/verify"
+            href="/verify"
             label="New Species"
             title="Verify Submissions"
             description="Review full new species entries submitted by contributors. Approved submissions become public Isopedia pages."
@@ -114,7 +114,7 @@ export default async function IsopediaReviewPage() {
           />
 
           <ReviewCard
-            href="/isopedia/verify-edits"
+            href="/verify-edits"
             label="Existing Species"
             title="Verify Suggested Edits"
             description="Review corrections, care updates, taxonomy changes, and image suggestions for existing species pages."
@@ -123,7 +123,7 @@ export default async function IsopediaReviewPage() {
           />
 
           <ReviewCard
-            href="/isopedia/verify-images"
+            href="/verify-images"
             label="Gallery Images"
             title="Verify Gallery Images"
             description="Review uploaded species gallery images before they appear publicly on species pages."

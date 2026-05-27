@@ -134,7 +134,7 @@ export default function SubmitSpeciesForm({ userId }: { userId: string }) {
       }
 
       setStatus({ tone: "good", message: "Submission saved. Redirecting..." });
-      router.push("/isopedia?submitted=true");
+      router.push("/?submitted=true");
     } catch (error) {
       setStatus({
         tone: "bad",
@@ -279,7 +279,7 @@ export default function SubmitSpeciesForm({ userId }: { userId: string }) {
 
       <div className="flex flex-wrap justify-center gap-3 pt-2">
         <Link
-          href="/isopedia"
+          href="/"
           className="rounded-2xl border border-white/10 bg-[#07130c] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#102016]"
         >
           Cancel

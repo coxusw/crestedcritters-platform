@@ -226,7 +226,7 @@ export default async function ExpoDetailPage({ params }: PageProps) {
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link
-            href="/isopedia/expos"
+            href="/expos"
             className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
           >
             ← Back to Expo Calendar
@@ -234,14 +234,14 @@ export default async function ExpoDetailPage({ params }: PageProps) {
 
           <div className="flex flex-wrap gap-2">
             <Link
-              href="/isopedia/expos/submit"
+              href="/expos/submit"
               className="rounded-xl border border-white/10 bg-[#142318] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#18291d]"
             >
               Submit Expo
             </Link>
 
             <Link
-              href="/isopedia"
+              href="/"
               className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
             >
               Isopedia Home
@@ -366,7 +366,7 @@ export default async function ExpoDetailPage({ params }: PageProps) {
                   </div>
                 ) : (
                   <Link
-                    href={`/login?next=/isopedia/expos/${expo.slug}`}
+                    href={`/login?next=/expos/${expo.slug}`}
                     className="mt-3 block rounded-xl bg-emerald-400 px-4 py-3 text-center text-sm font-black text-slate-950 transition hover:bg-emerald-300"
                   >
                     Log In to Mark Status
@@ -394,7 +394,7 @@ export default async function ExpoDetailPage({ params }: PageProps) {
         <DiscussionSection
           entityType="expo"
           entityId={String(expo.id)}
-          entityPath={`/isopedia/expos/${expo.slug}`}
+          entityPath={`/expos/${expo.slug}`}
           comments={discussionComments || []}
           isLoggedIn={Boolean(user)}
           currentUserId={user?.id || null}

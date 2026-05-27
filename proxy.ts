@@ -2,9 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 
 export function proxy(request: NextRequest) {
   const host = request.headers.get("host")?.toLowerCase().split(":")[0] || "";
+  const isIsopediaHost = host === "isopedia.crestedcritters.com";
   const isRandomizerHost = host === "randomizer.crestedcritters.com";
   const isAdminHost = host === "admin.crestedcritters.com";
   const isShopHost = host === "shop.crestedcritters.com";
+
+  if (isIsopediaHost) {
+    const url = request.nextUrl.clone();
+
+    if (url.pathname === "/isopedia") {
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+
+    if (url.pathname.startsWith("/isopedia/")) {
+      url.pathname = url.pathname.replace(/^\/isopedia/, "") || "/";
+      return NextResponse.redirect(url);
+    }
+
+    const cleanIsopediaPath = toInternalIsopediaPath(url.pathname);
+
+    if (cleanIsopediaPath) {
+      url.pathname = cleanIsopediaPath;
+      return NextResponse.rewrite(url);
+    }
+  }
 
   if (isAdminHost) {
     const url = request.nextUrl.clone();
@@ -121,3 +143,58 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|crest-logo.png).*)"],
 };
+
+const reservedIsopediaPaths = new Set([
+  "account",
+  "admin",
+  "api",
+  "auth",
+  "login",
+  "logout",
+  "profile",
+  "randomizer",
+  "reset-password",
+  "robots.txt",
+  "shop",
+  "signup",
+  "sitemap.xml",
+  "update-password",
+]);
+
+const cleanIsopediaPrefixes = new Set([
+  "collection",
+  "expos",
+  "review",
+  "submit",
+  "verify",
+  "verify-edits",
+  "verify-images",
+]);
+
+function toInternalIsopediaPath(pathname: string) {
+  const segments = pathname.split("/").filter(Boolean);
+
+  if (segments.length === 0) return null;
+
+  const [first, second] = segments;
+
+  if (reservedIsopediaPaths.has(first)) return null;
+  if (first.includes(".")) return null;
+
+  if (cleanIsopediaPrefixes.has(first)) {
+    return `/isopedia${pathname}`;
+  }
+
+  if (segments.length === 1) {
+    return `/isopedia/${first}`;
+  }
+
+  if (
+    segments.length === 2 &&
+    (second === "suggest-edit" || second === "submit-image")
+  ) {
+    return `/isopedia/${first}/${second}`;
+  }
+
+  return null;
+}

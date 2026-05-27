@@ -102,7 +102,7 @@ export default function CollectionButtons({
 
         <Link
           href={`/login?next=${encodeURIComponent(
-            typeof window !== "undefined" ? window.location.pathname : "/isopedia"
+            typeof window !== "undefined" ? window.location.pathname : "/"
           )}`}
           className="mt-3 inline-flex rounded-xl bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-emerald-300"
         >

@@ -84,7 +84,7 @@ export async function createDiscussionComment(formData: FormData) {
   const entityId = cleanText(formData.get("entity_id"));
   const parentId = cleanText(formData.get("parent_id")) || null;
   const body = cleanText(formData.get("body"));
-  const returnPath = cleanText(formData.get("return_path")) || "/isopedia";
+  const returnPath = cleanText(formData.get("return_path")) || "/";
 
   if (!allowedEntityTypes.includes(entityType)) {
     throw new Error("Invalid discussion type.");
@@ -150,7 +150,7 @@ export async function editDiscussionComment(formData: FormData) {
 
   const commentId = cleanText(formData.get("comment_id"));
   const body = cleanText(formData.get("body"));
-  const returnPath = cleanText(formData.get("return_path")) || "/isopedia";
+  const returnPath = cleanText(formData.get("return_path")) || "/";
 
   if (!commentId) {
     throw new Error("Missing comment.");
@@ -206,7 +206,7 @@ export async function deleteDiscussionComment(formData: FormData) {
   const { supabase, user, canModerate } = await getAuthContext();
 
   const commentId = cleanText(formData.get("comment_id"));
-  const returnPath = cleanText(formData.get("return_path")) || "/isopedia";
+  const returnPath = cleanText(formData.get("return_path")) || "/";
   const reason = cleanText(formData.get("reason")) || null;
 
   if (!commentId) {
@@ -259,7 +259,7 @@ export async function reportDiscussionComment(formData: FormData) {
   const commentId = cleanText(formData.get("comment_id"));
   const reason = cleanText(formData.get("reason"));
   const details = cleanText(formData.get("details")) || null;
-  const returnPath = cleanText(formData.get("return_path")) || "/isopedia";
+  const returnPath = cleanText(formData.get("return_path")) || "/";
 
   if (!commentId) {
     throw new Error("Missing comment.");

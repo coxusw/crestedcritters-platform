@@ -39,21 +39,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
 
     {
-      url: `${baseUrl}/isopedia/expos`,
+      url: `${baseUrl}/expos`,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.9,
     },
 
     {
-      url: `${baseUrl}/isopedia/submit`,
+      url: `${baseUrl}/submit`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.5,
     },
 
     {
-      url: `${baseUrl}/isopedia/review`,
+      url: `${baseUrl}/review`,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.5,
@@ -99,7 +99,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const speciesPages =
     speciesResult.data?.map((entry) => ({
-      url: `${baseUrl}/isopedia/${entry.slug}`,
+      url: `${baseUrl}/${entry.slug}`,
       lastModified: entry.updated_at
         ? new Date(entry.updated_at)
         : new Date(),
@@ -109,7 +109,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const expoPages =
     exposResult.data?.map((expo) => ({
-      url: `${baseUrl}/isopedia/expos/${expo.slug}`,
+      url: `${baseUrl}/expos/${expo.slug}`,
       lastModified: expo.updated_at
         ? new Date(expo.updated_at)
         : new Date(),

@@ -15,22 +15,22 @@ type Props = {
 const mainNavItems = [
   {
     label: "Database",
-    href: "/isopedia",
+    href: "/",
     key: "database",
   },
   {
     label: "Expos",
-    href: "/isopedia/expos",
+    href: "/expos",
     key: "expos",
   },
   {
     label: "Submit",
-    href: "/isopedia/submit",
+    href: "/submit",
     key: "submit",
   },
   {
     label: "Review",
-    href: "/isopedia/review",
+    href: "/review",
     key: "review",
   },
 ];
@@ -80,7 +80,7 @@ export default async function IsopediaNav({
     <header className="mb-6 rounded-3xl border border-white/10 bg-[#102016]/95 p-4 shadow-2xl shadow-black/25 backdrop-blur sm:mb-8 sm:p-5">
       <div className="flex flex-col gap-4">
         <div className="text-center">
-          <Link href="/isopedia" className="group inline-flex flex-col">
+          <Link href="/" className="group inline-flex flex-col">
             <span className="text-3xl font-black tracking-tight text-white transition group-hover:text-emerald-200 sm:text-4xl">
               Isopedia
             </span>
@@ -146,7 +146,7 @@ export default async function IsopediaNav({
           ) : (
             <>
               <Link
-                href="/login?next=/isopedia"
+                href="/login?next=/"
                 className="rounded-xl border border-white/10 bg-[#07130c] px-4 py-2 text-sm font-black text-white transition hover:bg-[#18291d]"
               >
                 Sign In

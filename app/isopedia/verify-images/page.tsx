@@ -41,7 +41,7 @@ async function verifyGalleryImage(formData: FormData) {
   const supabase = await createSupabaseServerClient();
 
   if (!imageId) {
-    redirect("/isopedia/verify-images?error=missing-image");
+    redirect("/verify-images?error=missing-image");
   }
 
   const { error } = await supabase.rpc("verify_isopedia_species_image", {
@@ -50,20 +50,20 @@ async function verifyGalleryImage(formData: FormData) {
 
   if (error) {
     redirect(
-      `/isopedia/verify-images?error=${encodeURIComponent(
+      `/verify-images?error=${encodeURIComponent(
         error.message || "verify-failed"
       )}`
     );
   }
 
-  revalidatePath("/isopedia/review");
-  revalidatePath("/isopedia/verify-images");
+  revalidatePath("/review");
+  revalidatePath("/verify-images");
 
   if (speciesSlug) {
-    revalidatePath(`/isopedia/${speciesSlug}`);
+    revalidatePath(`/${speciesSlug}`);
   }
 
-  redirect("/isopedia/verify-images?verified=true");
+  redirect("/verify-images?verified=true");
 }
 
 async function rejectGalleryImage(formData: FormData) {
@@ -74,7 +74,7 @@ async function rejectGalleryImage(formData: FormData) {
   const supabase = await createSupabaseServerClient();
 
   if (!imageId) {
-    redirect("/isopedia/verify-images?error=missing-image");
+    redirect("/verify-images?error=missing-image");
   }
 
   const { error } = await supabase.rpc("reject_isopedia_species_image", {
@@ -83,16 +83,16 @@ async function rejectGalleryImage(formData: FormData) {
 
   if (error) {
     redirect(
-      `/isopedia/verify-images?error=${encodeURIComponent(
+      `/verify-images?error=${encodeURIComponent(
         error.message || "reject-failed"
       )}`
     );
   }
 
-  revalidatePath("/isopedia/review");
-  revalidatePath("/isopedia/verify-images");
+  revalidatePath("/review");
+  revalidatePath("/verify-images");
 
-  redirect("/isopedia/verify-images?rejected=true");
+  redirect("/verify-images?rejected=true");
 }
 
 export default async function VerifyGalleryImagesPage({
@@ -112,7 +112,7 @@ export default async function VerifyGalleryImagesPage({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?next=/isopedia/verify-images");
+    redirect("/login?next=/verify-images");
   }
 
   const { data: currentProfile } = await supabase
@@ -180,14 +180,14 @@ export default async function VerifyGalleryImagesPage({
 
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <Link
-            href="/isopedia/review"
+            href="/review"
             className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
           >
             Back to Review Queue
           </Link>
 
           <Link
-            href="/isopedia"
+            href="/"
             className="rounded-xl border border-white/10 bg-[#142318] px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-[#18291d]"
           >
             Browse Species
@@ -300,7 +300,7 @@ export default async function VerifyGalleryImagesPage({
                             Submitted by{" "}
                             {image.profiles?.username ? (
                               <Link
-                                href={`/isopedia/profile/${image.profiles.username}`}
+                                href={`/profile/${image.profiles.username}`}
                                 className="font-semibold text-emerald-300 hover:text-emerald-200"
                               >
                                 {contributorName}
@@ -312,7 +312,7 @@ export default async function VerifyGalleryImagesPage({
 
                           {image.isopedia_species?.slug && (
                             <Link
-                              href={`/isopedia/${image.isopedia_species.slug}`}
+                              href={`/${image.isopedia_species.slug}`}
                               className="mt-3 inline-block text-sm font-semibold text-emerald-300 hover:text-emerald-200"
                             >
                               View species page

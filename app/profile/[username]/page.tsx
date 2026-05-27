@@ -327,7 +327,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
               <ProfileQrButton title={publicName} username={usernameForLinks} />
 
               <Link
-                href={`/isopedia/collection/${usernameForLinks}`}
+                href={`/collection/${usernameForLinks}`}
                 className="shrink-0 rounded-xl bg-emerald-400 px-3 py-2 text-center text-xs font-black text-slate-950 transition hover:bg-emerald-300"
               >
                 Collection
@@ -443,7 +443,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
                   </p>
                 </div>
                 <Link
-                  href={`/isopedia/collection/${usernameForLinks}`}
+                  href={`/collection/${usernameForLinks}`}
                   className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black text-emerald-200 transition hover:bg-black/30"
                 >
                   View All
@@ -459,7 +459,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
                     return (
                       <Link
                         key={item.id}
-                        href={`/isopedia/${species.slug}`}
+                        href={`/${species.slug}`}
                         className="grid grid-cols-[64px_1fr] gap-3 rounded-xl border border-white/10 bg-[#07130c]/70 p-2 transition hover:border-emerald-400/50"
                       >
                         <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-black/20">

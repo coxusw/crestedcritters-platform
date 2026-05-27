@@ -103,7 +103,7 @@ export async function submitExpo(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?next=/isopedia/expos/submit");
+    redirect("/login?next=/expos/submit");
   }
 
   const name = cleanText(formData.get("name"));
@@ -206,8 +206,8 @@ export async function submitExpo(formData: FormData) {
     throw new Error(error.message);
   }
 
-  revalidatePath("/isopedia/expos");
+  revalidatePath("/expos");
   revalidatePath("/admin/isopedia/expos");
 
-  redirect("/isopedia/expos?submitted=true");
+  redirect("/expos?submitted=true");
 }

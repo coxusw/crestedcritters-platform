@@ -113,7 +113,7 @@ async function verifySuggestedEdit(formData: FormData) {
   const supabase = await createSupabaseServerClient();
 
   if (!editId) {
-    redirect("/isopedia/verify-edits?error=missing-edit");
+    redirect("/verify-edits?error=missing-edit");
   }
 
   const { error } = await supabase.rpc("verify_isopedia_suggested_edit", {
@@ -122,21 +122,21 @@ async function verifySuggestedEdit(formData: FormData) {
 
   if (error) {
     redirect(
-      `/isopedia/verify-edits?error=${encodeURIComponent(
+      `/verify-edits?error=${encodeURIComponent(
         error.message || "verify-failed"
       )}`
     );
   }
 
-  revalidatePath("/isopedia");
-  revalidatePath("/isopedia/verify-edits");
-  revalidatePath("/isopedia/review");
+  revalidatePath("/");
+  revalidatePath("/verify-edits");
+  revalidatePath("/review");
 
   if (speciesSlug) {
-    revalidatePath(`/isopedia/${speciesSlug}`);
+    revalidatePath(`/${speciesSlug}`);
   }
 
-  redirect("/isopedia/verify-edits?verified=true");
+  redirect("/verify-edits?verified=true");
 }
 
 async function rejectSuggestedEdit(formData: FormData) {
@@ -147,7 +147,7 @@ async function rejectSuggestedEdit(formData: FormData) {
   const supabase = await createSupabaseServerClient();
 
   if (!editId) {
-    redirect("/isopedia/verify-edits?error=missing-edit");
+    redirect("/verify-edits?error=missing-edit");
   }
 
   const { error } = await supabase.rpc("reject_isopedia_suggested_edit", {
@@ -156,16 +156,16 @@ async function rejectSuggestedEdit(formData: FormData) {
 
   if (error) {
     redirect(
-      `/isopedia/verify-edits?error=${encodeURIComponent(
+      `/verify-edits?error=${encodeURIComponent(
         error.message || "reject-failed"
       )}`
     );
   }
 
-  revalidatePath("/isopedia/verify-edits");
-  revalidatePath("/isopedia/review");
+  revalidatePath("/verify-edits");
+  revalidatePath("/review");
 
-  redirect("/isopedia/verify-edits?rejected=true");
+  redirect("/verify-edits?rejected=true");
 }
 
 export default async function VerifySuggestedEditsPage({
@@ -185,7 +185,7 @@ export default async function VerifySuggestedEditsPage({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?next=/isopedia/verify-edits");
+    redirect("/login?next=/verify-edits");
   }
 
   const { data: currentProfile } = await supabase
@@ -246,14 +246,14 @@ export default async function VerifySuggestedEditsPage({
 
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <Link
-            href="/isopedia/review"
+            href="/review"
             className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
           >
             Back to Review Queue
           </Link>
 
           <Link
-            href="/isopedia"
+            href="/"
             className="rounded-xl border border-white/10 bg-[#142318] px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-[#18291d]"
           >
             Browse Species
@@ -357,7 +357,7 @@ export default async function VerifySuggestedEditsPage({
                         Suggested by{" "}
                         {edit.profiles?.username ? (
                           <Link
-                            href={`/isopedia/profile/${edit.profiles.username}`}
+                            href={`/profile/${edit.profiles.username}`}
                             className="font-semibold text-emerald-300 hover:text-emerald-200"
                           >
                             {suggesterName}
@@ -369,7 +369,7 @@ export default async function VerifySuggestedEditsPage({
 
                       {edit.isopedia_species?.slug && (
                         <Link
-                          href={`/isopedia/${edit.isopedia_species.slug}`}
+                          href={`/${edit.isopedia_species.slug}`}
                           className="mt-3 inline-block text-sm font-semibold text-emerald-300 hover:text-emerald-200"
                         >
                           View species page

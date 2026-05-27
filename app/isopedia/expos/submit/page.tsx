@@ -64,7 +64,7 @@ export default async function SubmitExpoPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?next=/isopedia/expos/submit");
+    redirect("/login?next=/expos/submit");
   }
 
   return (
@@ -72,14 +72,14 @@ export default async function SubmitExpoPage() {
       <div className="mx-auto max-w-4xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link
-            href="/isopedia/expos"
+            href="/expos"
             className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
           >
             ← Back to Expo Calendar
           </Link>
 
           <Link
-            href="/isopedia"
+            href="/"
             className="rounded-xl border border-white/10 bg-[#142318] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#18291d]"
           >
             Isopedia Home

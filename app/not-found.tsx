@@ -21,14 +21,14 @@ export default function NotFound() {
 
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link
-                href="/isopedia"
+                href="/"
                 className="rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
               >
                 Back to Isopedia
               </Link>
 
               <Link
-                href="/isopedia/expos"
+                href="/expos"
                 className="rounded-2xl border border-white/10 bg-black/20 px-5 py-3 text-sm font-black text-white transition hover:bg-black/30"
               >
                 Browse Expos

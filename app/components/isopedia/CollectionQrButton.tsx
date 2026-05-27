@@ -16,7 +16,7 @@ export default function CollectionQrButton({ title, username }: Props) {
   useEffect(() => {
     if (!open) return;
 
-    const url = `${window.location.origin}/isopedia/collection/${username}`;
+    const url = `${window.location.origin}/collection/${username}`;
     setPageUrl(url);
 
     QRCode.toDataURL(url, {
@@ -71,7 +71,7 @@ export default function CollectionQrButton({ title, username }: Props) {
             )}
 
             <p className="mt-4 break-all text-sm text-emerald-50/60">
-              {pageUrl || `/isopedia/collection/${username}`}
+              {pageUrl || `/collection/${username}`}
             </p>
 
             {qrUrl && (

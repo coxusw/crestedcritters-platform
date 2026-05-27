@@ -15,7 +15,7 @@ export default function SpeciesQrButton({ speciesName, speciesSlug }: Props) {
   useEffect(() => {
     if (!open) return;
 
-    const url = `${window.location.origin}/isopedia/${speciesSlug}`;
+    const url = `${window.location.origin}/${speciesSlug}`;
 
     QRCode.toDataURL(url, {
       width: 900,
@@ -69,8 +69,8 @@ export default function SpeciesQrButton({ speciesName, speciesSlug }: Props) {
 
             <p className="mt-4 break-all text-sm text-slate-400">
               {typeof window !== "undefined"
-                ? `${window.location.origin}/isopedia/${speciesSlug}`
-                : `/isopedia/${speciesSlug}`}
+                ? `${window.location.origin}/${speciesSlug}`
+                : `/${speciesSlug}`}
             </p>
 
             {qrUrl && (

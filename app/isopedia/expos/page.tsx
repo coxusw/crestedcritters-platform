@@ -146,9 +146,9 @@ function getViewCopy(view: "upcoming" | "future" | "archive") {
 }
 
 function buildViewHref(view: "upcoming" | "future" | "archive") {
-  if (view === "future") return "/isopedia/expos?view=future";
-  if (view === "archive") return "/isopedia/expos?view=archive";
-  return "/isopedia/expos";
+  if (view === "future") return "/expos?view=future";
+  if (view === "archive") return "/expos?view=archive";
+  return "/expos";
 }
 
 export default async function ExposPage({ searchParams }: PageProps) {
@@ -278,7 +278,7 @@ export default async function ExposPage({ searchParams }: PageProps) {
                 </ViewButton>
 
                 <Link
-                  href="/isopedia/expos/submit"
+                  href="/expos/submit"
                   className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
                 >
                   Submit Expo
@@ -291,7 +291,7 @@ export default async function ExposPage({ searchParams }: PageProps) {
         <section className="mx-auto mt-5 max-w-5xl rounded-3xl border border-white/10 bg-[#102016] p-4 shadow-xl shadow-black/20 sm:mt-6 sm:p-5">
           <form
             className="grid gap-4 lg:grid-cols-[1fr_180px_auto]"
-            action="/isopedia/expos"
+            action="/expos"
           >
             {view !== "upcoming" && (
               <input type="hidden" name="view" value={view} />
@@ -373,7 +373,7 @@ export default async function ExposPage({ searchParams }: PageProps) {
                   {monthExpos.map((expo) => (
                     <Link
                       key={expo.id}
-                      href={`/isopedia/expos/${expo.slug}`}
+                      href={`/expos/${expo.slug}`}
                       className="grid gap-4 rounded-2xl border border-white/10 bg-[#07130c]/70 p-4 transition hover:border-emerald-400/40 hover:bg-[#102016] sm:p-5 md:grid-cols-[120px_180px_1fr_auto] md:items-center"
                     >
                       <div className="flex h-32 w-full items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#102016] sm:h-36 md:h-24 md:w-28">
@@ -446,14 +446,14 @@ export default async function ExposPage({ searchParams }: PageProps) {
                   </Link>
                 ) : view === "upcoming" ? (
                   <Link
-                    href="/isopedia/expos?view=future"
+                    href="/expos?view=future"
                     className="inline-flex min-h-12 items-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-6 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/20"
                   >
                     View All Future Expos
                   </Link>
                 ) : (
                   <Link
-                    href="/isopedia/expos/submit"
+                    href="/expos/submit"
                     className="inline-flex min-h-12 items-center rounded-2xl bg-emerald-400 px-6 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
                   >
                     Submit Expo
