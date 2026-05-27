@@ -8,7 +8,27 @@ type FeatureFlag = {
   label: string;
   description: string | null;
   enabled: boolean;
+  availability_mode: "disabled" | "enabled_all" | "isotoken_shop" | null;
 };
+
+const rolloutModes = [
+  {
+    value: "disabled",
+    label: "Disabled",
+    description: "No users can access this feature.",
+  },
+  {
+    value: "enabled_all",
+    label: "Enabled for everyone",
+    description: "Every eligible user can use this feature.",
+  },
+  {
+    value: "isotoken_shop",
+    label: "IsoToken Shop purchase",
+    description:
+      "Only users with a completed purchase for a matching shop item key can use it.",
+  },
+];
 
 async function requireAdmin() {
   const supabase = await createSupabaseServerClient();
@@ -41,15 +61,20 @@ async function updateFeatureFlags(formData: FormData) {
   const keys = formData.getAll("feature_key").map(String);
 
   await Promise.all(
-    keys.map((key) =>
-      supabase
+    keys.map((key) => {
+      const mode = String(formData.get(`availability_mode:${key}`) || "disabled");
+
+      return supabase
         .from("isopedia_feature_flags")
         .update({
-          enabled: formData.get(`enabled:${key}`) === "on",
+          availability_mode: rolloutModes.some((item) => item.value === mode)
+            ? mode
+            : "disabled",
+          enabled: mode !== "disabled",
           updated_at: new Date().toISOString(),
         })
-        .eq("key", key)
-    )
+        .eq("key", key);
+    })
   );
 
   revalidatePath("/admin/isopedia/feature-controls");
@@ -66,7 +91,7 @@ export default async function IsopediaFeatureControlsPage({
 
   const { data: flags, error } = await supabase
     .from("isopedia_feature_flags")
-    .select("key, label, description, enabled")
+    .select("key, label, description, enabled, availability_mode")
     .order("label", { ascending: true })
     .returns<FeatureFlag[]>();
 
@@ -82,7 +107,9 @@ export default async function IsopediaFeatureControlsPage({
               Feature Controls
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-              Keep future profile features disabled until they are reviewed and ready.
+              Choose whether features are disabled, available to everyone, or
+              unlocked only after a user purchases the matching IsoToken Shop
+              item.
             </p>
           </div>
 
@@ -111,33 +138,55 @@ export default async function IsopediaFeatureControlsPage({
             className="rounded-lg border border-white/10 bg-white/[0.05] p-5"
           >
             <div className="grid gap-3">
-              {(flags || []).map((flag) => (
-              <label
-                key={flag.key}
-                className="grid gap-3 rounded-lg border border-white/10 bg-black/20 p-4 sm:grid-cols-[1fr_auto] sm:items-center"
-              >
-                <input type="hidden" name="feature_key" value={flag.key} />
-                <span>
-                  <span className="block text-base font-black text-white">
-                    {flag.label}
-                  </span>
-                  {flag.description && (
-                    <span className="mt-1 block text-sm leading-6 text-slate-400">
-                      {flag.description}
+              {(flags || []).map((flag) => {
+                const currentMode =
+                  flag.availability_mode || (flag.enabled ? "enabled_all" : "disabled");
+
+                return (
+                  <label
+                    key={flag.key}
+                    className="grid gap-3 rounded-lg border border-white/10 bg-black/20 p-4 lg:grid-cols-[1fr_280px] lg:items-center"
+                  >
+                    <input type="hidden" name="feature_key" value={flag.key} />
+                    <span>
+                      <span className="block text-base font-black text-white">
+                        {flag.label}
+                      </span>
+                      {flag.description && (
+                        <span className="mt-1 block text-sm leading-6 text-slate-400">
+                          {flag.description}
+                        </span>
+                      )}
+                      <span className="mt-2 block text-xs font-bold text-emerald-300/70">
+                        Shop item key for purchase mode: {flag.key}
+                      </span>
                     </span>
-                  )}
-                </span>
-                <span className="inline-flex items-center gap-3 text-sm font-bold text-slate-200">
-                  <span>{flag.enabled ? "Enabled" : "Disabled"}</span>
-                  <input
-                    type="checkbox"
-                    name={`enabled:${flag.key}`}
-                    defaultChecked={flag.enabled}
-                    className="h-5 w-5 accent-emerald-400"
-                  />
-                </span>
-              </label>
-              ))}
+
+                    <span className="grid gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                        Rollout
+                      </span>
+                      <select
+                        name={`availability_mode:${flag.key}`}
+                        defaultValue={currentMode}
+                        className="rounded-md border border-white/10 bg-black/30 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300"
+                      >
+                        {rolloutModes.map((mode) => (
+                          <option key={mode.value} value={mode.value}>
+                            {mode.label}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-xs leading-5 text-slate-500">
+                        {
+                          rolloutModes.find((mode) => mode.value === currentMode)
+                            ?.description
+                        }
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
             </div>
 
             <div className="mt-6 flex justify-end">

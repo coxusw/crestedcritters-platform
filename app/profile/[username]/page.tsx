@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
+import { getProfileFeatureAccess } from "@/lib/isopedia-feature-flags";
 import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
 import ProfileQrButton from "@/app/components/isopedia/ProfileQrButton";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
@@ -404,12 +405,24 @@ export default async function PublicProfilePage({ params }: PageProps) {
   const ownedCount = collectionItems.filter((item) => item.status === "owned").length;
   const wishlistCount = collectionItems.filter((item) => item.status === "wishlist").length;
   const visibility = await getProfileVisibility(supabase, profile.id);
+  const featureAccess = await getProfileFeatureAccess(supabase, profile.id, [
+    "expo_status_display_profiles",
+    "recent_discussions_profiles",
+    "public_collection_preview_profiles",
+    "social_site_buttons_profiles",
+  ]);
+  const canUseRecentDiscussions =
+    featureAccess.recent_discussions_profiles ?? true;
+  const canUseExpoStatus = featureAccess.expo_status_display_profiles ?? true;
+  const canUseCollectionPreview =
+    featureAccess.public_collection_preview_profiles ?? true;
+  const canUseSocialButtons = featureAccess.social_site_buttons_profiles ?? true;
   const recentDiscussions =
-    isOwner || visibility.recent_discussions_public
+    canUseRecentDiscussions && (isOwner || visibility.recent_discussions_public)
       ? await getRecentProfileDiscussions(supabase, profile.id)
       : [];
   const expoStatuses =
-    isOwner || visibility.expo_status_public
+    canUseExpoStatus && (isOwner || visibility.expo_status_public)
       ? await getProfileExpoStatuses(supabase, profile.id)
       : [];
 
@@ -528,6 +541,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
                 )}
               </div>
 
+              {canUseSocialButtons && (
               <aside className="rounded-2xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20">
                 <h2 className="text-sm font-black uppercase tracking-[0.22em] text-emerald-300">
                   Links
@@ -549,8 +563,10 @@ export default async function PublicProfilePage({ params }: PageProps) {
                   </p>
                 )}
               </aside>
+              )}
             </section>
 
+            {canUseCollectionPreview && (
             <section className="rounded-2xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -627,12 +643,15 @@ export default async function PublicProfilePage({ params }: PageProps) {
                 </p>
               )}
             </section>
+            )}
 
-            {(isOwner ||
+            {((canUseRecentDiscussions || canUseExpoStatus) &&
+              (isOwner ||
               recentDiscussions.length > 0 ||
-              expoStatuses.length > 0) && (
+              expoStatuses.length > 0)) && (
               <section className="grid gap-5 xl:grid-cols-2">
-                {(isOwner || visibility.recent_discussions_public) && (
+                {canUseRecentDiscussions &&
+                  (isOwner || visibility.recent_discussions_public) && (
                   <ProfileActivityCard
                     title="Recent Discussions"
                     isOwner={isOwner}
@@ -667,7 +686,8 @@ export default async function PublicProfilePage({ params }: PageProps) {
                   </ProfileActivityCard>
                 )}
 
-                {(isOwner || visibility.expo_status_public) && (
+                {canUseExpoStatus &&
+                  (isOwner || visibility.expo_status_public) && (
                   <ProfileActivityCard
                     title="Expo Status"
                     isOwner={isOwner}
