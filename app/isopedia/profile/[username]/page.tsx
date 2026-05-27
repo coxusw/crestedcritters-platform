@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import ProfileQrButton from "@/app/components/isopedia/ProfileQrButton";
 
 type Profile = {
@@ -9,6 +11,7 @@ type Profile = {
   display_name: string | null;
   business_name: string | null;
   bio: string | null;
+  profile_logo_url: string | null;
   website_url: string | null;
   facebook_url: string | null;
   created_at: string | null;
@@ -34,6 +37,97 @@ type PageProps = {
     username: string;
   }>;
 };
+
+function publicProfileName(profile: Pick<Profile, "username" | "display_name" | "business_name">) {
+  return (
+    profile.display_name ||
+    profile.business_name ||
+    profile.username ||
+    "Isopedia Contributor"
+  );
+}
+
+async function getProfileByUsername(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  username: string
+) {
+  const query = await supabase
+    .from("profiles")
+    .select(
+      "id, username, display_name, business_name, bio, profile_logo_url, website_url, facebook_url, created_at"
+    )
+    .eq("username", username)
+    .maybeSingle<Profile>();
+
+  if (!query.error || !query.error.message.includes("profile_logo_url")) {
+    return { data: query.data, error: query.error };
+  }
+
+  const fallbackQuery = await supabase
+    .from("profiles")
+    .select("id, username, display_name, business_name, bio, website_url, facebook_url, created_at")
+    .eq("username", username)
+    .maybeSingle<Omit<Profile, "profile_logo_url">>();
+
+  return {
+    data: fallbackQuery.data
+      ? { ...fallbackQuery.data, profile_logo_url: null }
+      : null,
+    error: fallbackQuery.error,
+  };
+}
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { username } = await params;
+  const supabase = await createSupabaseServerClient();
+  const cleanUsername = username.toLowerCase().trim();
+
+  const { data: profile } = await getProfileByUsername(supabase, cleanUsername);
+
+  if (!profile) {
+    return {
+      title: "Profile Not Found | Isopedia",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const name = publicProfileName(profile);
+  const canonical = absoluteIsopediaUrl(`/profile/${profile.username || cleanUsername}`);
+  const title = `${name}'s Isopedia Profile | Isopedia`;
+  const description =
+    profile.bio ||
+    `View ${name}'s public Isopedia profile, badges, collection link, and community contribution stats.`;
+  const image =
+    profile.profile_logo_url || absoluteIsopediaUrl("/isopedia-social-preview.jpg");
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      type: "profile",
+      images: [
+        {
+          url: image,
+          alt: `${name} Isopedia profile`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
+  };
+}
 
 const badgeColorClasses: Record<string, string> = {
   emerald: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
@@ -113,22 +207,10 @@ export default async function PublicProfilePage({ params }: PageProps) {
 
   const cleanUsername = username.toLowerCase().trim();
 
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select(
-      `
-      id,
-      username,
-      display_name,
-      business_name,
-      bio,
-      website_url,
-      facebook_url,
-      created_at
-    `
-    )
-    .eq("username", cleanUsername)
-    .maybeSingle<Profile>();
+  const { data: profile, error } = await getProfileByUsername(
+    supabase,
+    cleanUsername
+  );
 
   if (error || !profile) {
     notFound();
@@ -216,11 +298,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
 
   const usernameForLinks = profile.username || cleanUsername;
 
-  const publicName =
-    profile.display_name ||
-    profile.business_name ||
-    profile.username ||
-    "Isopedia Contributor";
+  const publicName = publicProfileName(profile);
 
   return (
     <main className="min-h-screen bg-[#0c1710] px-4 py-10 text-white">
@@ -265,8 +343,17 @@ export default async function PublicProfilePage({ params }: PageProps) {
           <div className="bg-gradient-to-br from-emerald-500/20 via-[#142318] to-[#0c1710] p-6 sm:p-10">
             <div className="grid gap-8 lg:grid-cols-[1fr_320px] lg:items-center">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-                <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-3xl border border-white/10 bg-[#0b140d] text-4xl font-black uppercase text-emerald-300 shadow-xl shadow-black/20">
-                  {publicName.charAt(0)}
+                <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-[#0b140d] text-4xl font-black uppercase text-emerald-300 shadow-xl shadow-black/20">
+                  {profile.profile_logo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={profile.profile_logo_url}
+                      alt={`${publicName} profile logo`}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    publicName.charAt(0)
+                  )}
                 </div>
 
                 <div>

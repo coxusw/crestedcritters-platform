@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import ProfileLogoUpload from "@/app/components/isopedia/ProfileLogoUpload";
 
 type Profile = {
   id: string;
@@ -9,6 +10,7 @@ type Profile = {
   display_name: string | null;
   business_name: string | null;
   bio: string | null;
+  profile_logo_url: string | null;
   website_url: string | null;
   facebook_url: string | null;
 };
@@ -37,6 +39,7 @@ async function saveProfile(formData: FormData) {
   const display_name = cleanText(formData.get("display_name"));
   const business_name = cleanText(formData.get("business_name"));
   const bio = cleanText(formData.get("bio"));
+  const profile_logo_url = cleanText(formData.get("profile_logo_url"));
   const website_url = cleanText(formData.get("website_url"));
   const facebook_url = cleanText(formData.get("facebook_url"));
 
@@ -44,16 +47,37 @@ async function saveProfile(formData: FormData) {
     redirect("/account?error=username-required");
   }
 
-  const { error } = await supabase.from("profiles").upsert({
+  const profileUpdate = {
     id: user.id,
     username,
     display_name,
     business_name,
     bio,
+    profile_logo_url: profile_logo_url || null,
     website_url,
     facebook_url,
     updated_at: new Date().toISOString(),
-  });
+  };
+
+  const { error } = await supabase.from("profiles").upsert(profileUpdate);
+
+  if (error && error.message.includes("profile_logo_url")) {
+    const { profile_logo_url: _profileLogoUrl, ...fallbackProfileUpdate } =
+      profileUpdate;
+    const { error: fallbackError } = await supabase
+      .from("profiles")
+      .upsert(fallbackProfileUpdate);
+
+    if (!fallbackError) {
+      revalidatePath("/account");
+      revalidatePath("/isopedia");
+      revalidatePath(`/profile/${username}`);
+      revalidatePath(`/isopedia/profile/${username}`);
+      revalidatePath(`/isopedia/collection/${username}`);
+
+      redirect("/account?error=logo-column-missing");
+    }
+  }
 
   if (error) {
     redirect("/account?error=save-failed");
@@ -84,13 +108,27 @@ export default async function AccountPage({
     redirect("/login?next=/isopedia");
   }
 
-  const { data: profile } = await supabase
+  const profileQuery = await supabase
     .from("profiles")
     .select(
-      "id, username, display_name, business_name, bio, website_url, facebook_url"
+      "id, username, display_name, business_name, bio, profile_logo_url, website_url, facebook_url"
     )
     .eq("id", user.id)
     .maybeSingle<Profile>();
+
+  let profile = profileQuery.data;
+
+  if (profileQuery.error?.message.includes("profile_logo_url")) {
+    const fallbackQuery = await supabase
+      .from("profiles")
+      .select("id, username, display_name, business_name, bio, website_url, facebook_url")
+      .eq("id", user.id)
+      .maybeSingle<Omit<Profile, "profile_logo_url">>();
+
+    profile = fallbackQuery.data
+      ? { ...fallbackQuery.data, profile_logo_url: null }
+      : null;
+  }
 
   const username = profile?.username;
 
@@ -172,6 +210,12 @@ export default async function AccountPage({
           </div>
         )}
 
+        {params.error === "logo-column-missing" && (
+          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-100">
+            Profile saved, but the logo column is not live in Supabase yet.
+          </div>
+        )}
+
         <form
           action={saveProfile}
           className="rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-xl shadow-black/20"
@@ -232,6 +276,8 @@ export default async function AccountPage({
                 className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
               />
             </label>
+
+            <ProfileLogoUpload initialUrl={profile?.profile_logo_url || null} />
 
             <label className="grid gap-2">
               <span className="text-sm font-medium text-slate-200">
