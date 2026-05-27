@@ -2,6 +2,10 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { productionIsopediaUrl } from "@/lib/isopedia-site";
+import {
+  getShopAvailability,
+  getShopAvailabilityMap,
+} from "@/lib/isotoken-shop-availability";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 type ShopItem = {
@@ -141,6 +145,9 @@ export default async function IsoTokenShopAdminPage() {
     )
     .order("created_at", { ascending: false })
     .returns<ShopItem[]>();
+  const availabilityMap = items
+    ? await getShopAvailabilityMap(supabase, items)
+    : new Map<string, ReturnType<typeof getShopAvailability>>();
 
   return (
     <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
@@ -188,7 +195,12 @@ export default async function IsoTokenShopAdminPage() {
             </section>
 
             <section className="grid gap-4 lg:grid-cols-2">
-              {(items || []).map((item) => (
+              {(items || []).map((item) => {
+                const availability =
+                  availabilityMap.get(item.id) ||
+                  getShopAvailability(item.limited_quantity, 0);
+
+                return (
                 <article
                   key={item.id}
                   className="rounded-lg border border-white/10 bg-white/[0.05] p-5"
@@ -200,23 +212,36 @@ export default async function IsoTokenShopAdminPage() {
                       </h2>
                       <p className="mt-1 text-sm text-slate-400">
                         {item.price} IsoTokens -{" "}
-                        {item.active ? "Active" : "Hidden"}
+                        {item.active ? "Active" : "Hidden"} -{" "}
+                        {availability.label}
                       </p>
                     </div>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-black ${
-                        item.active
-                          ? "bg-emerald-400 text-slate-950"
-                          : "bg-white/10 text-slate-300"
-                      }`}
-                    >
-                      {item.active ? "Storefront" : "Inactive"}
-                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-black ${
+                          item.active
+                            ? "bg-emerald-400 text-slate-950"
+                            : "bg-white/10 text-slate-300"
+                        }`}
+                      >
+                        {item.active ? "Storefront" : "Inactive"}
+                      </span>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-black ${
+                          availability.isSoldOut
+                            ? "bg-red-400/15 text-red-100"
+                            : "bg-white/10 text-slate-300"
+                        }`}
+                      >
+                        {availability.purchasedCount} sold
+                      </span>
+                    </div>
                   </div>
 
                   <ShopItemForm action={updateShopItem} item={item} />
                 </article>
-              ))}
+                );
+              })}
 
               {items?.length === 0 && (
                 <p className="rounded-lg border border-white/10 bg-white/[0.05] p-5 text-sm text-slate-400">

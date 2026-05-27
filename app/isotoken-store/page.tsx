@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
+import {
+  getShopAvailability,
+  getShopAvailabilityMap,
+} from "@/lib/isotoken-shop-availability";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 type ShopItem = {
@@ -11,6 +15,7 @@ type ShopItem = {
   item_type: string;
   price: number;
   active: boolean;
+  limited_quantity: number | null;
 };
 
 export const metadata: Metadata = {
@@ -48,7 +53,7 @@ export default async function IsoTokenStorePage() {
   const supabase = await createSupabaseServerClient();
   const { data: items } = await supabase
     .from("isotoken_shop_items")
-    .select("id, name, description, item_type, price, active")
+    .select("id, name, description, item_type, price, active, limited_quantity")
     .eq("active", true)
     .order("price", { ascending: true })
     .limit(12)
@@ -66,6 +71,7 @@ export default async function IsoTokenStorePage() {
             item_type: "badge",
             price: 100,
             active: true,
+            limited_quantity: 10,
           },
           {
             id: "profile-banner",
@@ -75,6 +81,7 @@ export default async function IsoTokenStorePage() {
             item_type: "profile_banner",
             price: 150,
             active: true,
+            limited_quantity: null,
           },
           {
             id: "profile-themes",
@@ -84,6 +91,7 @@ export default async function IsoTokenStorePage() {
             item_type: "profile_theme",
             price: 200,
             active: true,
+            limited_quantity: null,
           },
           {
             id: "username-change",
@@ -93,8 +101,18 @@ export default async function IsoTokenStorePage() {
             item_type: "username_change",
             price: 250,
             active: true,
+            limited_quantity: null,
           },
         ];
+  const availabilityMap =
+    items && items.length > 0
+      ? await getShopAvailabilityMap(supabase, displayItems)
+      : new Map(
+          displayItems.map((item) => [
+            item.id,
+            getShopAvailability(item.limited_quantity, 0),
+          ])
+        );
 
   return (
     <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
@@ -119,7 +137,12 @@ export default async function IsoTokenStorePage() {
         </section>
 
         <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {displayItems.map((item) => (
+          {displayItems.map((item) => {
+            const availability =
+              availabilityMap.get(item.id) ||
+              getShopAvailability(item.limited_quantity, 0);
+
+            return (
             <article
               key={item.id}
               className="rounded-2xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20"
@@ -135,12 +158,22 @@ export default async function IsoTokenStorePage() {
                 <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-black text-emerald-200">
                   {item.price} IsoTokens
                 </span>
-                <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs font-black text-emerald-50/45">
-                  Soon
+                <span
+                  className={`rounded-full border px-3 py-1.5 text-xs font-black ${
+                    availability.isSoldOut
+                      ? "border-red-400/30 bg-red-400/10 text-red-100"
+                      : "border-white/10 bg-black/20 text-emerald-50/65"
+                  }`}
+                >
+                  {availability.label}
                 </span>
               </div>
+              <div className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center text-xs font-black uppercase tracking-wide text-emerald-50/40">
+                Soon
+              </div>
             </article>
-          ))}
+            );
+          })}
         </section>
 
         <section className="mt-6 rounded-2xl border border-white/10 bg-[#102016] p-5 text-sm leading-7 text-emerald-50/65 shadow-xl shadow-black/20 sm:p-6">
