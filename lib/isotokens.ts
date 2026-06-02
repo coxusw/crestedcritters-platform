@@ -52,7 +52,7 @@ export async function getIsoTokenBalanceForProfile(
 }
 
 export async function awardIsoTokens(
-  _supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  _supabase: unknown,
   input: {
     profileId: string;
     amount: number;

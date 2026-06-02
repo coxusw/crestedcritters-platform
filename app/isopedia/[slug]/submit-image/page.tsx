@@ -110,20 +110,19 @@ export default function SubmitSpeciesImagePage() {
 
       const imageUrl = publicUrlData.publicUrl;
 
-      const { error: insertError } = await supabase
-        .from("isopedia_species_images")
-        .insert({
-          species_id: species.id,
-          image_url: imageUrl,
-          caption: caption.trim() || null,
-          credit_user_id: user.id,
-          status: "unverified",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
+      const insertResponse = await fetch("/api/isopedia/gallery-images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          speciesId: species.id,
+          imageUrl,
+          caption,
+        }),
+      });
 
-      if (insertError) {
-        setError(insertError.message);
+      if (!insertResponse.ok) {
+        const payload = await insertResponse.json().catch(() => null);
+        setError(payload?.error || "Could not save gallery image.");
         setSaving(false);
         return;
       }

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSpeciesAnnouncementForSubmission } from "@/lib/content-agent/isopedia";
+import { awardIsoTokens } from "@/lib/isotokens";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 
 type Profile = {
@@ -49,6 +50,12 @@ async function verifySubmission(formData: FormData) {
     redirect("/login?next=/verify");
   }
 
+  const { data: submissionForReward } = await supabase
+    .from("isopedia_submissions")
+    .select("id, submitted_by")
+    .eq("id", submissionId)
+    .maybeSingle<{ id: string; submitted_by: string | null }>();
+
   const { error } = await supabase.rpc("verify_isopedia_submission", {
     submission_id: submissionId,
   });
@@ -75,6 +82,30 @@ async function verifySubmission(formData: FormData) {
         creditError.message || "verified-but-credit-tracking-failed"
       )}`
     );
+  }
+
+  if (submissionForReward?.submitted_by) {
+    await awardIsoTokens(supabase, {
+      profileId: submissionForReward.submitted_by,
+      amount: 15,
+      reason: "species_verified",
+      reasonKey: `species_verified_submitter:${submissionId}`,
+      description: "Submitted species was verified and published.",
+      entityType: "species_submission",
+      entityId: submissionId,
+    });
+
+    if (submissionForReward.submitted_by !== user.id) {
+      await awardIsoTokens(supabase, {
+        profileId: user.id,
+        amount: 5,
+        reason: "species_verifier",
+        reasonKey: `species_verified_reviewer:${submissionId}`,
+        description: "Verified a community species submission.",
+        entityType: "species_submission",
+        entityId: submissionId,
+      });
+    }
   }
 
   try {

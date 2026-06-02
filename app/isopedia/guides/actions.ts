@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { awardIsoTokens } from "@/lib/isotokens";
 
 function cleanText(value: FormDataEntryValue | null) {
   return String(value || "").trim();
@@ -67,14 +68,40 @@ export async function toggleGuideLike(formData: FormData) {
     if (error) {
       throw new Error(error.message);
     }
-  } else {
-    const { error } = await supabase.from("isopedia_guide_likes").insert({
-      guide_id: guideId,
-      user_id: user.id,
+
+    await awardIsoTokens(supabase, {
+      profileId: guide.author_user_id,
+      amount: -1,
+      reason: "guide_like_removed",
+      reasonKey: `guide_like_removed:${existingLike.id}`,
+      description: "Guide like was removed.",
+      entityType: "guide",
+      entityId: guideId,
     });
+  } else {
+    const { data: like, error } = await supabase
+      .from("isopedia_guide_likes")
+      .insert({
+        guide_id: guideId,
+        user_id: user.id,
+      })
+      .select("id")
+      .single<{ id: string }>();
 
     if (error) {
       throw new Error(error.message);
+    }
+
+    if (like?.id) {
+      await awardIsoTokens(supabase, {
+        profileId: guide.author_user_id,
+        amount: 1,
+        reason: "guide_like_received",
+        reasonKey: `guide_like_received:${like.id}`,
+        description: "Guide received a like.",
+        entityType: "guide",
+        entityId: guideId,
+      });
     }
   }
 

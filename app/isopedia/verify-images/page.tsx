@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { filterReviewableGalleryImages } from "@/lib/isopedia-gallery-review";
+import { awardIsoTokens } from "@/lib/isotokens";
 
 type Profile = {
   id: string;
@@ -44,6 +45,12 @@ async function verifyGalleryImage(formData: FormData) {
     redirect("/verify-images?error=missing-image");
   }
 
+  const { data: imageForReward } = await supabase
+    .from("isopedia_species_images")
+    .select("id, credit_user_id")
+    .eq("id", imageId)
+    .maybeSingle<{ id: string; credit_user_id: string | null }>();
+
   const { error } = await supabase.rpc("verify_isopedia_species_image", {
     image_id: imageId,
   });
@@ -54,6 +61,18 @@ async function verifyGalleryImage(formData: FormData) {
         error.message || "verify-failed"
       )}`
     );
+  }
+
+  if (imageForReward?.credit_user_id) {
+    await awardIsoTokens(supabase, {
+      profileId: imageForReward.credit_user_id,
+      amount: 3,
+      reason: "gallery_photo_verified",
+      reasonKey: `gallery_photo_verified:${imageId}`,
+      description: "Submitted gallery photo was verified.",
+      entityType: "species_image",
+      entityId: imageId,
+    });
   }
 
   revalidatePath("/review");

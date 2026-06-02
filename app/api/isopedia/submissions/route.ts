@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSubmissionReviewAlertPost } from "@/lib/content-agent/isopedia";
+import { awardIsoTokens } from "@/lib/isotokens";
 
 const DIFFICULTY_OPTIONS = ["Beginner", "Intermediate", "Expert"] as const;
 
@@ -94,6 +95,16 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await awardIsoTokens(supabase, {
+    profileId: user.id,
+    amount: 10,
+    reason: "species_submission",
+    reasonKey: `species_submission:${submissionId}`,
+    description: "Submitted a new species for review.",
+    entityType: "species_submission",
+    entityId: submissionId,
+  });
 
   try {
     await createSubmissionReviewAlertPost(submissionId);

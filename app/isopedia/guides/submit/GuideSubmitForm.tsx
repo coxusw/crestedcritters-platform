@@ -109,20 +109,21 @@ export default function GuideSubmitForm() {
       const baseSlug = slugify(title) || "guide";
       const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
-      const { data: guide, error: guideError } = await supabase
-        .from("isopedia_guides")
-        .insert({
+      const guideResponse = await fetch("/api/isopedia/guides", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           slug,
           title: title.trim(),
           body: body.trim(),
-          author_user_id: user.id,
-          status: "published",
-        })
-        .select("id, slug")
-        .single<{ id: string; slug: string }>();
+        }),
+      });
 
-      if (guideError || !guide) {
-        throw new Error(guideError?.message || "Could not create guide.");
+      const guidePayload = await guideResponse.json().catch(() => null);
+      const guide = guidePayload?.guide as { id: string; slug: string } | undefined;
+
+      if (!guideResponse.ok || !guide) {
+        throw new Error(guidePayload?.error || "Could not create guide.");
       }
 
       const imageRows = [];
