@@ -1,4 +1,22 @@
+import { shopBaseUrl } from "@/lib/shop";
 import ShopShell from "../ShopShell";
+
+const title = "Shop FAQ | Crested Critters Shop";
+const description = "Shipping, checkout, product source, and responsible keeping details for Crested Critters Shop orders.";
+
+export const metadata = {
+  title: { absolute: title },
+  description,
+  alternates: {
+    canonical: `${shopBaseUrl()}/faq`,
+  },
+  openGraph: {
+    title,
+    description,
+    url: `${shopBaseUrl()}/faq`,
+    siteName: "Crested Critters Shop",
+  },
+};
 
 const sections = [
   {

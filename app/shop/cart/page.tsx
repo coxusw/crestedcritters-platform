@@ -1,13 +1,20 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import type { ShopProduct } from "@/lib/shop";
+import { shopBaseUrl, type ShopProduct } from "@/lib/shop";
 import ShopClient from "../ShopClient";
 import ShopShell from "../ShopShell";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Cart | Crested Critters Shop",
+  title: { absolute: "Cart | Crested Critters Shop" },
   description: "Review your Crested Critters cart and check out securely with Square.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+  alternates: {
+    canonical: `${shopBaseUrl()}/cart`,
+  },
 };
 
 export default async function ShopCartPage() {

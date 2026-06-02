@@ -9,6 +9,7 @@ import {
   shopProductCardDescription,
   shopProductFullDescription,
 } from "@/lib/shop";
+import { truncateMetaDescription } from "@/lib/seo";
 import ProductImageCarousel from "../../ProductImageCarousel";
 import ShopShell from "../../ShopShell";
 import ProductDetailClient from "./ProductDetailClient";
@@ -42,22 +43,25 @@ export async function generateMetadata({
   }
 
   const description =
-    shopProductCardDescription(product) ||
-    shopProductFullDescription(product) ||
-    "Shop Crested Critters products.";
+    truncateMetaDescription(
+      shopProductCardDescription(product) || shopProductFullDescription(product),
+      "Shop Crested Critters products."
+    );
   const url = `${shopBaseUrl()}/products/${product.slug}`;
+  const title = `${product.name} | Crested Critters Shop`;
+  const images = normalizeShopProductImages(product);
 
   return {
-    title: `${product.name} | Crested Critters Shop`,
+    title: { absolute: title },
     description,
     alternates: { canonical: url },
     openGraph: {
-      title: `${product.name} | Crested Critters Shop`,
+      title,
       description,
       url,
       siteName: "Crested Critters Shop",
-      images: normalizeShopProductImages(product)[0]
-        ? [{ url: normalizeShopProductImages(product)[0], alt: product.name }]
+      images: images[0]
+        ? [{ url: images[0], alt: product.name }]
         : undefined,
     },
   };
@@ -98,9 +102,9 @@ export default async function ProductPage({
               <p className="text-sm font-black uppercase tracking-[0.18em] text-[#d6c06f]">
                 {product.category}
               </p>
-              <h2 className="mt-2 text-3xl font-black leading-tight md:text-4xl">
+              <h1 className="mt-2 text-3xl font-black leading-tight md:text-4xl">
                 {product.name}
-              </h2>
+              </h1>
               {shopProductCardDescription(product) && (
                 <p className="mt-3 text-base leading-7 text-[#a8b0b8]">
                   {shopProductCardDescription(product)}

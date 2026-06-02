@@ -1,7 +1,10 @@
 import type { MetadataRoute } from "next";
+import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { getIsopediaBaseUrl, isStagingDeployment } from "@/lib/isopedia-site";
 import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
+import { randomizerBaseUrl } from "@/lib/randomizer-site";
+import { shopBaseUrl } from "@/lib/shop";
 
 type Species = {
   slug: string;
@@ -24,7 +27,16 @@ type Profile = {
 };
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = getIsopediaBaseUrl();
+  const headersList = await headers();
+  const host = headersList.get("x-forwarded-host") || headersList.get("host") || "";
+  const cleanHost = host.toLowerCase().split(":")[0];
+  const isRandomizerHost = cleanHost === "randomizer.crestedcritters.com";
+  const isShopHost = cleanHost === "shop.crestedcritters.com";
+  const baseUrl = isRandomizerHost
+    ? randomizerBaseUrl
+    : isShopHost
+      ? shopBaseUrl()
+      : getIsopediaBaseUrl();
 
   if (isStagingDeployment()) {
     return [
@@ -33,6 +45,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         lastModified: new Date(),
         changeFrequency: "monthly",
         priority: 0.1,
+      },
+    ];
+  }
+
+  if (isRandomizerHost) {
+    return [
+      {
+        url: `${baseUrl}/`,
+        lastModified: new Date(),
+        changeFrequency: "weekly",
+        priority: 1,
+      },
+      {
+        url: `${baseUrl}/verify`,
+        lastModified: new Date(),
+        changeFrequency: "monthly",
+        priority: 0.8,
+      },
+      {
+        url: `${baseUrl}/faq`,
+        lastModified: new Date(),
+        changeFrequency: "monthly",
+        priority: 0.7,
       },
     ];
   }
@@ -75,10 +110,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
-    return defaultPages;
+    return isShopHost ? shopDefaultPages(baseUrl) : defaultPages;
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
+
+  if (isShopHost) {
+    const { data: products } = await supabase
+      .from("shop_products")
+      .select("slug, updated_at")
+      .eq("active", true)
+      .not("slug", "is", null)
+      .returns<Array<{ slug: string; updated_at: string | null }>>();
+
+    return [
+      ...shopDefaultPages(baseUrl),
+      ...(products?.map((product) => ({
+        url: `${baseUrl}/products/${product.slug}`,
+        lastModified: product.updated_at ? new Date(product.updated_at) : new Date(),
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+      })) || []),
+    ];
+  }
 
   const [
     speciesResult,
@@ -161,5 +215,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...expoPages,
     ...guidePages,
     ...profilePages,
+  ];
+}
+
+function shopDefaultPages(baseUrl: string): MetadataRoute.Sitemap {
+  return [
+    {
+      url: `${baseUrl}/`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 1,
+    },
+    {
+      url: `${baseUrl}/faq`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/live-shipping`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
   ];
 }

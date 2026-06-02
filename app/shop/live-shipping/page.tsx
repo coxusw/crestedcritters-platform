@@ -1,4 +1,22 @@
+import { shopBaseUrl } from "@/lib/shop";
 import ShopShell from "../ShopShell";
+
+const title = "Live Shipping | Crested Critters Shop";
+const description = "Live isopod and springtail shipping rules, seasonal packaging, restricted states, and arrival terms from Crested Critters.";
+
+export const metadata = {
+  title: { absolute: title },
+  description,
+  alternates: {
+    canonical: `${shopBaseUrl()}/live-shipping`,
+  },
+  openGraph: {
+    title,
+    description,
+    url: `${shopBaseUrl()}/live-shipping`,
+    siteName: "Crested Critters Shop",
+  },
+};
 
 const restrictedStates = ["Alaska", "Hawaii", "Florida", "California", "Oregon"];
 

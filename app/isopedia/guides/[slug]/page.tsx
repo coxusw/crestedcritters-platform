@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { attachDiscussionLikes } from "@/lib/isopedia-discussion-likes";
+import { truncateMetaDescription } from "@/lib/seo";
 import DiscussionSection from "@/app/components/isopedia/DiscussionSection";
 import DiscussionStructuredData from "@/app/components/isopedia/DiscussionStructuredData";
 import { toggleGuideLike } from "@/app/isopedia/guides/actions";
@@ -71,7 +72,6 @@ function summaryFromBody(body: string) {
     .replace(/\[\[image:\d+\]\]/gi, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 240);
 }
 
 async function getGuide(slug: string) {
@@ -115,8 +115,10 @@ export async function generateMetadata({
   }
 
   const title = `${guide.title} | Isopedia Guide`;
-  const description =
-    summaryFromBody(guide.body) || "Community-submitted Isopedia guide.";
+  const description = truncateMetaDescription(
+    summaryFromBody(guide.body),
+    "Community-submitted Isopedia guide."
+  );
   const canonical = absoluteIsopediaUrl(`/guides/${guide.slug}`);
 
   return {

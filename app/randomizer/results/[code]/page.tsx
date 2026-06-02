@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type { RandomizerSpin, RandomizerWinner } from "@/lib/randomizer";
+import { absoluteRandomizerUrl } from "@/lib/randomizer-site";
 import WheelReplay from "../../WheelReplay";
 import CopyResultUrlButton from "./CopyResultUrlButton";
 
@@ -48,22 +49,28 @@ export async function generateMetadata({
   params: Promise<{ code: string }>;
 }) {
   const { code } = await params;
+  const cleanCode = code.toUpperCase();
+  const url = absoluteRandomizerUrl(`/results/${cleanCode}`);
 
   return {
-    title: `Randomizer Result ${code}`,
+    title: { absolute: `Randomizer Result ${cleanCode}` },
     description: "Official Crested Critters randomizer result verification page.",
+    alternates: {
+      canonical: url,
+    },
     openGraph: {
-      title: `Randomizer Result ${code}`,
+      title: `Randomizer Result ${cleanCode}`,
       description: "Official Crested Critters randomizer result verification page.",
-      images: ["/randomizer-preview.svg"],
+      url,
+      images: [absoluteRandomizerUrl("/randomizer-preview.svg")],
       siteName: "Randomizer",
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
-      title: `Randomizer Result ${code}`,
+      title: `Randomizer Result ${cleanCode}`,
       description: "Official Crested Critters randomizer result verification page.",
-      images: ["/randomizer-preview.svg"],
+      images: [absoluteRandomizerUrl("/randomizer-preview.svg")],
     },
   };
 }

@@ -1,20 +1,25 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { absoluteRandomizerUrl } from "@/lib/randomizer-site";
 import RandomizerClient from "./RandomizerClient";
 
 export const metadata = {
-  title: "Randomizer",
+  title: { absolute: "Randomizer" },
   description: "Generate official giveaway randomizer results with saved verification pages.",
+  alternates: {
+    canonical: absoluteRandomizerUrl("/"),
+  },
   openGraph: {
     title: "Randomizer",
     description: "Generate official giveaway randomizer results with saved verification pages.",
-    images: ["/randomizer-preview.svg"],
+    url: absoluteRandomizerUrl("/"),
+    images: [absoluteRandomizerUrl("/randomizer-preview.svg")],
   },
   twitter: {
     card: "summary_large_image",
     title: "Randomizer",
     description: "Generate official giveaway randomizer results with saved verification pages.",
-    images: ["/randomizer-preview.svg"],
+    images: [absoluteRandomizerUrl("/randomizer-preview.svg")],
   },
 };
 

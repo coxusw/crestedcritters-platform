@@ -7,6 +7,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { attachDiscussionLikes } from "@/lib/isopedia-discussion-likes";
 import { publicSpeciesSlug, storedSpeciesSlug } from "@/lib/isopedia-slugs";
+import { truncateMetaDescription } from "@/lib/seo";
 import CollectionButtons from "@/app/components/isopedia/CollectionButtons";
 import DiscussionStructuredData from "@/app/components/isopedia/DiscussionStructuredData";
 import DiscussionSection from "@/app/components/isopedia/DiscussionSection";
@@ -195,9 +196,10 @@ export async function generateMetadata({
   }
 
   const title = `${species.common_name} Care Guide`;
-  const description =
-    stripHtml(species.notes) ||
-    `${species.common_name} care information on Isopedia.`;
+  const description = truncateMetaDescription(
+    stripHtml(species.notes),
+    `${species.common_name} care information on Isopedia.`
+  );
 
   const image =
     species.image_url ||

@@ -22,7 +22,7 @@ const earnRules = [
 ];
 
 export const metadata: Metadata = {
-  title: "Earn IsoTokens | Isopedia",
+  title: { absolute: "Earn IsoTokens | Isopedia" },
   description:
     "Learn how Isopedia contributors earn IsoTokens from species submissions, guides, gallery photos, discussions, and likes.",
   alternates: {

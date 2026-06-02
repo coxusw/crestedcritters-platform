@@ -1,8 +1,18 @@
 import Link from "next/link";
+import { absoluteRandomizerUrl } from "@/lib/randomizer-site";
 
 export const metadata = {
-  title: "Randomizer FAQ",
+  title: { absolute: "Randomizer FAQ" },
   description: "How the official Crested Critters Randomizer works and how to verify results.",
+  alternates: {
+    canonical: absoluteRandomizerUrl("/faq"),
+  },
+  openGraph: {
+    title: "Randomizer FAQ",
+    description: "How the official Crested Critters Randomizer works and how to verify results.",
+    url: absoluteRandomizerUrl("/faq"),
+    images: [absoluteRandomizerUrl("/randomizer-preview.svg")],
+  },
 };
 
 const sections = [

@@ -1,9 +1,19 @@
 import Link from "next/link";
+import { absoluteRandomizerUrl } from "@/lib/randomizer-site";
 import VerifyResultClient from "./VerifyResultClient";
 
 export const metadata = {
-  title: "Verify Randomizer Result",
+  title: { absolute: "Verify Randomizer Result" },
   description: "Verify an official Crested Critters Randomizer result by code.",
+  alternates: {
+    canonical: absoluteRandomizerUrl("/verify"),
+  },
+  openGraph: {
+    title: "Verify Randomizer Result",
+    description: "Verify an official Crested Critters Randomizer result by code.",
+    url: absoluteRandomizerUrl("/verify"),
+    images: [absoluteRandomizerUrl("/randomizer-preview.svg")],
+  },
 };
 
 export default function VerifyRandomizerResultPage() {

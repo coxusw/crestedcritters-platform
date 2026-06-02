@@ -19,7 +19,7 @@ type ShopItem = {
 };
 
 export const metadata: Metadata = {
-  title: "IsoToken Store | Isopedia",
+  title: { absolute: "IsoToken Store | Isopedia" },
   description:
     "A coming soon Isopedia store where contributors will spend IsoTokens on profile unlocks, limited badges, themes, and future community features.",
   alternates: {

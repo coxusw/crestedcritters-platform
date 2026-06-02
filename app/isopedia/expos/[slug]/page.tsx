@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { attachDiscussionLikes } from "@/lib/isopedia-discussion-likes";
+import { truncateMetaDescription } from "@/lib/seo";
 import DiscussionStructuredData from "@/app/components/isopedia/DiscussionStructuredData";
 import DiscussionSection from "@/app/components/isopedia/DiscussionSection";
 import {
@@ -133,7 +134,7 @@ export async function generateMetadata({
 
   const canonical = absoluteIsopediaUrl(`/expos/${expo.slug}`);
   const title = expo.name;
-  const description = expoDescription(expo);
+  const description = truncateMetaDescription(expoDescription(expo), `${expo.name} expo listing on Isopedia.`);
 
   return {
     title,

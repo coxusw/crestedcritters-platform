@@ -25,7 +25,7 @@ type Guide = {
 };
 
 export const metadata: Metadata = {
-  title: "Community Guides | Isopedia",
+  title: { absolute: "Community Guides | Isopedia" },
   description:
     "Read community-submitted isopod and bioactive invertebrate guides on Isopedia.",
   alternates: {
