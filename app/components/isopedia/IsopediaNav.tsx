@@ -5,6 +5,7 @@ type Props = {
   active?:
     | "database"
     | "expos"
+    | "guides"
     | "submit"
     | "review"
     | "store"
@@ -23,6 +24,11 @@ const mainNavItems = [
     label: "Expos",
     href: "/expos",
     key: "expos",
+  },
+  {
+    label: "Guides",
+    href: "/guides",
+    key: "guides",
   },
   {
     label: "Submit",

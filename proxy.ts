@@ -9,13 +9,15 @@ export function proxy(request: NextRequest) {
 
   if (isIsopediaHost) {
     const url = request.nextUrl.clone();
+    const isInternalRewrite =
+      request.headers.get("x-isopedia-internal-rewrite") === "1";
 
-    if (url.pathname === "/isopedia") {
+    if (url.pathname === "/isopedia" && !isInternalRewrite) {
       url.pathname = "/";
       return NextResponse.redirect(url, 308);
     }
 
-    if (url.pathname.startsWith("/isopedia/")) {
+    if (url.pathname.startsWith("/isopedia/") && !isInternalRewrite) {
       url.pathname = url.pathname.replace(/^\/isopedia/, "") || "/";
       return NextResponse.redirect(url, 308);
     }
@@ -24,7 +26,9 @@ export function proxy(request: NextRequest) {
 
     if (cleanIsopediaPath) {
       url.pathname = cleanIsopediaPath;
-      return NextResponse.rewrite(url);
+      const headers = new Headers(request.headers);
+      headers.set("x-isopedia-internal-rewrite", "1");
+      return NextResponse.rewrite(url, { request: { headers } });
     }
   }
 
@@ -165,6 +169,7 @@ const reservedIsopediaPaths = new Set([
 const cleanIsopediaPrefixes = new Set([
   "collection",
   "expos",
+  "guides",
   "review",
   "submit",
   "verify",

@@ -121,6 +121,24 @@ function formatBanMessage(activeDiscussionBan: DiscussionBan) {
   }`;
 }
 
+function discussionTitle(entityType: Props["entityType"]) {
+  if (entityType === "expo") return "Expo Discussion";
+  if (entityType === "guide") return "Guide Discussion";
+  return "Species Discussion";
+}
+
+function discussionDescription(entityType: Props["entityType"]) {
+  if (entityType === "expo") {
+    return "Discuss attendance, vending, travel plans, questions, and expo experiences.";
+  }
+
+  if (entityType === "guide") {
+    return "Discuss the guide, ask follow-up questions, and share related experience.";
+  }
+
+  return "Discuss care, breeding, observations, questions, and experiences with this species.";
+}
+
 export default function DiscussionSection({
   entityType,
   entityId,
@@ -242,12 +260,11 @@ export default function DiscussionSection({
         </p>
 
         <h2 className="mt-2 text-3xl font-black text-white">
-          Species Discussion
+          {discussionTitle(entityType)}
         </h2>
 
         <p className="mt-3 text-slate-400">
-          Discuss care, breeding, observations, questions, and experiences with
-          this species.
+          {discussionDescription(entityType)}
         </p>
       </div>
 

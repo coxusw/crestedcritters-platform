@@ -13,6 +13,12 @@ type Expo = {
   updated_at: string | null;
 };
 
+type Guide = {
+  slug: string;
+  updated_at: string | null;
+  created_at: string | null;
+};
+
 type Profile = {
   username: string | null;
 };
@@ -46,6 +52,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
 
+    {
+      url: `${baseUrl}/guides`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+
   ];
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -63,6 +76,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [
     speciesResult,
     exposResult,
+    guidesResult,
     profilesResult,
   ] = await Promise.all([
     supabase
@@ -77,6 +91,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .eq("status", "approved")
       .not("slug", "is", null)
       .returns<Expo[]>(),
+
+    supabase
+      .from("isopedia_guides")
+      .select("slug, updated_at, created_at")
+      .eq("status", "published")
+      .not("slug", "is", null)
+      .returns<Guide[]>(),
 
     supabase
       .from("profiles")
@@ -115,10 +136,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
       })) || [];
 
+  const guidePages =
+    guidesResult.data?.map((guide) => ({
+      url: `${baseUrl}/guides/${guide.slug}`,
+      lastModified: guide.updated_at
+        ? new Date(guide.updated_at)
+        : guide.created_at
+          ? new Date(guide.created_at)
+          : new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    })) || [];
+
   return [
     ...defaultPages,
     ...speciesPages,
     ...expoPages,
+    ...guidePages,
     ...profilePages,
   ];
 }
