@@ -59,6 +59,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
 
+    {
+      url: `${baseUrl}/isotoken-store/earn`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+
   ];
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

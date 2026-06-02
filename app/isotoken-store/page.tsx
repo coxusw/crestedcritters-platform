@@ -118,6 +118,20 @@ export default async function IsoTokenStorePage() {
     <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
       <div className="mx-auto max-w-6xl">
         <IsopediaNav active="store" />
+        <div className="mb-5 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-[#102016] p-2">
+          <Link
+            href="/isotoken-store"
+            className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950"
+          >
+            Store
+          </Link>
+          <Link
+            href="/isotoken-store/earn"
+            className="rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm font-black text-emerald-100 transition hover:bg-black/30"
+          >
+            Earn IsoTokens
+          </Link>
+        </div>
 
         <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#102016] shadow-2xl shadow-black/30">
           <div className="bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.18),transparent_40%),linear-gradient(135deg,rgba(6,78,59,0.55),rgba(7,19,12,0.96))] p-6 sm:p-8">

@@ -8,6 +8,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { getProfileFeatureAccess } from "@/lib/isopedia-feature-flags";
 import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
+import { getIsoTokenBalanceForProfile } from "@/lib/isotokens";
 import ProfileQrButton from "@/app/components/isopedia/ProfileQrButton";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 
@@ -390,16 +391,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
     profile.id
   );
   const spentIsoTokens = await getSpentIsoTokens(supabase, profile.id);
-  const isoTokens = Math.max(
-    0,
-    submittedSpeciesCount +
-      verifiedSpeciesCount +
-      suggestedEditsCount +
-      verifiedEditsCount +
-      discussionPostsCount +
-      discussionLikesReceivedCount -
-      spentIsoTokens
-  );
+  const isoTokens = await getIsoTokenBalanceForProfile(supabase, profile.id);
   const trustLevel = getTrustLevel(isoTokens);
   const collectionItems = collectionResult.data || [];
   const ownedCount = collectionItems.filter((item) => item.status === "owned").length;
@@ -511,9 +503,13 @@ export default async function PublicProfilePage({ params }: PageProps) {
                     </h1>
                   </div>
 
-                  <div className="mx-auto w-full max-w-32 md:mx-0">
+                  <Link
+                    href="/isotoken-store/earn?tab=ledger"
+                    className="mx-auto block w-full max-w-32 rounded-xl transition hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-emerald-300 md:mx-0"
+                    title="View IsoToken FAQ and ledger"
+                  >
                     <MiniMetric label="IsoTokens" value={isoTokens} />
-                  </div>
+                  </Link>
                 </div>
 
                 <div className="mt-5 flex flex-wrap gap-2">
@@ -739,9 +735,12 @@ export default async function PublicProfilePage({ params }: PageProps) {
             <section className="rounded-2xl border border-white/10 bg-[#102016] p-4 shadow-xl shadow-black/20 sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-black text-white">Contributor Stats</h2>
-                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-black text-emerald-200">
+                <Link
+                  href="/isotoken-store/earn?tab=ledger"
+                  className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-black text-emerald-200 transition hover:bg-emerald-400/15"
+                >
                   {isoTokens} IsoTokens
-                </span>
+                </Link>
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-2">
