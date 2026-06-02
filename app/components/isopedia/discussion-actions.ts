@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { awardIsoTokens } from "@/lib/isotokens";
 
 const allowedEntityTypes = ["species", "expo", "guide"];
 
@@ -128,16 +129,32 @@ export async function createDiscussionComment(formData: FormData) {
     }
   }
 
-  const { error } = await supabase.from("isopedia_discussions").insert({
-    entity_type: entityType,
-    entity_id: entityId,
-    parent_id: parentId,
-    user_id: user.id,
-    body,
-  });
+  const { data: comment, error } = await supabase
+    .from("isopedia_discussions")
+    .insert({
+      entity_type: entityType,
+      entity_id: entityId,
+      parent_id: parentId,
+      user_id: user.id,
+      body,
+    })
+    .select("id")
+    .single<{ id: string }>();
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  if (comment?.id) {
+    await awardIsoTokens(supabase, {
+      profileId: user.id,
+      amount: 1,
+      reason: "discussion_post",
+      reasonKey: `discussion_post:${comment.id}`,
+      description: "Posted in an Isopedia discussion.",
+      entityType: "discussion",
+      entityId: comment.id,
+    });
   }
 
   revalidatePath(returnPath);
@@ -361,14 +378,40 @@ export async function toggleDiscussionLike(formData: FormData) {
     if (error) {
       throw new Error(error.message);
     }
-  } else {
-    const { error } = await supabase.from("isopedia_discussion_likes").insert({
-      comment_id: commentId,
-      user_id: user.id,
+
+    await awardIsoTokens(supabase, {
+      profileId: comment.user_id,
+      amount: -1,
+      reason: "discussion_like_removed",
+      reasonKey: `discussion_like_removed:${existingLike.id}`,
+      description: "Discussion like was removed.",
+      entityType: "discussion",
+      entityId: commentId,
     });
+  } else {
+    const { data: like, error } = await supabase
+      .from("isopedia_discussion_likes")
+      .insert({
+        comment_id: commentId,
+        user_id: user.id,
+      })
+      .select("id")
+      .single<{ id: string }>();
 
     if (error) {
       throw new Error(error.message);
+    }
+
+    if (like?.id) {
+      await awardIsoTokens(supabase, {
+        profileId: comment.user_id,
+        amount: 1,
+        reason: "discussion_like_received",
+        reasonKey: `discussion_like_received:${like.id}`,
+        description: "Discussion post received a like.",
+        entityType: "discussion",
+        entityId: commentId,
+      });
     }
   }
 

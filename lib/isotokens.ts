@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 
 export type IsoTokenLedgerEntry = {
   id: string;
@@ -47,5 +48,43 @@ export async function getIsoTokenBalanceForProfile(
     return Math.max(0, earned - spent);
   } catch {
     return 0;
+  }
+}
+
+export async function awardIsoTokens(
+  _supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  input: {
+    profileId: string;
+    amount: number;
+    reason: string;
+    reasonKey: string;
+    description: string;
+    entityType?: string | null;
+    entityId?: string | null;
+  }
+) {
+  if (!input.profileId || !input.reasonKey || input.amount === 0) return;
+
+  const admin = createSupabaseAdminClient();
+  const { error } = await admin
+    .from("isotoken_ledger")
+    .upsert(
+      {
+        profile_id: input.profileId,
+        amount: input.amount,
+        reason: input.reason,
+        reason_key: input.reasonKey,
+        description: input.description,
+        entity_type: input.entityType || null,
+        entity_id: input.entityId || null,
+      },
+      {
+        onConflict: "reason_key",
+        ignoreDuplicates: true,
+      }
+    );
+
+  if (error) {
+    console.error("Failed to award IsoTokens:", error.message);
   }
 }
