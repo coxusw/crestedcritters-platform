@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 
 export type ShopShippingSettings = {
   originZip: string;
@@ -48,6 +49,9 @@ export const DEFAULT_SHIPPING_SETTINGS: ShopShippingSettings = {
 };
 
 export async function getShopShippingSettings() {
+  const databaseSettings = await getDatabaseSettings();
+  if (databaseSettings) return databaseSettings;
+
   try {
     const raw = await fs.readFile(settingsPath, "utf8");
     return normalizeSettings(JSON.parse(raw));
@@ -57,12 +61,58 @@ export async function getShopShippingSettings() {
 }
 
 export async function saveShopShippingSettings(settings: ShopShippingSettings) {
+  const normalized = normalizeSettings(settings);
+  const savedToDatabase = await saveDatabaseSettings(normalized);
+  if (savedToDatabase) return;
+
   await fs.mkdir(path.dirname(settingsPath), { recursive: true });
   await fs.writeFile(
     settingsPath,
-    `${JSON.stringify(normalizeSettings(settings), null, 2)}\n`,
+    `${JSON.stringify(normalized, null, 2)}\n`,
     "utf8"
   );
+}
+
+async function getDatabaseSettings() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return null;
+  }
+
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("shop_settings")
+      .select("value")
+      .eq("key", "shipping")
+      .maybeSingle<{ value: unknown }>();
+
+    if (error || !data) return null;
+    return normalizeSettings(data.value);
+  } catch {
+    return null;
+  }
+}
+
+async function saveDatabaseSettings(settings: ShopShippingSettings) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return false;
+  }
+
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { error } = await supabase.from("shop_settings").upsert(
+      {
+        key: "shipping",
+        value: settings,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "key" }
+    );
+
+    return !error;
+  } catch {
+    return false;
+  }
 }
 
 function normalizeSettings(value: unknown): ShopShippingSettings {
