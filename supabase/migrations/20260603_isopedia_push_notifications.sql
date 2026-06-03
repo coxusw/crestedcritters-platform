@@ -4,7 +4,7 @@ create table if not exists public.isopedia_notification_preferences (
   notify_guides boolean not null default true,
   notify_discussions boolean not null default true,
   notify_expos boolean not null default true,
-  notify_isotokens boolean not null default true,
+  notify_verified_species boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

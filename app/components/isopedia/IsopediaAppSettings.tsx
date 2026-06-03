@@ -8,7 +8,7 @@ type NotificationPreferences = {
   notify_guides: boolean;
   notify_discussions: boolean;
   notify_expos: boolean;
-  notify_isotokens: boolean;
+  notify_verified_species: boolean;
 };
 
 type BeforeInstallPromptEvent = Event & {
@@ -319,10 +319,10 @@ export default function IsopediaNotificationSettings({
             defaultChecked={preferences.notify_expos}
           />
           <PreferenceCheck
-            name="notify_isotokens"
-            label="IsoToken activity"
-            description="IsoToken awards and future store activity."
-            defaultChecked={preferences.notify_isotokens}
+            name="notify_verified_species"
+            label="New verified species"
+            description="New species pages after community submissions are verified."
+            defaultChecked={preferences.notify_verified_species}
           />
 
           <div className="sm:col-span-2">
