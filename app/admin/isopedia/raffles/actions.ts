@@ -132,34 +132,3 @@ export async function duplicateRaffleAction(formData: FormData) {
   revalidatePath("/admin/isopedia/raffles");
   redirect("/admin/isopedia/raffles?saved=true");
 }
-
-export async function drawWinnerAction(formData: FormData) {
-  await requireAdmin();
-  const raffleId = text(formData, "raffle_id");
-  const supabase = createSupabaseAdminClient();
-  const { data: entries } = await supabase
-    .from("isopedia_raffle_entries")
-    .select("id, profile_id, quantity")
-    .eq("raffle_id", raffleId)
-    .eq("status", "active")
-    .returns<Array<{ id: string; profile_id: string; quantity: number }>>();
-  const pool = (entries || []).flatMap((entry) => Array.from({ length: Number(entry.quantity || 0) }, () => entry));
-
-  if (!pool.length) redirect("/admin/isopedia/raffles?error=no-active-entries");
-
-  const winner = pool[Math.floor(Math.random() * pool.length)];
-  const { error } = await supabase
-    .from("isopedia_raffles")
-    .update({
-      status: "completed",
-      winner_profile_id: winner.profile_id,
-      winner_entry_id: winner.id,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", raffleId);
-
-  if (error) redirect(`/admin/isopedia/raffles?error=${encodeURIComponent(error.message)}`);
-  revalidatePath("/admin/isopedia/raffles");
-  revalidatePath("/raffles");
-  redirect("/admin/isopedia/raffles?winner=true");
-}

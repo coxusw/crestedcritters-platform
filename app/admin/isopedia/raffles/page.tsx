@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { duplicateRaffleAction, drawWinnerAction, saveRaffleAction } from "./actions";
+import { duplicateRaffleAction, saveRaffleAction } from "./actions";
 import type { Raffle } from "@/lib/isopedia-raffles";
 
 type SearchParams = { saved?: string; error?: string; winner?: string };
@@ -24,7 +24,7 @@ export default async function AdminRafflesPage({ searchParams }: { searchParams:
           <p className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Isopedia Tools</p>
           <h1 className="mt-2 text-3xl font-black">Raffle Manager</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-            Create active raffles, save reusable templates, set entry rules, and record Randomizer Wheel results.
+            Create active raffles, save reusable templates, set entry rules, then record the Randomizer Wheel results.
           </p>
         </header>
 
@@ -129,7 +129,6 @@ function RaffleCard({ raffle }: { raffle: Raffle }) {
         </div>
         <div className="flex gap-2">
           <form action={duplicateRaffleAction}><input type="hidden" name="raffle_id" value={raffle.id} /><button className="rounded-md border border-white/10 px-3 py-2 text-xs font-black">Duplicate</button></form>
-          {raffle.status === "active" && <form action={drawWinnerAction}><input type="hidden" name="raffle_id" value={raffle.id} /><button className="rounded-md bg-emerald-400 px-3 py-2 text-xs font-black text-slate-950">Draw Winner</button></form>}
         </div>
       </div>
       <details className="mt-4">
