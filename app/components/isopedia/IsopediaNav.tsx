@@ -9,6 +9,7 @@ type Props = {
     | "submit"
     | "review"
     | "store"
+    | "raffles"
     | "profile"
     | "admin"
     | "none";
@@ -44,6 +45,11 @@ const mainNavItems = [
     label: "IsoToken Store",
     href: "/isotoken-store",
     key: "store",
+  },
+  {
+    label: "Raffles",
+    href: "/raffles",
+    key: "raffles",
   },
 ];
 

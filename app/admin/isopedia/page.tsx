@@ -293,6 +293,12 @@ export default async function AdminIsopediaPage() {
                 description={`${totalIssuedPermits} permitted species across ${totalPermittedStates} state${totalPermittedStates === 1 ? "" : "s"}.`}
                 icon="Permits"
               />
+              <AdminActionCard
+                href="/admin/isopedia/raffles"
+                title="Raffles"
+                description="Create prize drawings, save reusable raffle templates, and record results."
+                icon="Raffle"
+              />
             </div>
           </div>
 

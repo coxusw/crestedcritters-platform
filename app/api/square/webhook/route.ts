@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
+import { markRaffleDonationPaid } from "@/lib/isopedia-raffles";
 import { markShopOrderPaid } from "@/lib/shop-order-fulfillment";
 
 function verifySquareSignature(rawBody: string, signature: string | null) {
@@ -93,6 +94,7 @@ export async function POST(request: Request) {
   ) {
     await grantRandomizerOrder(payment.order_id, payment.id);
     await markShopOrderPaid(payment.order_id, payment.id);
+    await markRaffleDonationPaid(payment.order_id, payment.id);
   }
 
   return NextResponse.json({ ok: true });
