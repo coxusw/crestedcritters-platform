@@ -148,8 +148,10 @@ function CurrentRaffle({
     <section className="grid gap-5 lg:grid-cols-[1fr_360px]">
       <article className="overflow-hidden rounded-3xl border border-white/10 bg-[#102016] shadow-xl shadow-black/20">
         {raffle.image_url && (
-          <div className="relative aspect-[16/9] bg-black/20">
-            <Image src={raffle.image_url} alt={raffle.title} fill sizes="(min-width: 1024px) 720px, 100vw" className="object-cover" />
+          <div className="px-5 pt-5 sm:px-7 sm:pt-7">
+            <div className="relative mx-auto aspect-[16/9] w-full max-w-sm overflow-hidden rounded-2xl bg-black/20">
+              <Image src={raffle.image_url} alt={raffle.title} fill sizes="(min-width: 640px) 384px, calc(100vw - 64px)" className="object-cover" />
+            </div>
           </div>
         )}
         <div className="p-5 sm:p-7">
