@@ -20,8 +20,8 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Isopedia";
   const options = {
     body: payload.body || "You have a new Isopedia update.",
-    icon: "/isopedia-app-icon.svg",
-    badge: "/isopedia-app-icon.svg",
+    icon: "/isopedia-app-icon-192.png",
+    badge: "/isopedia-app-icon-192.png",
     data: {
       url: payload.url || "/",
     },

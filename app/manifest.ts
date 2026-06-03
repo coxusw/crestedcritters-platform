@@ -12,9 +12,14 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#10b981",
     icons: [
       {
-        src: "/isopedia-app-icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
+        src: "/isopedia-app-icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        src: "/isopedia-app-icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
         purpose: "maskable",
       },
     ],
