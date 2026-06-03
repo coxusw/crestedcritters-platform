@@ -107,10 +107,10 @@ function RaffleForm({ raffle }: { raffle?: Raffle }) {
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Raffle Opens">
-          <input name="starts_at" type="datetime-local" defaultValue={dateTimeInputValue(raffle?.starts_at)} className={inputClass} />
+          <input name="starts_at" type="text" defaultValue={dateInputValue(raffle?.starts_at)} placeholder="06/03/2026 9:00 AM" className={inputClass} />
         </Field>
         <Field label="Raffle Closes / Winner Decided">
-          <input name="ends_at" type="datetime-local" defaultValue={dateTimeInputValue(raffle?.ends_at)} className={inputClass} />
+          <input name="ends_at" type="text" defaultValue={dateInputValue(raffle?.ends_at)} placeholder="06/10/2026 9:00 PM" className={inputClass} />
         </Field>
       </div>
       <div className="flex flex-wrap gap-3 text-sm font-bold">
@@ -158,12 +158,14 @@ function Check({ name, label, checked }: { name: string; label: string; checked:
   return <label className="flex items-center gap-2 rounded-md border border-white/10 bg-black/20 px-3 py-2"><input name={name} type="checkbox" defaultChecked={checked} />{label}</label>;
 }
 
-function dateTimeInputValue(value?: string | null) {
+function dateInputValue(value?: string | null) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return localDate.toISOString().slice(0, 16);
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
 }
 
 function displayDate(value?: string | null) {

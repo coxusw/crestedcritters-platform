@@ -39,10 +39,27 @@ function timestampValue(formData: FormData, key: string) {
   const value = text(formData, key);
   if (!value) return null;
 
-  const date = new Date(value);
+  const date = parseAdminDate(value);
   if (Number.isNaN(date.getTime())) return null;
 
   return date.toISOString();
+}
+
+function parseAdminDate(value: string) {
+  const trimmed = value.trim();
+  const directDate = new Date(trimmed);
+  if (!Number.isNaN(directDate.getTime())) return directDate;
+
+  const match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+  if (!match) return new Date(Number.NaN);
+
+  const [, month, day, year, rawHour, rawMinute = "0", meridiem] = match;
+  let hour = Number(rawHour);
+
+  if (meridiem?.toLowerCase() === "pm" && hour < 12) hour += 12;
+  if (meridiem?.toLowerCase() === "am" && hour === 12) hour = 0;
+
+  return new Date(Number(year), Number(month) - 1, Number(day), hour, Number(rawMinute));
 }
 
 async function uploadImage(file: FormDataEntryValue | null, slug: string) {
