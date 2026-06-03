@@ -157,6 +157,7 @@ const reservedIsopediaPaths = new Set([
   "login",
   "logout",
   "profile",
+  "raffles",
   "randomizer",
   "reset-password",
   "robots.txt",
