@@ -71,7 +71,7 @@ export function IsopediaInstallCard() {
   const installHelp = installed
     ? "Isopedia is already installed on this device."
     : isIos
-      ? "On iPhone or iPad, use Safari's Share button, then choose Add to Home Screen."
+      ? "Install Isopedia from Safari's Share menu. It only takes two taps."
       : installPrompt
         ? "This browser can install Isopedia directly."
         : checkedInstallSupport
@@ -101,8 +101,21 @@ export function IsopediaInstallCard() {
           </p>
         </div>
         {isIos && !installed ? (
-          <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-50">
-            Share {">"} Add to Home Screen
+          <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-emerald-50">
+            <div className="flex items-center gap-2 text-sm font-black">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-300 text-lg text-slate-950">
+                {shareIcon}
+              </span>
+              <span>iPhone Install</span>
+            </div>
+            <ol className="mt-3 grid gap-2 text-sm font-bold leading-5 text-emerald-50/85">
+              <li className="rounded-lg bg-black/20 px-3 py-2">
+                1. Tap Safari&apos;s Share button
+              </li>
+              <li className="rounded-lg bg-black/20 px-3 py-2">
+                2. Choose Add to Home Screen
+              </li>
+            </ol>
           </div>
         ) : (
           <button
@@ -118,6 +131,18 @@ export function IsopediaInstallCard() {
     </section>
   );
 }
+
+const shareIcon = (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+    <path
+      d="M12 15V3m0 0 4 4m-4-4-4 4M6 10v9h12v-9"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    />
+  </svg>
+);
 
 function isAppleMobileBrowser() {
   const ua = window.navigator.userAgent.toLowerCase();
