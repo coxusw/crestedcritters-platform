@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import IsopediaAppSettings from "@/app/components/isopedia/IsopediaAppSettings";
+import IsopediaNotificationSettings from "@/app/components/isopedia/IsopediaAppSettings";
 import ProfileLogoUpload from "@/app/components/isopedia/ProfileLogoUpload";
 
 type Profile = {
@@ -152,15 +152,16 @@ async function saveNotificationPreferences(formData: FormData) {
   }
 
   revalidatePath("/account");
-  redirect("/account?saved=notifications");
+  redirect("/account?tab=settings&saved=notifications");
 }
 
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; error?: string; welcome?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string; welcome?: string; tab?: string }>;
 }) {
   const params = await searchParams;
+  const activeTab = params.tab === "settings" ? "settings" : "profile";
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -302,110 +303,140 @@ export default async function AccountPage({
           </div>
         )}
 
-        <form
-          action={saveProfile}
-          className="rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-xl shadow-black/20"
-        >
-          <div className="grid gap-5">
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-slate-200">
-                Username *
-              </span>
+        <nav className="mb-5 flex gap-2 rounded-2xl border border-white/10 bg-slate-900 p-2">
+          <AccountTab href="/account" active={activeTab === "profile"} label="Profile" />
+          <AccountTab href="/account?tab=settings" active={activeTab === "settings"} label="Settings" />
+        </nav>
 
-              <input
-                name="display_name"
-                defaultValue={profile?.display_name || profile?.username || ""}
-                placeholder="Your public name"
-                className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
-                required
-              />
+        {activeTab === "profile" ? (
+          <form
+            action={saveProfile}
+            className="rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-xl shadow-black/20"
+          >
+            <div className="grid gap-5">
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-slate-200">
+                  Username *
+                </span>
 
-              <span className="text-xs text-slate-500">
-                This is the name shown on your public profile.
-                {profile?.username
-                  ? " Your profile URL is locked after account setup."
-                  : " Your profile URL will be created from this name."}
-              </span>
-            </label>
+                <input
+                  name="display_name"
+                  defaultValue={profile?.display_name || profile?.username || ""}
+                  placeholder="Your public name"
+                  className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+                  required
+                />
 
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-slate-200">Bio</span>
+                <span className="text-xs text-slate-500">
+                  This is the name shown on your public profile.
+                  {profile?.username
+                    ? " Your profile URL is locked after account setup."
+                    : " Your profile URL will be created from this name."}
+                </span>
+              </label>
 
-              <textarea
-                name="bio"
-                defaultValue={profile?.bio || ""}
-                placeholder="Tell people a little about yourself, your collection, or your business."
-                rows={5}
-                className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
-              />
-            </label>
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-slate-200">Bio</span>
 
-            <ProfileLogoUpload initialUrl={profile?.profile_logo_url || null} />
+                <textarea
+                  name="bio"
+                  defaultValue={profile?.bio || ""}
+                  placeholder="Tell people a little about yourself, your collection, or your business."
+                  rows={5}
+                  className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+                />
+              </label>
 
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-slate-200">
-                Website Link
-              </span>
+              <ProfileLogoUpload initialUrl={profile?.profile_logo_url || null} />
 
-              <input
-                name="website_url"
-                defaultValue={profile?.website_url || ""}
-                placeholder="https://example.com"
-                className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
-              />
-            </label>
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-slate-200">
+                  Website Link
+                </span>
 
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-slate-200">
-                Facebook Link
-              </span>
+                <input
+                  name="website_url"
+                  defaultValue={profile?.website_url || ""}
+                  placeholder="https://example.com"
+                  className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+                />
+              </label>
 
-              <input
-                name="facebook_url"
-                defaultValue={profile?.facebook_url || ""}
-                placeholder="https://facebook.com/yourpage"
-                className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
-              />
-            </label>
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-slate-200">
+                  Facebook Link
+                </span>
 
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-slate-200">
-                Instagram Link
-              </span>
+                <input
+                  name="facebook_url"
+                  defaultValue={profile?.facebook_url || ""}
+                  placeholder="https://facebook.com/yourpage"
+                  className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+                />
+              </label>
 
-              <input
-                name="instagram_url"
-                defaultValue={profile?.instagram_url || ""}
-                placeholder="https://instagram.com/yourhandle or @yourhandle"
-                className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
-              />
-            </label>
-          </div>
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-slate-200">
+                  Instagram Link
+                </span>
 
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-            <Link
-              href="/"
-              className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
-            >
-              Back to Isopedia
-            </Link>
+                <input
+                  name="instagram_url"
+                  defaultValue={profile?.instagram_url || ""}
+                  placeholder="https://instagram.com/yourhandle or @yourhandle"
+                  className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+                />
+              </label>
+            </div>
 
-            <button
-              type="submit"
-              className="rounded-xl bg-emerald-400 px-6 py-3 font-bold text-slate-950 transition hover:bg-emerald-300"
-            >
-              Save Profile
-            </button>
-          </div>
-        </form>
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+              <Link
+                href="/"
+                className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
+              >
+                Back to Isopedia
+              </Link>
 
-        <IsopediaAppSettings
-          preferences={notificationPreferences}
-          vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""}
-          preferencesReady={notificationPreferencesReady}
-          savePreferencesAction={saveNotificationPreferences}
-        />
+              <button
+                type="submit"
+                className="rounded-xl bg-emerald-400 px-6 py-3 font-bold text-slate-950 transition hover:bg-emerald-300"
+              >
+                Save Profile
+              </button>
+            </div>
+          </form>
+        ) : (
+          <IsopediaNotificationSettings
+            preferences={notificationPreferences}
+            vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""}
+            preferencesReady={notificationPreferencesReady}
+            savePreferencesAction={saveNotificationPreferences}
+          />
+        )}
       </div>
     </main>
+  );
+}
+
+function AccountTab({
+  href,
+  active,
+  label,
+}: {
+  href: string;
+  active: boolean;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`flex-1 rounded-xl px-4 py-3 text-center text-sm font-black transition ${
+        active
+          ? "bg-emerald-400 text-slate-950"
+          : "border border-white/10 bg-slate-950 text-slate-200 hover:bg-slate-800"
+      }`}
+    >
+      {label}
+    </Link>
   );
 }

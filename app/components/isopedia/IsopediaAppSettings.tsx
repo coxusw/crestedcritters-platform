@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 
 type NotificationPreferences = {
@@ -22,22 +23,9 @@ type Props = {
   savePreferencesAction: (formData: FormData) => Promise<void>;
 };
 
-export default function IsopediaAppSettings({
-  preferences,
-  vapidPublicKey,
-  preferencesReady,
-  savePreferencesAction,
-}: Props) {
+export function IsopediaInstallCard() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
-  const [pushSupported, setPushSupported] = useState(false);
-  const [pushStatus, setPushStatus] = useState("Checking browser support...");
-  const [busy, setBusy] = useState(false);
-
-  const canUsePush = useMemo(
-    () => pushSupported && Boolean(vapidPublicKey) && preferencesReady,
-    [pushSupported, vapidPublicKey, preferencesReady]
-  );
 
   useEffect(() => {
     setInstalled(
@@ -45,13 +33,8 @@ export default function IsopediaAppSettings({
         Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
     );
 
-    const hasServiceWorker = "serviceWorker" in navigator;
-    setPushSupported(hasServiceWorker && "PushManager" in window && "Notification" in window);
-
-    if (hasServiceWorker) {
-      navigator.serviceWorker.register("/isopedia-sw.js").catch(() => {
-        setPushStatus("The app installer is available, but the service worker could not register yet.");
-      });
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/isopedia-sw.js").catch(() => {});
     }
 
     const onBeforeInstallPrompt = (event: Event) => {
@@ -71,6 +54,73 @@ export default function IsopediaAppSettings({
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
+  }, []);
+
+  async function installApp() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === "accepted") setInstalled(true);
+    setInstallPrompt(null);
+  }
+
+  return (
+    <section className="mx-auto mt-4 max-w-5xl rounded-2xl border border-emerald-400/20 bg-[#102016] p-4 shadow-xl shadow-black/20 sm:mt-5">
+      <div className="grid gap-4 sm:grid-cols-[72px_1fr_auto] sm:items-center">
+        <Image
+          src="/isopedia-app-icon-192.png"
+          alt=""
+          width={64}
+          height={64}
+          className="h-16 w-16 rounded-2xl border border-white/10 shadow-lg shadow-black/30"
+        />
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
+            Isopedia App
+          </p>
+          <h2 className="mt-1 text-xl font-black text-white">Install Isopedia</h2>
+          <p className="mt-1 text-sm leading-6 text-emerald-50/70">
+            Add Isopedia to your phone or desktop for quick access to species, guides, expos, and your profile.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={installApp}
+          disabled={installed || !installPrompt}
+          className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+        >
+          {installed ? "Installed" : installPrompt ? "Install" : "Install From Browser"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+export default function IsopediaNotificationSettings({
+  preferences,
+  vapidPublicKey,
+  preferencesReady,
+  savePreferencesAction,
+}: Props) {
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushStatus, setPushStatus] = useState("Checking browser support...");
+  const [busy, setBusy] = useState(false);
+
+  const canUsePush = useMemo(
+    () => pushSupported && Boolean(vapidPublicKey) && preferencesReady,
+    [pushSupported, vapidPublicKey, preferencesReady]
+  );
+
+  useEffect(() => {
+    const hasServiceWorker = "serviceWorker" in navigator;
+    setPushSupported(hasServiceWorker && "PushManager" in window && "Notification" in window);
+
+    if (hasServiceWorker) {
+      navigator.serviceWorker.register("/isopedia-sw.js").catch(() => {
+        setPushStatus("The app installer is available, but the service worker could not register yet.");
+      });
+    }
+
   }, []);
 
   useEffect(() => {
@@ -97,14 +147,6 @@ export default function IsopediaAppSettings({
           : "Browser notifications are ready to enable."
     );
   }, [preferencesReady, pushSupported, vapidPublicKey]);
-
-  async function installApp() {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const choice = await installPrompt.userChoice;
-    if (choice.outcome === "accepted") setInstalled(true);
-    setInstallPrompt(null);
-  }
 
   async function enablePush() {
     if (!canUsePush || busy) return;
@@ -171,31 +213,7 @@ export default function IsopediaAppSettings({
   }
 
   return (
-    <section className="mt-8 grid gap-6">
-      <div className="rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-xl shadow-black/20">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-widest text-emerald-300">
-              Isopedia App
-            </p>
-            <h2 className="mt-2 text-2xl font-bold text-white">Install Isopedia</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-              Add Isopedia to your phone or desktop for faster access from your home screen.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={installApp}
-            disabled={installed || !installPrompt}
-            className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
-          >
-            {installed ? "Installed" : installPrompt ? "Install App" : "Install Available In Browser Menu"}
-          </button>
-        </div>
-      </div>
-
-      <div className="rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-xl shadow-black/20">
+    <section className="rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-xl shadow-black/20">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-emerald-300">
@@ -261,7 +279,6 @@ export default function IsopediaAppSettings({
             </button>
           </div>
         </form>
-      </div>
     </section>
   );
 }

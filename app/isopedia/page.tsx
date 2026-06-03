@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import IsopediaBrowser from "@/app/components/isopedia/IsopediaBrowser";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
+import { IsopediaInstallCard } from "@/app/components/isopedia/IsopediaAppSettings";
 import { isopediaMetadata } from "@/app/isopedia/metadata";
 
 export const metadata = isopediaMetadata;
@@ -125,6 +126,8 @@ export async function IsopediaLandingPage() {
             </div>
           </div>
         </section>
+
+        <IsopediaInstallCard />
 
         <div className="mx-auto max-w-5xl">
           <IsopediaBrowser species={entries} />

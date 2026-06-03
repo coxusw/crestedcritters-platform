@@ -135,7 +135,7 @@ export default async function IsopediaNav({
                 My Profile
               </Link>
               <Link
-                href="/account"
+                href="/account?tab=settings"
                 className="rounded-xl border border-white/10 bg-[#07130c] px-4 py-2 text-sm font-black text-white transition hover:bg-[#18291d]"
               >
                 Settings
