@@ -335,7 +335,7 @@ function buildTools(snapshots: Awaited<ReturnType<typeof getAdminSnapshots>>): A
       ],
       links: [
         { href: "/randomizer", label: "Open App" },
-        { href: "/randomizer/billing", label: "Billing" },
+        { href: "https://randomizer.crestedcritters.com/billing", label: "Billing" },
       ],
     },
     {

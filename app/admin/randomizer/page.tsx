@@ -286,8 +286,8 @@ export default async function AdminRandomizerPage({
             <Link className="rounded-md border border-white/10 px-3 py-2 hover:bg-white/10" href="/randomizer">
               Open Randomizer
             </Link>
-            <Link className="rounded-md border border-white/10 px-3 py-2 hover:bg-white/10" href="/randomizer/billing">
-              Billing Page
+            <Link className="rounded-md border border-white/10 px-3 py-2 hover:bg-white/10" href="https://randomizer.crestedcritters.com/billing">
+              Public Billing Page
             </Link>
           </div>
         </div>
