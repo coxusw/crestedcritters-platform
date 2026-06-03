@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
+import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { duplicateRaffleAction, saveRaffleAction } from "./actions";
 import type { Raffle } from "@/lib/isopedia-raffles";
@@ -17,7 +18,7 @@ export default async function AdminRafflesPage({ searchParams }: { searchParams:
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/admin/isopedia" className="text-sm font-bold text-emerald-300">Back to Isopedia Tools</Link>
-          <Link href="/raffles" className="rounded-md border border-white/10 px-3 py-2 text-sm font-bold">Public Raffles</Link>
+          <Link href={absoluteIsopediaUrl("/raffles")} className="rounded-md border border-white/10 px-3 py-2 text-sm font-bold">Public Raffles</Link>
         </div>
 
         <header className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
