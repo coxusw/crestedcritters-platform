@@ -41,6 +41,15 @@ async function signIn(formData: FormData) {
     redirect(`/login?error=login-failed&next=${encodeURIComponent(next)}${appQuery(app)}`);
   }
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user?.user_metadata?.force_password_change) {
+    const forceNext = `/update-password?force=1&next=${encodeURIComponent(next)}${appQuery(app)}`;
+    redirect(forceNext);
+  }
+
   redirect(next);
 }
 

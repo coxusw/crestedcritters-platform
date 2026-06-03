@@ -8,6 +8,8 @@ export default function UpdatePasswordPage() {
   const supabase = createSupabaseBrowserClient();
   const router = useRouter();
   const [isRandomizer, setIsRandomizer] = useState(false);
+  const [isForcedChange, setIsForcedChange] = useState(false);
+  const [nextPath, setNextPath] = useState("");
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -29,6 +31,11 @@ export default function UpdatePasswordPage() {
           url.searchParams.get("app") === "randomizer" ||
           url.hostname.toLowerCase().startsWith("randomizer.");
         if (mounted) setIsRandomizer(randomizerContext);
+        if (mounted) {
+          setIsForcedChange(url.searchParams.get("force") === "1");
+          const next = url.searchParams.get("next") || "";
+          setNextPath(next.startsWith("/") && !next.startsWith("//") ? next : "");
+        }
         const code = url.searchParams.get("code");
         const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
         const accessToken = hashParams.get("access_token");
@@ -92,6 +99,9 @@ export default function UpdatePasswordPage() {
 
     const { error } = await supabase.auth.updateUser({
       password,
+      data: {
+        force_password_change: false,
+      },
     });
 
     setLoading(false);
@@ -104,7 +114,11 @@ export default function UpdatePasswordPage() {
     setMessage("Password updated successfully.");
 
     setTimeout(() => {
-      router.push(isRandomizer ? "/login?app=randomizer&next=/" : "/login");
+      if (isForcedChange) {
+        router.push(nextPath || (isRandomizer ? "/" : "/account"));
+      } else {
+        router.push(isRandomizer ? "/login?app=randomizer&next=/" : "/login");
+      }
     }, 2000);
   }
 
@@ -121,7 +135,9 @@ export default function UpdatePasswordPage() {
           </h1>
 
           <p className="mt-4 text-base leading-7 text-emerald-50/70">
-            Enter your new password below.
+            {isForcedChange
+              ? "Your account was created with a temporary password. Choose a new password before continuing."
+              : "Enter your new password below."}
           </p>
         </div>
 
