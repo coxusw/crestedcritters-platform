@@ -218,10 +218,34 @@ async function createRandomizerUser(formData: FormData) {
   redirect("/admin/randomizer?created=true");
 }
 
+async function deletePendingRandomizerOrder(formData: FormData) {
+  "use server";
+
+  await requireAdmin();
+
+  const orderId = cleanText(formData.get("order_id"));
+
+  if (!orderId) redirect("/admin/randomizer?error=missing-order");
+
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase
+    .from("randomizer_orders")
+    .delete()
+    .eq("id", orderId)
+    .eq("status", "pending");
+
+  if (error) {
+    redirect(`/admin/randomizer?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/admin/randomizer");
+  redirect("/admin/randomizer?deleted=true");
+}
+
 export default async function AdminRandomizerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ updated?: string; created?: string; error?: string; q?: string }>;
+  searchParams: Promise<{ updated?: string; created?: string; deleted?: string; error?: string; q?: string }>;
 }) {
   await requireAdmin();
 
@@ -280,6 +304,7 @@ export default async function AdminRandomizerPage({
 
         {params.updated === "true" && <Notice tone="success" text="Randomizer account updated." />}
         {params.created === "true" && <Notice tone="success" text="Randomizer user created. They must change the temporary password after login." />}
+        {params.deleted === "true" && <Notice tone="success" text="Pending Randomizer order deleted." />}
         {params.error && <Notice tone="error" text={decodeURIComponent(params.error)} />}
 
         <section className="grid gap-4 md:grid-cols-4">
@@ -412,9 +437,22 @@ function RecentOrdersPanel({ orders, users }: { orders: RandomizerOrder[]; users
                 <span className="text-emerald-200">{formatMoney(order.amount_cents)}</span>
               </div>
               <p className="mt-1 text-slate-300">{emailByUserId.get(order.user_id) || order.user_id}</p>
-              <p className="mt-1 text-xs uppercase tracking-wide text-slate-400">
-                {order.status} - {formatDateTime(order.completed_at || order.created_at)}
-              </p>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs uppercase tracking-wide text-slate-400">
+                  {order.status} - {formatDateTime(order.completed_at || order.created_at)}
+                </p>
+                {order.status === "pending" && (
+                  <form action={deletePendingRandomizerOrder}>
+                    <input type="hidden" name="order_id" value={order.id} />
+                    <button
+                      className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-black text-red-100 hover:bg-red-500/20"
+                      type="submit"
+                    >
+                      Delete Pending
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
           ))
         ) : (
