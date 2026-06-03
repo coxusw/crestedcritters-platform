@@ -7,6 +7,7 @@ import {
   activeEntryCountForUser,
   canAddRaffleEntries,
   createRaffleDonationCheckout,
+  isRaffleOpen,
   spendIsoTokensForRaffle,
   type Raffle,
 } from "@/lib/isopedia-raffles";
@@ -35,6 +36,8 @@ async function activeRaffle(supabase: Awaited<ReturnType<typeof createSupabaseSe
     .maybeSingle<Raffle>();
 
   if (error || !data) throw new Error(error?.message || "This raffle is not active.");
+  if (!isRaffleOpen(data)) throw new Error("This raffle is not currently open for entries.");
+
   return data;
 }
 

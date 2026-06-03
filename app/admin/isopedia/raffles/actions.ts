@@ -35,6 +35,16 @@ function intValue(formData: FormData, key: string, fallback: number) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function timestampValue(formData: FormData, key: string) {
+  const value = text(formData, key);
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.toISOString();
+}
+
 async function uploadImage(file: FormDataEntryValue | null, slug: string) {
   if (!(file instanceof File) || file.size === 0) return null;
   const supabase = createSupabaseAdminClient();
@@ -77,6 +87,8 @@ function rafflePayload(formData: FormData, imageUrl: string | null) {
     allow_donation_entries: formData.get("allow_donation_entries") === "on",
     allow_multiple_entries: formData.get("allow_multiple_entries") === "on",
     max_entries: maxEntries,
+    starts_at: timestampValue(formData, "starts_at"),
+    ends_at: timestampValue(formData, "ends_at"),
     results_url: text(formData, "results_url") || null,
     result_notes: text(formData, "result_notes") || null,
     updated_at: new Date().toISOString(),
@@ -124,6 +136,8 @@ export async function duplicateRaffleAction(formData: FormData) {
     winner_entry_id: null,
     results_url: null,
     result_notes: null,
+    starts_at: null,
+    ends_at: null,
     created_at: undefined,
     updated_at: new Date().toISOString(),
   });

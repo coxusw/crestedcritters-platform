@@ -70,6 +70,16 @@ export function entryCount(entries: Array<Pick<RaffleEntry, "quantity" | "status
     .reduce((total, entry) => total + Number(entry.quantity || 0), 0);
 }
 
+export function isRaffleOpen(raffle: Pick<Raffle, "starts_at" | "ends_at">, now = new Date()) {
+  const startsAt = raffle.starts_at ? new Date(raffle.starts_at) : null;
+  const endsAt = raffle.ends_at ? new Date(raffle.ends_at) : null;
+
+  if (startsAt && startsAt > now) return false;
+  if (endsAt && endsAt < now) return false;
+
+  return true;
+}
+
 export async function canAddRaffleEntries(input: {
   supabase: Awaited<ReturnType<typeof import("@/lib/supabase-server").createSupabaseServerClient>>;
   raffle: Raffle;

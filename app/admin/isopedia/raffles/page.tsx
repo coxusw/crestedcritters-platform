@@ -105,6 +105,14 @@ function RaffleForm({ raffle }: { raffle?: Raffle }) {
         <Field label="Donation Cents Per Entry"><input name="donation_cents_per_entry" type="number" defaultValue={raffle?.donation_cents_per_entry ?? 100} className={inputClass} /></Field>
         <Field label="Maximum Entries"><input name="max_entries" type="number" defaultValue={raffle?.max_entries || ""} className={inputClass} /></Field>
       </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="Raffle Opens">
+          <input name="starts_at" type="datetime-local" defaultValue={dateTimeInputValue(raffle?.starts_at)} className={inputClass} />
+        </Field>
+        <Field label="Raffle Closes / Winner Decided">
+          <input name="ends_at" type="datetime-local" defaultValue={dateTimeInputValue(raffle?.ends_at)} className={inputClass} />
+        </Field>
+      </div>
       <div className="flex flex-wrap gap-3 text-sm font-bold">
         <Check name="allow_isotoken_entries" label="Allow IsoToken entries" checked={raffle?.allow_isotoken_entries ?? true} />
         <Check name="allow_donation_entries" label="Allow donation entries" checked={raffle?.allow_donation_entries ?? true} />
@@ -126,6 +134,9 @@ function RaffleCard({ raffle }: { raffle: Raffle }) {
         <div>
           <h3 className="text-xl font-black">{raffle.title}</h3>
           <p className="mt-1 text-sm text-slate-400">{raffle.status} / {raffle.prize_type}</p>
+          <p className="mt-1 text-xs font-bold text-slate-500">
+            Opens: {displayDate(raffle.starts_at)} / Closes: {displayDate(raffle.ends_at)}
+          </p>
         </div>
         <div className="flex gap-2">
           <form action={duplicateRaffleAction}><input type="hidden" name="raffle_id" value={raffle.id} /><button className="rounded-md border border-white/10 px-3 py-2 text-xs font-black">Duplicate</button></form>
@@ -145,6 +156,24 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Check({ name, label, checked }: { name: string; label: string; checked: boolean }) {
   return <label className="flex items-center gap-2 rounded-md border border-white/10 bg-black/20 px-3 py-2"><input name={name} type="checkbox" defaultChecked={checked} />{label}</label>;
+}
+
+function dateTimeInputValue(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 16);
+}
+
+function displayDate(value?: string | null) {
+  if (!value) return "Not set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not set";
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }
 
 const inputClass = "w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-300";

@@ -3,7 +3,7 @@ import Link from "next/link";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { enterRaffleWithDonation, enterRaffleWithIsoTokens } from "@/app/raffles/actions";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { entryCount, type Raffle, type RaffleEntry } from "@/lib/isopedia-raffles";
+import { entryCount, isRaffleOpen, type Raffle, type RaffleEntry } from "@/lib/isopedia-raffles";
 
 type SearchParams = {
   tab?: string;
@@ -101,9 +101,9 @@ async function getActiveRaffle(supabase: Awaited<ReturnType<typeof createSupabas
     .select("*")
     .eq("status", "active")
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<Raffle>();
-  return data || null;
+    .limit(10)
+    .returns<Raffle[]>();
+  return (data || []).find((raffle) => isRaffleOpen(raffle)) || null;
 }
 
 async function getCompletedRaffles(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>) {
@@ -156,6 +156,10 @@ function CurrentRaffle({
           <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Current raffle</p>
           <h2 className="mt-2 text-3xl font-black text-white">{raffle.title}</h2>
           {raffle.description && <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-emerald-50/75">{raffle.description}</p>}
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <Mini label="Opens" value={displayDate(raffle.starts_at)} />
+            <Mini label="Closes / Winner Decided" value={displayDate(raffle.ends_at)} />
+          </div>
           {raffle.rules && (
             <div className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
               <h3 className="font-black text-emerald-100">Specific rules for this raffle</h3>
@@ -274,7 +278,17 @@ function Mini({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
       <div className="text-xs font-black uppercase tracking-wide text-emerald-100/45">{label}</div>
-      <div className="mt-2 text-2xl font-black text-white">{value}</div>
+      <div className="mt-2 break-words text-lg font-black text-white sm:text-xl">{value}</div>
     </div>
   );
+}
+
+function displayDate(value?: string | null) {
+  if (!value) return "Not set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not set";
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }
