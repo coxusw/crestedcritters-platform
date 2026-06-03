@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import IsopediaAppSettings from "@/app/components/isopedia/IsopediaAppSettings";
 import ProfileLogoUpload from "@/app/components/isopedia/ProfileLogoUpload";
 
 type Profile = {
@@ -14,6 +15,22 @@ type Profile = {
   website_url: string | null;
   facebook_url: string | null;
   instagram_url: string | null;
+};
+
+type NotificationPreferences = {
+  push_enabled: boolean;
+  notify_guides: boolean;
+  notify_discussions: boolean;
+  notify_expos: boolean;
+  notify_isotokens: boolean;
+};
+
+const defaultNotificationPreferences: NotificationPreferences = {
+  push_enabled: false,
+  notify_guides: true,
+  notify_discussions: true,
+  notify_expos: true,
+  notify_isotokens: true,
 };
 
 function cleanText(value: FormDataEntryValue | null) {
@@ -106,6 +123,38 @@ async function saveProfile(formData: FormData) {
   redirect(`/profile/${username}`);
 }
 
+async function saveNotificationPreferences(formData: FormData) {
+  "use server";
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login?next=/account");
+  }
+
+  const { error } = await supabase.from("isopedia_notification_preferences").upsert(
+    {
+      profile_id: user.id,
+      notify_guides: formData.get("notify_guides") === "on",
+      notify_discussions: formData.get("notify_discussions") === "on",
+      notify_expos: formData.get("notify_expos") === "on",
+      notify_isotokens: formData.get("notify_isotokens") === "on",
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "profile_id" }
+  );
+
+  if (error) {
+    redirect("/account?error=notifications-save-failed");
+  }
+
+  revalidatePath("/account");
+  redirect("/account?saved=notifications");
+}
+
 export default async function AccountPage({
   searchParams,
 }: {
@@ -149,6 +198,13 @@ export default async function AccountPage({
   }
 
   const username = profile?.username;
+  const notificationQuery = await supabase
+    .from("isopedia_notification_preferences")
+    .select("push_enabled, notify_guides, notify_discussions, notify_expos, notify_isotokens")
+    .eq("profile_id", user.id)
+    .maybeSingle<NotificationPreferences>();
+  const notificationPreferences = notificationQuery.data || defaultNotificationPreferences;
+  const notificationPreferencesReady = !notificationQuery.error;
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
@@ -210,6 +266,12 @@ export default async function AccountPage({
           </div>
         )}
 
+        {params.saved === "notifications" && (
+          <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-200">
+            Notification preferences saved.
+          </div>
+        )}
+
         {params.welcome === "true" && !profile?.username && (
           <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-200">
             Account created. Finish your profile so your submissions, photos, and reviews show who contributed them.
@@ -231,6 +293,12 @@ export default async function AccountPage({
         {params.error === "logo-column-missing" && (
           <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-100">
             Profile saved, but the logo column is not live in Supabase yet.
+          </div>
+        )}
+
+        {params.error === "notifications-save-failed" && (
+          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">
+            Notification preferences could not be saved. The notification tables may still need to be added in Supabase.
           </div>
         )}
 
@@ -330,6 +398,13 @@ export default async function AccountPage({
             </button>
           </div>
         </form>
+
+        <IsopediaAppSettings
+          preferences={notificationPreferences}
+          vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""}
+          preferencesReady={notificationPreferencesReady}
+          savePreferencesAction={saveNotificationPreferences}
+        />
       </div>
     </main>
   );
