@@ -70,7 +70,7 @@ export default async function AdminDashboard() {
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
               A private control center for Isopedia, Facebook content,
-              Randomizer, bookkeeping, IsoTracker, and the future shop.
+              Randomizer, bookkeeping, the shop, and Isopedia tools.
             </p>
           </div>
 
@@ -216,9 +216,7 @@ async function getAdminSnapshots() {
     shopPendingOrders,
     shopPaidOrders,
     permitSpecies,
-    permitSubmitted,
     permitIssued,
-    permitDrafting,
     bookkeepingRows,
   ] = await Promise.all([
     safeCount(supabase.from("isopedia_species").select("id", { count: "exact", head: true })),
@@ -239,9 +237,7 @@ async function getAdminSnapshots() {
     safeCount(supabase.from("shop_orders").select("id", { count: "exact", head: true }).eq("status", "pending")),
     safeCount(supabase.from("shop_orders").select("id", { count: "exact", head: true }).eq("status", "paid")),
     safeCount(supabase.from("permit_species").select("id", { count: "exact", head: true }).eq("active", true)),
-    safeCount(supabase.from("permit_state_records").select("id", { count: "exact", head: true }).eq("status", "submitted")),
     safeCount(supabase.from("permit_state_records").select("id", { count: "exact", head: true }).eq("status", "issued")),
-    safeCount(supabase.from("permit_state_records").select("id", { count: "exact", head: true }).eq("status", "drafting")),
     safeRows<BookkeepingRow>(
       supabase
         .from("bookkeeping_transactions")
@@ -280,9 +276,7 @@ async function getAdminSnapshots() {
     },
     permits: {
       species: permitSpecies,
-      submitted: permitSubmitted,
       issued: permitIssued,
-      drafting: permitDrafting,
     },
     bookkeeping,
   };
@@ -304,6 +298,7 @@ function buildTools(snapshots: Awaited<ReturnType<typeof getAdminSnapshots>>): A
         { href: "/admin/isopedia/new", label: "New Species" },
         { href: "/admin/isopedia/expos", label: "Expos" },
         { href: "/admin/isopedia/discussions", label: "Reports" },
+        { href: "/admin/isopedia/permit-tracker", label: "Permits" },
       ],
     },
     {
@@ -351,18 +346,6 @@ function buildTools(snapshots: Awaited<ReturnType<typeof getAdminSnapshots>>): A
       links: [
         { href: "/admin/bookkeeping?review=needs", label: "Review Rows" },
       ],
-    },
-    {
-      title: "Permit Tracker",
-      href: "/admin/isotracker",
-      status: "Live",
-      stats: [
-        { label: "Species", value: snapshots.permits.species },
-        { label: "Drafts", value: snapshots.permits.drafting, alert: snapshots.permits.drafting > 0 },
-        { label: "Submitted", value: snapshots.permits.submitted },
-        { label: "Issued", value: snapshots.permits.issued },
-      ],
-      links: [{ href: "/admin/isotracker", label: "Open Permits" }],
     },
     {
       title: "Shop",

@@ -62,6 +62,8 @@ export default async function AdminIsopediaPage() {
     discussionReportsCount,
     expoCount,
     pendingExpoCount,
+    issuedPermitsCount,
+    issuedPermitStates,
   ] = await Promise.all([
     supabase
       .from("isopedia_species")
@@ -109,6 +111,14 @@ export default async function AdminIsopediaPage() {
       .from("isopedia_expos")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending"),
+    supabase
+      .from("permit_state_records")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "issued"),
+    supabase
+      .from("permit_state_records")
+      .select("state_code")
+      .eq("status", "issued"),
   ]);
 
   if (speciesResult.error) {
@@ -125,6 +135,10 @@ export default async function AdminIsopediaPage() {
   const totalDiscussionReports = discussionReportsCount.count || 0;
   const totalExpos = expoCount.count || 0;
   const totalPendingExpos = pendingExpoCount.count || 0;
+  const totalIssuedPermits = issuedPermitsCount.count || 0;
+  const totalPermittedStates = new Set(
+    (issuedPermitStates.data || []).map((row) => row.state_code).filter(Boolean)
+  ).size;
 
   const totalAdmins = Math.max(
     adminsByRoleCount.count || 0,
@@ -272,6 +286,12 @@ export default async function AdminIsopediaPage() {
                 title="IsoToken Shop"
                 description="Create IsoToken rewards, set prices, and choose active store items."
                 icon="Shop"
+              />
+              <AdminActionCard
+                href="/admin/isopedia/permit-tracker"
+                title="Permit Tracker"
+                description={`${totalIssuedPermits} permitted species across ${totalPermittedStates} state${totalPermittedStates === 1 ? "" : "s"}.`}
+                icon="Permits"
               />
             </div>
           </div>
