@@ -359,6 +359,18 @@ function buildTools(snapshots: Awaited<ReturnType<typeof getAdminSnapshots>>): A
       ],
       links: [{ href: "https://shop.crestedcritters.com", label: "Open Shop" }],
     },
+    {
+      title: "Rank & File Admin",
+      href: "https://admin.rankandfile6787.com",
+      status: "External",
+      stats: [
+        { label: "Auth", value: "Separate" },
+        { label: "Access", value: "Rank & File" },
+        { label: "Site", value: "6787" },
+        { label: "Opens", value: "New App" },
+      ],
+      links: [{ href: "https://www.rankandfile6787.com", label: "Public Site" }],
+    },
   ];
 }
 
