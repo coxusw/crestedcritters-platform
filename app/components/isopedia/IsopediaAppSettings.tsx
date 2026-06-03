@@ -26,12 +26,16 @@ type Props = {
 export function IsopediaInstallCard() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
+  const [isIos, setIsIos] = useState(false);
+  const [checkedInstallSupport, setCheckedInstallSupport] = useState(false);
 
   useEffect(() => {
     setInstalled(
       window.matchMedia("(display-mode: standalone)").matches ||
         Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
     );
+    setIsIos(isAppleMobileBrowser());
+    setCheckedInstallSupport(true);
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/isopedia-sw.js").catch(() => {});
@@ -64,6 +68,16 @@ export function IsopediaInstallCard() {
     setInstallPrompt(null);
   }
 
+  const installHelp = installed
+    ? "Isopedia is already installed on this device."
+    : isIos
+      ? "On iPhone or iPad, use Safari's Share button, then choose Add to Home Screen."
+      : installPrompt
+        ? "This browser can install Isopedia directly."
+        : checkedInstallSupport
+          ? "If your browser supports app installs, use its install option from the address bar or browser menu."
+          : "Checking whether this browser can install Isopedia.";
+
   return (
     <section className="mx-auto mt-4 max-w-5xl rounded-2xl border border-emerald-400/20 bg-[#102016] p-4 shadow-xl shadow-black/20 sm:mt-5">
       <div className="grid gap-4 sm:grid-cols-[72px_1fr_auto] sm:items-center">
@@ -82,18 +96,35 @@ export function IsopediaInstallCard() {
           <p className="mt-1 text-sm leading-6 text-emerald-50/70">
             Add Isopedia to your phone or desktop for quick access to species, guides, expos, and your profile.
           </p>
+          <p className="mt-2 text-xs font-semibold leading-5 text-emerald-100/60">
+            {installHelp}
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={installApp}
-          disabled={installed || !installPrompt}
-          className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
-        >
-          {installed ? "Installed" : installPrompt ? "Install" : "Install From Browser"}
-        </button>
+        {isIos && !installed ? (
+          <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-50">
+            Share {">"} Add to Home Screen
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={installApp}
+            disabled={installed || !installPrompt}
+            className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+          >
+            {installed ? "Installed" : installPrompt ? "Install" : "Use Browser Install"}
+          </button>
+        )}
       </div>
     </section>
   );
+}
+
+function isAppleMobileBrowser() {
+  const ua = window.navigator.userAgent.toLowerCase();
+  const platform = window.navigator.platform?.toLowerCase() || "";
+  const touchMac = platform.includes("mac") && window.navigator.maxTouchPoints > 1;
+
+  return /iphone|ipad|ipod/.test(ua) || touchMac;
 }
 
 export default function IsopediaNotificationSettings({
