@@ -234,10 +234,10 @@ function ChangeHistory({ changes }: { changes: SpeciesChangeHistoryItem[] }) {
                       {change.fieldLabel}
                     </td>
                     <td className="break-words px-2 py-4 text-emerald-50/70 sm:px-3">
-                      <HistoryValue value={change.currentValue} />
+                      <HistoryValue value={change.currentValue} fieldLabel={change.fieldLabel} />
                     </td>
                     <td className="break-words px-2 py-4 text-emerald-50/85 sm:px-3">
-                      <HistoryValue value={change.proposedValue} />
+                      <HistoryValue value={change.proposedValue} fieldLabel={change.fieldLabel} />
                     </td>
                     <td className="px-2 py-4 sm:px-3">
                       <span className={statusClass(change.status)}>
@@ -359,10 +359,17 @@ function contributorName(profile: ContributorProfile | null) {
   );
 }
 
-function HistoryValue({ value }: { value: string }) {
+function HistoryValue({
+  value,
+  fieldLabel,
+}: {
+  value: string;
+  fieldLabel: string;
+}) {
   if (!value) return <span className="text-emerald-50/35">Not listed</span>;
 
   const looksLikeUrl = /^https?:\/\//i.test(value);
+  const isImageField = fieldLabel.toLowerCase().includes("image");
 
   if (looksLikeUrl) {
     return (
@@ -372,7 +379,7 @@ function HistoryValue({ value }: { value: string }) {
         rel="noopener noreferrer"
         className="font-bold text-emerald-300 underline"
       >
-        Open value
+        {isImageField ? "Uploaded image" : "Open value"}
       </a>
     );
   }
