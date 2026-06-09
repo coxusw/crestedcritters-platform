@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { attachDiscussionLikes } from "@/lib/isopedia-discussion-likes";
 import { truncateMetaDescription } from "@/lib/seo";
+import { isUnderRestrictedAge } from "@/lib/isopedia-age";
 import DiscussionSection from "@/app/components/isopedia/DiscussionSection";
 import DiscussionStructuredData from "@/app/components/isopedia/DiscussionStructuredData";
 import { toggleGuideLike } from "@/app/isopedia/guides/actions";
@@ -233,6 +234,18 @@ export default async function GuidePage({ params }: PageProps) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const { data: profile, error: profileError } = user
+    ? await supabase
+        .from("profiles")
+        .select("birth_date")
+        .eq("id", user.id)
+        .maybeSingle<{ birth_date: string | null }>()
+    : { data: null };
+  const canPostDiscussion = Boolean(
+    user &&
+      (profileError ||
+        (profile?.birth_date && !isUnderRestrictedAge(profile.birth_date)))
+  );
 
   const [
     { data: images },
@@ -428,6 +441,8 @@ export default async function GuidePage({ params }: PageProps) {
             currentUserId={user?.id || null}
             canModerate={false}
             activeDiscussionBan={null}
+            canPostDiscussion={canPostDiscussion}
+            discussionRestrictionMessage="Discussion posting is disabled for users under the age of 13."
           />
         </section>
       </main>

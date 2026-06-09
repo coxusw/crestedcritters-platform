@@ -1,4 +1,4 @@
-export const ISOPEDIA_LEGAL_VERSION = "2026-06-08-content-license-v2";
+export const ISOPEDIA_LEGAL_VERSION = "2026-06-09-age-restrictions";
 
 export const ISOPEDIA_CONTENT_LICENSE_ACKNOWLEDGMENT =
   "I understand that content I submit to Isopedia, including guides, information, images, discussions, comments, and other submitted materials, may be displayed, archived, featured, and used by Isopedia and Crested Critters LLC to operate, advertise, promote, and grow Isopedia.";
@@ -31,13 +31,14 @@ export const isopediaLegalDocuments: LegalDocument[] = [
     key: "terms",
     title: "Terms of Service",
     version: ISOPEDIA_LEGAL_VERSION,
-    updatedLabel: "June 8, 2026",
+    updatedLabel: "June 9, 2026",
     sections: [
       {
         title: "Using Isopedia",
         body: [
           "Isopedia is operated by Crested Critters LLC as a community bioactive database. By creating an account, browsing, submitting content, or participating in Isopedia features, you agree to use the site lawfully and respectfully.",
           "You are responsible for the content you submit and for keeping your account information accurate enough for Isopedia to contact you about account, moderation, prize, or safety matters.",
+          "Users must provide an accurate birth date for age-based account settings. Users under the age of 13 may use Isopedia with restrictions, including disabled discussion posting, until their account birth date shows they are at least 13.",
         ],
       },
       {
@@ -57,12 +58,13 @@ export const isopediaLegalDocuments: LegalDocument[] = [
     key: "privacy",
     title: "Privacy Policy",
     version: ISOPEDIA_LEGAL_VERSION,
-    updatedLabel: "June 8, 2026",
+    updatedLabel: "June 9, 2026",
     sections: [
       {
         title: "Information Isopedia uses",
         body: [
           "Isopedia uses account information, profile information, submitted content, site activity, email addresses, and technical information to operate accounts, profiles, submissions, notifications, moderation, analytics, and community features.",
+          "Isopedia collects and stores birth date information internally to determine whether age-based account restrictions apply. Birth dates are not displayed on public profiles.",
           "Public profile details and submitted public content may be visible to visitors, indexed by search engines, shared in promotional materials, or preserved as part of community records as described in the User Generated Content Policy.",
         ],
       },
@@ -79,12 +81,13 @@ export const isopediaLegalDocuments: LegalDocument[] = [
     key: "community-guidelines",
     title: "Community Guidelines",
     version: ISOPEDIA_LEGAL_VERSION,
-    updatedLabel: "June 8, 2026",
+    updatedLabel: "June 9, 2026",
     sections: [
       {
         title: "Contribute in good faith",
         body: [
           "Submit information, images, edits, discussions, and reviews with the normal intent of helping the Isopedia community.",
+          "Users under the age of 13 have discussion posting disabled. These restrictions are based on the birth date stored on the account and automatically stop applying when the account reaches age 13.",
           "Do not spam, harass, impersonate others, manipulate IsoTokens, submit knowingly false information, upload content you do not have permission to use, or use the site in a way that harms other users or the project.",
         ],
       },
@@ -101,12 +104,13 @@ export const isopediaLegalDocuments: LegalDocument[] = [
     key: "user-generated-content",
     title: "User Generated Content Policy",
     version: ISOPEDIA_LEGAL_VERSION,
-    updatedLabel: "June 8, 2026",
+    updatedLabel: "June 9, 2026",
     sections: [
       {
         title: "What counts as user-submitted content",
         body: [
           "User-submitted content includes guides, articles, species information, suggested edits, discussions, comments, collection data, expo submissions, profile content, usernames, display names, images, photographs, uploaded media, and any other material submitted to Isopedia.",
+          "Age-based restrictions may limit some types of user-submitted content. Users under 13 cannot submit discussion posts while the restriction applies, although other permitted contribution features may remain available unless Isopedia adds additional limits for safety, moderation, legal compliance, or site operation.",
         ],
       },
       {

@@ -43,8 +43,8 @@ export default function LegalAcceptanceModal({
         </p>
         <h2 className="mt-2 text-3xl font-black">Review and Accept</h2>
         <p className="mt-3 text-sm leading-6 text-emerald-50/70">
-          Isopedia updated its Terms of Service and User Generated Content
-          Policy. Please accept version {ISOPEDIA_LEGAL_VERSION} before
+          Isopedia updated its Terms of Service, Privacy Policy, Community
+          Guidelines, and User Generated Content Policy. Please accept version {ISOPEDIA_LEGAL_VERSION} before
           continuing to contribute.
         </p>
 

@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { attachDiscussionLikes } from "@/lib/isopedia-discussion-likes";
 import { truncateMetaDescription } from "@/lib/seo";
+import { isUnderRestrictedAge } from "@/lib/isopedia-age";
 import DiscussionStructuredData from "@/app/components/isopedia/DiscussionStructuredData";
 import DiscussionSection from "@/app/components/isopedia/DiscussionSection";
 import {
@@ -176,15 +177,17 @@ export default async function ExpoDetailPage({ params }: PageProps) {
 
   let canModerate = false;
   let activeDiscussionBan: DiscussionBan | null = null;
+  let birthDate: string | null = null;
+  let ageRestrictionReady = false;
 
   if (user) {
-    const [{ data: profile }, { data: adminProfile }, { data: ban }] =
+    const [{ data: profile, error: profileError }, { data: adminProfile }, { data: ban }] =
       await Promise.all([
         supabase
           .from("profiles")
-          .select("role")
+          .select("role, birth_date")
           .eq("id", user.id)
-          .maybeSingle<{ role: string | null }>(),
+          .maybeSingle<{ role: string | null; birth_date: string | null }>(),
 
         supabase
           .from("admin_profiles")
@@ -207,7 +210,14 @@ export default async function ExpoDetailPage({ params }: PageProps) {
       profile?.role === "moderator";
 
     activeDiscussionBan = ban || null;
+    birthDate = profile?.birth_date || null;
+    ageRestrictionReady = !profileError;
   }
+  const canPostDiscussion = Boolean(
+    user &&
+      (!ageRestrictionReady ||
+        (birthDate && !isUnderRestrictedAge(birthDate)))
+  );
 
   let expoQuery = supabase
     .from("isopedia_expos")
@@ -515,6 +525,8 @@ export default async function ExpoDetailPage({ params }: PageProps) {
           currentUserId={user?.id || null}
           canModerate={canModerate}
           activeDiscussionBan={activeDiscussionBan}
+          canPostDiscussion={canPostDiscussion}
+          discussionRestrictionMessage="Discussion posting is disabled for users under the age of 13."
         />
       </div>
       </main>

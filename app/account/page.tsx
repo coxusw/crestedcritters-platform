@@ -303,6 +303,18 @@ export default async function AccountPage({
           </div>
         )}
 
+        {params.error === "birth-date-required" && (
+          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">
+            Please enter a valid birth date.
+          </div>
+        )}
+
+        {params.error === "birth-date-save-failed" && (
+          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">
+            Birth date could not be saved. Please try again.
+          </div>
+        )}
+
         <nav className="mb-5 flex gap-2 rounded-2xl border border-white/10 bg-slate-900 p-2">
           <AccountTab href="/account" active={activeTab === "profile"} label="Profile" />
           <AccountTab href="/account?tab=settings" active={activeTab === "settings"} label="Settings" />

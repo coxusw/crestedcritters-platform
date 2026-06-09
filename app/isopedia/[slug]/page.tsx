@@ -8,6 +8,7 @@ import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { attachDiscussionLikes } from "@/lib/isopedia-discussion-likes";
 import { publicSpeciesSlug, storedSpeciesSlug } from "@/lib/isopedia-slugs";
 import { truncateMetaDescription } from "@/lib/seo";
+import { isUnderRestrictedAge } from "@/lib/isopedia-age";
 import CollectionButtons from "@/app/components/isopedia/CollectionButtons";
 import DiscussionStructuredData from "@/app/components/isopedia/DiscussionStructuredData";
 import DiscussionSection from "@/app/components/isopedia/DiscussionSection";
@@ -373,9 +374,11 @@ export default async function SpeciesPage({ params }: PageProps) {
 
   let collectionItems: CollectionItem[] = [];
   let canAccessAdmin = false;
+  let birthDate: string | null = null;
+  let ageRestrictionReady = false;
 
   if (user) {
-    const [{ data }, { data: profile }, { data: adminProfile }] =
+    const [{ data }, { data: profile, error: profileError }, { data: adminProfile }] =
       await Promise.all([
         supabase
           .from("isopedia_user_species")
@@ -385,9 +388,9 @@ export default async function SpeciesPage({ params }: PageProps) {
           .returns<CollectionItem[]>(),
         supabase
           .from("profiles")
-          .select("role")
+          .select("role, birth_date")
           .eq("id", user.id)
-          .maybeSingle<{ role: string | null }>(),
+          .maybeSingle<{ role: string | null; birth_date: string | null }>(),
         supabase
           .from("admin_profiles")
           .select("id")
@@ -396,6 +399,8 @@ export default async function SpeciesPage({ params }: PageProps) {
       ]);
 
     collectionItems = data || [];
+    birthDate = profile?.birth_date || null;
+    ageRestrictionReady = !profileError;
     canAccessAdmin =
       Boolean(adminProfile) ||
       profile?.role === "admin" ||
@@ -405,6 +410,11 @@ export default async function SpeciesPage({ params }: PageProps) {
   const initialOwned = collectionItems.some((item) => item.status === "owned");
   const initialWishlist = collectionItems.some(
     (item) => item.status === "wishlist"
+  );
+  const canPostDiscussion = Boolean(
+    user &&
+      (!ageRestrictionReady ||
+        (birthDate && !isUnderRestrictedAge(birthDate)))
   );
 
   const safeNotesHtml = cleanRichText(species.notes);
@@ -698,6 +708,8 @@ export default async function SpeciesPage({ params }: PageProps) {
             currentUserId={user?.id || null}
             canModerate={false}
             activeDiscussionBan={null}
+            canPostDiscussion={canPostDiscussion}
+            discussionRestrictionMessage="Discussion posting is disabled for users under the age of 13."
           />
 
           {relatedSpecies && relatedSpecies.length > 0 && (

@@ -47,6 +47,8 @@ type Props = {
   currentUserId: string | null;
   canModerate: boolean;
   activeDiscussionBan: DiscussionBan | null;
+  canPostDiscussion?: boolean;
+  discussionRestrictionMessage?: string | null;
 };
 
 function getAuthorName(comment: DiscussionComment) {
@@ -148,6 +150,8 @@ export default function DiscussionSection({
   currentUserId,
   canModerate,
   activeDiscussionBan,
+  canPostDiscussion = true,
+  discussionRestrictionMessage = null,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [body, setBody] = useState("");
@@ -271,6 +275,11 @@ export default function DiscussionSection({
       {isLoggedIn && activeDiscussionBan ? (
         <div className="mb-8 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm leading-6 text-red-100">
           {formatBanMessage(activeDiscussionBan)}
+        </div>
+      ) : isLoggedIn && !canPostDiscussion ? (
+        <div className="mb-8 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
+          {discussionRestrictionMessage ||
+            "Discussion posting is disabled for this account."}
         </div>
       ) : isLoggedIn ? (
         <form action={submitTopLevelComment} className="mb-8">
@@ -400,6 +409,7 @@ export default function DiscussionSection({
 
                   {comment.status === "active" &&
                   isLoggedIn &&
+                  canPostDiscussion &&
                   !isDiscussionBanned &&
                   replyingTo === comment.id ? (
                     <form
@@ -455,6 +465,7 @@ export default function DiscussionSection({
                     </form>
                   ) : comment.status === "active" &&
                     isLoggedIn &&
+                    canPostDiscussion &&
                     !isDiscussionBanned ? (
                     <button
                       type="button"

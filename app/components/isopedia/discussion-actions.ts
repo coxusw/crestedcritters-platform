@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { awardIsoTokens } from "@/lib/isotokens";
+import { isUnderRestrictedAge } from "@/lib/isopedia-age";
 
 const allowedEntityTypes = ["species", "expo", "guide"];
 
@@ -21,12 +22,15 @@ async function getAuthContext() {
     throw new Error("You must be logged in.");
   }
 
-  const [{ data: profile }, { data: adminProfile }] = await Promise.all([
+  const [
+    { data: profile, error: profileError },
+    { data: adminProfile },
+  ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("role")
+      .select("role, birth_date")
       .eq("id", user.id)
-      .maybeSingle<{ role: string | null }>(),
+      .maybeSingle<{ role: string | null; birth_date: string | null }>(),
 
     supabase.from("admin_profiles").select("id").eq("id", user.id).maybeSingle(),
   ]);
@@ -40,7 +44,23 @@ async function getAuthContext() {
     supabase,
     user,
     canModerate,
+    birthDate: profile?.birth_date || null,
+    ageRestrictionReady: !profileError,
   };
+}
+
+function requireCanPostDiscussion(birthDate: string | null, ageRestrictionReady: boolean) {
+  if (!ageRestrictionReady) return;
+
+  if (!birthDate) {
+    throw new Error("Please enter your birth date before posting in discussions.");
+  }
+
+  if (isUnderRestrictedAge(birthDate)) {
+    throw new Error(
+      "Discussion posting is disabled for accounts under the age of 13."
+    );
+  }
 }
 
 async function requireNotDiscussionBanned(
@@ -77,9 +97,10 @@ async function requireNotDiscussionBanned(
 }
 
 export async function createDiscussionComment(formData: FormData) {
-  const { supabase, user } = await getAuthContext();
+  const { supabase, user, birthDate, ageRestrictionReady } = await getAuthContext();
 
   await requireNotDiscussionBanned(supabase, user.id);
+  requireCanPostDiscussion(birthDate, ageRestrictionReady);
 
   const entityType = cleanText(formData.get("entity_type"));
   const entityId = cleanText(formData.get("entity_id"));
