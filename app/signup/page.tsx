@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
   ISOPEDIA_CONTENT_LICENSE_ACKNOWLEDGMENT,
-  ISOPEDIA_CONTENT_LICENSE_CALLOUT,
   ISOPEDIA_LEGAL_VERSION,
 } from "@/lib/isopedia-legal";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -183,11 +182,7 @@ export default async function SignupPage({
             </label>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm leading-6 text-emerald-50/85">
-            {ISOPEDIA_CONTENT_LICENSE_CALLOUT}
-          </div>
-
-          <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-emerald-50/80">
+          <label className="mt-6 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-emerald-50/80">
             <input
               name="content_license_acknowledgment"
               type="checkbox"

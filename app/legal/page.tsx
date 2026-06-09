@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { acceptIsopediaLegalDocuments } from "@/app/legal/actions";
+import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import LegalDocumentViewer from "@/app/components/legal/LegalDocumentViewer";
 import {
   ISOPEDIA_CONTENT_LICENSE_ACKNOWLEDGMENT,
-  ISOPEDIA_CONTENT_LICENSE_CALLOUT,
   isopediaLegalDocuments,
 } from "@/lib/isopedia-legal";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -27,6 +27,8 @@ export default async function LegalPage({
   return (
     <main className="min-h-screen bg-[#07130c] px-4 py-8 text-white">
       <div className="mx-auto max-w-5xl">
+        <IsopediaNav active="legal" />
+
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link href="/" className="text-sm font-bold text-emerald-300 hover:text-emerald-200">
             Back to Isopedia
@@ -62,9 +64,6 @@ export default async function LegalPage({
             className="mt-6 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20"
           >
             <h2 className="text-2xl font-black">Accept Legal Documents</h2>
-            <p className="mt-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm leading-6 text-emerald-50/80">
-              {ISOPEDIA_CONTENT_LICENSE_CALLOUT}
-            </p>
             <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-emerald-50/80">
               <input
                 name="content_license_acknowledgment"

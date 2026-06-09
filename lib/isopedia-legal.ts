@@ -1,10 +1,7 @@
-export const ISOPEDIA_LEGAL_VERSION = "2026-06-08-content-license";
+export const ISOPEDIA_LEGAL_VERSION = "2026-06-08-content-license-v2";
 
 export const ISOPEDIA_CONTENT_LICENSE_ACKNOWLEDGMENT =
   "I understand that content I submit to Isopedia, including guides, information, images, discussions, comments, and other submitted materials, may be displayed, archived, featured, and used by Isopedia and Crested Critters LLC to operate, advertise, promote, and grow Isopedia.";
-
-export const ISOPEDIA_CONTENT_LICENSE_CALLOUT =
-  "Submitted content may be used to operate and promote Isopedia. You retain ownership, but you grant Isopedia permission to use submitted content as described in the User Generated Content Policy.";
 
 const contentLicenseText = [
   "Any user-submitted content, including but not limited to guides, articles, species information, suggested edits, discussions, comments, collection data, expo submissions, profile content, usernames, display names, images, photographs, and uploaded media, may be used by Isopedia and Crested Critters LLC to operate, maintain, improve, advertise, promote, document, and grow Isopedia.",
@@ -41,6 +38,7 @@ export const isopediaLegalDocuments: LegalDocument[] = [
         body: [
           "Isopedia is operated by Crested Critters LLC as a community bioactive database. By creating an account, browsing, submitting content, or participating in Isopedia features, you agree to use the site lawfully and respectfully.",
           "You are responsible for the content you submit and for keeping your account information accurate enough for Isopedia to contact you about account, moderation, prize, or safety matters.",
+          "This version includes a small re-acceptance prompt update for testing the legal acceptance workflow.",
         ],
       },
       {

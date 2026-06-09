@@ -10,6 +10,7 @@ type Props = {
     | "review"
     | "store"
     | "raffles"
+    | "legal"
     | "profile"
     | "admin"
     | "none";
@@ -50,6 +51,11 @@ const mainNavItems = [
     label: "Raffles",
     href: "/raffles",
     key: "raffles",
+  },
+  {
+    label: "Site Policies",
+    href: "/legal",
+    key: "legal",
   },
 ];
 

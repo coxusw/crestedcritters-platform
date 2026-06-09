@@ -16,6 +16,9 @@ import SpeciesStructuredData from "@/app/components/isopedia/SpeciesStructuredDa
 import SpeciesImageCarousel, {
   type SpeciesCarouselImage,
 } from "@/app/components/isopedia/SpeciesImageCarousel";
+import SpeciesHistoryTabs, {
+  type SpeciesChangeHistoryItem,
+} from "@/app/components/isopedia/SpeciesHistoryTabs";
 
 type PageProps = {
   params: Promise<{
@@ -81,6 +84,18 @@ type ContributorProfile = {
 type ContributorCredit = {
   id: string;
   profiles: ContributorProfile | null;
+};
+
+type SuggestedEditHistory = {
+  id: string;
+  field_name: string;
+  current_value: string | null;
+  proposed_value: string | null;
+  status: string;
+  created_at: string | null;
+  updated_at: string | null;
+  suggested_profile: ContributorProfile | null;
+  verified_profile: ContributorProfile | null;
 };
 
 type DiscussionComment = {
@@ -186,6 +201,33 @@ function uniqueContributorCredits(credits: ContributorCredit[]) {
     seen.add(key);
     return true;
   });
+}
+
+function fieldLabel(fieldName: string) {
+  const labels: Record<string, string> = {
+    common_name: "Common Name",
+    scientific_name: "Scientific Name",
+    difficulty: "Difficulty",
+    origin: "Origin",
+    temperature: "Temperature",
+    humidity: "Humidity",
+    diet: "Diet",
+    substrate: "Substrate",
+    notes: "Care Notes",
+    image_url: "Image",
+    organism_type: "Type",
+    genus: "Genus",
+    species: "Species",
+    morph: "Morph",
+    trade_names: "Trade Names",
+  };
+
+  return labels[fieldName] || fieldName.replace(/_/g, " ");
+}
+
+function historyValue(value: string | null) {
+  const cleaned = stripHtml(value);
+  return cleaned.length > 500 ? `${cleaned.slice(0, 500).trim()}...` : cleaned;
 }
 
 export async function generateMetadata({
@@ -402,7 +444,6 @@ export default async function SpeciesPage({ params }: PageProps) {
         )
       `
       )
-      .eq("status", "verified")
       .eq("species_id", species.id)
       .limit(8)
       .returns<ContributorCredit[]>(),
@@ -410,6 +451,45 @@ export default async function SpeciesPage({ params }: PageProps) {
 
   const speciesSubmitterCredits = uniqueContributorCredits(submissionCredits || []);
   const suggestedEditCredits = uniqueContributorCredits(editCredits || []);
+
+  const { data: rawChangeHistory } = await supabase
+    .from("isopedia_suggested_edits")
+    .select(
+      `
+      id,
+      field_name,
+      current_value,
+      proposed_value,
+      status,
+      created_at,
+      updated_at,
+      suggested_profile:suggested_by (
+        username,
+        display_name,
+        business_name
+      ),
+      verified_profile:verified_by (
+        username,
+        display_name,
+        business_name
+      )
+    `
+    )
+    .eq("species_id", species.id)
+    .order("created_at", { ascending: false })
+    .returns<SuggestedEditHistory[]>();
+
+  const changeHistory: SpeciesChangeHistoryItem[] = (rawChangeHistory || []).map((change) => ({
+    id: change.id,
+    fieldLabel: fieldLabel(change.field_name),
+    currentValue: historyValue(change.current_value),
+    proposedValue: historyValue(change.proposed_value),
+    status: change.status,
+    createdAt: change.created_at,
+    updatedAt: change.updated_at,
+    suggestedProfile: change.suggested_profile,
+    verifiedProfile: change.verified_profile,
+  }));
 
   const { data: discussionComments } = await supabase
     .from("isopedia_discussions")
@@ -603,7 +683,7 @@ export default async function SpeciesPage({ params }: PageProps) {
                       {speciesSubmitterCredits.length > 0 && suggestedEditCredits.length > 0 ? " " : ""}
                       {suggestedEditCredits.length > 0 && (
                         <>
-                          Suggested edits by{" "}
+                          Suggested by{" "}
                           <ContributorLinks credits={suggestedEditCredits} />.
                         </>
                       )}
@@ -637,29 +717,11 @@ export default async function SpeciesPage({ params }: PageProps) {
             </div>
           </div>
 
-          <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-8">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-2xl font-black text-white">Care Notes</h2>
-
-              <Link
-                href={`/${canonicalSlug}/suggest-edit`}
-                className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
-              >
-                Suggest an improvement →
-              </Link>
-            </div>
-
-            {safeNotesHtml ? (
-              <div
-                className="prose prose-invert max-w-none prose-headings:text-white prose-p:text-emerald-50/75 prose-a:text-emerald-300 prose-strong:text-white prose-li:text-emerald-50/75"
-                dangerouslySetInnerHTML={{ __html: safeNotesHtml }}
-              />
-            ) : (
-              <p className="text-emerald-50/55">
-                No care notes have been added yet.
-              </p>
-            )}
-          </section>
+          <SpeciesHistoryTabs
+            canonicalSlug={canonicalSlug}
+            safeNotesHtml={safeNotesHtml}
+            changes={changeHistory}
+          />
 
           <DiscussionSection
             entityType="species"
