@@ -199,44 +199,52 @@ function ChangeHistory({ changes }: { changes: SpeciesChangeHistoryItem[] }) {
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-white/10">
-          <div className="overflow-x-auto">
-            <table className="min-w-[860px] w-full border-collapse text-left text-sm">
-              <thead className="bg-[#07130c] text-xs font-black uppercase tracking-[0.16em] text-emerald-100/50">
+          <div>
+            <table className="w-full table-fixed border-collapse text-left text-xs sm:text-sm">
+              <colgroup>
+                <col className="w-[21%]" />
+                <col className="w-[13%]" />
+                <col className="w-[18%]" />
+                <col className="w-[18%]" />
+                <col className="w-[12%]" />
+                <col className="w-[18%]" />
+              </colgroup>
+              <thead className="bg-[#07130c] text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100/50">
                 <tr>
-                  <th className="px-4 py-3">Dates</th>
-                  <th className="px-4 py-3">Field</th>
-                  <th className="px-4 py-3">Original</th>
-                  <th className="px-4 py-3">Suggested Change</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Credit</th>
+                  <th className="px-2 py-3 sm:px-3">Dates</th>
+                  <th className="px-2 py-3 sm:px-3">Field</th>
+                  <th className="px-2 py-3 sm:px-3">Original</th>
+                  <th className="px-2 py-3 sm:px-3">Suggested Change</th>
+                  <th className="px-2 py-3 sm:px-3">Status</th>
+                  <th className="px-2 py-3 sm:px-3">Credit</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10 bg-black/20">
                 {changes.map((change) => (
                   <tr key={change.id} className="align-top">
-                    <td className="px-4 py-4 text-emerald-50/65">
+                    <td className="break-words px-2 py-4 text-emerald-50/65 sm:px-3">
                       <div className="font-bold text-white">
                         {formatDate(change.createdAt)}
                       </div>
-                      <div className="mt-1 text-xs text-emerald-50/45">
+                      <div className="mt-1 text-[11px] text-emerald-50/45">
                         Reviewed {formatDate(change.updatedAt)}
                       </div>
                     </td>
-                    <td className="px-4 py-4 font-black text-emerald-100">
+                    <td className="break-words px-2 py-4 font-black text-emerald-100 sm:px-3">
                       {change.fieldLabel}
                     </td>
-                    <td className="px-4 py-4 text-emerald-50/70">
+                    <td className="break-words px-2 py-4 text-emerald-50/70 sm:px-3">
                       <HistoryValue value={change.currentValue} />
                     </td>
-                    <td className="px-4 py-4 text-emerald-50/85">
+                    <td className="break-words px-2 py-4 text-emerald-50/85 sm:px-3">
                       <HistoryValue value={change.proposedValue} />
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-4 sm:px-3">
                       <span className={statusClass(change.status)}>
                         {change.status}
                       </span>
                     </td>
-                    <td className="px-4 py-4 text-emerald-50/70">
+                    <td className="break-words px-2 py-4 text-emerald-50/70 sm:px-3">
                       <div>
                         <span className="text-emerald-50/45">Suggested by </span>
                         <ProfileLink profile={change.suggestedProfile} />
@@ -335,7 +343,7 @@ function ProfileLink({
   return (
     <Link
       href={`/profile/${profile.username}`}
-      className="font-bold text-emerald-300 hover:text-emerald-200"
+      className="break-words font-bold text-emerald-300 hover:text-emerald-200"
     >
       @{profile.username}
     </Link>
@@ -383,7 +391,7 @@ function formatDate(value: string | null) {
 }
 
 function statusClass(status: string) {
-  const base = "inline-flex rounded-full px-3 py-1 text-xs font-black capitalize";
+  const base = "inline-flex rounded-full px-2 py-1 text-[11px] font-black capitalize";
   if (status === "verified") return `${base} bg-emerald-400/15 text-emerald-200`;
   if (status === "rejected") return `${base} bg-red-400/15 text-red-200`;
   return `${base} bg-amber-300/15 text-amber-100`;

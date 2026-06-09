@@ -21,7 +21,7 @@ export async function acceptIsopediaLegalDocuments(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?next=/legal");
+    redirect("/login?next=/");
   }
 
   const { error } = await supabase.from("isopedia_legal_acceptances").upsert(
@@ -43,5 +43,5 @@ export async function acceptIsopediaLegalDocuments(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/account");
   revalidatePath("/legal");
-  redirect("/legal?accepted=true");
+  redirect("/");
 }

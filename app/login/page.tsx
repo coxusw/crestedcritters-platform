@@ -10,6 +10,7 @@ function safeNextPath(value: string, fallback = "/isopedia") {
   if (!value) return fallback;
   if (!value.startsWith("/")) return fallback;
   if (value.startsWith("//")) return fallback;
+  if (value === "/legal" || value.startsWith("/legal?")) return fallback;
   return value;
 }
 
