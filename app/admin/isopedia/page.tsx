@@ -64,6 +64,7 @@ export default async function AdminIsopediaPage() {
     pendingExpoCount,
     issuedPermitsCount,
     issuedPermitStates,
+    openContactMessagesCount,
   ] = await Promise.all([
     supabase
       .from("isopedia_species")
@@ -119,6 +120,10 @@ export default async function AdminIsopediaPage() {
       .from("permit_state_records")
       .select("state_code")
       .eq("status", "issued"),
+    supabase
+      .from("isopedia_contact_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "open"),
   ]);
 
   if (speciesResult.error) {
@@ -133,6 +138,7 @@ export default async function AdminIsopediaPage() {
   const totalUsers = usersCount.count || 0;
   const totalModerators = moderatorsCount.count || 0;
   const totalDiscussionReports = discussionReportsCount.count || 0;
+  const totalOpenContactMessages = openContactMessagesCount.count || 0;
   const totalExpos = expoCount.count || 0;
   const totalPendingExpos = pendingExpoCount.count || 0;
   const totalIssuedPermits = issuedPermitsCount.count || 0;
@@ -270,6 +276,17 @@ export default async function AdminIsopediaPage() {
                 alert={totalDiscussionReports > 0}
               />
               <AdminActionCard
+                href="/admin/isopedia/contact"
+                title="Contact Messages"
+                description={
+                  totalOpenContactMessages > 0
+                    ? `${totalOpenContactMessages} open message${totalOpenContactMessages === 1 ? "" : "s"} need review.`
+                    : "Review Contact Us submissions and respond to users."
+                }
+                icon="Contact"
+                alert={totalOpenContactMessages > 0}
+              />
+              <AdminActionCard
                 href="/admin/isopedia/feature-controls"
                 title="Feature Controls"
                 description="Toggle future profile features without code edits."
@@ -313,6 +330,7 @@ export default async function AdminIsopediaPage() {
               <MiniStat label="Suggested edits" value={totalSuggestedEdits} />
               <MiniStat label="Species needing verification" value={totalSubmissions} />
               <MiniStat label="Open discussion reports" value={totalDiscussionReports} />
+              <MiniStat label="Open contact messages" value={totalOpenContactMessages} />
             </div>
           </div>
         </section>

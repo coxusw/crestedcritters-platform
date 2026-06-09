@@ -85,6 +85,17 @@ type ExpoStatus = {
   } | null;
 };
 
+type ContactMessage = {
+  id: string;
+  category: string;
+  subject: string | null;
+  message: string;
+  status: string;
+  admin_response: string | null;
+  responded_at: string | null;
+  created_at: string;
+};
+
 type PageProps = {
   params: Promise<{
     username: string;
@@ -417,6 +428,9 @@ export default async function PublicProfilePage({ params }: PageProps) {
     canUseExpoStatus && (isOwner || visibility.expo_status_public)
       ? await getProfileExpoStatuses(supabase, profile.id)
       : [];
+  const contactMessages = isOwner
+    ? await getOwnContactMessages(supabase, profile.id)
+    : [];
 
   const profileJsonLd = {
     "@context": "https://schema.org",
@@ -468,12 +482,20 @@ export default async function PublicProfilePage({ params }: PageProps) {
               </Link>
 
               {isOwner && (
-                <Link
-                  href="/account?tab=settings"
-                  className="shrink-0 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center text-xs font-black text-white transition hover:bg-black/30"
-                >
-                  Settings
-                </Link>
+                <>
+                  <Link
+                    href="#messages"
+                    className="shrink-0 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center text-xs font-black text-white transition hover:bg-black/30"
+                  >
+                    Messages
+                  </Link>
+                  <Link
+                    href="/account?tab=settings"
+                    className="shrink-0 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center text-xs font-black text-white transition hover:bg-black/30"
+                  >
+                    Settings
+                  </Link>
+                </>
               )}
             </div>
           </aside>
@@ -732,6 +754,87 @@ export default async function PublicProfilePage({ params }: PageProps) {
               </section>
             )}
 
+            {isOwner && (
+              <section
+                id="messages"
+                className="rounded-2xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-6"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-black text-white">Messages</h2>
+                    <p className="mt-1 text-sm text-emerald-50/55">
+                      Private replies from admins about Contact Us submissions.
+                    </p>
+                  </div>
+                  <Link
+                    href="/contact"
+                    className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black text-emerald-200 transition hover:bg-black/30"
+                  >
+                    Contact Us
+                  </Link>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  {contactMessages.length > 0 ? (
+                    contactMessages.map((message) => (
+                      <article
+                        key={message.id}
+                        className="rounded-xl border border-white/10 bg-[#07130c]/70 p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
+                              {message.category}
+                            </p>
+                            <h3 className="mt-2 text-base font-black text-white">
+                              {message.subject || "Contact message"}
+                            </h3>
+                            <p className="mt-1 text-xs text-emerald-50/40">
+                              Sent {formatProfileDate(message.created_at)}
+                            </p>
+                          </div>
+                          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] font-black uppercase text-emerald-100/70">
+                            {message.status}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3">
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-100/35">
+                            Your Message
+                          </p>
+                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-50/65">
+                            {message.message}
+                          </p>
+                        </div>
+
+                        {message.admin_response ? (
+                          <div className="mt-3 rounded-lg border border-emerald-400/20 bg-emerald-400/5 p-3">
+                            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
+                              Admin Response
+                            </p>
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-50/80">
+                              {message.admin_response}
+                            </p>
+                            <p className="mt-2 text-xs text-emerald-50/40">
+                              Responded {formatProfileDate(message.responded_at)}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-sm text-emerald-50/45">
+                            No admin response yet.
+                          </p>
+                        )}
+                      </article>
+                    ))
+                  ) : (
+                    <p className="rounded-xl border border-white/10 bg-[#07130c]/70 p-4 text-sm text-emerald-50/50">
+                      You do not have any Contact Us messages yet.
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
+
             <section className="rounded-2xl border border-white/10 bg-[#102016] p-4 shadow-xl shadow-black/20 sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-black text-white">Contributor Stats</h2>
@@ -960,6 +1063,37 @@ async function getProfileExpoStatuses(
   if (error || !data) return [];
 
   return data.filter((item) => item.isopedia_expos?.status === "approved");
+}
+
+async function getOwnContactMessages(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  profileId: string
+) {
+  const { data, error } = await supabase
+    .from("isopedia_contact_messages")
+    .select(
+      "id, category, subject, message, status, admin_response, responded_at, created_at"
+    )
+    .eq("submitted_by", profileId)
+    .order("created_at", { ascending: false })
+    .limit(10)
+    .returns<ContactMessage[]>();
+
+  if (error || !data) return [];
+
+  return data;
+}
+
+function formatProfileDate(value: string | null) {
+  if (!value) return "Not recorded";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not recorded";
+
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }
 
 function BadgeChip({ badge }: { badge: Badge }) {
