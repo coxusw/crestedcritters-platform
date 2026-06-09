@@ -34,7 +34,7 @@ const mainNavItems = [
     key: "guides",
   },
   {
-    label: "Submit",
+    label: "Submit New Species",
     href: "/submit",
     key: "submit",
   },
