@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ISOPEDIA_CONTENT_LICENSE_ACKNOWLEDGMENT,
-  ISOPEDIA_CONTENT_LICENSE_CALLOUT,
   ISOPEDIA_LEGAL_VERSION,
 } from "@/lib/isopedia-legal";
 
@@ -48,10 +47,6 @@ export default function LegalAcceptanceModal({
           Policy. Please accept version {ISOPEDIA_LEGAL_VERSION} before
           continuing to contribute.
         </p>
-
-        <div className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm leading-6 text-emerald-50/85">
-          {ISOPEDIA_CONTENT_LICENSE_CALLOUT}
-        </div>
 
         <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-emerald-50/80">
           <input
