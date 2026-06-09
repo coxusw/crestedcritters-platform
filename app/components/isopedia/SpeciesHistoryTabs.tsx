@@ -1,6 +1,34 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+
+type ContributorProfile = {
+  username: string | null;
+  display_name: string | null;
+  business_name: string | null;
+};
+
+type ContributorCredit = {
+  id: string;
+  profiles: ContributorProfile | null;
+};
+
+type SpeciesInfo = {
+  organism_type: string | null;
+  common_name: string;
+  scientific_name: string | null;
+  genus: string | null;
+  species: string | null;
+  morph: string | null;
+  trade_names: string | null;
+  difficulty: string | null;
+  origin: string | null;
+  temperature: string | null;
+  humidity: string | null;
+  diet: string | null;
+  substrate: string | null;
+};
 
 export type SpeciesChangeHistoryItem = {
   id: string;
@@ -10,38 +38,160 @@ export type SpeciesChangeHistoryItem = {
   status: string;
   createdAt: string | null;
   updatedAt: string | null;
-  suggestedProfile: {
-    username: string | null;
-    display_name: string | null;
-    business_name: string | null;
-  } | null;
-  verifiedProfile: {
-    username: string | null;
-    display_name: string | null;
-    business_name: string | null;
-  } | null;
+  suggestedProfile: ContributorProfile | null;
+  verifiedProfile: ContributorProfile | null;
 };
 
 export default function SpeciesHistoryTabs({
+  species,
+  speciesSubmitterCredits,
+  fieldSuggestedCredits,
   changes,
 }: {
+  species: SpeciesInfo;
+  speciesSubmitterCredits: ContributorCredit[];
+  fieldSuggestedCredits: Record<string, ContributorCredit[]>;
   changes: SpeciesChangeHistoryItem[];
 }) {
+  const [showHistory, setShowHistory] = useState(false);
+
   return (
-    <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
-            Species Record
+    <div className="p-5 sm:p-8">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="mb-2 text-xs font-black uppercase tracking-[0.3em] text-emerald-300 sm:text-sm">
+            {species.organism_type || "Isopedia Species Profile"}
           </p>
-          <h2 className="mt-1 text-2xl font-black text-white">Change History</h2>
+
+          <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl">
+            {species.common_name}
+          </h1>
+
+          {species.scientific_name && (
+            <p className="mt-3 text-lg italic text-emerald-50/70">
+              {species.scientific_name}
+            </p>
+          )}
+
+          {speciesSubmitterCredits.length > 0 && (
+            <div className="mt-4 text-xs leading-5 text-emerald-50/45">
+              <span className="font-black uppercase tracking-[0.18em] text-emerald-100/50">
+                Community credit:
+              </span>{" "}
+              Species submitted by{" "}
+              <ContributorLinks credits={speciesSubmitterCredits} />.
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowHistory((value) => !value)}
+          className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/20"
+        >
+          {showHistory ? "Species Info" : "History"}
+        </button>
+      </div>
+
+      {showHistory ? (
+        <ChangeHistory changes={changes} />
+      ) : (
+        <SpeciesInfoCards
+          species={species}
+          fieldSuggestedCredits={fieldSuggestedCredits}
+        />
+      )}
+    </div>
+  );
+}
+
+function SpeciesInfoCards({
+  species,
+  fieldSuggestedCredits,
+}: {
+  species: SpeciesInfo;
+  fieldSuggestedCredits: Record<string, ContributorCredit[]>;
+}) {
+  return (
+    <>
+      <div className="mb-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4">
+        <h2 className="mb-3 text-lg font-black text-white">Taxonomy / ID</h2>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <InfoCard
+            label="Type"
+            value={species.organism_type}
+            suggestedBy={fieldSuggestedCredits.organism_type}
+          />
+          <InfoCard
+            label="Genus"
+            value={species.genus}
+            suggestedBy={fieldSuggestedCredits.genus}
+          />
+          <InfoCard
+            label="Species"
+            value={species.species}
+            suggestedBy={fieldSuggestedCredits.species}
+          />
+          <InfoCard
+            label="Morph"
+            value={species.morph}
+            suggestedBy={fieldSuggestedCredits.morph}
+          />
+          <InfoCard
+            label="Trade Names"
+            value={species.trade_names}
+            suggestedBy={fieldSuggestedCredits.trade_names}
+          />
         </div>
       </div>
 
-      <p className="mb-4 text-sm leading-6 text-emerald-50/60">
-        Suggested edits are preserved here so contributors and reviewers stay
-        credited as the species page improves.
-      </p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <InfoCard
+          label="Difficulty"
+          value={species.difficulty}
+          suggestedBy={fieldSuggestedCredits.difficulty}
+        />
+        <InfoCard
+          label="Origin"
+          value={species.origin}
+          suggestedBy={fieldSuggestedCredits.origin}
+        />
+        <InfoCard
+          label="Temperature"
+          value={species.temperature}
+          suggestedBy={fieldSuggestedCredits.temperature}
+        />
+        <InfoCard
+          label="Humidity"
+          value={species.humidity}
+          suggestedBy={fieldSuggestedCredits.humidity}
+        />
+        <InfoCard
+          label="Diet"
+          value={species.diet}
+          suggestedBy={fieldSuggestedCredits.diet}
+        />
+        <InfoCard
+          label="Substrate"
+          value={species.substrate}
+          suggestedBy={fieldSuggestedCredits.substrate}
+        />
+      </div>
+    </>
+  );
+}
+
+function ChangeHistory({ changes }: { changes: SpeciesChangeHistoryItem[] }) {
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="text-xl font-black text-white">Change History</h2>
+        <p className="mt-2 text-sm leading-6 text-emerald-50/60">
+          Suggested edits are preserved here so contributors and reviewers stay
+          credited as the species page improves.
+        </p>
+      </div>
 
       {changes.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-emerald-50/55">
@@ -50,7 +200,7 @@ export default function SpeciesHistoryTabs({
       ) : (
         <div className="overflow-hidden rounded-2xl border border-white/10">
           <div className="overflow-x-auto">
-            <table className="min-w-[960px] w-full border-collapse text-left text-sm">
+            <table className="min-w-[860px] w-full border-collapse text-left text-sm">
               <thead className="bg-[#07130c] text-xs font-black uppercase tracking-[0.16em] text-emerald-100/50">
                 <tr>
                   <th className="px-4 py-3">Dates</th>
@@ -65,7 +215,9 @@ export default function SpeciesHistoryTabs({
                 {changes.map((change) => (
                   <tr key={change.id} className="align-top">
                     <td className="px-4 py-4 text-emerald-50/65">
-                      <div className="font-bold text-white">{formatDate(change.createdAt)}</div>
+                      <div className="font-bold text-white">
+                        {formatDate(change.createdAt)}
+                      </div>
                       <div className="mt-1 text-xs text-emerald-50/45">
                         Reviewed {formatDate(change.updatedAt)}
                       </div>
@@ -80,7 +232,9 @@ export default function SpeciesHistoryTabs({
                       <HistoryValue value={change.proposedValue} />
                     </td>
                     <td className="px-4 py-4">
-                      <span className={statusClass(change.status)}>{change.status}</span>
+                      <span className={statusClass(change.status)}>
+                        {change.status}
+                      </span>
                     </td>
                     <td className="px-4 py-4 text-emerald-50/70">
                       <div>
@@ -101,7 +255,71 @@ export default function SpeciesHistoryTabs({
           </div>
         </div>
       )}
-    </section>
+    </div>
+  );
+}
+
+function InfoCard({
+  label,
+  value,
+  suggestedBy = [],
+}: {
+  label: string;
+  value: string | null;
+  suggestedBy?: ContributorCredit[];
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#07130c]/70 p-4">
+      <p className="text-xs font-black uppercase tracking-widest text-emerald-100/40">
+        {label}
+      </p>
+
+      <p className="mt-2 whitespace-pre-wrap text-base text-emerald-50/85">
+        {value || "Not listed"}
+      </p>
+
+      {suggestedBy.length > 0 && (
+        <p className="mt-3 text-[11px] leading-4 text-emerald-50/40">
+          Suggested by <ContributorLinks credits={suggestedBy} compact />
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ContributorLinks({
+  credits,
+  compact = false,
+}: {
+  credits: ContributorCredit[];
+  compact?: boolean;
+}) {
+  return (
+    <>
+      {credits.map((credit, index) => {
+        const name = contributorName(credit.profiles);
+        const username = credit.profiles?.username;
+        return (
+          <span key={credit.id}>
+            {index > 0 ? ", " : ""}
+            {username ? (
+              <Link
+                href={`/profile/${username}`}
+                className={
+                  compact
+                    ? "font-bold text-emerald-200/80 hover:text-emerald-100"
+                    : "font-bold text-emerald-300 hover:text-emerald-200"
+                }
+              >
+                @{username}
+              </Link>
+            ) : (
+              name
+            )}
+          </span>
+        );
+      })}
+    </>
   );
 }
 
@@ -110,18 +328,26 @@ function ProfileLink({
 }: {
   profile: SpeciesChangeHistoryItem["suggestedProfile"];
 }) {
-  const name =
-    profile?.display_name ||
-    profile?.business_name ||
-    profile?.username ||
-    "Community contributor";
+  const name = contributorName(profile);
 
   if (!profile?.username) return <span>{name}</span>;
 
   return (
-    <Link href={`/profile/${profile.username}`} className="font-bold text-emerald-300 hover:text-emerald-200">
+    <Link
+      href={`/profile/${profile.username}`}
+      className="font-bold text-emerald-300 hover:text-emerald-200"
+    >
       @{profile.username}
     </Link>
+  );
+}
+
+function contributorName(profile: ContributorProfile | null) {
+  return (
+    profile?.display_name ||
+    profile?.business_name ||
+    profile?.username ||
+    "Community contributor"
   );
 }
 
@@ -132,7 +358,12 @@ function HistoryValue({ value }: { value: string }) {
 
   if (looksLikeUrl) {
     return (
-      <a href={value} target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-300 underline">
+      <a
+        href={value}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-bold text-emerald-300 underline"
+      >
         Open value
       </a>
     );

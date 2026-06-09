@@ -184,15 +184,6 @@ function galleryCreditName(image: GalleryImage) {
   );
 }
 
-function contributorName(profile: ContributorProfile | null) {
-  return (
-    profile?.display_name ||
-    profile?.business_name ||
-    profile?.username ||
-    "Community contributor"
-  );
-}
-
 function uniqueContributorCredits(credits: ContributorCredit[]) {
   const seen = new Set<string>();
   return credits.filter((credit) => {
@@ -665,60 +656,14 @@ export default async function SpeciesPage({ params }: PageProps) {
                 </div>
               </div>
 
-              <div className="p-5 sm:p-8">
-                <div className="mb-6">
-                  <p className="mb-2 text-xs font-black uppercase tracking-[0.3em] text-emerald-300 sm:text-sm">
-                    {species.organism_type || "Isopedia Species Profile"}
-                  </p>
-
-                  <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl">
-                    {species.common_name}
-                  </h1>
-
-                  {species.scientific_name && (
-                    <p className="mt-3 text-lg italic text-emerald-50/70">
-                      {species.scientific_name}
-                    </p>
-                  )}
-
-                  {speciesSubmitterCredits.length > 0 && (
-                    <div className="mt-4 text-xs leading-5 text-emerald-50/45">
-                      <span className="font-black uppercase tracking-[0.18em] text-emerald-100/50">
-                        Community credit:
-                      </span>{" "}
-                      Species submitted by{" "}
-                      <ContributorLinks credits={speciesSubmitterCredits} />.
-                    </div>
-                  )}
-                </div>
-
-                <div className="mb-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4">
-                  <h2 className="mb-3 text-lg font-black text-white">
-                    Taxonomy / ID
-                  </h2>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <InfoCard label="Type" value={species.organism_type} suggestedBy={fieldSuggestedCredits.organism_type} />
-                    <InfoCard label="Genus" value={species.genus} suggestedBy={fieldSuggestedCredits.genus} />
-                    <InfoCard label="Species" value={species.species} suggestedBy={fieldSuggestedCredits.species} />
-                    <InfoCard label="Morph" value={species.morph} suggestedBy={fieldSuggestedCredits.morph} />
-                    <InfoCard label="Trade Names" value={species.trade_names} suggestedBy={fieldSuggestedCredits.trade_names} />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <InfoCard label="Difficulty" value={species.difficulty} suggestedBy={fieldSuggestedCredits.difficulty} />
-                  <InfoCard label="Origin" value={species.origin} suggestedBy={fieldSuggestedCredits.origin} />
-                  <InfoCard label="Temperature" value={species.temperature} suggestedBy={fieldSuggestedCredits.temperature} />
-                  <InfoCard label="Humidity" value={species.humidity} suggestedBy={fieldSuggestedCredits.humidity} />
-                  <InfoCard label="Diet" value={species.diet} suggestedBy={fieldSuggestedCredits.diet} />
-                  <InfoCard label="Substrate" value={species.substrate} suggestedBy={fieldSuggestedCredits.substrate} />
-                </div>
-              </div>
+              <SpeciesHistoryTabs
+                species={species}
+                speciesSubmitterCredits={speciesSubmitterCredits}
+                fieldSuggestedCredits={fieldSuggestedCredits}
+                changes={changeHistory}
+              />
             </div>
           </div>
-
-          <SpeciesHistoryTabs changes={changeHistory} />
 
           <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-8">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -833,66 +778,3 @@ export default async function SpeciesPage({ params }: PageProps) {
   );
 }
 
-function InfoCard({
-  label,
-  value,
-  suggestedBy = [],
-}: {
-  label: string;
-  value: string | null;
-  suggestedBy?: ContributorCredit[];
-}) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-[#07130c]/70 p-4">
-      <p className="text-xs font-black uppercase tracking-widest text-emerald-100/40">
-        {label}
-      </p>
-
-      <p className="mt-2 whitespace-pre-wrap text-base text-emerald-50/85">
-        {value || "Not listed"}
-      </p>
-
-      {suggestedBy.length > 0 && (
-        <p className="mt-3 text-[11px] leading-4 text-emerald-50/40">
-          Suggested by <ContributorLinks credits={suggestedBy} compact />
-        </p>
-      )}
-    </div>
-  );
-}
-
-function ContributorLinks({
-  credits,
-  compact = false,
-}: {
-  credits: ContributorCredit[];
-  compact?: boolean;
-}) {
-  return (
-    <>
-      {credits.map((credit, index) => {
-        const name = contributorName(credit.profiles);
-        const username = credit.profiles?.username;
-        return (
-          <span key={credit.id}>
-            {index > 0 ? ", " : ""}
-            {username ? (
-              <Link
-                href={`/profile/${username}`}
-                className={
-                  compact
-                    ? "font-bold text-emerald-200/80 hover:text-emerald-100"
-                    : "font-bold text-emerald-300 hover:text-emerald-200"
-                }
-              >
-                @{username}
-              </Link>
-            ) : (
-              name
-            )}
-          </span>
-        );
-      })}
-    </>
-  );
-}
