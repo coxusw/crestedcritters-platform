@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { publicSpeciesSlug, storedSpeciesSlug } from "@/lib/isopedia-slugs";
+import { awardIsoTokens } from "@/lib/isotokens";
 import SuggestedEditInput from "@/app/components/isopedia/SuggestedEditInput";
 
 type PageProps = {
@@ -96,6 +97,11 @@ async function submitSuggestedEdit(formData: FormData) {
   const allowedFields = [
     "common_name",
     "scientific_name",
+    "organism_type",
+    "genus",
+    "species",
+    "morph",
+    "trade_names",
     "difficulty",
     "origin",
     "temperature",
@@ -145,19 +151,33 @@ async function submitSuggestedEdit(formData: FormData) {
 
   const current_value = getCurrentValue(species, field_name);
 
-  const { error } = await supabase.from("isopedia_suggested_edits").insert({
-    species_id,
-    suggested_by: user.id,
-    field_name,
-    current_value,
-    proposed_value,
-    status: "unverified",
-    updated_at: new Date().toISOString(),
-  });
+  const { data: edit, error } = await supabase
+    .from("isopedia_suggested_edits")
+    .insert({
+      species_id,
+      suggested_by: user.id,
+      field_name,
+      current_value,
+      proposed_value,
+      status: "unverified",
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single<{ id: string }>();
 
-  if (error) {
+  if (error || !edit) {
     redirect(`/${public_species_slug}/suggest-edit?error=save-failed`);
   }
+
+  await awardIsoTokens(supabase, {
+    profileId: user.id,
+    amount: 3,
+    reason: "suggested_edit_submission",
+    reasonKey: `suggested_edit_submission:${edit.id}`,
+    description: "Submitted a suggested edit for review.",
+    entityType: "suggested_edit",
+    entityId: edit.id,
+  });
 
   redirect(`/${public_species_slug}/suggest-edit?submitted=true`);
 }

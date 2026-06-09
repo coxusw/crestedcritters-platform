@@ -13,10 +13,14 @@ const earnRules = [
   ["Submit a new species", "10 IsoTokens"],
   ["Submitted species is verified", "Additional 15 IsoTokens"],
   ["Verify a new species submission", "5 IsoTokens"],
+  ["Submit a suggested edit", "3 IsoTokens"],
+  ["Suggested edit is verified", "Additional 2 IsoTokens"],
+  ["Verify a suggested edit", "5 IsoTokens"],
   ["Publish a guide", "5 IsoTokens"],
   ["Your guide receives a like", "1 IsoToken per like"],
   ["Submit a species gallery photo", "2 IsoTokens"],
   ["Submitted gallery photo is verified", "Additional 3 IsoTokens"],
+  ["Verify a gallery photo", "5 IsoTokens"],
   ["Post in a discussion", "1 IsoToken"],
   ["Your discussion post receives a like", "1 IsoToken per like"],
 ];
@@ -164,9 +168,9 @@ function FAQ({ isLoggedIn }: { isLoggedIn: boolean }) {
         <section className="rounded-2xl border border-white/10 bg-[#102016] p-5 text-sm leading-6 text-emerald-50/65 shadow-xl shadow-black/20">
           <h2 className="text-xl font-black text-white">Future Ideas</h2>
           <p className="mt-3">
-            Good future rewards could include approved suggested edits, expo
-            submissions that get approved, and high-quality profile collection
-            contributions once those workflows have stronger review controls.
+            Good future rewards could include approved expo submissions and
+            high-quality profile collection contributions once those workflows
+            have stronger review controls.
           </p>
         </section>
       </aside>

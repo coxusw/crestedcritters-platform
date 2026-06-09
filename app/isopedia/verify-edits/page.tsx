@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import sanitizeHtml from "sanitize-html";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { awardIsoTokens } from "@/lib/isotokens";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 
 type Profile = {
@@ -116,6 +117,20 @@ async function verifySuggestedEdit(formData: FormData) {
     redirect("/verify-edits?error=missing-edit");
   }
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login?next=/verify-edits");
+  }
+
+  const { data: editForReward } = await supabase
+    .from("isopedia_suggested_edits")
+    .select("id, suggested_by")
+    .eq("id", editId)
+    .maybeSingle<{ id: string; suggested_by: string | null }>();
+
   const { error } = await supabase.rpc("verify_isopedia_suggested_edit", {
     edit_id: editId,
   });
@@ -126,6 +141,38 @@ async function verifySuggestedEdit(formData: FormData) {
         error.message || "verify-failed"
       )}`
     );
+  }
+
+  await supabase
+    .from("isopedia_suggested_edits")
+    .update({
+      verified_by: user.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", editId);
+
+  if (editForReward?.suggested_by) {
+    await awardIsoTokens(supabase, {
+      profileId: editForReward.suggested_by,
+      amount: 2,
+      reason: "suggested_edit_verified",
+      reasonKey: `suggested_edit_verified:${editId}`,
+      description: "Suggested edit was verified and applied.",
+      entityType: "suggested_edit",
+      entityId: editId,
+    });
+
+    if (editForReward.suggested_by !== user.id) {
+      await awardIsoTokens(supabase, {
+        profileId: user.id,
+        amount: 5,
+        reason: "suggested_edit_verifier",
+        reasonKey: `suggested_edit_verified_reviewer:${editId}`,
+        description: "Verified a community suggested edit.",
+        entityType: "suggested_edit",
+        entityId: editId,
+      });
+    }
   }
 
   revalidatePath("/");

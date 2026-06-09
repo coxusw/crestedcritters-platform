@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
+import {
+  ISOPEDIA_CONTENT_LICENSE_ACKNOWLEDGMENT,
+  ISOPEDIA_CONTENT_LICENSE_CALLOUT,
+  ISOPEDIA_LEGAL_VERSION,
+} from "@/lib/isopedia-legal";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 function cleanText(value: FormDataEntryValue | null) {
@@ -32,11 +38,16 @@ async function createAccount(formData: FormData) {
   const email = cleanText(formData.get("email"));
   const password = cleanText(formData.get("password"));
   const app = cleanText(formData.get("app"));
+  const acknowledged = formData.get("content_license_acknowledgment") === "on";
   const fallback = app === "randomizer" ? "/" : "/account?welcome=true";
   const next = safeNextPath(cleanText(formData.get("next")), fallback);
 
   if (!email || !password) {
     redirect(`/signup?error=missing-fields&next=${encodeURIComponent(next)}${appQuery(app)}`);
+  }
+
+  if (!acknowledged) {
+    redirect(`/signup?error=legal-required&next=${encodeURIComponent(next)}${appQuery(app)}`);
   }
 
   const origin = await currentOrigin();
@@ -45,11 +56,35 @@ async function createAccount(formData: FormData) {
     password,
     options: {
       emailRedirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(next)}`,
+      data: {
+        isopedia_legal_version: ISOPEDIA_LEGAL_VERSION,
+        isopedia_content_license_acknowledged: true,
+        isopedia_legal_accepted_at: new Date().toISOString(),
+      },
     },
   });
 
   if (error) {
     redirect(`/signup?error=signup-failed&next=${encodeURIComponent(next)}${appQuery(app)}`);
+  }
+
+  if (data.user?.id) {
+    try {
+      const admin = createSupabaseAdminClient();
+      await admin.from("isopedia_legal_acceptances").upsert(
+        {
+          profile_id: data.user.id,
+          legal_version: ISOPEDIA_LEGAL_VERSION,
+          content_license_acknowledged: true,
+          acknowledgment_text: ISOPEDIA_CONTENT_LICENSE_ACKNOWLEDGMENT,
+          accepted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "profile_id" }
+      );
+    } catch (acceptanceError) {
+      console.error("Could not save initial Isopedia legal acceptance:", acceptanceError);
+    }
   }
 
   if (!data.session) {
@@ -111,6 +146,12 @@ export default async function SignupPage({
           </div>
         )}
 
+        {params.error === "legal-required" && (
+          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm leading-6 text-red-200">
+            Please accept the Isopedia legal documents and content license acknowledgment before creating an account.
+          </div>
+        )}
+
         <form
           action={createAccount}
           className="rounded-3xl border border-white/10 bg-[#102016] p-6 shadow-2xl shadow-black/30"
@@ -141,6 +182,25 @@ export default async function SignupPage({
               />
             </label>
           </div>
+
+          <div className="mt-6 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm leading-6 text-emerald-50/85">
+            {ISOPEDIA_CONTENT_LICENSE_CALLOUT}
+          </div>
+
+          <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-emerald-50/80">
+            <input
+              name="content_license_acknowledgment"
+              type="checkbox"
+              required
+              className="mt-1 h-5 w-5 rounded border-white/20 bg-black"
+            />
+            <span>
+              {ISOPEDIA_CONTENT_LICENSE_ACKNOWLEDGMENT}{" "}
+              <Link href="/legal" className="font-bold text-emerald-300 underline">
+                View legal documents.
+              </Link>
+            </span>
+          </label>
 
           <button
             type="submit"

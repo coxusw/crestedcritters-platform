@@ -72,6 +72,17 @@ type RelatedSpecies = {
   difficulty: string | null;
 };
 
+type ContributorProfile = {
+  username: string | null;
+  display_name: string | null;
+  business_name: string | null;
+};
+
+type ContributorCredit = {
+  id: string;
+  profiles: ContributorProfile | null;
+};
+
 type DiscussionComment = {
   id: string;
   parent_id: string | null;
@@ -156,6 +167,25 @@ function galleryCreditName(image: GalleryImage) {
     image.profiles?.username ||
     "Community contributor"
   );
+}
+
+function contributorName(profile: ContributorProfile | null) {
+  return (
+    profile?.display_name ||
+    profile?.business_name ||
+    profile?.username ||
+    "Community contributor"
+  );
+}
+
+function uniqueContributorCredits(credits: ContributorCredit[]) {
+  const seen = new Set<string>();
+  return credits.filter((credit) => {
+    const key = credit.profiles?.username || credit.id;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export async function generateMetadata({
@@ -343,6 +373,44 @@ export default async function SpeciesPage({ params }: PageProps) {
     .order("created_at", { ascending: false })
     .returns<GalleryImage[]>();
 
+  const [{ data: submissionCredits }, { data: editCredits }] = await Promise.all([
+    supabase
+      .from("isopedia_submissions")
+      .select(
+        `
+        id,
+        profiles:submitted_by (
+          username,
+          display_name,
+          business_name
+        )
+      `
+      )
+      .eq("status", "verified")
+      .eq("common_name", species.common_name)
+      .limit(3)
+      .returns<ContributorCredit[]>(),
+    supabase
+      .from("isopedia_suggested_edits")
+      .select(
+        `
+        id,
+        profiles:suggested_by (
+          username,
+          display_name,
+          business_name
+        )
+      `
+      )
+      .eq("status", "verified")
+      .eq("species_id", species.id)
+      .limit(8)
+      .returns<ContributorCredit[]>(),
+  ]);
+
+  const speciesSubmitterCredits = uniqueContributorCredits(submissionCredits || []);
+  const suggestedEditCredits = uniqueContributorCredits(editCredits || []);
+
   const { data: discussionComments } = await supabase
     .from("isopedia_discussions")
     .select(
@@ -520,6 +588,27 @@ export default async function SpeciesPage({ params }: PageProps) {
                       {species.scientific_name}
                     </p>
                   )}
+
+                  {(speciesSubmitterCredits.length > 0 || suggestedEditCredits.length > 0) && (
+                    <div className="mt-4 text-xs leading-5 text-emerald-50/45">
+                      <span className="font-black uppercase tracking-[0.18em] text-emerald-100/50">
+                        Community credit:
+                      </span>{" "}
+                      {speciesSubmitterCredits.length > 0 && (
+                        <>
+                          Species submitted by{" "}
+                          <ContributorLinks credits={speciesSubmitterCredits} />.
+                        </>
+                      )}
+                      {speciesSubmitterCredits.length > 0 && suggestedEditCredits.length > 0 ? " " : ""}
+                      {suggestedEditCredits.length > 0 && (
+                        <>
+                          Suggested edits by{" "}
+                          <ContributorLinks credits={suggestedEditCredits} />.
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="mb-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4">
@@ -678,5 +767,28 @@ function InfoCard({
         {value || "Not listed"}
       </p>
     </div>
+  );
+}
+
+function ContributorLinks({ credits }: { credits: ContributorCredit[] }) {
+  return (
+    <>
+      {credits.map((credit, index) => {
+        const name = contributorName(credit.profiles);
+        const username = credit.profiles?.username;
+        return (
+          <span key={credit.id}>
+            {index > 0 ? ", " : ""}
+            {username ? (
+              <Link href={`/profile/${username}`} className="font-bold text-emerald-300 hover:text-emerald-200">
+                @{username}
+              </Link>
+            ) : (
+              name
+            )}
+          </span>
+        );
+      })}
+    </>
   );
 }

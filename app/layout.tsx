@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import LegalAcceptanceGate from "@/app/components/legal/LegalAcceptanceGate";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -96,6 +97,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-[#07130c] text-white">
         {children}
+        <LegalAcceptanceGate />
       </body>
     </html>
   );

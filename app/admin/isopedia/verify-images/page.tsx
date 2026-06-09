@@ -38,7 +38,7 @@ type GalleryImage = {
 async function verifyAdminGalleryImage(formData: FormData) {
   "use server";
 
-  await requireContentAgentAdmin();
+  const { user } = await requireContentAgentAdmin();
 
   const imageId = String(formData.get("image_id") || "");
   const speciesSlug = String(formData.get("species_slug") || "");
@@ -75,6 +75,18 @@ async function verifyAdminGalleryImage(formData: FormData) {
       entityType: "species_image",
       entityId: imageId,
     });
+
+    if (imageForReward.credit_user_id !== user.id) {
+      await awardIsoTokens(supabase, {
+        profileId: user.id,
+        amount: 5,
+        reason: "gallery_photo_verifier",
+        reasonKey: `gallery_photo_verified_reviewer:${imageId}`,
+        description: "Verified a community gallery photo.",
+        entityType: "species_image",
+        entityId: imageId,
+      });
+    }
   }
 
   revalidatePath("/admin/isopedia/review");
