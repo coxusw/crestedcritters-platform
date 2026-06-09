@@ -35,6 +35,8 @@ export type SpeciesChangeHistoryItem = {
   fieldLabel: string;
   currentValue: string;
   proposedValue: string;
+  editReason: string | null;
+  sourceInfo: string | null;
   status: string;
   createdAt: string | null;
   updatedAt: string | null;
@@ -142,6 +144,7 @@ function SpeciesInfoCards({
             label="Trade Names"
             value={species.trade_names}
             suggestedBy={fieldSuggestedCredits.trade_names}
+            className="sm:col-span-2 sm:mx-auto sm:w-[calc(50%-0.5rem)]"
           />
         </div>
       </div>
@@ -238,6 +241,10 @@ function ChangeHistory({ changes }: { changes: SpeciesChangeHistoryItem[] }) {
                     </td>
                     <td className="break-words px-2 py-4 text-emerald-50/85 sm:px-3">
                       <HistoryValue value={change.proposedValue} fieldLabel={change.fieldLabel} />
+                      <ChangeContext
+                        editReason={change.editReason}
+                        sourceInfo={change.sourceInfo}
+                      />
                     </td>
                     <td className="px-2 py-4 sm:px-3">
                       <span className={statusClass(change.status)}>
@@ -267,17 +274,51 @@ function ChangeHistory({ changes }: { changes: SpeciesChangeHistoryItem[] }) {
   );
 }
 
+function ChangeContext({
+  editReason,
+  sourceInfo,
+}: {
+  editReason: string | null;
+  sourceInfo: string | null;
+}) {
+  if (!editReason && !sourceInfo) return null;
+
+  return (
+    <div className="mt-3 space-y-2 border-t border-white/10 pt-3 text-[11px] leading-4 text-emerald-50/55">
+      {editReason && (
+        <div>
+          <span className="font-black uppercase tracking-[0.12em] text-emerald-100/45">
+            Reason:
+          </span>{" "}
+          <span className="whitespace-pre-wrap break-words">{editReason}</span>
+        </div>
+      )}
+
+      {sourceInfo && (
+        <div>
+          <span className="font-black uppercase tracking-[0.12em] text-emerald-100/45">
+            Source:
+          </span>{" "}
+          <SourceInfo value={sourceInfo} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InfoCard({
   label,
   value,
   suggestedBy = [],
+  className = "",
 }: {
   label: string;
   value: string | null;
   suggestedBy?: ContributorCredit[];
+  className?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#07130c]/70 p-4">
+    <div className={`rounded-2xl border border-white/10 bg-[#07130c]/70 p-4 ${className}`}>
       <p className="text-xs font-black uppercase tracking-widest text-emerald-100/40">
         {label}
       </p>
@@ -385,6 +426,25 @@ function HistoryValue({
   }
 
   return <span className="line-clamp-5 whitespace-pre-wrap break-words">{value}</span>;
+}
+
+function SourceInfo({ value }: { value: string }) {
+  const looksLikeUrl = /^https?:\/\//i.test(value);
+
+  if (!looksLikeUrl) {
+    return <span className="whitespace-pre-wrap break-words">{value}</span>;
+  }
+
+  return (
+    <a
+      href={value}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="font-bold text-emerald-300 underline"
+    >
+      View source
+    </a>
+  );
 }
 
 function formatDate(value: string | null) {

@@ -92,6 +92,8 @@ type SuggestedEditHistory = {
   field_name: string;
   current_value: string | null;
   proposed_value: string | null;
+  edit_reason: string | null;
+  source_info: string | null;
   status: string;
   created_at: string | null;
   updated_at: string | null;
@@ -248,6 +250,21 @@ function fieldLabel(fieldName: string) {
 function historyValue(value: string | null) {
   const cleaned = stripHtml(value);
   return cleaned.length > 500 ? `${cleaned.slice(0, 500).trim()}...` : cleaned;
+}
+
+function historyContextValue(value: string | null) {
+  const cleaned = stripHtml(value);
+  return cleaned ? cleaned.slice(0, 2000) : null;
+}
+
+function isSuggestedEditContextSchemaError(error: { message?: string; code?: string } | null) {
+  if (!error) return false;
+  const message = `${error.code || ""} ${error.message || ""}`.toLowerCase();
+  return (
+    message.includes("edit_reason") ||
+    message.includes("source_info") ||
+    message.includes("schema cache")
+  );
 }
 
 export async function generateMetadata({
@@ -463,7 +480,7 @@ export default async function SpeciesPage({ params }: PageProps) {
 
   const speciesSubmitterCredits = uniqueContributorCredits(submissionCredits || []);
 
-  const { data: rawChangeHistory } = await supabase
+  let changeHistoryResult = await supabase
     .from("isopedia_suggested_edits")
     .select(
       `
@@ -471,6 +488,8 @@ export default async function SpeciesPage({ params }: PageProps) {
       field_name,
       current_value,
       proposed_value,
+      edit_reason,
+      source_info,
       status,
       created_at,
       updated_at,
@@ -490,6 +509,41 @@ export default async function SpeciesPage({ params }: PageProps) {
     .order("created_at", { ascending: false })
     .returns<SuggestedEditHistory[]>();
 
+  if (changeHistoryResult.error && isSuggestedEditContextSchemaError(changeHistoryResult.error)) {
+    changeHistoryResult = await supabase
+      .from("isopedia_suggested_edits")
+      .select(
+        `
+        id,
+        field_name,
+        current_value,
+        proposed_value,
+        status,
+        created_at,
+        updated_at,
+        suggested_profile:suggested_by (
+          username,
+          display_name,
+          business_name
+        ),
+        verified_profile:verified_by (
+          username,
+          display_name,
+          business_name
+        )
+      `
+      )
+      .eq("species_id", species.id)
+      .order("created_at", { ascending: false })
+      .returns<SuggestedEditHistory[]>();
+  }
+
+  const rawChangeHistory = changeHistoryResult.data?.map((change) => ({
+    ...change,
+    edit_reason: change.edit_reason || null,
+    source_info: change.source_info || null,
+  }));
+
   const fieldSuggestedCredits = suggestedCreditsByField(rawChangeHistory || []);
 
   const changeHistory: SpeciesChangeHistoryItem[] = (rawChangeHistory || []).map((change) => ({
@@ -497,6 +551,8 @@ export default async function SpeciesPage({ params }: PageProps) {
     fieldLabel: fieldLabel(change.field_name),
     currentValue: historyValue(change.current_value),
     proposedValue: historyValue(change.proposed_value),
+    editReason: historyContextValue(change.edit_reason),
+    sourceInfo: historyContextValue(change.source_info),
     status: change.status,
     createdAt: change.created_at,
     updatedAt: change.updated_at,

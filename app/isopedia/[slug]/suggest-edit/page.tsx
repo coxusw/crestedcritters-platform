@@ -39,6 +39,21 @@ function cleanText(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function cleanOptionalContext(value: FormDataEntryValue | null) {
+  const cleaned = cleanText(value);
+  return cleaned ? cleaned.slice(0, 2000) : null;
+}
+
+function isSuggestedEditContextSchemaError(error: { message?: string; code?: string } | null) {
+  if (!error) return false;
+  const message = `${error.code || ""} ${error.message || ""}`.toLowerCase();
+  return (
+    message.includes("edit_reason") ||
+    message.includes("source_info") ||
+    message.includes("schema cache")
+  );
+}
+
 function stripHtml(value: string) {
   return value
     .replace(/<[^>]*>/g, "")
@@ -93,6 +108,8 @@ async function submitSuggestedEdit(formData: FormData) {
   const public_species_slug = publicSpeciesSlug(species_slug);
   const field_name = cleanText(formData.get("field_name"));
   const proposed_value = cleanText(formData.get("proposed_value"));
+  const edit_reason = cleanOptionalContext(formData.get("edit_reason"));
+  const source_info = cleanOptionalContext(formData.get("source_info"));
 
   const allowedFields = [
     "common_name",
@@ -151,7 +168,7 @@ async function submitSuggestedEdit(formData: FormData) {
 
   const current_value = getCurrentValue(species, field_name);
 
-  const { data: edit, error } = await supabase
+  let insertResult = await supabase
     .from("isopedia_suggested_edits")
     .insert({
       species_id,
@@ -159,11 +176,32 @@ async function submitSuggestedEdit(formData: FormData) {
       field_name,
       current_value,
       proposed_value,
+      edit_reason,
+      source_info,
       status: "unverified",
       updated_at: new Date().toISOString(),
     })
     .select("id")
     .single<{ id: string }>();
+
+  if (insertResult.error && isSuggestedEditContextSchemaError(insertResult.error)) {
+    insertResult = await supabase
+      .from("isopedia_suggested_edits")
+      .insert({
+        species_id,
+        suggested_by: user.id,
+        field_name,
+        current_value,
+        proposed_value,
+        status: "unverified",
+        updated_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single<{ id: string }>();
+  }
+
+  const edit = insertResult.data;
+  const error = insertResult.error;
 
   if (error || !edit) {
     redirect(`/${public_species_slug}/suggest-edit?error=save-failed`);

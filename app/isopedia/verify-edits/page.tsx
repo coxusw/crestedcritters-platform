@@ -28,6 +28,8 @@ type SuggestedEdit = {
   field_name: string;
   current_value: string | null;
   proposed_value: string;
+  edit_reason: string | null;
+  source_info: string | null;
   status: string;
   created_at: string | null;
   profiles: Profile | null;
@@ -103,6 +105,35 @@ function cleanRichText(html: string | null) {
       }),
     },
   });
+}
+
+function isSuggestedEditContextSchemaError(error: { message?: string; code?: string } | null) {
+  if (!error) return false;
+  const message = `${error.code || ""} ${error.message || ""}`.toLowerCase();
+  return (
+    message.includes("edit_reason") ||
+    message.includes("source_info") ||
+    message.includes("schema cache")
+  );
+}
+
+function SourceInfo({ value }: { value: string }) {
+  const looksLikeUrl = /^https?:\/\//i.test(value);
+
+  if (!looksLikeUrl) {
+    return <span className="whitespace-pre-wrap break-words">{value}</span>;
+  }
+
+  return (
+    <a
+      href={value}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="font-semibold text-emerald-300 hover:text-emerald-200"
+    >
+      View source
+    </a>
+  );
 }
 
 async function verifySuggestedEdit(formData: FormData) {
@@ -255,7 +286,7 @@ export default async function VerifySuggestedEditsPage({
   const isModerator = currentProfile.role === "moderator";
   const isStaff = isAdmin || isModerator;
 
-  const { data: edits } = await supabase
+  let editsResult = await supabase
     .from("isopedia_suggested_edits")
     .select(
       `
@@ -266,6 +297,8 @@ export default async function VerifySuggestedEditsPage({
       field_name,
       current_value,
       proposed_value,
+      edit_reason,
+      source_info,
       status,
       created_at,
       profiles:suggested_by (
@@ -285,6 +318,45 @@ export default async function VerifySuggestedEditsPage({
     .eq("status", "unverified")
     .order("created_at", { ascending: true })
     .returns<SuggestedEdit[]>();
+
+  if (editsResult.error && isSuggestedEditContextSchemaError(editsResult.error)) {
+    editsResult = await supabase
+      .from("isopedia_suggested_edits")
+      .select(
+        `
+        id,
+        species_id,
+        suggested_by,
+        verified_by,
+        field_name,
+        current_value,
+        proposed_value,
+        status,
+        created_at,
+        profiles:suggested_by (
+          id,
+          username,
+          display_name,
+          business_name,
+          role
+        ),
+        isopedia_species:species_id (
+          id,
+          common_name,
+          slug
+        )
+      `
+      )
+      .eq("status", "unverified")
+      .order("created_at", { ascending: true })
+      .returns<SuggestedEdit[]>();
+  }
+
+  const edits = editsResult.data?.map((edit) => ({
+    ...edit,
+    edit_reason: edit.edit_reason || null,
+    source_info: edit.source_info || null,
+  }));
 
   return (
     <main className="min-h-screen bg-[#0c1710] px-4 py-10 text-slate-100">
@@ -461,6 +533,36 @@ export default async function VerifySuggestedEditsPage({
                       )}
                     </div>
                   </div>
+
+                  {(edit.edit_reason || edit.source_info) && (
+                    <div className="mb-5 grid gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-sm text-slate-300">
+                      <h3 className="text-base font-black text-white">
+                        Contributor Context
+                      </h3>
+
+                      {edit.edit_reason && (
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-widest text-emerald-100/50">
+                            Reason
+                          </p>
+                          <p className="mt-1 whitespace-pre-wrap break-words">
+                            {edit.edit_reason}
+                          </p>
+                        </div>
+                      )}
+
+                      {edit.source_info && (
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-widest text-emerald-100/50">
+                            Source
+                          </p>
+                          <p className="mt-1">
+                            <SourceInfo value={edit.source_info} />
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div className="rounded-2xl border border-white/10 bg-[#0b140d]/70 p-5">

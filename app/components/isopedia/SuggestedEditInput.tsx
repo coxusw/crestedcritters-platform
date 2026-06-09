@@ -190,6 +190,38 @@ export default function SuggestedEditInput() {
           Select a field above to enter your suggested replacement.
         </div>
       )}
+
+      {fieldName && (
+        <div className="grid gap-4 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+          <label className="grid gap-2">
+            <span className="text-sm font-medium text-slate-200">
+              Why are you suggesting this edit? <span className="text-slate-500">(optional)</span>
+            </span>
+
+            <textarea
+              name="edit_reason"
+              rows={3}
+              maxLength={2000}
+              placeholder="Add a short explanation for reviewers."
+              className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 placeholder:text-slate-500 focus:ring-4"
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-medium text-slate-200">
+              Source information <span className="text-slate-500">(optional)</span>
+            </span>
+
+            <textarea
+              name="source_info"
+              rows={3}
+              maxLength={2000}
+              placeholder="Add a source, link, observation note, or reference."
+              className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 placeholder:text-slate-500 focus:ring-4"
+            />
+          </label>
+        </div>
+      )}
     </div>
   );
 }
