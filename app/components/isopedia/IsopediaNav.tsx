@@ -39,7 +39,7 @@ const mainNavItems = [
     key: "submit",
   },
   {
-    label: "Review",
+    label: "Needed Reviews",
     href: "/review",
     key: "review",
   },
