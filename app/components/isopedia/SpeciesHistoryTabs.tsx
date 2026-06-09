@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 
 export type SpeciesChangeHistoryItem = {
   id: string;
@@ -24,95 +23,25 @@ export type SpeciesChangeHistoryItem = {
 };
 
 export default function SpeciesHistoryTabs({
-  canonicalSlug,
-  safeNotesHtml,
   changes,
 }: {
-  canonicalSlug: string;
-  safeNotesHtml: string;
   changes: SpeciesChangeHistoryItem[];
 }) {
-  const [activeTab, setActiveTab] = useState<"care" | "history">("care");
-
   return (
-    <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-3 shadow-xl shadow-black/20 sm:p-4">
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-[#07130c] p-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab("care")}
-          className={`rounded-xl px-4 py-2 text-sm font-black transition ${
-            activeTab === "care"
-              ? "bg-emerald-400 text-slate-950"
-              : "border border-white/10 bg-[#102016] text-white hover:bg-[#18291d]"
-          }`}
-        >
-          Care Notes
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("history")}
-          className={`rounded-xl px-4 py-2 text-sm font-black transition ${
-            activeTab === "history"
-              ? "bg-emerald-400 text-slate-950"
-              : "border border-white/10 bg-[#102016] text-white hover:bg-[#18291d]"
-          }`}
-        >
-          Change History
-        </button>
-      </div>
-
-      <div className="p-3 sm:p-4">
-        {activeTab === "care" ? (
-          <CareNotes canonicalSlug={canonicalSlug} safeNotesHtml={safeNotesHtml} />
-        ) : (
-          <ChangeHistory changes={changes} />
-        )}
-      </div>
-    </section>
-  );
-}
-
-function CareNotes({
-  canonicalSlug,
-  safeNotesHtml,
-}: {
-  canonicalSlug: string;
-  safeNotesHtml: string;
-}) {
-  return (
-    <div>
+    <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl font-black text-white">Care Notes</h2>
-        <Link
-          href={`/${canonicalSlug}/suggest-edit`}
-          className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
-        >
-          Suggest an improvement
-        </Link>
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
+            Species Record
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-white">Change History</h2>
+        </div>
       </div>
 
-      {safeNotesHtml ? (
-        <div
-          className="prose prose-invert max-w-none prose-headings:text-white prose-p:text-emerald-50/75 prose-a:text-emerald-300 prose-strong:text-white prose-li:text-emerald-50/75"
-          dangerouslySetInnerHTML={{ __html: safeNotesHtml }}
-        />
-      ) : (
-        <p className="text-emerald-50/55">No care notes have been added yet.</p>
-      )}
-    </div>
-  );
-}
-
-function ChangeHistory({ changes }: { changes: SpeciesChangeHistoryItem[] }) {
-  return (
-    <div>
-      <div className="mb-4">
-        <h2 className="text-2xl font-black text-white">Change History</h2>
-        <p className="mt-2 text-sm leading-6 text-emerald-50/60">
-          Suggested edits are preserved here so contributors and reviewers stay
-          credited as the species page improves.
-        </p>
-      </div>
+      <p className="mb-4 text-sm leading-6 text-emerald-50/60">
+        Suggested edits are preserved here so contributors and reviewers stay
+        credited as the species page improves.
+      </p>
 
       {changes.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-emerald-50/55">
@@ -172,7 +101,7 @@ function ChangeHistory({ changes }: { changes: SpeciesChangeHistoryItem[] }) {
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

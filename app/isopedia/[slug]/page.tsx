@@ -203,6 +203,34 @@ function uniqueContributorCredits(credits: ContributorCredit[]) {
   });
 }
 
+function suggestedCreditsByField(edits: SuggestedEditHistory[]) {
+  const grouped: Record<string, ContributorCredit[]> = {};
+  const latestFirst = [...edits].sort((left, right) => {
+    const leftTime = new Date(left.updated_at || left.created_at || 0).getTime();
+    const rightTime = new Date(right.updated_at || right.created_at || 0).getTime();
+    return rightTime - leftTime;
+  });
+
+  for (const edit of latestFirst) {
+    if (edit.status !== "verified") continue;
+    if (!edit.suggested_profile) continue;
+    if (grouped[edit.field_name]?.length) continue;
+
+    grouped[edit.field_name] = grouped[edit.field_name] || [];
+    grouped[edit.field_name].push({
+      id: edit.id,
+      profiles: edit.suggested_profile,
+    });
+  }
+
+  return Object.fromEntries(
+    Object.entries(grouped).map(([field, credits]) => [
+      field,
+      uniqueContributorCredits(credits),
+    ])
+  ) as Record<string, ContributorCredit[]>;
+}
+
 function fieldLabel(fieldName: string) {
   const labels: Record<string, string> = {
     common_name: "Common Name",
@@ -415,42 +443,24 @@ export default async function SpeciesPage({ params }: PageProps) {
     .order("created_at", { ascending: false })
     .returns<GalleryImage[]>();
 
-  const [{ data: submissionCredits }, { data: editCredits }] = await Promise.all([
-    supabase
-      .from("isopedia_submissions")
-      .select(
-        `
-        id,
-        profiles:submitted_by (
-          username,
-          display_name,
-          business_name
-        )
+  const { data: submissionCredits } = await supabase
+    .from("isopedia_submissions")
+    .select(
       `
+      id,
+      profiles:submitted_by (
+        username,
+        display_name,
+        business_name
       )
-      .eq("status", "verified")
-      .eq("common_name", species.common_name)
-      .limit(3)
-      .returns<ContributorCredit[]>(),
-    supabase
-      .from("isopedia_suggested_edits")
-      .select(
-        `
-        id,
-        profiles:suggested_by (
-          username,
-          display_name,
-          business_name
-        )
-      `
-      )
-      .eq("species_id", species.id)
-      .limit(8)
-      .returns<ContributorCredit[]>(),
-  ]);
+    `
+    )
+    .eq("status", "verified")
+    .eq("common_name", species.common_name)
+    .limit(3)
+    .returns<ContributorCredit[]>();
 
   const speciesSubmitterCredits = uniqueContributorCredits(submissionCredits || []);
-  const suggestedEditCredits = uniqueContributorCredits(editCredits || []);
 
   const { data: rawChangeHistory } = await supabase
     .from("isopedia_suggested_edits")
@@ -478,6 +488,8 @@ export default async function SpeciesPage({ params }: PageProps) {
     .eq("species_id", species.id)
     .order("created_at", { ascending: false })
     .returns<SuggestedEditHistory[]>();
+
+  const fieldSuggestedCredits = suggestedCreditsByField(rawChangeHistory || []);
 
   const changeHistory: SpeciesChangeHistoryItem[] = (rawChangeHistory || []).map((change) => ({
     id: change.id,
@@ -669,24 +681,13 @@ export default async function SpeciesPage({ params }: PageProps) {
                     </p>
                   )}
 
-                  {(speciesSubmitterCredits.length > 0 || suggestedEditCredits.length > 0) && (
+                  {speciesSubmitterCredits.length > 0 && (
                     <div className="mt-4 text-xs leading-5 text-emerald-50/45">
                       <span className="font-black uppercase tracking-[0.18em] text-emerald-100/50">
                         Community credit:
                       </span>{" "}
-                      {speciesSubmitterCredits.length > 0 && (
-                        <>
-                          Species submitted by{" "}
-                          <ContributorLinks credits={speciesSubmitterCredits} />.
-                        </>
-                      )}
-                      {speciesSubmitterCredits.length > 0 && suggestedEditCredits.length > 0 ? " " : ""}
-                      {suggestedEditCredits.length > 0 && (
-                        <>
-                          Suggested by{" "}
-                          <ContributorLinks credits={suggestedEditCredits} />.
-                        </>
-                      )}
+                      Species submitted by{" "}
+                      <ContributorLinks credits={speciesSubmitterCredits} />.
                     </div>
                   )}
                 </div>
@@ -697,31 +698,51 @@ export default async function SpeciesPage({ params }: PageProps) {
                   </h2>
 
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <InfoCard label="Type" value={species.organism_type} />
-                    <InfoCard label="Genus" value={species.genus} />
-                    <InfoCard label="Species" value={species.species} />
-                    <InfoCard label="Morph" value={species.morph} />
-                    <InfoCard label="Trade Names" value={species.trade_names} />
+                    <InfoCard label="Type" value={species.organism_type} suggestedBy={fieldSuggestedCredits.organism_type} />
+                    <InfoCard label="Genus" value={species.genus} suggestedBy={fieldSuggestedCredits.genus} />
+                    <InfoCard label="Species" value={species.species} suggestedBy={fieldSuggestedCredits.species} />
+                    <InfoCard label="Morph" value={species.morph} suggestedBy={fieldSuggestedCredits.morph} />
+                    <InfoCard label="Trade Names" value={species.trade_names} suggestedBy={fieldSuggestedCredits.trade_names} />
                   </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <InfoCard label="Difficulty" value={species.difficulty} />
-                  <InfoCard label="Origin" value={species.origin} />
-                  <InfoCard label="Temperature" value={species.temperature} />
-                  <InfoCard label="Humidity" value={species.humidity} />
-                  <InfoCard label="Diet" value={species.diet} />
-                  <InfoCard label="Substrate" value={species.substrate} />
+                  <InfoCard label="Difficulty" value={species.difficulty} suggestedBy={fieldSuggestedCredits.difficulty} />
+                  <InfoCard label="Origin" value={species.origin} suggestedBy={fieldSuggestedCredits.origin} />
+                  <InfoCard label="Temperature" value={species.temperature} suggestedBy={fieldSuggestedCredits.temperature} />
+                  <InfoCard label="Humidity" value={species.humidity} suggestedBy={fieldSuggestedCredits.humidity} />
+                  <InfoCard label="Diet" value={species.diet} suggestedBy={fieldSuggestedCredits.diet} />
+                  <InfoCard label="Substrate" value={species.substrate} suggestedBy={fieldSuggestedCredits.substrate} />
                 </div>
               </div>
             </div>
           </div>
 
-          <SpeciesHistoryTabs
-            canonicalSlug={canonicalSlug}
-            safeNotesHtml={safeNotesHtml}
-            changes={changeHistory}
-          />
+          <SpeciesHistoryTabs changes={changeHistory} />
+
+          <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-8">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-2xl font-black text-white">Care Notes</h2>
+
+              <Link
+                href={`/${canonicalSlug}/suggest-edit`}
+                className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
+              >
+                Suggest an improvement
+              </Link>
+            </div>
+
+            {safeNotesHtml ? (
+              <div
+                className="prose prose-invert max-w-none prose-headings:text-white prose-p:text-emerald-50/75 prose-a:text-emerald-300 prose-strong:text-white prose-li:text-emerald-50/75"
+                dangerouslySetInnerHTML={{ __html: safeNotesHtml }}
+              />
+            ) : (
+              <p className="text-emerald-50/55">
+                No care notes have been added yet.
+              </p>
+            )}
+          </section>
 
           <DiscussionSection
             entityType="species"
@@ -815,9 +836,11 @@ export default async function SpeciesPage({ params }: PageProps) {
 function InfoCard({
   label,
   value,
+  suggestedBy = [],
 }: {
   label: string;
   value: string | null;
+  suggestedBy?: ContributorCredit[];
 }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-[#07130c]/70 p-4">
@@ -828,11 +851,23 @@ function InfoCard({
       <p className="mt-2 whitespace-pre-wrap text-base text-emerald-50/85">
         {value || "Not listed"}
       </p>
+
+      {suggestedBy.length > 0 && (
+        <p className="mt-3 text-[11px] leading-4 text-emerald-50/40">
+          Suggested by <ContributorLinks credits={suggestedBy} compact />
+        </p>
+      )}
     </div>
   );
 }
 
-function ContributorLinks({ credits }: { credits: ContributorCredit[] }) {
+function ContributorLinks({
+  credits,
+  compact = false,
+}: {
+  credits: ContributorCredit[];
+  compact?: boolean;
+}) {
   return (
     <>
       {credits.map((credit, index) => {
@@ -842,7 +877,14 @@ function ContributorLinks({ credits }: { credits: ContributorCredit[] }) {
           <span key={credit.id}>
             {index > 0 ? ", " : ""}
             {username ? (
-              <Link href={`/profile/${username}`} className="font-bold text-emerald-300 hover:text-emerald-200">
+              <Link
+                href={`/profile/${username}`}
+                className={
+                  compact
+                    ? "font-bold text-emerald-200/80 hover:text-emerald-100"
+                    : "font-bold text-emerald-300 hover:text-emerald-200"
+                }
+              >
                 @{username}
               </Link>
             ) : (
