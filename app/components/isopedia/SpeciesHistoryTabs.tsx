@@ -205,12 +205,12 @@ function ChangeHistory({ changes }: { changes: SpeciesChangeHistoryItem[] }) {
           <div>
             <table className="w-full table-fixed border-collapse text-left text-xs sm:text-sm">
               <colgroup>
-                <col className="w-[21%]" />
+                <col className="w-[19%]" />
+                <col className="w-[16%]" />
+                <col className="w-[15%]" />
+                <col className="w-[16%]" />
                 <col className="w-[13%]" />
-                <col className="w-[18%]" />
-                <col className="w-[18%]" />
-                <col className="w-[12%]" />
-                <col className="w-[18%]" />
+                <col className="w-[21%]" />
               </colgroup>
               <thead className="bg-[#07130c] text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100/50">
                 <tr>
@@ -233,7 +233,7 @@ function ChangeHistory({ changes }: { changes: SpeciesChangeHistoryItem[] }) {
                         Reviewed {formatDate(change.updatedAt)}
                       </div>
                     </td>
-                    <td className="break-words px-2 py-4 font-black text-emerald-100 sm:px-3">
+                    <td className="whitespace-nowrap px-2 py-4 font-black text-emerald-100 sm:px-3">
                       {change.fieldLabel}
                     </td>
                     <td className="break-words px-2 py-4 text-emerald-50/70 sm:px-3">
@@ -251,14 +251,14 @@ function ChangeHistory({ changes }: { changes: SpeciesChangeHistoryItem[] }) {
                         {change.status}
                       </span>
                     </td>
-                    <td className="break-words px-2 py-4 text-emerald-50/70 sm:px-3">
-                      <div>
-                        <span className="text-emerald-50/45">Suggested by </span>
+                    <td className="px-2 py-4 text-xs leading-5 text-emerald-50/70 sm:px-3">
+                      <div className="min-w-0">
+                        <span className="block text-emerald-50/45">Suggested by</span>
                         <ProfileLink profile={change.suggestedProfile} />
                       </div>
                       {change.verifiedProfile && (
-                        <div className="mt-2">
-                          <span className="text-emerald-50/45">Verified by </span>
+                        <div className="mt-2 min-w-0">
+                          <span className="block text-emerald-50/45">Verified by</span>
                           <ProfileLink profile={change.verifiedProfile} />
                         </div>
                       )}
@@ -384,7 +384,7 @@ function ProfileLink({
   return (
     <Link
       href={`/profile/${profile.username}`}
-      className="break-words font-bold text-emerald-300 hover:text-emerald-200"
+      className="whitespace-nowrap font-bold text-emerald-300 hover:text-emerald-200"
     >
       @{profile.username}
     </Link>
