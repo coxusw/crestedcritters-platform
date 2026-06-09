@@ -38,7 +38,6 @@ export const isopediaLegalDocuments: LegalDocument[] = [
         body: [
           "Isopedia is operated by Crested Critters LLC as a community bioactive database. By creating an account, browsing, submitting content, or participating in Isopedia features, you agree to use the site lawfully and respectfully.",
           "You are responsible for the content you submit and for keeping your account information accurate enough for Isopedia to contact you about account, moderation, prize, or safety matters.",
-          "This version includes a small re-acceptance prompt update for testing the legal acceptance workflow.",
         ],
       },
       {
