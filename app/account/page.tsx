@@ -25,6 +25,28 @@ type NotificationPreferences = {
   notify_verified_species: boolean;
 };
 
+type PendingSubmission = {
+  id: string;
+  organism_type: string | null;
+  genus: string | null;
+  species: string | null;
+  morph: string | null;
+  trade_names: string | null;
+  common_name: string;
+  scientific_name: string | null;
+  difficulty: string | null;
+  origin: string | null;
+  temperature: string | null;
+  humidity: string | null;
+  diet: string | null;
+  substrate: string | null;
+  notes: string | null;
+  image_url: string | null;
+  created_at: string | null;
+};
+
+const difficultyOptions = ["Beginner", "Intermediate", "Expert"];
+
 const defaultNotificationPreferences: NotificationPreferences = {
   push_enabled: false,
   notify_guides: true,
@@ -155,13 +177,78 @@ async function saveNotificationPreferences(formData: FormData) {
   redirect("/account?tab=settings&saved=notifications");
 }
 
+async function updatePendingSubmission(formData: FormData) {
+  "use server";
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login?next=/account?tab=submissions");
+  }
+
+  const submissionId = cleanText(formData.get("submission_id"));
+  const commonName = cleanText(formData.get("common_name"));
+  const difficulty = cleanText(formData.get("difficulty"));
+
+  if (!submissionId || !commonName) {
+    redirect("/account?tab=submissions&error=submission-required");
+  }
+
+  if (difficulty && !difficultyOptions.includes(difficulty)) {
+    redirect("/account?tab=submissions&error=submission-save-failed");
+  }
+
+  const { error, count } = await supabase
+    .from("isopedia_submissions")
+    .update(
+      {
+        organism_type: cleanText(formData.get("organism_type")) || null,
+        genus: cleanText(formData.get("genus")) || null,
+        species: cleanText(formData.get("species")) || null,
+        morph: cleanText(formData.get("morph")) || null,
+        trade_names: cleanText(formData.get("trade_names")) || null,
+        common_name: commonName,
+        scientific_name: cleanText(formData.get("scientific_name")) || null,
+        difficulty: difficulty || null,
+        origin: cleanText(formData.get("origin")) || null,
+        temperature: cleanText(formData.get("temperature")) || null,
+        humidity: cleanText(formData.get("humidity")) || null,
+        diet: cleanText(formData.get("diet")) || null,
+        substrate: cleanText(formData.get("substrate")) || null,
+        notes: cleanText(formData.get("notes")) || null,
+        image_url: cleanText(formData.get("image_url")) || null,
+      },
+      { count: "exact" }
+    )
+    .eq("id", submissionId)
+    .eq("submitted_by", user.id)
+    .eq("status", "unverified");
+
+  if (error || count !== 1) {
+    redirect("/account?tab=submissions&error=submission-save-failed");
+  }
+
+  revalidatePath("/account");
+  revalidatePath("/review");
+  revalidatePath("/verify");
+  redirect("/account?tab=submissions&saved=submission");
+}
+
 export default async function AccountPage({
   searchParams,
 }: {
   searchParams: Promise<{ saved?: string; error?: string; welcome?: string; tab?: string }>;
 }) {
   const params = await searchParams;
-  const activeTab = params.tab === "settings" ? "settings" : "profile";
+  const activeTab =
+    params.tab === "settings"
+      ? "settings"
+      : params.tab === "submissions"
+        ? "submissions"
+        : "profile";
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -206,6 +293,34 @@ export default async function AccountPage({
     .maybeSingle<NotificationPreferences>();
   const notificationPreferences = notificationQuery.data || defaultNotificationPreferences;
   const notificationPreferencesReady = !notificationQuery.error;
+  const pendingSubmissionsQuery = await supabase
+    .from("isopedia_submissions")
+    .select(
+      `
+      id,
+      organism_type,
+      genus,
+      species,
+      morph,
+      trade_names,
+      common_name,
+      scientific_name,
+      difficulty,
+      origin,
+      temperature,
+      humidity,
+      diet,
+      substrate,
+      notes,
+      image_url,
+      created_at
+    `
+    )
+    .eq("submitted_by", user.id)
+    .eq("status", "unverified")
+    .order("created_at", { ascending: false })
+    .returns<PendingSubmission[]>();
+  const pendingSubmissions = pendingSubmissionsQuery.data || [];
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
@@ -273,6 +388,12 @@ export default async function AccountPage({
           </div>
         )}
 
+        {params.saved === "submission" && (
+          <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-200">
+            Pending submission updated.
+          </div>
+        )}
+
         {params.welcome === "true" && !profile?.username && (
           <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-200">
             Finish your profile first by choosing your public username. After that, you will be prompted to review the legal and age requirements.
@@ -303,6 +424,18 @@ export default async function AccountPage({
           </div>
         )}
 
+        {params.error === "submission-required" && (
+          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">
+            Common name is required before saving a pending submission.
+          </div>
+        )}
+
+        {params.error === "submission-save-failed" && (
+          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">
+            Pending submission could not be saved. It may have already been verified.
+          </div>
+        )}
+
         {params.error === "birth-date-required" && (
           <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">
             Please enter a valid birth date.
@@ -317,6 +450,11 @@ export default async function AccountPage({
 
         <nav className="mb-5 flex gap-2 rounded-2xl border border-white/10 bg-slate-900 p-2">
           <AccountTab href="/account" active={activeTab === "profile"} label="Profile" />
+          <AccountTab
+            href="/account?tab=submissions"
+            active={activeTab === "submissions"}
+            label="My Pending Submissions"
+          />
           <AccountTab href="/account?tab=settings" active={activeTab === "settings"} label="Settings" />
         </nav>
 
@@ -417,6 +555,11 @@ export default async function AccountPage({
               </button>
             </div>
           </form>
+        ) : activeTab === "submissions" ? (
+          <PendingSubmissionsPanel
+            submissions={pendingSubmissions}
+            saveAction={updatePendingSubmission}
+          />
         ) : (
           <IsopediaNotificationSettings
             preferences={notificationPreferences}
@@ -428,6 +571,250 @@ export default async function AccountPage({
       </div>
     </main>
   );
+}
+
+function PendingSubmissionsPanel({
+  submissions,
+  saveAction,
+}: {
+  submissions: PendingSubmission[];
+  saveAction: (formData: FormData) => Promise<void>;
+}) {
+  return (
+    <section className="space-y-5">
+      <div className="rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-xl shadow-black/20">
+        <p className="text-sm font-black uppercase tracking-[0.25em] text-emerald-300">
+          My Pending Submissions
+        </p>
+        <h2 className="mt-2 text-2xl font-bold text-white">
+          Waiting for community verification
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-slate-300">
+          These entries are not public yet. You can fix typos or update details
+          until another user verifies the submission.
+        </p>
+      </div>
+
+      {submissions.length === 0 ? (
+        <div className="rounded-3xl border border-white/10 bg-slate-900 p-8 text-center text-slate-300">
+          <h3 className="text-xl font-bold text-white">
+            No pending submissions
+          </h3>
+          <p className="mt-2">
+            Any new species submissions waiting on verification will show here.
+          </p>
+          <Link
+            href="/submit"
+            className="mt-5 inline-flex rounded-xl bg-emerald-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-emerald-300"
+          >
+            Submit New Species
+          </Link>
+        </div>
+      ) : (
+        submissions.map((submission) => (
+          <PendingSubmissionForm
+            key={submission.id}
+            submission={submission}
+            saveAction={saveAction}
+          />
+        ))
+      )}
+    </section>
+  );
+}
+
+function PendingSubmissionForm({
+  submission,
+  saveAction,
+}: {
+  submission: PendingSubmission;
+  saveAction: (formData: FormData) => Promise<void>;
+}) {
+  return (
+    <form
+      action={saveAction}
+      className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-xl shadow-black/20"
+    >
+      <input type="hidden" name="submission_id" value={submission.id} />
+
+      <div className="grid gap-5 border-b border-white/10 p-5 md:grid-cols-[180px_1fr]">
+        <div>
+          {submission.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={submission.image_url}
+              alt={submission.common_name}
+              className="h-44 w-full rounded-2xl object-cover"
+            />
+          ) : (
+            <div className="grid h-44 place-items-center rounded-2xl border border-dashed border-white/15 bg-slate-950 px-4 text-center text-sm text-slate-500">
+              No image submitted
+            </div>
+          )}
+        </div>
+
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.25em] text-amber-300">
+            Pending Verification
+          </p>
+          <h3 className="mt-2 text-2xl font-bold text-white">
+            {submission.common_name}
+          </h3>
+          <p className="mt-2 text-sm text-slate-400">
+            Submitted {formatDate(submission.created_at)}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-5 p-5">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <SubmissionInput
+            label="Common Name"
+            name="common_name"
+            defaultValue={submission.common_name}
+            required
+          />
+          <SubmissionInput
+            label="Scientific Name"
+            name="scientific_name"
+            defaultValue={submission.scientific_name}
+          />
+          <SubmissionInput
+            label="Organism Type"
+            name="organism_type"
+            defaultValue={submission.organism_type}
+          />
+          <SubmissionInput
+            label="Trade Names"
+            name="trade_names"
+            defaultValue={submission.trade_names}
+          />
+          <SubmissionInput
+            label="Genus"
+            name="genus"
+            defaultValue={submission.genus}
+          />
+          <SubmissionInput
+            label="Species"
+            name="species"
+            defaultValue={submission.species}
+          />
+          <SubmissionInput
+            label="Morph"
+            name="morph"
+            defaultValue={submission.morph}
+          />
+          <label className="grid gap-2">
+            <span className="text-sm font-medium text-slate-200">
+              Difficulty
+            </span>
+            <select
+              name="difficulty"
+              defaultValue={submission.difficulty || ""}
+              className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+            >
+              <option value="">Not listed</option>
+              {difficultyOptions.map((difficulty) => (
+                <option key={difficulty} value={difficulty}>
+                  {difficulty}
+                </option>
+              ))}
+            </select>
+          </label>
+          <SubmissionInput
+            label="Origin"
+            name="origin"
+            defaultValue={submission.origin}
+          />
+          <SubmissionInput
+            label="Temperature"
+            name="temperature"
+            defaultValue={submission.temperature}
+          />
+          <SubmissionInput
+            label="Humidity"
+            name="humidity"
+            defaultValue={submission.humidity}
+          />
+          <SubmissionInput
+            label="Diet"
+            name="diet"
+            defaultValue={submission.diet}
+          />
+          <SubmissionInput
+            label="Substrate"
+            name="substrate"
+            defaultValue={submission.substrate}
+          />
+          <SubmissionInput
+            label="Image URL"
+            name="image_url"
+            defaultValue={submission.image_url}
+          />
+        </div>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-medium text-slate-200">
+            Care Notes
+          </span>
+          <textarea
+            name="notes"
+            defaultValue={submission.notes || ""}
+            rows={6}
+            className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+          />
+        </label>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5">
+          <p className="text-sm text-slate-400">
+            Saving is disabled automatically once this submission is verified.
+          </p>
+          <button
+            type="submit"
+            className="rounded-xl bg-emerald-400 px-6 py-3 font-bold text-slate-950 transition hover:bg-emerald-300"
+          >
+            Save Pending Submission
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+function SubmissionInput({
+  label,
+  name,
+  defaultValue,
+  required,
+}: {
+  label: string;
+  name: string;
+  defaultValue: string | null;
+  required?: boolean;
+}) {
+  return (
+    <label className="grid gap-2">
+      <span className="text-sm font-medium text-slate-200">
+        {label}
+        {required ? " *" : ""}
+      </span>
+      <input
+        name={name}
+        defaultValue={defaultValue || ""}
+        required={required}
+        className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+      />
+    </label>
+  );
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
 }
 
 function AccountTab({
