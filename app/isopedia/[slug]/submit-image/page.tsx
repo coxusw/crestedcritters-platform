@@ -12,6 +12,8 @@ type Species = {
   slug: string;
 };
 
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+
 export default function SubmitSpeciesImagePage() {
   const params = useParams();
   const router = useRouter();
@@ -69,6 +71,16 @@ export default function SubmitSpeciesImagePage() {
 
     if (!imageFile) {
       setError("Please upload an image.");
+      return;
+    }
+
+    if (!imageFile.type.startsWith("image/")) {
+      setError("Uploaded file must be an image.");
+      return;
+    }
+
+    if (imageFile.size > MAX_IMAGE_BYTES) {
+      setError("Image must be under 25MB.");
       return;
     }
 
@@ -197,6 +209,10 @@ export default function SubmitSpeciesImagePage() {
                 }
                 className="rounded-2xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white"
               />
+
+              <span className="text-xs text-emerald-50/45">
+                JPG, PNG, WEBP, or GIF. Max 25MB.
+              </span>
             </label>
 
             <label className="grid gap-2">

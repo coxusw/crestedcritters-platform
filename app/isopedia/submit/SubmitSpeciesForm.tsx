@@ -6,7 +6,7 @@ import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
 const DIFFICULTY_OPTIONS = ["Beginner", "Intermediate", "Expert"] as const;
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 
 type Status = {
   tone: "idle" | "good" | "bad";
@@ -59,7 +59,7 @@ export default function SubmitSpeciesForm({ userId }: { userId: string }) {
     }
 
     if (file.size > MAX_IMAGE_BYTES) {
-      throw new Error("Image must be under 10MB.");
+      throw new Error("Image must be under 25MB.");
     }
 
     const extension = getSafeImageExtension(file);
@@ -337,7 +337,7 @@ function ImageUploadField() {
       />
 
       <span className="text-xs text-emerald-50/45">
-        Optional. JPG, PNG, WEBP, or GIF. Max 10MB.
+        Optional. JPG, PNG, WEBP, or GIF. Max 25MB.
       </span>
     </label>
   );

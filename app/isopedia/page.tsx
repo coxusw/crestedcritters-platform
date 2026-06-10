@@ -27,11 +27,17 @@ type Species = {
   image_url: string | null;
 };
 
+type GalleryCoverImage = {
+  species_id: number;
+  image_url: string | null;
+};
+
 export async function IsopediaLandingPage() {
   const supabase = await createSupabaseServerClient();
 
   const [
     speciesResult,
+    galleryCoverResult,
     submissionsResult,
     editsResult,
     imagesResult,
@@ -60,6 +66,14 @@ export async function IsopediaLandingPage() {
       .returns<Species[]>(),
 
     supabase
+      .from("isopedia_species_images")
+      .select("species_id, image_url")
+      .eq("status", "verified")
+      .order("is_featured", { ascending: false })
+      .order("created_at", { ascending: false })
+      .returns<GalleryCoverImage[]>(),
+
+    supabase
       .from("isopedia_submissions")
       .select("id", { count: "exact", head: true })
       .eq("status", "unverified"),
@@ -84,7 +98,24 @@ export async function IsopediaLandingPage() {
     throw new Error(speciesResult.error.message);
   }
 
-  const entries = speciesResult.data || [];
+  if (galleryCoverResult.error) {
+    throw new Error(galleryCoverResult.error.message);
+  }
+
+  const galleryCoverBySpeciesId = new Map<number, string>();
+
+  for (const image of galleryCoverResult.data || []) {
+    if (!image.image_url || galleryCoverBySpeciesId.has(image.species_id)) {
+      continue;
+    }
+
+    galleryCoverBySpeciesId.set(image.species_id, image.image_url);
+  }
+
+  const entries = (speciesResult.data || []).map((entry) => ({
+    ...entry,
+    image_url: entry.image_url || galleryCoverBySpeciesId.get(entry.id) || null,
+  }));
   const totalSpecies = entries.length;
 
   const pendingReviews =

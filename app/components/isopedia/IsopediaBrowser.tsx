@@ -266,8 +266,13 @@ export default function IsopediaBrowser({ species }: Props) {
                     className="h-full w-full object-contain transition group-hover:scale-[1.03]"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center rounded-2xl border border-dashed border-emerald-900/60 text-sm text-emerald-100/40">
-                    No image
+                  <div className="flex h-full w-full flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-900/60 px-4 text-center">
+                    <span className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300/70">
+                      Help grow the database
+                    </span>
+                    <span className="mt-2 text-lg font-black text-emerald-50/80">
+                      Add a photo
+                    </span>
                   </div>
                 )}
               </div>
