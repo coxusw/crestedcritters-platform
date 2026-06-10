@@ -23,6 +23,17 @@ function appQuery(app: string) {
   return app ? `&app=${encodeURIComponent(app)}` : "";
 }
 
+async function hasProfileUsername(userId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("id", userId)
+    .maybeSingle<{ username: string | null }>();
+
+  return Boolean(profile?.username);
+}
+
 async function currentOrigin() {
   const headersList = await headers();
   const host = headersList.get("x-forwarded-host") || headersList.get("host");
@@ -88,6 +99,14 @@ async function createAccount(formData: FormData) {
 
   if (!data.session) {
     redirect(`/signup?message=check-email&next=${encodeURIComponent(next)}${appQuery(app)}`);
+  }
+
+  if (app !== "randomizer" && data.user?.id) {
+    const hasUsername = await hasProfileUsername(data.user.id);
+
+    if (!hasUsername) {
+      redirect("/account?welcome=true");
+    }
   }
 
   redirect(next);

@@ -9,6 +9,12 @@ function safeNextPath(value: string | null) {
   return value;
 }
 
+const skippedProfileSetupHosts = new Set([
+  "admin.crestedcritters.com",
+  "randomizer.crestedcritters.com",
+  "shop.crestedcritters.com",
+]);
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const tokenHash = requestUrl.searchParams.get("token_hash");
@@ -30,6 +36,27 @@ export async function GET(request: Request) {
 
   if (error) {
     return NextResponse.redirect(new URL("/login?error=invalid-auth-link", request.url));
+  }
+
+  const host = requestUrl.hostname.toLowerCase();
+  const isPasswordRecovery = type === "recovery" || next.startsWith("/update-password");
+
+  if (!isPasswordRecovery && !skippedProfileSetupHosts.has(host)) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .maybeSingle<{ username: string | null }>();
+
+      if (!profile?.username) {
+        return NextResponse.redirect(new URL("/account?welcome=true", request.url));
+      }
+    }
   }
 
   return NextResponse.redirect(new URL(next, request.url));
