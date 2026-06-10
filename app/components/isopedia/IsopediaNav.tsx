@@ -79,6 +79,20 @@ export default async function IsopediaNav({
   let canAccessAdmin = false;
   let neededReviewCount = 0;
   let unreadMessageCount = 0;
+  let upcomingExpoCount = 0;
+
+  const now = new Date();
+  const twoWeeksFromNow = new Date(now);
+  twoWeeksFromNow.setDate(twoWeeksFromNow.getDate() + 14);
+
+  const { count: expoCount } = await supabase
+    .from("isopedia_expos")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "approved")
+    .gte("starts_at", now.toISOString())
+    .lte("starts_at", twoWeeksFromNow.toISOString());
+
+  upcomingExpoCount = expoCount || 0;
 
   if (user) {
     const [
@@ -202,6 +216,11 @@ export default async function IsopediaNav({
                 {item.key === "review" && neededReviewCount > 0 && (
                   <span className="absolute -right-2 -top-2 grid min-h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-black leading-none text-white shadow-lg shadow-red-950/40 ring-2 ring-[#102016]">
                     {neededReviewCount > 99 ? "99+" : neededReviewCount}
+                  </span>
+                )}
+                {item.key === "expos" && upcomingExpoCount > 0 && (
+                  <span className="absolute -right-2 -top-2 grid min-h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-black leading-none text-white shadow-lg shadow-red-950/40 ring-2 ring-[#102016]">
+                    {upcomingExpoCount > 99 ? "99+" : upcomingExpoCount}
                   </span>
                 )}
               </Link>
