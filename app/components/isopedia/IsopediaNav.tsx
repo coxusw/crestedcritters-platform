@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { filterReviewableGalleryImages } from "@/lib/isopedia-gallery-review";
 
 type Props = {
   active?:
@@ -76,9 +77,17 @@ export default async function IsopediaNav({
 
   let username: string | null = null;
   let canAccessAdmin = false;
+  let neededReviewCount = 0;
 
   if (user) {
-    const [{ data: profile }, { data: adminProfile }] =
+    const [
+      { data: profile },
+      { data: adminProfile },
+      submissionsResult,
+      editsResult,
+      imagesResult,
+      verifiedImagesResult,
+    ] =
       await Promise.all([
         supabase
           .from("profiles")
@@ -94,9 +103,45 @@ export default async function IsopediaNav({
           .select("id")
           .eq("id", user.id)
           .maybeSingle(),
+
+        supabase
+          .from("isopedia_submissions")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "unverified"),
+
+        supabase
+          .from("isopedia_suggested_edits")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "unverified"),
+
+        supabase
+          .from("isopedia_species_images")
+          .select(
+            `
+            id,
+            species_id,
+            image_url,
+            isopedia_species:species_id (
+              image_url
+            )
+            `
+          )
+          .eq("status", "unverified"),
+
+        supabase
+          .from("isopedia_species_images")
+          .select("species_id, image_url")
+          .eq("status", "verified"),
       ]);
 
     username = profile?.username || null;
+    neededReviewCount =
+      (submissionsResult.count || 0) +
+      (editsResult.count || 0) +
+      filterReviewableGalleryImages(
+        imagesResult.data,
+        verifiedImagesResult.data
+      ).length;
 
     canAccessAdmin =
       Boolean(adminProfile) ||
@@ -129,13 +174,18 @@ export default async function IsopediaNav({
               <Link
                 key={item.key}
                 href={item.href}
-                className={`rounded-xl border px-4 py-2 text-sm font-black transition ${
+                className={`relative rounded-xl border px-4 py-2 text-sm font-black transition ${
                   isActive
                     ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
                     : "border-white/10 bg-[#07130c] text-white hover:bg-[#18291d]"
                 }`}
               >
                 {item.label}
+                {item.key === "review" && neededReviewCount > 0 && (
+                  <span className="absolute -right-2 -top-2 grid min-h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-black leading-none text-white shadow-lg shadow-red-950/40 ring-2 ring-[#102016]">
+                    {neededReviewCount > 99 ? "99+" : neededReviewCount}
+                  </span>
+                )}
               </Link>
             );
           })}
