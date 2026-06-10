@@ -275,7 +275,7 @@ export default async function AccountPage({
 
         {params.welcome === "true" && !profile?.username && (
           <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-200">
-            Account created. Finish your profile so your submissions, photos, and reviews show who contributed them.
+            Finish your profile first by choosing your public username. After that, you will be prompted to review the legal and age requirements.
           </div>
         )}
 

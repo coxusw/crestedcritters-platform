@@ -36,10 +36,12 @@ export default async function BirthDateGate() {
       }>(),
     supabase
       .from("profiles")
-      .select("birth_date")
+      .select("username, birth_date")
       .eq("id", user.id)
-      .maybeSingle<{ birth_date: string | null }>(),
+      .maybeSingle<{ username: string | null; birth_date: string | null }>(),
   ]);
+
+  if (profileError || !profile?.username) return null;
 
   if (
     acceptance?.legal_version !== ISOPEDIA_LEGAL_VERSION ||
@@ -48,7 +50,6 @@ export default async function BirthDateGate() {
     return null;
   }
 
-  if (profileError) return null;
   if (profile?.birth_date) return null;
 
   return <BirthDateModal action={saveIsopediaBirthDate} />;

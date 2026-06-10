@@ -25,15 +25,24 @@ export default async function LegalAcceptanceGate() {
 
   if (!user) return null;
 
-  const { data, error } = await supabase
-    .from("isopedia_legal_acceptances")
-    .select("legal_version, content_license_acknowledged")
-    .eq("profile_id", user.id)
-    .maybeSingle<{
-      legal_version: string | null;
-      content_license_acknowledged: boolean | null;
-    }>();
+  const [{ data: profile, error: profileError }, { data, error }] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .maybeSingle<{ username: string | null }>(),
+      supabase
+        .from("isopedia_legal_acceptances")
+        .select("legal_version, content_license_acknowledged")
+        .eq("profile_id", user.id)
+        .maybeSingle<{
+          legal_version: string | null;
+          content_license_acknowledged: boolean | null;
+        }>(),
+    ]);
 
+  if (profileError || !profile?.username) return null;
   if (error) return null;
 
   if (

@@ -51,6 +51,18 @@ async function signIn(formData: FormData) {
     redirect(forceNext);
   }
 
+  if (app !== "randomizer" && user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", user.id)
+      .maybeSingle<{ username: string | null }>();
+
+    if (!profile?.username) {
+      redirect("/account?welcome=true");
+    }
+  }
+
   redirect(next);
 }
 
