@@ -91,7 +91,8 @@ export default async function AdminIsopediaPage() {
       .eq("status", "unverified"),
     supabase
       .from("isopedia_suggested_edits")
-      .select("id", { count: "exact", head: true }),
+      .select("id", { count: "exact", head: true })
+      .eq("status", "unverified"),
     supabase.from("profile_badges").select("id", { count: "exact", head: true }),
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase
