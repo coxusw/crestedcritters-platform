@@ -78,6 +78,7 @@ export default async function IsopediaNav({
   let username: string | null = null;
   let canAccessAdmin = false;
   let neededReviewCount = 0;
+  let unreadMessageCount = 0;
 
   if (user) {
     const [
@@ -87,6 +88,8 @@ export default async function IsopediaNav({
       editsResult,
       imagesResult,
       verifiedImagesResult,
+      contactMessagesResult,
+      profileMessagesResult,
     ] =
       await Promise.all([
         supabase
@@ -132,6 +135,19 @@ export default async function IsopediaNav({
           .from("isopedia_species_images")
           .select("species_id, image_url")
           .eq("status", "verified"),
+
+        supabase
+          .from("isopedia_contact_messages")
+          .select("id", { count: "exact", head: true })
+          .eq("submitted_by", user.id)
+          .not("admin_response", "is", null)
+          .is("user_read_at", null),
+
+        supabase
+          .from("isopedia_profile_messages")
+          .select("id", { count: "exact", head: true })
+          .eq("recipient_id", user.id)
+          .is("read_at", null),
       ]);
 
     username = profile?.username || null;
@@ -142,6 +158,8 @@ export default async function IsopediaNav({
         imagesResult.data,
         verifiedImagesResult.data
       ).length;
+    unreadMessageCount =
+      (contactMessagesResult.count || 0) + (profileMessagesResult.count || 0);
 
     canAccessAdmin =
       Boolean(adminProfile) ||
@@ -202,6 +220,17 @@ export default async function IsopediaNav({
               >
                 My Profile
               </Link>
+              {unreadMessageCount > 0 && (
+                <Link
+                  href={`${profileHref}#messages`}
+                  className="relative rounded-xl border border-white/10 bg-[#07130c] px-4 py-2 text-sm font-black text-white transition hover:bg-[#18291d]"
+                >
+                  Messages
+                  <span className="absolute -right-2 -top-2 grid min-h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-black leading-none text-white shadow-lg shadow-red-950/40 ring-2 ring-[#102016]">
+                    {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+                  </span>
+                </Link>
+              )}
               <Link
                 href="/account?tab=settings"
                 className="rounded-xl border border-white/10 bg-[#07130c] px-4 py-2 text-sm font-black text-white transition hover:bg-[#18291d]"

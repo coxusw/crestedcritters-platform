@@ -29,6 +29,13 @@ type ContactMessage = {
   } | null;
 };
 
+type ProfileRecipient = {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  business_name: string | null;
+};
+
 function cleanText(value: FormDataEntryValue | null, maxLength = 4000) {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, maxLength);
@@ -121,10 +128,69 @@ async function updateContactMessageStatus(formData: FormData) {
   revalidatePath("/admin/isopedia");
 }
 
+async function sendAdminProfileMessage(formData: FormData) {
+  "use server";
+
+  const { supabase, user } = await requireAdmin();
+  const audience = cleanText(formData.get("audience"), 40);
+  const recipientId = cleanText(formData.get("recipient_id"), 80);
+  const subject = cleanText(formData.get("subject"), 200) || null;
+  const body = cleanText(formData.get("body"), 4000);
+
+  if (!["individual", "all"].includes(audience)) {
+    throw new Error("Invalid message audience.");
+  }
+
+  if (audience === "individual" && !recipientId) {
+    throw new Error("Choose a recipient.");
+  }
+
+  if (!body) {
+    throw new Error("Message body is required.");
+  }
+
+  let recipientIds: string[] = [];
+
+  if (audience === "all") {
+    const { data: profiles, error } = await supabase
+      .from("profiles")
+      .select("id")
+      .returns<Array<{ id: string }>>();
+
+    if (error) throw new Error(error.message);
+    recipientIds = (profiles || []).map((profile) => profile.id);
+  } else {
+    recipientIds = [recipientId];
+  }
+
+  if (!recipientIds.length) {
+    throw new Error("No matching recipients found.");
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("isopedia_profile_messages").insert(
+    recipientIds.map((id) => ({
+      recipient_id: id,
+      sent_by: user.id,
+      audience,
+      subject,
+      body,
+      created_at: now,
+      updated_at: now,
+    }))
+  );
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin/isopedia/contact");
+  revalidatePath("/admin/isopedia");
+  redirect("/admin/isopedia/contact?sent=true");
+}
+
 export default async function AdminIsopediaContactPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; status?: string }>;
+  searchParams: Promise<{ saved?: string; sent?: string; status?: string }>;
 }) {
   const params = await searchParams;
   const { supabase } = await requireAdmin();
@@ -167,6 +233,12 @@ export default async function AdminIsopediaContactPage({
 
   if (error) throw new Error(error.message);
 
+  const { data: recipients } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, business_name")
+    .order("username", { ascending: true })
+    .returns<ProfileRecipient[]>();
+
   return (
     <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -197,6 +269,90 @@ export default async function AdminIsopediaContactPage({
             Response saved.
           </div>
         )}
+
+        {params.sent === "true" && (
+          <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-100">
+            Admin message sent.
+          </div>
+        )}
+
+        <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300">
+            Send Message
+          </p>
+          <h2 className="mt-2 text-2xl font-black text-white">
+            Message users
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            Send a private message to one account or an announcement to all
+            Isopedia accounts. Users will see unread messages on their profile
+            and in the top navigation.
+          </p>
+
+          <form action={sendAdminProfileMessage} className="mt-5 grid gap-4">
+            <div className="grid gap-4 md:grid-cols-[180px_1fr]">
+              <label className="grid gap-2">
+                <span className="text-sm font-bold text-slate-200">
+                  Audience
+                </span>
+                <select
+                  name="audience"
+                  defaultValue="individual"
+                  className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-white outline-none ring-emerald-400/30 focus:ring-4"
+                >
+                  <option value="individual">Individual</option>
+                  <option value="all">All accounts</option>
+                </select>
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-bold text-slate-200">
+                  Individual Recipient
+                </span>
+                <select
+                  name="recipient_id"
+                  className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-white outline-none ring-emerald-400/30 focus:ring-4"
+                >
+                  <option value="">Choose a user for individual messages</option>
+                  {(recipients || []).map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {recipientName(profile)}
+                      {profile.username ? ` (@${profile.username})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-bold text-slate-200">Subject</span>
+              <input
+                name="subject"
+                maxLength={200}
+                className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-white outline-none ring-emerald-400/30 focus:ring-4"
+              />
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-bold text-slate-200">
+                Message
+              </span>
+              <textarea
+                name="body"
+                rows={5}
+                required
+                className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-white outline-none ring-emerald-400/30 focus:ring-4"
+              />
+            </label>
+
+            <button
+              type="submit"
+              className="w-fit rounded-md bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 hover:bg-emerald-300"
+            >
+              Send Message
+            </button>
+          </form>
+        </section>
 
         <nav className="flex flex-wrap gap-2 rounded-lg border border-white/10 bg-white/[0.04] p-2">
           {(["open", "reviewed", "archived"] as const).map((status) => (
@@ -345,4 +501,13 @@ function formatDate(value: string | null) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function recipientName(profile: ProfileRecipient) {
+  return (
+    profile.display_name ||
+    profile.business_name ||
+    profile.username ||
+    "Unnamed user"
+  );
 }

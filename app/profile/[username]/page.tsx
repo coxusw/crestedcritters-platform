@@ -93,7 +93,22 @@ type ContactMessage = {
   status: string;
   admin_response: string | null;
   responded_at: string | null;
+  user_read_at: string | null;
   created_at: string;
+};
+
+type ProfileMessage = {
+  id: string;
+  subject: string | null;
+  body: string;
+  audience: string;
+  read_at: string | null;
+  created_at: string;
+  sender: {
+    username: string | null;
+    display_name: string | null;
+    business_name: string | null;
+  } | null;
 };
 
 type PageProps = {
@@ -431,6 +446,17 @@ export default async function PublicProfilePage({ params }: PageProps) {
   const contactMessages = isOwner
     ? await getOwnContactMessages(supabase, profile.id)
     : [];
+  const profileMessages = isOwner
+    ? await getOwnProfileMessages(supabase, profile.id)
+    : [];
+  const unreadMessageCount =
+    contactMessages.filter(
+      (message) => message.admin_response && !message.user_read_at
+    ).length + profileMessages.filter((message) => !message.read_at).length;
+
+  if (isOwner && unreadMessageCount > 0) {
+    await markOwnMessagesRead(supabase);
+  }
 
   const profileJsonLd = {
     "@context": "https://schema.org",
@@ -485,9 +511,14 @@ export default async function PublicProfilePage({ params }: PageProps) {
                 <>
                   <Link
                     href="#messages"
-                    className="shrink-0 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center text-xs font-black text-white transition hover:bg-black/30"
+                    className="relative shrink-0 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center text-xs font-black text-white transition hover:bg-black/30"
                   >
                     Messages
+                    {unreadMessageCount > 0 && (
+                      <span className="absolute -right-2 -top-2 grid min-h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-black leading-none text-white shadow-lg shadow-red-950/40 ring-2 ring-[#102016]">
+                        {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+                      </span>
+                    )}
                   </Link>
                   <Link
                     href="/account?tab=submissions"
@@ -769,7 +800,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
                   <div>
                     <h2 className="text-xl font-black text-white">Messages</h2>
                     <p className="mt-1 text-sm text-emerald-50/55">
-                      Private replies from admins about Contact Us submissions.
+                      Private admin messages and replies about Contact Us submissions.
                     </p>
                   </div>
                   <Link
@@ -781,11 +812,53 @@ export default async function PublicProfilePage({ params }: PageProps) {
                 </div>
 
                 <div className="mt-4 grid gap-3">
-                  {contactMessages.length > 0 ? (
+                  {profileMessages.length > 0 &&
+                    profileMessages.map((message) => (
+                      <article
+                        key={message.id}
+                        className={`rounded-xl border p-4 ${
+                          message.read_at
+                            ? "border-white/10 bg-[#07130c]/70"
+                            : "border-red-400/30 bg-red-500/10"
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
+                              Admin Message
+                            </p>
+                            <h3 className="mt-2 text-base font-black text-white">
+                              {message.subject || "Isopedia message"}
+                            </h3>
+                            <p className="mt-1 text-xs text-emerald-50/40">
+                              Sent {formatProfileDate(message.created_at)}
+                              {message.sender
+                                ? ` by ${profileMessageSenderName(message.sender)}`
+                                : ""}
+                            </p>
+                          </div>
+                          {!message.read_at && (
+                            <span className="rounded-full bg-red-500 px-3 py-1 text-[11px] font-black uppercase text-white">
+                              Unread
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-emerald-50/80">
+                          {message.body}
+                        </p>
+                      </article>
+                    ))}
+
+                  {contactMessages.length > 0 &&
                     contactMessages.map((message) => (
                       <article
                         key={message.id}
-                        className="rounded-xl border border-white/10 bg-[#07130c]/70 p-4"
+                        className={`rounded-xl border p-4 ${
+                          message.admin_response && !message.user_read_at
+                            ? "border-red-400/30 bg-red-500/10"
+                            : "border-white/10 bg-[#07130c]/70"
+                        }`}
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
@@ -800,7 +873,9 @@ export default async function PublicProfilePage({ params }: PageProps) {
                             </p>
                           </div>
                           <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] font-black uppercase text-emerald-100/70">
-                            {message.status}
+                            {message.admin_response && !message.user_read_at
+                              ? "Unread"
+                              : message.status}
                           </span>
                         </div>
 
@@ -831,10 +906,11 @@ export default async function PublicProfilePage({ params }: PageProps) {
                           </p>
                         )}
                       </article>
-                    ))
-                  ) : (
+                    ))}
+
+                  {profileMessages.length === 0 && contactMessages.length === 0 && (
                     <p className="rounded-xl border border-white/10 bg-[#07130c]/70 p-4 text-sm text-emerald-50/50">
-                      You do not have any Contact Us messages yet.
+                      You do not have any messages yet.
                     </p>
                   )}
                 </div>
@@ -1078,7 +1154,7 @@ async function getOwnContactMessages(
   const { data, error } = await supabase
     .from("isopedia_contact_messages")
     .select(
-      "id, category, subject, message, status, admin_response, responded_at, created_at"
+      "id, category, subject, message, status, admin_response, responded_at, user_read_at, created_at"
     )
     .eq("submitted_by", profileId)
     .order("created_at", { ascending: false })
@@ -1088,6 +1164,54 @@ async function getOwnContactMessages(
   if (error || !data) return [];
 
   return data;
+}
+
+async function getOwnProfileMessages(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  profileId: string
+) {
+  const { data, error } = await supabase
+    .from("isopedia_profile_messages")
+    .select(
+      `
+      id,
+      subject,
+      body,
+      audience,
+      read_at,
+      created_at,
+      sender:sent_by (
+        username,
+        display_name,
+        business_name
+      )
+    `
+    )
+    .eq("recipient_id", profileId)
+    .order("created_at", { ascending: false })
+    .limit(10)
+    .returns<ProfileMessage[]>();
+
+  if (error || !data) return [];
+
+  return data;
+}
+
+async function markOwnMessagesRead(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
+) {
+  await supabase.rpc("mark_own_isopedia_messages_read");
+}
+
+function profileMessageSenderName(
+  profile: NonNullable<ProfileMessage["sender"]>
+) {
+  return (
+    profile.display_name ||
+    profile.business_name ||
+    profile.username ||
+    "Isopedia Admin"
+  );
 }
 
 function formatProfileDate(value: string | null) {
