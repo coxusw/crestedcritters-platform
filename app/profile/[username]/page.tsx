@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { getProfileFeatureAccess } from "@/lib/isopedia-feature-flags";
@@ -103,6 +103,8 @@ type ProfileMessage = {
   body: string;
   audience: string;
   read_at: string | null;
+  user_reply: string | null;
+  user_replied_at: string | null;
   created_at: string;
   sender: {
     username: string | null;
@@ -137,6 +139,11 @@ const badgeColorClasses: Record<string, string> = {
   zinc: "border-zinc-400/30 bg-zinc-400/10 text-zinc-200",
   neutral: "border-neutral-400/30 bg-neutral-400/10 text-neutral-200",
 };
+
+function cleanText(value: FormDataEntryValue | null, maxLength = 4000) {
+  if (typeof value !== "string") return "";
+  return value.trim().slice(0, maxLength);
+}
 
 function publicProfileName(
   profile: Pick<Profile, "username" | "display_name" | "business_name">
@@ -318,6 +325,42 @@ async function updateProfileActivityVisibility(formData: FormData) {
   if (username) {
     revalidatePath(`/profile/${username}`);
   }
+}
+
+async function replyToProfileMessage(formData: FormData) {
+  "use server";
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const messageId = cleanText(formData.get("message_id"), 80);
+  const username = cleanText(formData.get("username"), 80);
+  const replyBody = cleanText(formData.get("reply_body"), 4000);
+
+  if (!messageId || !replyBody) {
+    throw new Error("Reply is required.");
+  }
+
+  const { error } = await supabase.rpc(
+    "reply_to_own_isopedia_profile_message",
+    {
+      message_id: messageId,
+      reply_body: replyBody,
+    }
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath(username ? `/profile/${username}` : "/account");
+  redirect(username ? `/profile/${username}#messages` : "/account");
 }
 
 export default async function PublicProfilePage({ params }: PageProps) {
@@ -847,6 +890,53 @@ export default async function PublicProfilePage({ params }: PageProps) {
                         <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-emerald-50/80">
                           {message.body}
                         </p>
+
+                        {message.user_reply && (
+                          <div className="mt-3 rounded-lg border border-lime-300/20 bg-lime-300/5 p-3">
+                            <p className="text-xs font-black uppercase tracking-[0.18em] text-lime-200">
+                              Your Reply
+                            </p>
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-50/80">
+                              {message.user_reply}
+                            </p>
+                            <p className="mt-2 text-xs text-emerald-50/40">
+                              Sent {formatProfileDate(message.user_replied_at)}
+                            </p>
+                          </div>
+                        )}
+
+                        <form action={replyToProfileMessage} className="mt-3 grid gap-2">
+                          <input
+                            type="hidden"
+                            name="message_id"
+                            value={message.id}
+                          />
+                          <input
+                            type="hidden"
+                            name="username"
+                            value={usernameForLinks}
+                          />
+                          <label className="grid gap-2">
+                            <span className="text-xs font-black uppercase tracking-[0.18em] text-emerald-100/50">
+                              Reply
+                            </span>
+                            <textarea
+                              name="reply_body"
+                              rows={3}
+                              maxLength={4000}
+                              defaultValue={message.user_reply || ""}
+                              placeholder="Write a private reply to the admin team..."
+                              required
+                              className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
+                            />
+                          </label>
+                          <button
+                            type="submit"
+                            className="w-fit rounded-lg bg-emerald-400 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-emerald-300"
+                          >
+                            {message.user_reply ? "Update Reply" : "Send Reply"}
+                          </button>
+                        </form>
                       </article>
                     ))}
 
@@ -1179,6 +1269,8 @@ async function getOwnProfileMessages(
       body,
       audience,
       read_at,
+      user_reply,
+      user_replied_at,
       created_at,
       sender:sent_by (
         username,

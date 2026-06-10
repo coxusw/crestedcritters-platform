@@ -102,7 +102,7 @@ async function assignBadge(formData: FormData) {
 
   const { supabase, user } = await requireAdmin();
 
-  const username = cleanText(formData.get("username")).toLowerCase();
+  const username = cleanText(formData.get("username"));
   const badgeId = cleanText(formData.get("badge_id"));
 
   if (!username || !badgeId) {
@@ -111,9 +111,9 @@ async function assignBadge(formData: FormData) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id")
-    .eq("username", username)
-    .maybeSingle<{ id: string }>();
+    .select("id, username")
+    .ilike("username", username)
+    .maybeSingle<{ id: string; username: string | null }>();
 
   if (!profile) {
     redirect("/admin/isopedia/badges?error=user-not-found");
@@ -129,9 +129,11 @@ async function assignBadge(formData: FormData) {
     redirect("/admin/isopedia/badges?error=assign-badge-failed");
   }
 
+  const profileUsername = profile.username || username;
+
   revalidatePath("/admin/isopedia/badges");
-  revalidatePath(`/isopedia/profile/${username}`);
-  revalidatePath(`/isopedia/collection/${username}`);
+  revalidatePath(`/isopedia/profile/${profileUsername}`);
+  revalidatePath(`/isopedia/collection/${profileUsername}`);
 
   redirect("/admin/isopedia/badges?assigned=true");
 }

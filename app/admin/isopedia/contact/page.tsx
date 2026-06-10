@@ -36,6 +36,17 @@ type ProfileRecipient = {
   business_name: string | null;
 };
 
+type ProfileMessageReply = {
+  id: string;
+  subject: string | null;
+  body: string;
+  user_reply: string | null;
+  user_replied_at: string | null;
+  created_at: string;
+  recipient: ProfileRecipient | null;
+  sender: ProfileRecipient | null;
+};
+
 function cleanText(value: FormDataEntryValue | null, maxLength = 4000) {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, maxLength);
@@ -237,7 +248,37 @@ export default async function AdminIsopediaContactPage({
     .from("profiles")
     .select("id, username, display_name, business_name")
     .order("username", { ascending: true })
+    .range(0, 4999)
     .returns<ProfileRecipient[]>();
+
+  const { data: profileMessageReplies } = await supabase
+    .from("isopedia_profile_messages")
+    .select(
+      `
+      id,
+      subject,
+      body,
+      user_reply,
+      user_replied_at,
+      created_at,
+      recipient:recipient_id (
+        id,
+        username,
+        display_name,
+        business_name
+      ),
+      sender:sent_by (
+        id,
+        username,
+        display_name,
+        business_name
+      )
+    `
+    )
+    .not("user_reply", "is", null)
+    .order("user_replied_at", { ascending: false })
+    .limit(25)
+    .returns<ProfileMessageReply[]>();
 
   return (
     <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
@@ -352,6 +393,80 @@ export default async function AdminIsopediaContactPage({
               Send Message
             </button>
           </form>
+        </section>
+
+        <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300">
+            Admin Message Replies
+          </p>
+          <h2 className="mt-2 text-2xl font-black text-white">
+            User replies
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            Replies sent from private admin messages on user profile pages.
+          </p>
+
+          <div className="mt-5 grid gap-4">
+            {(profileMessageReplies || []).length > 0 ? (
+              profileMessageReplies?.map((message) => (
+                <article
+                  key={message.id}
+                  className="rounded-lg border border-lime-300/20 bg-lime-300/[0.04] p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-white">
+                        {message.subject || "Isopedia message"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Reply from {recipientName(message.recipient || {})}
+                        {message.recipient?.username
+                          ? ` (@${message.recipient.username})`
+                          : ""}{" "}
+                        on {formatDate(message.user_replied_at)}
+                      </p>
+                    </div>
+                    {message.recipient?.username && (
+                      <Link
+                        href={`/profile/${message.recipient.username}`}
+                        className="rounded-md border border-white/10 px-3 py-2 text-xs font-bold text-emerald-200 hover:bg-white/10"
+                      >
+                        View Profile
+                      </Link>
+                    )}
+                  </div>
+
+                  <div className="mt-3 rounded-md border border-white/10 bg-black/20 p-3">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                      Original Admin Message
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                      {message.body}
+                    </p>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Sent {formatDate(message.created_at)}
+                      {message.sender?.username
+                        ? ` by @${message.sender.username}`
+                        : ""}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 rounded-md border border-lime-300/20 bg-lime-300/10 p-3">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-lime-200">
+                      User Reply
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-lime-50/90">
+                      {message.user_reply}
+                    </p>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <p className="rounded-md border border-white/10 bg-black/20 p-4 text-sm text-slate-400">
+                No admin message replies yet.
+              </p>
+            )}
+          </div>
         </section>
 
         <nav className="flex flex-wrap gap-2 rounded-lg border border-white/10 bg-white/[0.04] p-2">
@@ -503,7 +618,7 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
-function recipientName(profile: ProfileRecipient) {
+function recipientName(profile: Partial<ProfileRecipient>) {
   return (
     profile.display_name ||
     profile.business_name ||

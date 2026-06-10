@@ -26,6 +26,7 @@ export default function AdminBadgeAssignmentForm({ profiles, badges }: Props) {
   const [search, setSearch] = useState("");
   const [selectedUsername, setSelectedUsername] = useState("");
 
+  const exactUsername = search.trim();
   const filteredProfiles = useMemo(() => {
     const term = search.toLowerCase().trim();
 
@@ -51,10 +52,15 @@ export default function AdminBadgeAssignmentForm({ profiles, badges }: Props) {
   const selectedProfile = profiles.find(
     (profile) => profile.username === selectedUsername
   );
+  const usernameForSubmission = selectedUsername || exactUsername;
+  const hasExactLoadedMatch = profiles.some(
+    (profile) =>
+      profile.username?.toLowerCase() === exactUsername.toLowerCase()
+  );
 
   return (
     <div className="grid gap-5">
-      <input type="hidden" name="username" value={selectedUsername} />
+      <input type="hidden" name="username" value={usernameForSubmission} />
 
       <label className="grid gap-2">
         <span className="text-sm font-semibold text-emerald-50/80">
@@ -117,13 +123,35 @@ export default function AdminBadgeAssignmentForm({ profiles, badges }: Props) {
                 </button>
               );
             })}
+
+            {exactUsername && !selectedUsername && !hasExactLoadedMatch && (
+              <button
+                type="button"
+                onClick={() => setSelectedUsername(exactUsername)}
+                className="rounded-xl border border-lime-300/40 bg-lime-300/10 p-3 text-left transition hover:bg-lime-300/15"
+              >
+                <p className="font-bold text-white">Use exact username</p>
+                <p className="mt-1 text-sm text-lime-100/70">
+                  @{exactUsername}
+                </p>
+              </button>
+            )}
           </div>
+        ) : exactUsername ? (
+          <button
+            type="button"
+            onClick={() => setSelectedUsername(exactUsername)}
+            className="w-full rounded-xl border border-lime-300/40 bg-lime-300/10 p-3 text-left transition hover:bg-lime-300/15"
+          >
+            <p className="font-bold text-white">Use exact username</p>
+            <p className="mt-1 text-sm text-lime-100/70">@{exactUsername}</p>
+          </button>
         ) : (
           <p className="p-3 text-sm text-emerald-50/50">No users found.</p>
         )}
       </div>
 
-      {selectedProfile && (
+      {selectedProfile ? (
         <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
           <p className="text-xs font-bold uppercase tracking-widest text-emerald-200/70">
             Selected User
@@ -139,7 +167,19 @@ export default function AdminBadgeAssignmentForm({ profiles, badges }: Props) {
             @{selectedProfile.username}
           </p>
         </div>
-      )}
+      ) : selectedUsername ? (
+        <div className="rounded-2xl border border-lime-300/20 bg-lime-300/10 p-4">
+          <p className="text-xs font-bold uppercase tracking-widest text-lime-200/70">
+            Exact Username
+          </p>
+
+          <p className="mt-2 font-black text-white">@{selectedUsername}</p>
+
+          <p className="mt-1 text-sm text-lime-50/70">
+            The server will verify this username before assigning the badge.
+          </p>
+        </div>
+      ) : null}
 
       <label className="grid gap-2">
         <span className="text-sm font-semibold text-emerald-50/80">
@@ -163,9 +203,9 @@ export default function AdminBadgeAssignmentForm({ profiles, badges }: Props) {
 
       <button
         type="submit"
-        disabled={!selectedUsername}
+        disabled={!usernameForSubmission}
         className={
-          selectedUsername
+          usernameForSubmission
             ? "rounded-xl bg-emerald-400 px-6 py-3 font-black text-slate-950 transition hover:bg-emerald-300"
             : "cursor-not-allowed rounded-xl bg-slate-700 px-6 py-3 font-black text-slate-400"
         }
