@@ -490,6 +490,12 @@ export default async function PublicProfilePage({ params }: PageProps) {
                     Messages
                   </Link>
                   <Link
+                    href="/account?tab=submissions"
+                    className="shrink-0 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center text-xs font-black text-white transition hover:bg-black/30"
+                  >
+                    My Pending Submissions
+                  </Link>
+                  <Link
                     href="/account?tab=settings"
                     className="shrink-0 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center text-xs font-black text-white transition hover:bg-black/30"
                   >
