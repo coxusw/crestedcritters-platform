@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { filterReviewableGalleryImages } from "@/lib/isopedia-gallery-review";
+import { isRaffleOpen } from "@/lib/isopedia-raffles";
 
 type Props = {
   active?:
@@ -80,19 +81,32 @@ export default async function IsopediaNav({
   let neededReviewCount = 0;
   let unreadMessageCount = 0;
   let upcomingExpoCount = 0;
+  let hasActiveRaffle = false;
 
   const now = new Date();
   const twoWeeksFromNow = new Date(now);
   twoWeeksFromNow.setDate(twoWeeksFromNow.getDate() + 14);
 
-  const { count: expoCount } = await supabase
-    .from("isopedia_expos")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "approved")
-    .gte("starts_at", now.toISOString())
-    .lte("starts_at", twoWeeksFromNow.toISOString());
+  const [expoBadgeResult, activeRafflesResult] = await Promise.all([
+    supabase
+      .from("isopedia_expos")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "approved")
+      .gte("starts_at", now.toISOString())
+      .lte("starts_at", twoWeeksFromNow.toISOString()),
+    supabase
+      .from("isopedia_raffles")
+      .select("starts_at, ends_at")
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .returns<Array<{ starts_at: string | null; ends_at: string | null }>>(),
+  ]);
 
-  upcomingExpoCount = expoCount || 0;
+  upcomingExpoCount = expoBadgeResult.count || 0;
+  hasActiveRaffle = (activeRafflesResult.data || []).some((raffle) =>
+    isRaffleOpen(raffle, now)
+  );
 
   if (user) {
     const [
@@ -201,6 +215,8 @@ export default async function IsopediaNav({
         <nav className="flex flex-wrap items-center justify-center gap-2">
           {mainNavItems.map((item) => {
             const isActive = active === item.key;
+            const highlightActiveRaffle =
+              item.key === "raffles" && hasActiveRaffle;
 
             return (
               <Link
@@ -208,8 +224,12 @@ export default async function IsopediaNav({
                 href={item.href}
                 className={`relative rounded-xl border px-4 py-2 text-sm font-black transition ${
                   isActive
-                    ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
-                    : "border-white/10 bg-[#07130c] text-white hover:bg-[#18291d]"
+                    ? highlightActiveRaffle
+                      ? "border-lime-300/70 bg-emerald-400/10 text-emerald-100 shadow-[0_0_0_1px_rgba(190,242,100,0.35)]"
+                      : "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+                    : highlightActiveRaffle
+                      ? "border-lime-300/70 bg-lime-300/5 text-lime-100 shadow-[0_0_0_1px_rgba(190,242,100,0.35)] hover:bg-lime-300/10"
+                      : "border-white/10 bg-[#07130c] text-white hover:bg-[#18291d]"
                 }`}
               >
                 {item.label}
