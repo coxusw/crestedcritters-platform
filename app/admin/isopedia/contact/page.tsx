@@ -36,15 +36,27 @@ type ProfileRecipient = {
   business_name: string | null;
 };
 
-type ProfileMessageReply = {
+type ThreadParticipant = {
+  thread_id: string;
+  profile_id: string;
+  profiles: ProfileRecipient | null;
+};
+
+type ThreadMessage = {
+  id: string;
+  thread_id: string;
+  sender_id: string | null;
+  body: string;
+  created_at: string;
+  sender: ProfileRecipient | null;
+};
+
+type AdminMessageThread = {
   id: string;
   subject: string | null;
-  body: string;
-  user_reply: string | null;
-  user_replied_at: string | null;
-  created_at: string;
-  recipient: ProfileRecipient | null;
-  sender: ProfileRecipient | null;
+  last_message_at: string;
+  participants: ThreadParticipant[];
+  messages: ThreadMessage[];
 };
 
 function cleanText(value: FormDataEntryValue | null, maxLength = 4000) {
@@ -270,6 +282,28 @@ async function sendAdminProfileMessage(formData: FormData) {
   redirect("/admin/isopedia/contact?sent=true");
 }
 
+async function sendAdminThreadReply(formData: FormData) {
+  "use server";
+
+  const { supabase } = await requireAdmin();
+  const threadId = cleanText(formData.get("thread_id"), 80);
+  const body = cleanText(formData.get("message_body"), 4000);
+
+  if (!threadId) throw new Error("Missing message thread.");
+  if (!body) throw new Error("Reply is required.");
+
+  const { error } = await supabase.rpc("send_isopedia_thread_message", {
+    target_thread_id: threadId,
+    message_body: body,
+  });
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin/isopedia/contact");
+  revalidatePath("/admin/isopedia");
+  redirect("/admin/isopedia/contact?sent=true");
+}
+
 export default async function AdminIsopediaContactPage({
   searchParams,
 }: {
@@ -323,34 +357,82 @@ export default async function AdminIsopediaContactPage({
     .range(0, 4999)
     .returns<ProfileRecipient[]>();
 
-  const { data: profileMessageReplies } = await supabase
-    .from("isopedia_profile_messages")
-    .select(
-      `
-      id,
-      subject,
-      body,
-      user_reply,
-      user_replied_at,
-      created_at,
-      recipient:recipient_id (
-        id,
-        username,
-        display_name,
-        business_name
-      ),
-      sender:sent_by (
-        id,
-        username,
-        display_name,
-        business_name
-      )
-    `
-    )
-    .not("user_reply", "is", null)
-    .order("user_replied_at", { ascending: false })
+  const { data: messageThreads } = await supabase
+    .from("isopedia_message_threads")
+    .select("id, subject, last_message_at")
+    .order("last_message_at", { ascending: false })
     .limit(25)
-    .returns<ProfileMessageReply[]>();
+    .returns<
+      Array<{
+        id: string;
+        subject: string | null;
+        last_message_at: string;
+      }>
+    >();
+
+  const threadIds = (messageThreads || []).map((thread) => thread.id);
+  const [threadParticipantsResult, threadMessagesResult] = threadIds.length
+    ? await Promise.all([
+        supabase
+          .from("isopedia_message_thread_participants")
+          .select(
+            `
+            thread_id,
+            profile_id,
+            profiles:profile_id (
+              id,
+              username,
+              display_name,
+              business_name
+            )
+          `
+          )
+          .in("thread_id", threadIds)
+          .returns<ThreadParticipant[]>(),
+        supabase
+          .from("isopedia_message_thread_messages")
+          .select(
+            `
+            id,
+            thread_id,
+            sender_id,
+            body,
+            created_at,
+            sender:sender_id (
+              id,
+              username,
+              display_name,
+              business_name
+            )
+          `
+          )
+          .in("thread_id", threadIds)
+          .order("created_at", { ascending: true })
+          .returns<ThreadMessage[]>(),
+      ])
+    : [{ data: [] as ThreadParticipant[] }, { data: [] as ThreadMessage[] }];
+
+  const participantsByThread = new Map<string, ThreadParticipant[]>();
+  for (const participant of threadParticipantsResult.data || []) {
+    const existing = participantsByThread.get(participant.thread_id) || [];
+    existing.push(participant);
+    participantsByThread.set(participant.thread_id, existing);
+  }
+
+  const messagesByThread = new Map<string, ThreadMessage[]>();
+  for (const message of threadMessagesResult.data || []) {
+    const existing = messagesByThread.get(message.thread_id) || [];
+    existing.push(message);
+    messagesByThread.set(message.thread_id, existing);
+  }
+
+  const adminMessageThreads: AdminMessageThread[] = (messageThreads || []).map(
+    (thread) => ({
+      ...thread,
+      participants: participantsByThread.get(thread.id) || [],
+      messages: messagesByThread.get(thread.id) || [],
+    })
+  );
 
   return (
     <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
@@ -469,73 +551,106 @@ export default async function AdminIsopediaContactPage({
 
         <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
           <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300">
-            Admin Message Replies
+            Admin Message Conversations
           </p>
           <h2 className="mt-2 text-2xl font-black text-white">
-            User replies
+            User conversations
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            Replies sent from private admin messages on user profile pages.
+            Continue private admin message threads from the admin panel or from
+            your profile inbox.
           </p>
 
           <div className="mt-5 grid gap-4">
-            {(profileMessageReplies || []).length > 0 ? (
-              profileMessageReplies?.map((message) => (
+            {adminMessageThreads.length > 0 ? (
+              adminMessageThreads.map((thread) => (
                 <article
-                  key={message.id}
+                  key={thread.id}
                   className="rounded-lg border border-lime-300/20 bg-lime-300/[0.04] p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-black text-white">
-                        {message.subject || "Isopedia message"}
+                        {thread.subject || "Isopedia message"}
                       </p>
                       <p className="mt-1 text-xs text-slate-400">
-                        Reply from {recipientName(message.recipient || {})}
-                        {message.recipient?.username
-                          ? ` (@${message.recipient.username})`
-                          : ""}{" "}
-                        on {formatDate(message.user_replied_at)}
+                        With {threadParticipantNames(thread.participants)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Last message {formatDate(thread.last_message_at)}
                       </p>
                     </div>
-                    {message.recipient?.username && (
-                      <Link
-                        href={`/profile/${message.recipient.username}`}
-                        className="rounded-md border border-white/10 px-3 py-2 text-xs font-bold text-emerald-200 hover:bg-white/10"
+                    <div className="flex flex-wrap gap-2">
+                      {thread.participants
+                        .filter((participant) => participant.profiles?.username)
+                        .map((participant) => (
+                          <Link
+                            key={participant.profile_id}
+                            href={`/profile/${participant.profiles?.username}`}
+                            className="rounded-md border border-white/10 px-3 py-2 text-xs font-bold text-emerald-200 hover:bg-white/10"
+                          >
+                            @{participant.profiles?.username}
+                          </Link>
+                        ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid max-h-96 gap-3 overflow-y-auto rounded-md border border-white/10 bg-black/20 p-3">
+                    {thread.messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className="rounded-md border border-white/10 bg-white/[0.04] p-3"
                       >
-                        View Profile
-                      </Link>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
+                            {recipientName(message.sender || {})}
+                            {message.sender?.username
+                              ? ` (@${message.sender.username})`
+                              : ""}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {formatDate(message.created_at)}
+                          </p>
+                        </div>
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-200">
+                          {message.body}
+                        </p>
+                      </div>
+                    ))}
+
+                    {thread.messages.length === 0 && (
+                      <p className="text-sm text-slate-400">
+                        No messages in this thread yet.
+                      </p>
                     )}
                   </div>
 
-                  <div className="mt-3 rounded-md border border-white/10 bg-black/20 p-3">
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                      Original Admin Message
-                    </p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
-                      {message.body}
-                    </p>
-                    <p className="mt-2 text-xs text-slate-500">
-                      Sent {formatDate(message.created_at)}
-                      {message.sender?.username
-                        ? ` by @${message.sender.username}`
-                        : ""}
-                    </p>
-                  </div>
-
-                  <div className="mt-3 rounded-md border border-lime-300/20 bg-lime-300/10 p-3">
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-lime-200">
-                      User Reply
-                    </p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-lime-50/90">
-                      {message.user_reply}
-                    </p>
-                  </div>
+                  <form action={sendAdminThreadReply} className="mt-4 grid gap-3">
+                    <input type="hidden" name="thread_id" value={thread.id} />
+                    <label className="grid gap-2">
+                      <span className="text-sm font-bold text-slate-200">
+                        Reply
+                      </span>
+                      <textarea
+                        name="message_body"
+                        rows={3}
+                        maxLength={4000}
+                        required
+                        className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-white outline-none ring-emerald-400/30 focus:ring-4"
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      className="w-fit rounded-md bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 hover:bg-emerald-300"
+                    >
+                      Send Reply
+                    </button>
+                  </form>
                 </article>
               ))
             ) : (
               <p className="rounded-md border border-white/10 bg-black/20 p-4 text-sm text-slate-400">
-                No admin message replies yet.
+                No admin message conversations yet.
               </p>
             )}
           </div>
@@ -697,4 +812,17 @@ function recipientName(profile: Partial<ProfileRecipient>) {
     profile.username ||
     "Unnamed user"
   );
+}
+
+function threadParticipantNames(participants: ThreadParticipant[]) {
+  if (!participants.length) return "No participants";
+
+  return participants
+    .map((participant) => {
+      const name = recipientName(participant.profiles || {});
+      return participant.profiles?.username
+        ? `${name} (@${participant.profiles.username})`
+        : name;
+    })
+    .join(", ");
 }
