@@ -9,6 +9,7 @@ type NotificationPreferences = {
   notify_discussions: boolean;
   notify_expos: boolean;
   notify_verified_species: boolean;
+  notify_messages: boolean;
 };
 
 type BeforeInstallPromptEvent = Event & {
@@ -323,6 +324,12 @@ export default function IsopediaNotificationSettings({
             label="New verified species"
             description="New species pages after community submissions are verified."
             defaultChecked={preferences.notify_verified_species}
+          />
+          <PreferenceCheck
+            name="notify_messages"
+            label="Messages"
+            description="Private message replies and new admin messages."
+            defaultChecked={preferences.notify_messages}
           />
 
           <div className="sm:col-span-2">

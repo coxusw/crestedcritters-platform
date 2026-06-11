@@ -118,6 +118,7 @@ export default async function IsopediaNav({
       verifiedImagesResult,
       contactMessagesResult,
       profileMessagesResult,
+      threadMessagesResult,
     ] =
       await Promise.all([
         supabase
@@ -176,6 +177,8 @@ export default async function IsopediaNav({
           .select("id", { count: "exact", head: true })
           .eq("recipient_id", user.id)
           .is("read_at", null),
+
+        supabase.rpc("own_isopedia_unread_message_count"),
       ]);
 
     username = profile?.username || null;
@@ -187,7 +190,10 @@ export default async function IsopediaNav({
         verifiedImagesResult.data
       ).length;
     unreadMessageCount =
-      (contactMessagesResult.count || 0) + (profileMessagesResult.count || 0);
+      (contactMessagesResult.count || 0) +
+      (threadMessagesResult.error
+        ? profileMessagesResult.count || 0
+        : threadMessagesResult.data || 0);
 
     canAccessAdmin =
       Boolean(adminProfile) ||

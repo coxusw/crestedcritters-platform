@@ -23,6 +23,7 @@ type NotificationPreferences = {
   notify_discussions: boolean;
   notify_expos: boolean;
   notify_verified_species: boolean;
+  notify_messages: boolean;
 };
 
 type PendingSubmission = {
@@ -53,6 +54,7 @@ const defaultNotificationPreferences: NotificationPreferences = {
   notify_discussions: true,
   notify_expos: true,
   notify_verified_species: true,
+  notify_messages: true,
 };
 
 function cleanText(value: FormDataEntryValue | null) {
@@ -164,6 +166,7 @@ async function saveNotificationPreferences(formData: FormData) {
       notify_discussions: formData.get("notify_discussions") === "on",
       notify_expos: formData.get("notify_expos") === "on",
       notify_verified_species: formData.get("notify_verified_species") === "on",
+      notify_messages: formData.get("notify_messages") === "on",
       updated_at: new Date().toISOString(),
     },
     { onConflict: "profile_id" }
@@ -288,7 +291,7 @@ export default async function AccountPage({
   const username = profile?.username;
   const notificationQuery = await supabase
     .from("isopedia_notification_preferences")
-    .select("push_enabled, notify_guides, notify_discussions, notify_expos, notify_verified_species")
+    .select("push_enabled, notify_guides, notify_discussions, notify_expos, notify_verified_species, notify_messages")
     .eq("profile_id", user.id)
     .maybeSingle<NotificationPreferences>();
   const notificationPreferences = notificationQuery.data || defaultNotificationPreferences;

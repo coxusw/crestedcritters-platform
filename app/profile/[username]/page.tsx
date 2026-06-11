@@ -113,9 +113,43 @@ type ProfileMessage = {
   } | null;
 };
 
+type MessageProfile = {
+  username: string | null;
+  display_name: string | null;
+  business_name: string | null;
+};
+
+type ThreadParticipant = {
+  profile_id: string;
+  last_read_at: string | null;
+  profiles: MessageProfile | null;
+};
+
+type ThreadMessage = {
+  id: string;
+  thread_id: string;
+  sender_id: string | null;
+  body: string;
+  created_at: string;
+  sender: MessageProfile | null;
+};
+
+type MessageThread = {
+  id: string;
+  subject: string | null;
+  created_at: string;
+  last_message_at: string;
+  current_last_read_at: string | null;
+  participants: ThreadParticipant[];
+  messages: ThreadMessage[];
+};
+
 type PageProps = {
   params: Promise<{
     username: string;
+  }>;
+  searchParams?: Promise<{
+    thread?: string;
   }>;
 };
 
@@ -327,7 +361,7 @@ async function updateProfileActivityVisibility(formData: FormData) {
   }
 }
 
-async function replyToProfileMessage(formData: FormData) {
+async function sendThreadMessage(formData: FormData) {
   "use server";
 
   const supabase = await createSupabaseServerClient();
@@ -339,32 +373,33 @@ async function replyToProfileMessage(formData: FormData) {
     redirect("/login");
   }
 
-  const messageId = cleanText(formData.get("message_id"), 80);
+  const threadId = cleanText(formData.get("thread_id"), 80);
   const username = cleanText(formData.get("username"), 80);
-  const replyBody = cleanText(formData.get("reply_body"), 4000);
+  const messageBody = cleanText(formData.get("message_body"), 4000);
 
-  if (!messageId || !replyBody) {
-    throw new Error("Reply is required.");
+  if (!threadId || !messageBody) {
+    throw new Error("Message is required.");
   }
 
-  const { error } = await supabase.rpc(
-    "reply_to_own_isopedia_profile_message",
-    {
-      message_id: messageId,
-      reply_body: replyBody,
-    }
-  );
+  const { error } = await supabase.rpc("send_isopedia_thread_message", {
+    target_thread_id: threadId,
+    message_body: messageBody,
+  });
 
   if (error) {
     throw new Error(error.message);
   }
 
   revalidatePath(username ? `/profile/${username}` : "/account");
-  redirect(username ? `/profile/${username}#messages` : "/account");
+  redirect(username ? `/profile/${username}?thread=${threadId}#messages` : "/account");
 }
 
-export default async function PublicProfilePage({ params }: PageProps) {
+export default async function PublicProfilePage({
+  params,
+  searchParams,
+}: PageProps) {
   const { username } = await params;
+  const selectedParams = await searchParams;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -489,15 +524,25 @@ export default async function PublicProfilePage({ params }: PageProps) {
   const contactMessages = isOwner
     ? await getOwnContactMessages(supabase, profile.id)
     : [];
-  const profileMessages = isOwner
-    ? await getOwnProfileMessages(supabase, profile.id)
+  const messageThreads = isOwner
+    ? await getOwnMessageThreads(supabase, profile.id)
     : [];
+  const selectedThread =
+    messageThreads.find((thread) => thread.id === selectedParams?.thread) ||
+    messageThreads[0] ||
+    null;
+  if (isOwner && selectedThread) {
+    await supabase.rpc("mark_isopedia_thread_read", {
+      target_thread_id: selectedThread.id,
+    });
+    selectedThread.current_last_read_at = new Date().toISOString();
+  }
   const unreadMessageCount =
     contactMessages.filter(
       (message) => message.admin_response && !message.user_read_at
-    ).length + profileMessages.filter((message) => !message.read_at).length;
+    ).length + messageThreads.filter((thread) => threadUnreadCount(thread, profile.id) > 0).length;
 
-  if (isOwner && unreadMessageCount > 0) {
+  if (isOwner && contactMessages.some((message) => message.admin_response && !message.user_read_at)) {
     await markOwnMessagesRead(supabase);
   }
 
@@ -854,91 +899,152 @@ export default async function PublicProfilePage({ params }: PageProps) {
                   </Link>
                 </div>
 
-                <div className="mt-4 grid gap-3">
-                  {profileMessages.length > 0 &&
-                    profileMessages.map((message) => (
-                      <article
-                        key={message.id}
-                        className={`rounded-xl border p-4 ${
-                          message.read_at
-                            ? "border-white/10 bg-[#07130c]/70"
-                            : "border-red-400/30 bg-red-500/10"
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
-                              Admin Message
-                            </p>
-                            <h3 className="mt-2 text-base font-black text-white">
-                              {message.subject || "Isopedia message"}
-                            </h3>
-                            <p className="mt-1 text-xs text-emerald-50/40">
-                              Sent {formatProfileDate(message.created_at)}
-                              {message.sender
-                                ? ` by ${profileMessageSenderName(message.sender)}`
-                                : ""}
-                            </p>
-                          </div>
-                          {!message.read_at && (
-                            <span className="rounded-full bg-red-500 px-3 py-1 text-[11px] font-black uppercase text-white">
-                              Unread
-                            </span>
-                          )}
-                        </div>
+                <div className="mt-4 grid gap-4">
+                  {messageThreads.length > 0 && (
+                    <div className="grid gap-3 lg:grid-cols-[320px_1fr]">
+                      <div className="overflow-hidden rounded-xl border border-white/10 bg-[#07130c]/70">
+                        {messageThreads.map((thread) => {
+                          const lastMessage = latestThreadMessage(thread);
+                          const otherParticipants = thread.participants.filter(
+                            (participant) => participant.profile_id !== profile.id
+                          );
+                          const unreadCount = threadUnreadCount(thread, profile.id);
+                          const selected = selectedThread?.id === thread.id;
 
-                        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-emerald-50/80">
-                          {message.body}
-                        </p>
+                          return (
+                            <Link
+                              key={thread.id}
+                              href={`/profile/${usernameForLinks}?thread=${thread.id}#messages`}
+                              className={`block border-b border-white/10 p-3 transition last:border-b-0 ${
+                                selected
+                                  ? "bg-emerald-400/10"
+                                  : "hover:bg-white/[0.04]"
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-black text-white">
+                                    {threadParticipantLabel(otherParticipants)}
+                                  </p>
+                                  <p className="mt-1 truncate text-xs font-bold text-emerald-200/70">
+                                    {thread.subject || "Isopedia message"}
+                                  </p>
+                                </div>
+                                {unreadCount > 0 && (
+                                  <span className="grid min-h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-black leading-none text-white">
+                                    {unreadCount > 9 ? "9+" : unreadCount}
+                                  </span>
+                                )}
+                              </div>
+                              {lastMessage && (
+                                <p className="mt-2 line-clamp-2 text-xs leading-5 text-emerald-50/55">
+                                  {lastMessage.sender_id === profile.id
+                                    ? "You: "
+                                    : `${profileMessageSenderName(lastMessage.sender)}: `}
+                                  {lastMessage.body}
+                                </p>
+                              )}
+                              <p className="mt-2 text-[11px] font-bold uppercase tracking-wide text-emerald-50/35">
+                                {formatProfileDate(thread.last_message_at)}
+                              </p>
+                            </Link>
+                          );
+                        })}
+                      </div>
 
-                        {message.user_reply && (
-                          <div className="mt-3 rounded-lg border border-lime-300/20 bg-lime-300/5 p-3">
-                            <p className="text-xs font-black uppercase tracking-[0.18em] text-lime-200">
-                              Your Reply
-                            </p>
-                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-50/80">
-                              {message.user_reply}
-                            </p>
-                            <p className="mt-2 text-xs text-emerald-50/40">
-                              Sent {formatProfileDate(message.user_replied_at)}
-                            </p>
-                          </div>
+                      <article className="rounded-xl border border-white/10 bg-[#07130c]/70 p-4">
+                        {selectedThread ? (
+                          <>
+                            <div className="border-b border-white/10 pb-3">
+                              <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
+                                Conversation
+                              </p>
+                              <h3 className="mt-2 text-lg font-black text-white">
+                                {selectedThread.subject || "Isopedia message"}
+                              </h3>
+                              <p className="mt-1 text-xs text-emerald-50/45">
+                                With{" "}
+                                {threadParticipantLabel(
+                                  selectedThread.participants.filter(
+                                    (participant) => participant.profile_id !== profile.id
+                                  )
+                                )}
+                              </p>
+                            </div>
+
+                            <div className="mt-4 grid max-h-[520px] gap-3 overflow-y-auto pr-1">
+                              {selectedThread.messages.map((message) => {
+                                const mine = message.sender_id === profile.id;
+
+                                return (
+                                  <div
+                                    key={message.id}
+                                    className={`flex ${mine ? "justify-end" : "justify-start"}`}
+                                  >
+                                    <div
+                                      className={`max-w-[88%] rounded-xl border p-3 ${
+                                        mine
+                                          ? "border-emerald-300/20 bg-emerald-300/10"
+                                          : "border-white/10 bg-black/20"
+                                      }`}
+                                    >
+                                      <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-100/50">
+                                        {mine
+                                          ? "You"
+                                          : profileMessageSenderName(message.sender)}
+                                      </p>
+                                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-50/85">
+                                        {message.body}
+                                      </p>
+                                      <p className="mt-2 text-[11px] text-emerald-50/35">
+                                        {formatProfileDate(message.created_at)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            <form action={sendThreadMessage} className="mt-4 grid gap-2">
+                              <input
+                                type="hidden"
+                                name="thread_id"
+                                value={selectedThread.id}
+                              />
+                              <input
+                                type="hidden"
+                                name="username"
+                                value={usernameForLinks}
+                              />
+                              <label className="grid gap-2">
+                                <span className="text-xs font-black uppercase tracking-[0.18em] text-emerald-100/50">
+                                  Reply
+                                </span>
+                                <textarea
+                                  name="message_body"
+                                  rows={3}
+                                  maxLength={4000}
+                                  placeholder="Write a reply..."
+                                  required
+                                  className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
+                                />
+                              </label>
+                              <button
+                                type="submit"
+                                className="w-fit rounded-lg bg-emerald-400 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-emerald-300"
+                              >
+                                Send Reply
+                              </button>
+                            </form>
+                          </>
+                        ) : (
+                          <p className="text-sm text-emerald-50/50">
+                            Select a conversation.
+                          </p>
                         )}
-
-                        <form action={replyToProfileMessage} className="mt-3 grid gap-2">
-                          <input
-                            type="hidden"
-                            name="message_id"
-                            value={message.id}
-                          />
-                          <input
-                            type="hidden"
-                            name="username"
-                            value={usernameForLinks}
-                          />
-                          <label className="grid gap-2">
-                            <span className="text-xs font-black uppercase tracking-[0.18em] text-emerald-100/50">
-                              Reply
-                            </span>
-                            <textarea
-                              name="reply_body"
-                              rows={3}
-                              maxLength={4000}
-                              defaultValue={message.user_reply || ""}
-                              placeholder="Write a private reply to the admin team..."
-                              required
-                              className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
-                            />
-                          </label>
-                          <button
-                            type="submit"
-                            className="w-fit rounded-lg bg-emerald-400 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-emerald-300"
-                          >
-                            {message.user_reply ? "Update Reply" : "Send Reply"}
-                          </button>
-                        </form>
                       </article>
-                    ))}
+                    </div>
+                  )}
 
                   {contactMessages.length > 0 &&
                     contactMessages.map((message) => (
@@ -998,7 +1104,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
                       </article>
                     ))}
 
-                  {profileMessages.length === 0 && contactMessages.length === 0 && (
+                  {messageThreads.length === 0 && contactMessages.length === 0 && (
                     <p className="rounded-xl border border-white/10 bg-[#07130c]/70 p-4 text-sm text-emerald-50/50">
                       You do not have any messages yet.
                     </p>
@@ -1289,21 +1395,147 @@ async function getOwnProfileMessages(
   return data;
 }
 
+async function getOwnMessageThreads(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  profileId: string
+) {
+  const { data: ownParticipants, error } = await supabase
+    .from("isopedia_message_thread_participants")
+    .select("thread_id, last_read_at")
+    .eq("profile_id", profileId)
+    .is("archived_at", null)
+    .limit(50)
+    .returns<Array<{ thread_id: string; last_read_at: string | null }>>();
+
+  if (error || !ownParticipants?.length) return [];
+
+  const threadIds = ownParticipants.map((participant) => participant.thread_id);
+  const [threadsResult, participantsResult, messagesResult] = await Promise.all([
+    supabase
+      .from("isopedia_message_threads")
+      .select("id, subject, created_at, last_message_at")
+      .in("id", threadIds)
+      .returns<
+        Array<{
+          id: string;
+          subject: string | null;
+          created_at: string;
+          last_message_at: string;
+        }>
+      >(),
+    supabase
+      .from("isopedia_message_thread_participants")
+      .select(
+        `
+        thread_id,
+        profile_id,
+        last_read_at,
+        profiles:profile_id (
+          username,
+          display_name,
+          business_name
+        )
+      `
+      )
+      .in("thread_id", threadIds)
+      .returns<Array<ThreadParticipant & { thread_id: string }>>(),
+    supabase
+      .from("isopedia_message_thread_messages")
+      .select(
+        `
+        id,
+        thread_id,
+        sender_id,
+        body,
+        created_at,
+        sender:sender_id (
+          username,
+          display_name,
+          business_name
+        )
+      `
+      )
+      .in("thread_id", threadIds)
+      .order("created_at", { ascending: true })
+      .returns<ThreadMessage[]>(),
+  ]);
+
+  if (threadsResult.error) return [];
+
+  const ownReadByThread = new Map(
+    ownParticipants.map((participant) => [
+      participant.thread_id,
+      participant.last_read_at,
+    ])
+  );
+  const participantsByThread = new Map<string, ThreadParticipant[]>();
+  for (const participant of participantsResult.data || []) {
+    const existing = participantsByThread.get(participant.thread_id) || [];
+    existing.push({
+      profile_id: participant.profile_id,
+      last_read_at: participant.last_read_at,
+      profiles: participant.profiles,
+    });
+    participantsByThread.set(participant.thread_id, existing);
+  }
+
+  const messagesByThread = new Map<string, ThreadMessage[]>();
+  for (const message of messagesResult.data || []) {
+    const existing = messagesByThread.get(message.thread_id) || [];
+    existing.push(message);
+    messagesByThread.set(message.thread_id, existing);
+  }
+
+  return (threadsResult.data || [])
+    .map((thread) => ({
+      ...thread,
+      current_last_read_at: ownReadByThread.get(thread.id) || null,
+      participants: participantsByThread.get(thread.id) || [],
+      messages: messagesByThread.get(thread.id) || [],
+    }))
+    .sort(
+      (first, second) =>
+        new Date(second.last_message_at).getTime() -
+        new Date(first.last_message_at).getTime()
+    );
+}
+
 async function markOwnMessagesRead(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
 ) {
   await supabase.rpc("mark_own_isopedia_messages_read");
 }
 
-function profileMessageSenderName(
-  profile: NonNullable<ProfileMessage["sender"]>
-) {
+function profileMessageSenderName(profile: MessageProfile | null) {
   return (
-    profile.display_name ||
-    profile.business_name ||
-    profile.username ||
+    profile?.display_name ||
+    profile?.business_name ||
+    profile?.username ||
     "Isopedia Admin"
   );
+}
+
+function latestThreadMessage(thread: MessageThread) {
+  return thread.messages[thread.messages.length - 1] || null;
+}
+
+function threadUnreadCount(thread: MessageThread, profileId: string) {
+  const lastReadTime = thread.current_last_read_at
+    ? new Date(thread.current_last_read_at).getTime()
+    : 0;
+
+  return thread.messages.filter(
+    (message) =>
+      message.sender_id !== profileId &&
+      new Date(message.created_at).getTime() > lastReadTime
+  ).length;
+}
+
+function threadParticipantLabel(participants: ThreadParticipant[]) {
+  if (!participants.length) return "Isopedia Admin";
+  return participants
+    .map((participant) => profileMessageSenderName(participant.profiles))
+    .join(", ");
 }
 
 function formatProfileDate(value: string | null) {

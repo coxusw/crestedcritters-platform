@@ -179,19 +179,91 @@ async function sendAdminProfileMessage(formData: FormData) {
   }
 
   const now = new Date().toISOString();
-  const { error } = await supabase.from("isopedia_profile_messages").insert(
-    recipientIds.map((id) => ({
-      recipient_id: id,
-      sent_by: user.id,
-      audience,
-      subject,
-      body,
-      created_at: now,
-      updated_at: now,
-    }))
-  );
+  const { data: insertedMessages, error } = await supabase
+    .from("isopedia_profile_messages")
+    .insert(
+      recipientIds.map((id) => ({
+        recipient_id: id,
+        sent_by: user.id,
+        audience,
+        subject,
+        body,
+        created_at: now,
+        updated_at: now,
+      }))
+    )
+    .select("id, recipient_id, sent_by, subject, body, created_at")
+    .returns<
+      Array<{
+        id: string;
+        recipient_id: string;
+        sent_by: string | null;
+        subject: string | null;
+        body: string;
+        created_at: string;
+      }>
+    >();
 
   if (error) throw new Error(error.message);
+
+  for (const message of insertedMessages || []) {
+    const { data: thread, error: threadError } = await supabase
+      .from("isopedia_message_threads")
+      .insert({
+        subject: message.subject,
+        created_by: user.id,
+        created_at: message.created_at,
+        updated_at: message.created_at,
+        last_message_at: message.created_at,
+      })
+      .select("id")
+      .single<{ id: string }>();
+
+    if (threadError || !thread) throw new Error(threadError?.message || "Could not create message thread.");
+
+    const participants = [
+      {
+        thread_id: thread.id,
+        profile_id: message.recipient_id,
+        last_read_at: null,
+        created_at: message.created_at,
+      },
+      {
+        thread_id: thread.id,
+        profile_id: user.id,
+        last_read_at: message.created_at,
+        created_at: message.created_at,
+      },
+    ];
+
+    const uniqueParticipants = participants.filter(
+      (participant, index, list) =>
+        list.findIndex((item) => item.profile_id === participant.profile_id) === index
+    );
+
+    const { error: participantError } = await supabase
+      .from("isopedia_message_thread_participants")
+      .insert(uniqueParticipants);
+
+    if (participantError) throw new Error(participantError.message);
+
+    const { error: threadMessageError } = await supabase
+      .from("isopedia_message_thread_messages")
+      .insert({
+        thread_id: thread.id,
+        sender_id: user.id,
+        body: message.body,
+        source_profile_message_id: message.id,
+        created_at: message.created_at,
+      });
+
+    if (threadMessageError) throw new Error(threadMessageError.message);
+
+    await supabase
+      .from("isopedia_profile_messages")
+      .update({ thread_id: thread.id })
+      .eq("id", message.id);
+  }
 
   revalidatePath("/admin/isopedia/contact");
   revalidatePath("/admin/isopedia");
