@@ -100,7 +100,7 @@ export default function SubmitSpeciesImagePage() {
       const extension =
         imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
 
-      const filePath = `species-gallery/${species.slug}/${Date.now()}.${extension}`;
+      const filePath = `species-gallery/${user.id}/${species.slug}/${Date.now()}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
         .from("isopedia-images")
