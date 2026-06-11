@@ -278,11 +278,11 @@ export default async function AdminIsopediaPage() {
               />
               <AdminActionCard
                 href="/admin/isopedia/contact"
-                title="Contact Messages"
+                title="Messages"
                 description={
                   totalOpenContactMessages > 0
-                    ? `${totalOpenContactMessages} open message${totalOpenContactMessages === 1 ? "" : "s"} need review.`
-                    : "Review Contact Us submissions and respond to users."
+                    ? `${totalOpenContactMessages} older contact message${totalOpenContactMessages === 1 ? "" : "s"} still need review. New contact messages route to inbox threads.`
+                    : "Send admin messages and continue Contact Us conversations from one inbox."
                 }
                 icon="Contact"
                 alert={totalOpenContactMessages > 0}

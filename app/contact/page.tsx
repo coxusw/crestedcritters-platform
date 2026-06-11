@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 
 type Profile = {
   id: string;
@@ -19,6 +20,110 @@ function validCategory(value: string) {
   return ["issue", "suggestion", "question", "other"].includes(value)
     ? value
     : "issue";
+}
+
+async function getContactInboxAdminIds(
+  supabase: ReturnType<typeof createSupabaseAdminClient>
+) {
+  const [adminProfilesResult, roleProfilesResult] = await Promise.all([
+    supabase.from("admin_profiles").select("id").returns<Array<{ id: string }>>(),
+    supabase
+      .from("profiles")
+      .select("id")
+      .in("role", ["admin", "moderator"])
+      .returns<Array<{ id: string }>>(),
+  ]);
+
+  const ids = [
+    ...(adminProfilesResult.data || []).map((profile) => profile.id),
+    ...(roleProfilesResult.data || []).map((profile) => profile.id),
+  ];
+
+  return Array.from(new Set(ids));
+}
+
+async function routeContactMessageToInbox(input: {
+  contactId: string;
+  submittedBy: string | null;
+  name: string;
+  email: string;
+  category: string;
+  subject: string | null;
+  message: string;
+}) {
+  const admin = createSupabaseAdminClient();
+  const adminIds = await getContactInboxAdminIds(admin);
+
+  if (!adminIds.length) return;
+
+  const now = new Date().toISOString();
+  const threadSubject = input.subject
+    ? `Contact: ${input.subject}`
+    : `Contact: ${input.category}`;
+  const threadBody = [
+    `From: ${input.name} <${input.email}>`,
+    `Type: ${input.category}`,
+    "",
+    input.message,
+  ].join("\n");
+
+  const { data: thread, error: threadError } = await admin
+    .from("isopedia_message_threads")
+    .insert({
+      subject: threadSubject,
+      created_by: input.submittedBy,
+      created_at: now,
+      updated_at: now,
+      last_message_at: now,
+    })
+    .select("id")
+    .single<{ id: string }>();
+
+  if (threadError || !thread) {
+    throw new Error(threadError?.message || "Could not route contact message.");
+  }
+
+  const participantIds = Array.from(
+    new Set([...adminIds, ...(input.submittedBy ? [input.submittedBy] : [])])
+  );
+
+  const { error: participantError } = await admin
+    .from("isopedia_message_thread_participants")
+    .insert(
+      participantIds.map((profileId) => ({
+        thread_id: thread.id,
+        profile_id: profileId,
+        last_read_at: profileId === input.submittedBy ? now : null,
+        created_at: now,
+      }))
+    );
+
+  if (participantError) {
+    throw new Error(participantError.message);
+  }
+
+  const { error: messageError } = await admin
+    .from("isopedia_message_thread_messages")
+    .insert({
+      thread_id: thread.id,
+      sender_id: input.submittedBy,
+      body: threadBody,
+      created_at: now,
+    });
+
+  if (messageError) {
+    throw new Error(messageError.message);
+  }
+
+  await admin
+    .from("isopedia_contact_messages")
+    .update({
+      status: "reviewed",
+      admin_notes: `Routed to admin message thread ${thread.id}. Contact record ${input.contactId}.`,
+      reviewed_at: now,
+      updated_at: now,
+    })
+    .eq("id", input.contactId);
 }
 
 async function submitContactMessage(formData: FormData) {
@@ -42,18 +147,37 @@ async function submitContactMessage(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("isopedia_contact_messages").insert({
-    submitted_by: user?.id || null,
-    name,
-    email,
-    category,
-    subject,
-    message,
-    status: "open",
-    updated_at: new Date().toISOString(),
-  });
+  const admin = createSupabaseAdminClient();
+  const { data: contactMessage, error } = await admin
+    .from("isopedia_contact_messages")
+    .insert({
+      submitted_by: user?.id || null,
+      name,
+      email,
+      category,
+      subject,
+      message,
+      status: "open",
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single<{ id: string }>();
 
-  if (error) {
+  if (error || !contactMessage) {
+    redirect("/contact?error=save-failed");
+  }
+
+  try {
+    await routeContactMessageToInbox({
+      contactId: contactMessage.id,
+      submittedBy: user?.id || null,
+      name,
+      email,
+      category,
+      subject,
+      message,
+    });
+  } catch {
     redirect("/contact?error=save-failed");
   }
 
@@ -104,8 +228,8 @@ export default async function ContactPage({
             </h1>
             <p className="mt-4 text-sm leading-7 text-emerald-50/70 sm:text-base">
               Send admins an issue report, suggestion, question, or general note.
-              Messages are saved in the admin dashboard so the team can review
-              and follow up.
+              Messages go to the admin message inbox so the team can review and
+              follow up in one place.
             </p>
 
             <div className="mt-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-sm leading-6 text-emerald-50/70">
@@ -120,7 +244,7 @@ export default async function ContactPage({
           >
             {params.submitted === "true" && (
               <div className="mb-5 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-100">
-                Message sent. An admin can review it in the Isopedia admin tools.
+                Message sent. Admins can review and reply from their message inbox.
               </div>
             )}
 
