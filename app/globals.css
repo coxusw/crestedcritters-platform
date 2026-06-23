@@ -41,12 +41,17 @@ html[data-isopedia-theme="light"] [class*="bg-[#102016]"],
 html[data-isopedia-theme="light"] [class*="bg-[#142318]"],
 html[data-isopedia-theme="light"] [class*="bg-[#14311f]"],
 html[data-isopedia-theme="light"] [class*="bg-[#18291d]"],
+html[data-isopedia-theme="light"] [class*="bg-slate-950"],
+html[data-isopedia-theme="light"] [class*="bg-slate-900"],
+html[data-isopedia-theme="light"] [class*="bg-slate-800"],
 html[data-isopedia-theme="light"] [class*="bg-black/"] {
   background-color: #ffffff !important;
 }
 
 html[data-isopedia-theme="light"] [class*="bg-[#07130c]/"],
-html[data-isopedia-theme="light"] [class*="bg-[#102016]/"] {
+html[data-isopedia-theme="light"] [class*="bg-[#102016]/"],
+html[data-isopedia-theme="light"] [class*="bg-slate-950/"],
+html[data-isopedia-theme="light"] [class*="bg-slate-900/"] {
   background-color: #f7f7f7 !important;
 }
 
@@ -64,7 +69,8 @@ html[data-isopedia-theme="light"] [class*="to-[#0c1710]"] {
 }
 
 html[data-isopedia-theme="light"] [class*="border-white/"],
-html[data-isopedia-theme="light"] [class*="border-emerald-900/"] {
+html[data-isopedia-theme="light"] [class*="border-emerald-900/"],
+html[data-isopedia-theme="light"] [class*="border-slate-"] {
   border-color: rgba(0, 0, 0, 0.1) !important;
 }
 
@@ -74,11 +80,15 @@ html[data-isopedia-theme="light"] [class*="shadow-black/"] {
 
 html[data-isopedia-theme="light"] [class*="text-white"],
 html[data-isopedia-theme="light"] [class*="text-slate-100"],
+html[data-isopedia-theme="light"] [class*="text-slate-200"],
 html[data-isopedia-theme="light"] [class*="text-emerald-50"],
 html[data-isopedia-theme="light"] [class*="text-emerald-100"] {
   color: #101010 !important;
 }
 
+html[data-isopedia-theme="light"] [class*="text-slate-300"],
+html[data-isopedia-theme="light"] [class*="text-slate-400"],
+html[data-isopedia-theme="light"] [class*="text-slate-500"],
 html[data-isopedia-theme="light"] [class*="text-emerald-200"],
 html[data-isopedia-theme="light"] [class*="text-emerald-300"],
 html[data-isopedia-theme="light"] [class*="text-emerald-400"],
