@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import BirthDateGate from "@/app/components/legal/BirthDateGate";
 import LegalAcceptanceGate from "@/app/components/legal/LegalAcceptanceGate";
 import "./globals.css";
@@ -95,8 +96,19 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-[#07130c] text-white">
+        <Script id="isopedia-theme" strategy="beforeInteractive">
+          {`
+            try {
+              var theme = window.localStorage.getItem("isopedia-theme");
+              if (theme === "light" || theme === "dark") {
+                document.documentElement.dataset.isopediaTheme = theme;
+              }
+            } catch (error) {}
+          `}
+        </Script>
         {children}
         <LegalAcceptanceGate />
         <BirthDateGate />

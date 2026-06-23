@@ -35,6 +35,48 @@ html[data-isopedia-theme="light"] .isopedia-theme-root {
   color: #101010 !important;
 }
 
+html[data-isopedia-theme="light"] [class*="bg-[#07130c]"],
+html[data-isopedia-theme="light"] [class*="bg-[#0b140d]"],
+html[data-isopedia-theme="light"] [class*="bg-[#102016]"],
+html[data-isopedia-theme="light"] [class*="bg-[#142318]"],
+html[data-isopedia-theme="light"] [class*="bg-[#14311f]"],
+html[data-isopedia-theme="light"] [class*="bg-[#18291d]"],
+html[data-isopedia-theme="light"] [class*="bg-black/"] {
+  background-color: #ffffff !important;
+}
+
+html[data-isopedia-theme="light"] [class*="bg-[#07130c]/"],
+html[data-isopedia-theme="light"] [class*="bg-[#102016]/"] {
+  background-color: #f7f7f7 !important;
+}
+
+html[data-isopedia-theme="light"] [class*="border-white/"],
+html[data-isopedia-theme="light"] [class*="border-emerald-900/"] {
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+html[data-isopedia-theme="light"] [class*="shadow-black/"] {
+  --tw-shadow-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html[data-isopedia-theme="light"] [class*="text-white"],
+html[data-isopedia-theme="light"] [class*="text-slate-100"],
+html[data-isopedia-theme="light"] [class*="text-emerald-50"],
+html[data-isopedia-theme="light"] [class*="text-emerald-100"] {
+  color: #101010 !important;
+}
+
+html[data-isopedia-theme="light"] [class*="text-emerald-200"],
+html[data-isopedia-theme="light"] [class*="text-emerald-300"],
+html[data-isopedia-theme="light"] [class*="text-emerald-400"],
+html[data-isopedia-theme="light"] [class*="text-amber-200"] {
+  color: #555555 !important;
+}
+
+html[data-isopedia-theme="light"] [class*="placeholder:text-emerald-50"]::placeholder {
+  color: #777777 !important;
+}
+
 html[data-isopedia-theme="light"] .isopedia-nav-shell,
 html[data-isopedia-theme="light"] .isopedia-hero-shell,
 html[data-isopedia-theme="light"] .isopedia-hero-panel,
@@ -69,6 +111,12 @@ html[data-isopedia-theme="light"] .isopedia-primary-button {
   background: #101010 !important;
   border-color: #101010 !important;
   color: #ffffff !important;
+}
+
+html[data-isopedia-theme="light"] [class*="bg-emerald-400"],
+html[data-isopedia-theme="light"] [class*="bg-red-500"],
+html[data-isopedia-theme="light"] [class*="bg-yellow-400"] {
+  color: #101010 !important;
 }
 
 html[data-isopedia-theme="light"] .isopedia-theme-heading,
