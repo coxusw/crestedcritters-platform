@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import IsopediaNotificationSettings from "@/app/components/isopedia/IsopediaAppSettings";
 import ProfileLogoUpload from "@/app/components/isopedia/ProfileLogoUpload";
 
@@ -326,42 +327,27 @@ export default async function AccountPage({
   const pendingSubmissions = pendingSubmissionsQuery.data || [];
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <main className="isopedia-theme-root min-h-screen bg-slate-950 px-3 py-4 text-slate-100 sm:px-4 sm:py-8 lg:py-10">
+      <div className="mx-auto max-w-7xl">
+        <IsopediaNav active={activeTab === "settings" ? "settings" : "profile"} />
+
+        <div className="mx-auto max-w-3xl">
+          <div className="mb-6 flex flex-wrap justify-end gap-2">
           <Link
             href="/"
-            className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
+            className="rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800"
           >
             ← Back to Isopedia
           </Link>
 
-          <div className="flex flex-wrap gap-2">
-            {username && (
-              <>
-                <Link
-                  href={`/profile/${username}`}
-                  className="rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-800"
-                >
-                  View Profile
-                </Link>
-
-                <Link
-                  href={`/collection/${username}`}
-                  className="rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-800"
-                >
-                  View Collection
-                </Link>
-              </>
-            )}
-
+          {username && (
             <Link
-              href="/logout"
-              className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/20"
+              href={`/collection/${username}`}
+              className="rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800"
             >
-              Logout
+              View Collection
             </Link>
-          </div>
+          )}
         </div>
 
         <div className="mb-8">
@@ -545,7 +531,7 @@ export default async function AccountPage({
             <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
               <Link
                 href="/"
-                className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
+                className="rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800"
               >
                 Back to Isopedia
               </Link>
@@ -571,6 +557,7 @@ export default async function AccountPage({
             savePreferencesAction={saveNotificationPreferences}
           />
         )}
+      </div>
       </div>
     </main>
   );

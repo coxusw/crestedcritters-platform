@@ -64,7 +64,7 @@ export default async function AdminIsopediaPermitTrackerPage({
     <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/admin/isopedia" className="text-sm font-bold text-emerald-300">
+          <Link href="/admin/isopedia" className="rounded-md border border-white/10 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-white/10">
             Back to Isopedia Tools
           </Link>
           <Link

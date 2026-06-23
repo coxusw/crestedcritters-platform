@@ -668,7 +668,7 @@ export default async function SpeciesPage({ params }: PageProps) {
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Link
               href="/"
-              className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
+              className="rounded-xl border border-white/10 bg-[#102016] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#18291d]"
             >
               ← Back to Isopedia
             </Link>

@@ -172,7 +172,7 @@ export default async function LoginPage({
 
           <Link
             href={isRandomizer ? "/" : "/isopedia"}
-            className="font-bold text-emerald-300 hover:text-emerald-200"
+            className="inline-flex rounded-xl border border-white/10 bg-[#102016] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#18291d]"
           >
             {isRandomizer ? "Back to Randomizer" : "← Back to Isopedia"}
           </Link>

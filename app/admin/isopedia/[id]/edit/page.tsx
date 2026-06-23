@@ -43,7 +43,7 @@ export default async function EditSpeciesPage({ params }: Props) {
       <div className="mb-6">
         <Link
           href="/admin/isopedia"
-          className="text-sm font-semibold text-emerald-700"
+          className="rounded-xl border border-emerald-900/20 bg-white px-4 py-2 text-sm font-bold text-emerald-900 shadow-sm transition hover:bg-emerald-50"
         >
           ← Back to Isopedia Admin
         </Link>

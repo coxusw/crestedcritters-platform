@@ -253,7 +253,7 @@ export default async function AdminBadgesPage({
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <Link
             href="/isopedia"
-            className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
+            className="rounded-xl border border-white/10 bg-[#102016] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#18291d]"
           >
             ← Back to Isopedia
           </Link>
