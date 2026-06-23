@@ -80,7 +80,7 @@ export function IsopediaInstallCard() {
           : "Checking whether this browser can install Isopedia.";
 
   return (
-    <section className="mx-auto mt-4 max-w-5xl rounded-2xl border border-emerald-400/20 bg-[#102016] p-4 shadow-xl shadow-black/20 sm:mt-5">
+    <section className="isopedia-install-card mx-auto mt-4 max-w-5xl rounded-2xl border border-emerald-400/20 bg-[#102016] p-4 shadow-xl shadow-black/20 sm:mt-5">
       <div className="grid gap-4 sm:grid-cols-[72px_1fr_auto] sm:items-center">
         <Image
           src="/isopedia-app-icon-192.png"
@@ -90,14 +90,14 @@ export function IsopediaInstallCard() {
           className="h-16 w-16 rounded-2xl border border-white/10 shadow-lg shadow-black/30"
         />
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
+          <p className="isopedia-theme-kicker text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
             Isopedia App
           </p>
-          <h2 className="mt-1 text-xl font-black text-white">Install Isopedia</h2>
-          <p className="mt-1 text-sm leading-6 text-emerald-50/70">
+          <h2 className="isopedia-theme-heading mt-1 text-xl font-black text-white">Install Isopedia</h2>
+          <p className="isopedia-theme-muted mt-1 text-sm leading-6 text-emerald-50/70">
             Add Isopedia to your phone or desktop for quick access to species, guides, expos, and your profile.
           </p>
-          <p className="mt-2 text-xs font-semibold leading-5 text-emerald-100/60">
+          <p className="isopedia-theme-muted mt-2 text-xs font-semibold leading-5 text-emerald-100/60">
             {installHelp}
           </p>
         </div>

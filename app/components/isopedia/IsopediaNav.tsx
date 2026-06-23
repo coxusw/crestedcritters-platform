@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { filterReviewableGalleryImages } from "@/lib/isopedia-gallery-review";
 import { isRaffleOpen } from "@/lib/isopedia-raffles";
+import IsopediaThemeToggle from "@/app/components/isopedia/IsopediaThemeToggle";
 
 type Props = {
   active?:
@@ -204,7 +205,10 @@ export default async function IsopediaNav({
   const profileHref = username ? `/profile/${username}` : "/account";
 
   return (
-    <header className="mb-6 rounded-3xl border border-white/10 bg-[#102016]/95 p-4 shadow-2xl shadow-black/25 backdrop-blur sm:mb-8 sm:p-5">
+    <header className="isopedia-nav-shell relative mb-6 rounded-3xl border border-white/10 bg-[#102016]/95 p-4 shadow-2xl shadow-black/25 backdrop-blur sm:mb-8 sm:p-5">
+      <div className="mb-4 flex justify-start sm:absolute sm:left-5 sm:top-5 sm:mb-0">
+        <IsopediaThemeToggle />
+      </div>
       <div className="flex flex-col gap-4">
         <div className="text-center">
           <Link href="/" className="group inline-flex flex-col">

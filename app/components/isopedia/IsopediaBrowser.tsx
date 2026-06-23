@@ -178,28 +178,28 @@ export default function IsopediaBrowser({ species }: Props) {
   }
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-8">
+    <section className="isopedia-browser mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-widest text-emerald-300">
+          <p className="isopedia-theme-kicker text-sm font-semibold uppercase tracking-widest text-emerald-300">
             Browse Database
           </p>
 
-          <h2 className="mt-2 text-3xl font-black text-white">
+          <h2 className="isopedia-theme-heading mt-2 text-3xl font-black text-white">
             Verified Species
           </h2>
         </div>
 
-        <p className="text-sm text-emerald-50/60">
+        <p className="isopedia-theme-muted text-sm text-emerald-50/60">
           Showing {filteredSpecies.length} of {species.length} verified entr
           {species.length === 1 ? "y" : "ies"}
         </p>
       </div>
 
-      <div className="mb-6 rounded-3xl border border-emerald-900/40 bg-[#142318] p-5 shadow-xl shadow-black/20">
+      <div className="isopedia-filter-card mb-6 rounded-3xl border border-emerald-900/40 bg-[#142318] p-5 shadow-xl shadow-black/20">
         <div className="grid gap-4 lg:grid-cols-[1fr_180px_180px_180px_auto]">
           <label className="grid gap-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-emerald-100/50">
+            <span className="isopedia-theme-label text-xs font-bold uppercase tracking-widest text-emerald-100/50">
               Search
             </span>
 
@@ -207,7 +207,7 @@ export default function IsopediaBrowser({ species }: Props) {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search name, trade name, genus, morph..."
-              className="rounded-2xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
+              className="isopedia-theme-input rounded-2xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
             />
           </label>
 
@@ -239,7 +239,7 @@ export default function IsopediaBrowser({ species }: Props) {
             <button
               type="button"
               onClick={clearFilters}
-              className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/15"
+              className="isopedia-secondary-button w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/15"
             >
               Clear
             </button>
@@ -253,9 +253,9 @@ export default function IsopediaBrowser({ species }: Props) {
             <Link
               key={item.id}
               href={`/${publicSpeciesSlug(item.slug)}`}
-              className="group overflow-hidden rounded-3xl border border-emerald-900/40 bg-[#142318] shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-emerald-400/60 hover:bg-[#18291d]"
+              className="isopedia-species-card group overflow-hidden rounded-3xl border border-emerald-900/40 bg-[#142318] shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-emerald-400/60 hover:bg-[#18291d]"
             >
-              <div className="flex h-48 w-full items-center justify-center bg-[#0b140d] p-3">
+              <div className="isopedia-card-image flex h-48 w-full items-center justify-center bg-[#0b140d] p-3">
                 {item.image_url ? (
                   <Image
                     src={item.image_url}
@@ -266,11 +266,11 @@ export default function IsopediaBrowser({ species }: Props) {
                     className="h-full w-full object-contain transition group-hover:scale-[1.03]"
                   />
                 ) : (
-                  <div className="flex h-full w-full flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-900/60 px-4 text-center">
-                    <span className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300/70">
+                  <div className="isopedia-empty-image flex h-full w-full flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-900/60 px-4 text-center">
+                    <span className="isopedia-theme-kicker text-xs font-black uppercase tracking-[0.22em] text-emerald-300/70">
                       Help grow the database
                     </span>
-                    <span className="mt-2 text-lg font-black text-emerald-50/80">
+                    <span className="isopedia-theme-muted mt-2 text-lg font-black text-emerald-50/80">
                       Add a photo
                     </span>
                   </div>
@@ -280,29 +280,29 @@ export default function IsopediaBrowser({ species }: Props) {
               <div className="p-5">
                 <div className="mb-3 flex flex-wrap gap-2">
                   {item.organism_type && (
-                    <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">
+                    <span className="isopedia-pill rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">
                       {toDisplayLabel(item.organism_type)}
                     </span>
                   )}
 
                   {item.difficulty && (
-                    <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs font-bold text-amber-200">
+                    <span className="isopedia-pill isopedia-pill-warm rounded-full bg-amber-400/10 px-3 py-1 text-xs font-bold text-amber-200">
                       {toDisplayLabel(item.difficulty)}
                     </span>
                   )}
                 </div>
 
-                <h3 className="text-2xl font-black text-white">
+                <h3 className="isopedia-theme-heading text-2xl font-black text-white">
                   {item.common_name}
                 </h3>
 
                 {item.scientific_name && (
-                  <p className="mt-1 italic text-emerald-50/70">
+                  <p className="isopedia-theme-muted mt-1 italic text-emerald-50/70">
                     {item.scientific_name}
                   </p>
                 )}
 
-                <div className="mt-4 grid gap-2 text-sm text-emerald-50/70">
+                <div className="isopedia-theme-muted mt-4 grid gap-2 text-sm text-emerald-50/70">
                   {(item.genus || item.species || item.morph) && (
                     <p>
                       {[item.genus, item.species, item.morph]
@@ -319,13 +319,13 @@ export default function IsopediaBrowser({ species }: Props) {
 
                   <div className="flex flex-wrap gap-2 pt-2 text-xs">
                     {item.temperature && (
-                      <span className="rounded-full bg-black/25 px-3 py-1 text-emerald-50/75">
+                      <span className="isopedia-detail-pill rounded-full bg-black/25 px-3 py-1 text-emerald-50/75">
                         {item.temperature}
                       </span>
                     )}
 
                     {item.humidity && (
-                      <span className="rounded-full bg-black/25 px-3 py-1 text-emerald-50/75">
+                      <span className="isopedia-detail-pill rounded-full bg-black/25 px-3 py-1 text-emerald-50/75">
                         {item.humidity}
                       </span>
                     )}
@@ -336,15 +336,15 @@ export default function IsopediaBrowser({ species }: Props) {
           ))}
         </div>
       ) : (
-        <div className="rounded-3xl border border-emerald-900/40 bg-[#142318] p-8 text-center shadow-xl shadow-black/20">
-          <p className="text-emerald-50/70">
+        <div className="isopedia-filter-card rounded-3xl border border-emerald-900/40 bg-[#142318] p-8 text-center shadow-xl shadow-black/20">
+          <p className="isopedia-theme-muted text-emerald-50/70">
             No entries match your current search or filters.
           </p>
 
           <button
             type="button"
             onClick={clearFilters}
-            className="mt-5 rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
+            className="isopedia-primary-button mt-5 rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
           >
             Clear filters
           </button>
@@ -369,14 +369,14 @@ function FilterSelect({
 }) {
   return (
     <label className="grid gap-2">
-      <span className="text-xs font-bold uppercase tracking-widest text-emerald-100/50">
+      <span className="isopedia-theme-label text-xs font-bold uppercase tracking-widest text-emerald-100/50">
         {label}
       </span>
 
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-2xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+        className="isopedia-theme-input rounded-2xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
       >
         <option value="">{emptyLabel}</option>
 

@@ -24,3 +24,89 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+html[data-isopedia-theme="light"] body {
+  background: #ffffff;
+  color: #101010;
+}
+
+html[data-isopedia-theme="light"] .isopedia-theme-root {
+  background: #ffffff !important;
+  color: #101010 !important;
+}
+
+html[data-isopedia-theme="light"] .isopedia-nav-shell,
+html[data-isopedia-theme="light"] .isopedia-hero-shell,
+html[data-isopedia-theme="light"] .isopedia-hero-panel,
+html[data-isopedia-theme="light"] .isopedia-install-card,
+html[data-isopedia-theme="light"] .isopedia-filter-card,
+html[data-isopedia-theme="light"] .isopedia-species-card {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.06) !important;
+}
+
+html[data-isopedia-theme="light"] .isopedia-nav-shell a:not(.bg-emerald-400),
+html[data-isopedia-theme="light"] .isopedia-theme-toggle,
+html[data-isopedia-theme="light"] .isopedia-stat-card,
+html[data-isopedia-theme="light"] .isopedia-secondary-button {
+  background: #f7f7f7 !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #101010 !important;
+  box-shadow: none !important;
+}
+
+html[data-isopedia-theme="light"] .isopedia-nav-shell a:hover,
+html[data-isopedia-theme="light"] .isopedia-theme-toggle:hover,
+html[data-isopedia-theme="light"] .isopedia-species-card:hover {
+  background: #eeeeee !important;
+  border-color: rgba(0, 0, 0, 0.18) !important;
+}
+
+html[data-isopedia-theme="light"] .isopedia-nav-shell a[class*="bg-emerald-400"],
+html[data-isopedia-theme="light"] .isopedia-install-card button:not(:disabled),
+html[data-isopedia-theme="light"] .isopedia-primary-button {
+  background: #101010 !important;
+  border-color: #101010 !important;
+  color: #ffffff !important;
+}
+
+html[data-isopedia-theme="light"] .isopedia-theme-heading,
+html[data-isopedia-theme="light"] .isopedia-nav-shell span,
+html[data-isopedia-theme="light"] .isopedia-nav-shell a.group,
+html[data-isopedia-theme="light"] .isopedia-stat-card strong {
+  color: #101010 !important;
+}
+
+html[data-isopedia-theme="light"] .isopedia-theme-muted,
+html[data-isopedia-theme="light"] .isopedia-nav-shell small {
+  color: #3f3f3f !important;
+}
+
+html[data-isopedia-theme="light"] .isopedia-theme-kicker,
+html[data-isopedia-theme="light"] .isopedia-theme-label,
+html[data-isopedia-theme="light"] .isopedia-stat-card span {
+  color: #666666 !important;
+}
+
+html[data-isopedia-theme="light"] .isopedia-theme-input,
+html[data-isopedia-theme="light"] .isopedia-card-image {
+  background: #f7f7f7 !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #101010 !important;
+}
+
+html[data-isopedia-theme="light"] .isopedia-theme-input::placeholder {
+  color: #777777 !important;
+}
+
+html[data-isopedia-theme="light"] .isopedia-pill,
+html[data-isopedia-theme="light"] .isopedia-pill-warm,
+html[data-isopedia-theme="light"] .isopedia-detail-pill {
+  background: #eeeeee !important;
+  color: #101010 !important;
+}
+
+html[data-isopedia-theme="light"] .isopedia-empty-image {
+  border-color: rgba(0, 0, 0, 0.14) !important;
+}
