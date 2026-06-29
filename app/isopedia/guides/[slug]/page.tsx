@@ -487,12 +487,20 @@ function GuideFigure({
           className="object-contain"
         />
         {canReplaceImages && (
-          <Link
-            href={`/admin/isopedia/repair-image?image_url=${encodeURIComponent(image.image_url)}`}
-            className="absolute right-3 top-3 rounded-full border border-emerald-300/30 bg-black/65 px-3 py-1.5 text-xs font-black text-emerald-100 shadow-lg transition hover:bg-emerald-400 hover:text-slate-950"
-          >
-            Replace image
-          </Link>
+          <div className="absolute right-3 top-3 flex flex-wrap justify-end gap-2">
+            <Link
+              href={`/admin/isopedia/repair-image?image_url=${encodeURIComponent(image.image_url)}`}
+              className="rounded-full border border-emerald-300/30 bg-black/65 px-3 py-1.5 text-xs font-black text-emerald-100 shadow-lg transition hover:bg-emerald-400 hover:text-slate-950"
+            >
+              Replace image
+            </Link>
+            <Link
+              href={`/admin/isopedia/delete-image?image_url=${encodeURIComponent(image.image_url)}`}
+              className="rounded-full border border-red-300/30 bg-black/65 px-3 py-1.5 text-xs font-black text-red-100 shadow-lg transition hover:bg-red-500 hover:text-white"
+            >
+              Delete image
+            </Link>
+          </div>
         )}
       </div>
 

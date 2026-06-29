@@ -268,6 +268,12 @@ export default async function AdminVerifyGalleryImagesPage({
                         >
                           Replace image
                         </Link>
+                        <Link
+                          href={`/admin/isopedia/delete-image?image_url=${encodeURIComponent(image.image_url)}`}
+                          className="text-red-200 hover:text-red-100"
+                        >
+                          Delete image
+                        </Link>
                       </div>
                     </div>
 

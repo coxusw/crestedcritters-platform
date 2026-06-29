@@ -43,6 +43,9 @@ export default function SpeciesImageCarousel({
   const replaceImageHref = `/admin/isopedia/repair-image?image_url=${encodeURIComponent(
     activeImage.imageUrl
   )}`;
+  const deleteImageHref = `/admin/isopedia/delete-image?image_url=${encodeURIComponent(
+    activeImage.imageUrl
+  )}`;
 
   function goPrevious() {
     setActiveIndex((current) =>
@@ -69,12 +72,20 @@ export default function SpeciesImageCarousel({
         />
 
         {canReplaceImages && (
-          <Link
-            href={replaceImageHref}
-            className="absolute right-3 top-3 rounded-full border border-emerald-300/30 bg-black/65 px-3 py-1.5 text-xs font-black text-emerald-100 shadow-lg transition hover:bg-emerald-400 hover:text-slate-950"
-          >
-            Replace image
-          </Link>
+          <div className="absolute right-3 top-3 flex flex-wrap justify-end gap-2">
+            <Link
+              href={replaceImageHref}
+              className="rounded-full border border-emerald-300/30 bg-black/65 px-3 py-1.5 text-xs font-black text-emerald-100 shadow-lg transition hover:bg-emerald-400 hover:text-slate-950"
+            >
+              Replace image
+            </Link>
+            <Link
+              href={deleteImageHref}
+              className="rounded-full border border-red-300/30 bg-black/65 px-3 py-1.5 text-xs font-black text-red-100 shadow-lg transition hover:bg-red-500 hover:text-white"
+            >
+              Delete image
+            </Link>
+          </div>
         )}
 
         {cleanImages.length > 1 && (
