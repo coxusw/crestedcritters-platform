@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { submitExpo } from "@/app/isopedia/expos/actions";
+import { ExpoDateFields } from "@/app/isopedia/expos/submit/ExpoDateFields";
 
 const STATES = [
   ["AL", "Alabama"],
@@ -195,49 +196,7 @@ export default async function SubmitExpoPage() {
               </label>
             </div>
 
-            <section className="rounded-2xl border border-white/10 bg-[#07130c]/70 p-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-widest text-emerald-100/50">
-                  Additional Dates Optional
-                </p>
-                <p className="mt-2 text-sm leading-6 text-emerald-50/55">
-                  Add up to 11 more dates for the same expo. Each date will be
-                  submitted as its own pending calendar entry using the same
-                  expo details and flyer.
-                </p>
-              </div>
-
-              <div className="mt-4 grid gap-4">
-                {Array.from({ length: 11 }, (_, index) => (
-                  <div
-                    key={index}
-                    className="grid gap-4 rounded-xl border border-white/10 bg-black/20 p-3 sm:grid-cols-2"
-                  >
-                    <label className="grid gap-2">
-                      <span className="text-xs font-bold uppercase tracking-widest text-emerald-100/45">
-                        Date {index + 2} Start
-                      </span>
-                      <input
-                        type="datetime-local"
-                        name="additional_starts_at"
-                        className="rounded-xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white outline-none focus:border-emerald-400/40"
-                      />
-                    </label>
-
-                    <label className="grid gap-2">
-                      <span className="text-xs font-bold uppercase tracking-widest text-emerald-100/45">
-                        Date {index + 2} End Optional
-                      </span>
-                      <input
-                        type="datetime-local"
-                        name="additional_ends_at"
-                        className="rounded-xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white outline-none focus:border-emerald-400/40"
-                      />
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </section>
+            <ExpoDateFields />
 
             <label className="grid gap-2">
               <span className="text-xs font-black uppercase tracking-widest text-emerald-100/50">
