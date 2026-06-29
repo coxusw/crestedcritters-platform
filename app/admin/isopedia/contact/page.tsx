@@ -47,6 +47,7 @@ type ThreadMessage = {
   thread_id: string;
   sender_id: string | null;
   body: string;
+  source_profile_message_id: string | null;
   created_at: string;
   sender: ProfileRecipient | null;
 };
@@ -57,6 +58,11 @@ type AdminMessageThread = {
   last_message_at: string;
   participants: ThreadParticipant[];
   messages: ThreadMessage[];
+};
+
+type SourceProfileMessage = {
+  thread_id: string | null;
+  audience: string;
 };
 
 function cleanText(value: FormDataEntryValue | null, maxLength = 4000) {
@@ -388,7 +394,7 @@ export default async function AdminIsopediaContactPage({
     .from("isopedia_message_threads")
     .select("id, subject, last_message_at")
     .order("last_message_at", { ascending: false })
-    .limit(25)
+    .limit(250)
     .returns<
       Array<{
         id: string;
@@ -437,6 +443,7 @@ export default async function AdminIsopediaContactPage({
             thread_id,
             sender_id,
             body,
+            source_profile_message_id,
             created_at,
             sender:sender_id (
               id,
@@ -452,6 +459,19 @@ export default async function AdminIsopediaContactPage({
       ])
     : [{ data: [] as ThreadParticipant[] }, { data: [] as ThreadMessage[] }];
 
+  const { data: sourceMessages } = threadIds.length
+    ? await supabase
+        .from("isopedia_profile_messages")
+        .select("thread_id, audience")
+        .in("thread_id", threadIds)
+        .returns<SourceProfileMessage[]>()
+    : { data: [] as SourceProfileMessage[] };
+  const sourceAudienceByThread = new Map(
+    (sourceMessages || [])
+      .filter((message) => message.thread_id)
+      .map((message) => [message.thread_id as string, message.audience])
+  );
+
   const participantsByThread = new Map<string, ThreadParticipant[]>();
   for (const participant of threadParticipantsResult.data || []) {
     const existing = participantsByThread.get(participant.thread_id) || [];
@@ -466,13 +486,17 @@ export default async function AdminIsopediaContactPage({
     messagesByThread.set(message.thread_id, existing);
   }
 
-  const adminMessageThreads: AdminMessageThread[] = visibleMessageThreads.map(
-    (thread) => ({
+  const adminMessageThreads: AdminMessageThread[] = visibleMessageThreads
+    .map((thread) => ({
       ...thread,
       participants: participantsByThread.get(thread.id) || [],
       messages: messagesByThread.get(thread.id) || [],
+    }))
+    .filter((thread) => {
+      if (sourceAudienceByThread.get(thread.id) !== "all") return true;
+      return thread.messages.some((message) => !message.source_profile_message_id);
     })
-  );
+    .slice(0, 25);
 
   return (
     <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
