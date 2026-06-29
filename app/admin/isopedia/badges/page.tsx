@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { productionIsopediaUrl } from "@/lib/isopedia-site";
+import {
+  ACCOUNT_AGE_BADGE_MILESTONES,
+  syncAccountAgeBadges,
+} from "@/lib/isopedia-account-age-badges";
 import AdminBadgesAssignmentForm from "@/app/components/isopedia/AdminBadgesAssignmentForm";
 
 type Profile = {
@@ -297,6 +301,24 @@ async function toggleBadge(formData: FormData) {
   redirect("/admin/isopedia/badges?updated=true");
 }
 
+async function runAccountAgeBadgeSync() {
+  "use server";
+
+  await requireAdmin();
+
+  try {
+    const result = await syncAccountAgeBadges();
+    revalidatePath("/admin/isopedia/badges");
+    redirect(
+      `/admin/isopedia/badges?ageBadges=${result.assignmentsAdded.toString()}&checked=${result.profilesChecked.toString()}`
+    );
+  } catch (error) {
+    redirect(
+      `/admin/isopedia/badges?error=${encodeURIComponent(error instanceof Error ? error.message : String(error))}`
+    );
+  }
+}
+
 export default async function AdminBadgesPage({
   searchParams,
 }: {
@@ -306,6 +328,8 @@ export default async function AdminBadgesPage({
     removed?: string;
     updated?: string;
     bulk?: string;
+    ageBadges?: string;
+    checked?: string;
     error?: string;
   }>;
 }) {
@@ -404,6 +428,11 @@ export default async function AdminBadgesPage({
         {params.bulk && (
           <Notice
             text={`Criteria badge assignment complete. ${Number(params.bulk)} new assignment${Number(params.bulk) === 1 ? "" : "s"} added.`}
+          />
+        )}
+        {params.ageBadges && (
+          <Notice
+            text={`Account-age badge sync complete. ${Number(params.ageBadges)} new assignment${Number(params.ageBadges) === 1 ? "" : "s"} added across ${Number(params.checked || 0)} checked profile${Number(params.checked || 0) === 1 ? "" : "s"}.`}
           />
         )}
 
@@ -553,6 +582,53 @@ export default async function AdminBadgesPage({
             </div>
           </section>
         </div>
+
+        <section className="mt-8 rounded-3xl border border-white/10 bg-[#142318] p-6 shadow-xl shadow-black/20">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white">
+                Automatic Account-Age Badges
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-50/65">
+                These badges are issued automatically as profile accounts reach
+                each milestone. The daily cron handles ongoing updates, and this
+                button can backfill or rerun the sync at any time.
+              </p>
+            </div>
+
+            <form action={runAccountAgeBadgeSync}>
+              <button
+                type="submit"
+                className="rounded-xl bg-emerald-400 px-6 py-3 font-black text-slate-950 transition hover:bg-emerald-300"
+              >
+                Sync Now
+              </button>
+            </form>
+          </div>
+
+          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {ACCOUNT_AGE_BADGE_MILESTONES.map((milestone) => (
+              <div
+                key={milestone.key}
+                className="rounded-2xl border border-white/10 bg-[#0b140d]/70 p-4"
+              >
+                <BadgePill
+                  badge={{
+                    id: milestone.key,
+                    label: milestone.label,
+                    description: milestone.description,
+                    color: milestone.color,
+                    icon: milestone.icon,
+                    is_active: true,
+                  }}
+                />
+                <p className="mt-3 text-sm leading-6 text-emerald-50/60">
+                  {milestone.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <section className="mt-8 rounded-3xl border border-white/10 bg-[#142318] p-6 shadow-xl shadow-black/20">
           <h2 className="text-2xl font-bold text-white">Assign by Criteria</h2>
@@ -713,6 +789,8 @@ function BadgePill({ badge }: { badge: Badge }) {
   const colorClasses: Record<string, string> = {
     emerald: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
     amber: "border-amber-400/30 bg-amber-400/10 text-amber-200",
+    green: "border-green-400/30 bg-green-400/10 text-green-200",
+    cyan: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200",
     sky: "border-sky-400/30 bg-sky-400/10 text-sky-200",
     violet: "border-violet-400/30 bg-violet-400/10 text-violet-200",
     rose: "border-rose-400/30 bg-rose-400/10 text-rose-200",

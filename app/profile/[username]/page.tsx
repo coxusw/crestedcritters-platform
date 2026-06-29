@@ -9,6 +9,7 @@ import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { getProfileFeatureAccess } from "@/lib/isopedia-feature-flags";
 import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
 import { getIsoTokenBalanceForProfile } from "@/lib/isotokens";
+import { syncAccountAgeBadgesForProfile } from "@/lib/isopedia-account-age-badges";
 import ProfileQrButton from "@/app/components/isopedia/ProfileQrButton";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 
@@ -452,6 +453,13 @@ export default async function PublicProfilePage({
   const websiteUrl = cleanUrl(profile.website_url);
   const facebookUrl = cleanUrl(profile.facebook_url);
   const profileInstagramUrl = instagramUrl(profile.instagram_url);
+
+  try {
+    await syncAccountAgeBadgesForProfile(profile.id);
+  } catch {
+    // Account-age badges are a nice-to-have profile enhancement; the public
+    // profile should still render if the cron migration has not run yet.
+  }
 
   const [
     submittedSpecies,
