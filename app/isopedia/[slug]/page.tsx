@@ -847,9 +847,6 @@ export default async function SpeciesPage({ params }: PageProps) {
                             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                             className="h-full w-full object-contain transition group-hover:scale-[1.03]"
                           />
-                          <span className="pointer-events-none absolute right-2 top-2 z-10 select-none text-xs font-black text-white/45 [text-shadow:0_1px_2px_rgba(0,0,0,0.7),0_0_5px_rgba(0,0,0,0.35)]">
-                            Isopedia
-                          </span>
                         </>
                       ) : (
                         <div className="text-sm text-emerald-50/40">
