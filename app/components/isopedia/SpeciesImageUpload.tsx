@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
-import { watermarkImageFile } from "@/app/components/isopedia/image-watermark";
 
 export default function SpeciesImageUpload() {
   const [imageUrl, setImageUrl] = useState("");
@@ -25,17 +24,15 @@ export default function SpeciesImageUpload() {
 
       const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
-      const watermarkedFile = await watermarkImageFile(file);
-      const fileExt = watermarkedFile.name.split(".").pop() || "jpg";
+      const fileExt = file.name.split(".").pop() || "jpg";
       const fileName = `submissions/${crypto.randomUUID()}.${fileExt}`;
 
       const { error } = await supabase.storage
         .from("isopedia-images")
-        .upload(fileName, watermarkedFile, {
+        .upload(fileName, file, {
           cacheControl: "3600",
           upsert: false,
-          contentType: watermarkedFile.type || "image/jpeg",
-          metadata: { isopediaWatermarked: "true" },
+          contentType: file.type || "image/jpeg",
         });
 
       if (error) {

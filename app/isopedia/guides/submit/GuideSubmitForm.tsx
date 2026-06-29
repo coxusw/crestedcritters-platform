@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
-import { watermarkImageFile } from "@/app/components/isopedia/image-watermark";
 
 type SelectedImage = {
   file: File;
@@ -130,17 +129,15 @@ export default function GuideSubmitForm() {
       const imageRows = [];
 
       for (const image of images) {
-        const watermarkedFile = await watermarkImageFile(image.file);
-        const extension = watermarkedFile.name.split(".").pop()?.toLowerCase() || "jpg";
+        const extension = image.file.name.split(".").pop()?.toLowerCase() || "jpg";
         const storagePath = `guides/${user.id}/${guide.id}/${image.position}-${crypto.randomUUID()}.${extension}`;
 
         const { error: uploadError } = await supabase.storage
           .from("isopedia-images")
-          .upload(storagePath, watermarkedFile, {
+          .upload(storagePath, image.file, {
             cacheControl: "3600",
             upsert: false,
-            contentType: watermarkedFile.type,
-            metadata: { isopediaWatermarked: "true" },
+            contentType: image.file.type,
           });
 
         if (uploadError) {

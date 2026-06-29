@@ -3,11 +3,6 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "../../../lib/supabase-server";
-import {
-  watermarkImageBuffer,
-  watermarkedImageContentType,
-  watermarkedImageVersion,
-} from "@/lib/isopedia-image-watermark";
 
 function slugify(value: string) {
   return value
@@ -21,6 +16,13 @@ function slugify(value: string) {
 function cleanText(value: FormDataEntryValue | null) {
   const text = String(value || "").trim();
   return text.length ? text : null;
+}
+
+function safeImageExtension(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase() || "";
+  if (extension === "jpeg") return "jpg";
+  if (["jpg", "png", "webp", "gif"].includes(extension)) return extension;
+  return "jpg";
 }
 
 async function requireAdmin() {
@@ -60,22 +62,15 @@ async function uploadSpeciesImage(
     throw new Error("Image must be smaller than 5MB.");
   }
 
-  const extension = "jpg";
+  const extension = safeImageExtension(file);
   const filePath = `${slug}/${Date.now()}.${extension}`;
-  const watermarkedImage = await watermarkImageBuffer(
-    Buffer.from(await file.arrayBuffer())
-  );
 
   const { error: uploadError } = await supabase.storage
     .from("isopedia-images")
-    .upload(filePath, watermarkedImage, {
+    .upload(filePath, file, {
       cacheControl: "3600",
       upsert: false,
-      contentType: watermarkedImageContentType(),
-      metadata: {
-        isopediaWatermarked: "true",
-        isopediaWatermarkVersion: watermarkedImageVersion(),
-      },
+      contentType: file.type || "image/jpeg",
     });
 
   if (uploadError) {

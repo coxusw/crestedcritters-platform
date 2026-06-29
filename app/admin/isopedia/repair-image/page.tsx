@@ -50,13 +50,13 @@ export default async function RepairImagePage({ searchParams }: PageProps) {
             Back to Isopedia tools
           </Link>
 
-          <h1 className="mt-3 text-3xl font-black">Repair Watermarked Image</h1>
+          <h1 className="mt-3 text-3xl font-black">Replace Image</h1>
 
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            Replace a junked watermarked image with the clean original. This
-            overwrites the same Supabase Storage file and refreshes matching
-            image URLs. It does not create submissions, change contributor
-            credit, change verification status, or award IsoTokens.
+            Replace a junked image with the clean original. This overwrites the
+            same Supabase Storage file and refreshes matching image URLs. It
+            does not create submissions, change contributor credit, change
+            verification status, or award IsoTokens.
           </p>
         </header>
 
@@ -80,7 +80,7 @@ export default async function RepairImagePage({ searchParams }: PageProps) {
           <form action={repairWatermarkedImage} className="grid gap-5">
             <label className="grid gap-2">
               <span className="text-xs font-black uppercase tracking-widest text-emerald-100/60">
-                Current junked image URL
+                Current image URL
               </span>
               <input
                 name="image_url"
@@ -93,7 +93,7 @@ export default async function RepairImagePage({ searchParams }: PageProps) {
 
             <label className="grid gap-2">
               <span className="text-xs font-black uppercase tracking-widest text-emerald-100/60">
-                Clean original image
+                Replacement image
               </span>
               <input
                 name="replacement_image"
@@ -108,7 +108,7 @@ export default async function RepairImagePage({ searchParams }: PageProps) {
               type="submit"
               className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
             >
-              Replace and watermark once
+              Replace with original
             </button>
           </form>
         </section>

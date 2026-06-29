@@ -300,15 +300,9 @@ export default async function AdminIsopediaPage() {
                 icon="Stats"
               />
               <AdminActionCard
-                href="/admin/isopedia/watermark-images"
-                title="Watermark Images"
-                description="Apply the approved Isopedia watermark to existing stored species and guide images."
-                icon="Images"
-              />
-              <AdminActionCard
                 href="/admin/isopedia/repair-image"
-                title="Repair Image"
-                description="Replace a junked watermarked image with a clean original without changing contributor credit."
+                title="Replace Image"
+                description="Replace a junked image with a clean original without changing contributor credit."
                 icon="Repair"
               />
               <AdminActionCard

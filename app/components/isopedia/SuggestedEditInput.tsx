@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import RichTextEditor from "@/app/components/isopedia/RichTextEditor";
-import { watermarkImageFile } from "@/app/components/isopedia/image-watermark";
 
 const FIELD_OPTIONS = [
   { value: "common_name", label: "Common Name", type: "plain" },
@@ -51,17 +50,15 @@ export default function SuggestedEditInput() {
 
       const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
-      const watermarkedFile = await watermarkImageFile(file);
-      const fileExt = watermarkedFile.name.split(".").pop() || "jpg";
+      const fileExt = file.name.split(".").pop() || "jpg";
       const fileName = `suggested-edits/${crypto.randomUUID()}.${fileExt}`;
 
       const { error } = await supabase.storage
         .from("isopedia-images")
-        .upload(fileName, watermarkedFile, {
+        .upload(fileName, file, {
           cacheControl: "3600",
           upsert: false,
-          contentType: watermarkedFile.type || "image/jpeg",
-          metadata: { isopediaWatermarked: "true" },
+          contentType: file.type || "image/jpeg",
         });
 
       if (error) {

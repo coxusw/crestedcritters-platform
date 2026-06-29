@@ -4,11 +4,6 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
-import {
-  watermarkImageBuffer,
-  watermarkedImageContentType,
-  watermarkedImageVersion,
-} from "@/lib/isopedia-image-watermark";
 
 const BUCKET = "isopedia-images";
 
@@ -133,21 +128,13 @@ export async function repairWatermarkedImage(formData: FormData) {
 
   const supabase = createSupabaseAdminClient();
   const refs = await collectReferencesForPath(supabase, storagePath, supabaseUrl);
-  const repairedImage = await watermarkImageBuffer(
-    Buffer.from(await file.arrayBuffer())
-  );
 
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
-    .upload(storagePath, repairedImage, {
+    .upload(storagePath, file, {
       upsert: true,
       cacheControl: "3600",
-      contentType: watermarkedImageContentType(),
-      metadata: {
-        isopediaWatermarked: "true",
-        isopediaWatermarkVersion: watermarkedImageVersion(),
-        isopediaWatermarkRepair: "true",
-      },
+      contentType: file.type || "image/jpeg",
     });
 
   if (uploadError) {
