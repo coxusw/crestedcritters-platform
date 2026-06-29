@@ -94,46 +94,56 @@ function matchesSearch(item: Species, search: string) {
   return haystack.includes(query);
 }
 
+function matchesFilter(value: string | null, filter: string) {
+  return filter ? normalizeFilterValue(value) === filter : true;
+}
+
 export default function IsopediaBrowser({ species }: Props) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [genusFilter, setGenusFilter] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("");
 
-  const typeOptions = useMemo(
-    () => uniqueValues(species, "organism_type"),
-    [species]
-  );
+  const typeOptions = useMemo(() => {
+    const eligibleSpecies = species.filter(
+      (item) =>
+        matchesSearch(item, search) &&
+        matchesFilter(item.genus, genusFilter) &&
+        matchesFilter(item.difficulty, difficultyFilter)
+    );
 
-  const genusOptions = useMemo(
-    () => uniqueValues(species, "genus"),
-    [species]
-  );
+    return uniqueValues(eligibleSpecies, "organism_type");
+  }, [species, search, genusFilter, difficultyFilter]);
 
-  const difficultyOptions = useMemo(
-    () => uniqueValues(species, "difficulty"),
-    [species]
-  );
+  const genusOptions = useMemo(() => {
+    const eligibleSpecies = species.filter(
+      (item) =>
+        matchesSearch(item, search) &&
+        matchesFilter(item.organism_type, typeFilter) &&
+        matchesFilter(item.difficulty, difficultyFilter)
+    );
+
+    return uniqueValues(eligibleSpecies, "genus");
+  }, [species, search, typeFilter, difficultyFilter]);
+
+  const difficultyOptions = useMemo(() => {
+    const eligibleSpecies = species.filter(
+      (item) =>
+        matchesSearch(item, search) &&
+        matchesFilter(item.organism_type, typeFilter) &&
+        matchesFilter(item.genus, genusFilter)
+    );
+
+    return uniqueValues(eligibleSpecies, "difficulty");
+  }, [species, search, typeFilter, genusFilter]);
 
   const filteredSpecies = useMemo(() => {
     return species.filter((item) => {
-      const matchesType = typeFilter
-        ? normalizeFilterValue(item.organism_type) === typeFilter
-        : true;
-
-      const matchesGenus = genusFilter
-        ? normalizeFilterValue(item.genus) === genusFilter
-        : true;
-
-      const matchesDifficulty = difficultyFilter
-        ? normalizeFilterValue(item.difficulty) === difficultyFilter
-        : true;
-
       return (
         matchesSearch(item, search) &&
-        matchesType &&
-        matchesGenus &&
-        matchesDifficulty
+        matchesFilter(item.organism_type, typeFilter) &&
+        matchesFilter(item.genus, genusFilter) &&
+        matchesFilter(item.difficulty, difficultyFilter)
       );
     });
   }, [species, search, typeFilter, genusFilter, difficultyFilter]);
