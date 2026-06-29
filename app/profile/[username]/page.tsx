@@ -175,6 +175,27 @@ const badgeColorClasses: Record<string, string> = {
   neutral: "border-neutral-400/30 bg-neutral-400/10 text-neutral-200",
 };
 
+const badgeIconClasses: Record<string, string> = {
+  emerald: "border-emerald-200/40 bg-emerald-300 text-emerald-950",
+  green: "border-green-200/40 bg-green-300 text-green-950",
+  lime: "border-lime-200/40 bg-lime-300 text-lime-950",
+  amber: "border-amber-200/40 bg-amber-300 text-amber-950",
+  yellow: "border-yellow-200/40 bg-yellow-300 text-yellow-950",
+  orange: "border-orange-200/40 bg-orange-300 text-orange-950",
+  red: "border-red-200/40 bg-red-300 text-red-950",
+  rose: "border-rose-200/40 bg-rose-300 text-rose-950",
+  pink: "border-pink-200/40 bg-pink-300 text-pink-950",
+  purple: "border-purple-200/40 bg-purple-300 text-purple-950",
+  violet: "border-violet-200/40 bg-violet-300 text-violet-950",
+  indigo: "border-indigo-200/40 bg-indigo-300 text-indigo-950",
+  blue: "border-blue-200/40 bg-blue-300 text-blue-950",
+  cyan: "border-cyan-200/40 bg-cyan-300 text-cyan-950",
+  sky: "border-sky-200/40 bg-sky-300 text-sky-950",
+  slate: "border-slate-200/40 bg-slate-300 text-slate-950",
+  zinc: "border-zinc-200/40 bg-zinc-300 text-zinc-950",
+  neutral: "border-neutral-200/40 bg-neutral-300 text-neutral-950",
+};
+
 function cleanText(value: FormDataEntryValue | null, maxLength = 4000) {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, maxLength);
@@ -1626,13 +1647,23 @@ function BadgeChip({ badge }: { badge: Badge }) {
   const classes =
     badgeColorClasses[colorKey] ||
     "border-emerald-400/30 bg-emerald-400/10 text-emerald-200";
+  const iconClasses =
+    badgeIconClasses[colorKey] ||
+    "border-emerald-200/40 bg-emerald-300 text-emerald-950";
 
   return (
     <span
       title={badge.description || badge.label}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black shadow-sm ${classes}`}
+      className={`inline-flex items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-3 text-xs font-black shadow-sm ${classes}`}
     >
-      {badge.icon && <span aria-hidden="true">{badge.icon}</span>}
+      {badge.icon && (
+        <span
+          aria-hidden="true"
+          className={`grid h-6 min-w-6 place-items-center rounded-full border px-1.5 text-[10px] font-black leading-none shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_2px_8px_rgba(0,0,0,0.22)] ${iconClasses}`}
+        >
+          {badge.icon}
+        </span>
+      )}
       <span>{badge.label}</span>
     </span>
   );

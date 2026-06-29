@@ -796,14 +796,34 @@ function BadgePill({ badge }: { badge: Badge }) {
     rose: "border-rose-400/30 bg-rose-400/10 text-rose-200",
     slate: "border-slate-400/30 bg-slate-400/10 text-slate-200",
   };
+  const iconClasses: Record<string, string> = {
+    emerald: "border-emerald-200/40 bg-emerald-300 text-emerald-950",
+    amber: "border-amber-200/40 bg-amber-300 text-amber-950",
+    green: "border-green-200/40 bg-green-300 text-green-950",
+    cyan: "border-cyan-200/40 bg-cyan-300 text-cyan-950",
+    sky: "border-sky-200/40 bg-sky-300 text-sky-950",
+    violet: "border-violet-200/40 bg-violet-300 text-violet-950",
+    rose: "border-rose-200/40 bg-rose-300 text-rose-950",
+    slate: "border-slate-200/40 bg-slate-300 text-slate-950",
+  };
+  const colorKey = badge.color || "emerald";
 
   return (
     <span
-      className={`inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase tracking-widest ${
-        colorClasses[badge.color] || colorClasses.emerald
+      className={`inline-flex items-center gap-2 rounded-full border py-1 pl-1.5 pr-3 text-xs font-black uppercase tracking-widest ${
+        colorClasses[colorKey] || colorClasses.emerald
       }`}
     >
-      {badge.icon ? `${badge.icon} ` : ""}
+      {badge.icon && (
+        <span
+          aria-hidden="true"
+          className={`grid h-6 min-w-6 place-items-center rounded-full border px-1.5 text-[10px] font-black leading-none tracking-normal shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_2px_8px_rgba(0,0,0,0.22)] ${
+            iconClasses[colorKey] || iconClasses.emerald
+          }`}
+        >
+          {badge.icon}
+        </span>
+      )}
       {badge.label}
     </span>
   );
