@@ -461,6 +461,9 @@ function GuideFigure({ image }: { image: GuideImage }) {
           sizes="(min-width: 1024px) 900px, 100vw"
           className="object-contain"
         />
+        <span className="pointer-events-none absolute right-3 top-3 z-10 select-none text-sm font-black text-white/75 [text-shadow:0_1px_2px_rgba(0,0,0,0.85),0_0_7px_rgba(0,0,0,0.5)]">
+          Isopedia
+        </span>
       </div>
 
       {image.caption && (

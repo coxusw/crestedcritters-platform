@@ -3,6 +3,10 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "../../../lib/supabase-server";
+import {
+  watermarkImageBuffer,
+  watermarkedImageContentType,
+} from "@/lib/isopedia-image-watermark";
 
 function slugify(value: string) {
   return value
@@ -16,11 +20,6 @@ function slugify(value: string) {
 function cleanText(value: FormDataEntryValue | null) {
   const text = String(value || "").trim();
   return text.length ? text : null;
-}
-
-function getFileExtension(fileName: string) {
-  const parts = fileName.split(".");
-  return parts.length > 1 ? parts.pop()?.toLowerCase() || "jpg" : "jpg";
 }
 
 async function requireAdmin() {
@@ -60,15 +59,19 @@ async function uploadSpeciesImage(
     throw new Error("Image must be smaller than 5MB.");
   }
 
-  const extension = getFileExtension(file.name);
+  const extension = "jpg";
   const filePath = `${slug}/${Date.now()}.${extension}`;
+  const watermarkedImage = await watermarkImageBuffer(
+    Buffer.from(await file.arrayBuffer())
+  );
 
   const { error: uploadError } = await supabase.storage
     .from("isopedia-images")
-    .upload(filePath, file, {
+    .upload(filePath, watermarkedImage, {
       cacheControl: "3600",
       upsert: false,
-      contentType: file.type,
+      contentType: watermarkedImageContentType(),
+      metadata: { isopediaWatermarked: "true" },
     });
 
   if (uploadError) {

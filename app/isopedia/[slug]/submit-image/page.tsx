@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import { publicSpeciesSlug, storedSpeciesSlug } from "@/lib/isopedia-slugs";
+import { watermarkImageFile } from "@/app/components/isopedia/image-watermark";
 
 type Species = {
   id: number;
@@ -32,9 +33,13 @@ export default function SubmitSpeciesImagePage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      ),
+    []
   );
 
   useEffect(() => {
@@ -97,17 +102,19 @@ export default function SubmitSpeciesImagePage() {
         return;
       }
 
+      const watermarkedFile = await watermarkImageFile(imageFile);
       const extension =
-        imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
+        watermarkedFile.name.split(".").pop()?.toLowerCase() || "jpg";
 
       const filePath = `species-gallery/${user.id}/${species.slug}/${Date.now()}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
         .from("isopedia-images")
-        .upload(filePath, imageFile, {
+        .upload(filePath, watermarkedFile, {
           cacheControl: "3600",
           upsert: false,
-          contentType: imageFile.type,
+          contentType: watermarkedFile.type,
+          metadata: { isopediaWatermarked: "true" },
         });
 
       if (uploadError) {

@@ -265,16 +265,21 @@ export default function IsopediaBrowser({ species }: Props) {
               href={`/${publicSpeciesSlug(item.slug)}`}
               className="isopedia-species-card group overflow-hidden rounded-3xl border border-emerald-900/40 bg-[#142318] shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-emerald-400/60 hover:bg-[#18291d]"
             >
-              <div className="isopedia-card-image flex h-48 w-full items-center justify-center bg-[#0b140d] p-3">
+              <div className="isopedia-card-image relative flex h-48 w-full items-center justify-center bg-[#0b140d] p-3">
                 {item.image_url ? (
-                  <Image
-                    src={item.image_url}
-                    alt={item.common_name}
-                    width={360}
-                    height={240}
-                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                    className="h-full w-full object-contain transition group-hover:scale-[1.03]"
-                  />
+                  <>
+                    <Image
+                      src={item.image_url}
+                      alt={item.common_name}
+                      width={360}
+                      height={240}
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      className="h-full w-full object-contain transition group-hover:scale-[1.03]"
+                    />
+                    <span className="pointer-events-none absolute right-3 top-3 z-10 select-none text-sm font-black text-white/75 [text-shadow:0_1px_2px_rgba(0,0,0,0.85),0_0_7px_rgba(0,0,0,0.5)]">
+                      Isopedia
+                    </span>
+                  </>
                 ) : (
                   <div className="isopedia-empty-image flex h-full w-full flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-900/60 px-4 text-center">
                     <span className="isopedia-theme-kicker text-xs font-black uppercase tracking-[0.22em] text-emerald-300/70">

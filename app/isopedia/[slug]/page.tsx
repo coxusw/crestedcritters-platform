@@ -836,16 +836,21 @@ export default async function SpeciesPage({ params }: PageProps) {
                     href={`/${publicSpeciesSlug(related.slug)}`}
                     className="group overflow-hidden rounded-3xl border border-white/10 bg-[#102016] shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-emerald-400/50"
                   >
-                    <div className="flex h-48 items-center justify-center bg-[#07130c]/70 p-3">
+                    <div className="relative flex h-48 items-center justify-center bg-[#07130c]/70 p-3">
                       {related.display_image_url ? (
-                        <Image
-                          src={related.display_image_url}
-                          alt={related.common_name}
-                          width={360}
-                          height={240}
-                          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                          className="h-full w-full object-contain transition group-hover:scale-[1.03]"
-                        />
+                        <>
+                          <Image
+                            src={related.display_image_url}
+                            alt={related.common_name}
+                            width={360}
+                            height={240}
+                            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                            className="h-full w-full object-contain transition group-hover:scale-[1.03]"
+                          />
+                          <span className="pointer-events-none absolute right-3 top-3 z-10 select-none text-sm font-black text-white/75 [text-shadow:0_1px_2px_rgba(0,0,0,0.85),0_0_7px_rgba(0,0,0,0.5)]">
+                            Isopedia
+                          </span>
+                        </>
                       ) : (
                         <div className="text-sm text-emerald-50/40">
                           No image

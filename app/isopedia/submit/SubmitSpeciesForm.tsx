@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
+import { watermarkImageFile } from "@/app/components/isopedia/image-watermark";
 
 const DIFFICULTY_OPTIONS = ["Beginner", "Intermediate", "Expert"] as const;
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
@@ -62,15 +63,17 @@ export default function SubmitSpeciesForm({ userId }: { userId: string }) {
       throw new Error("Image must be under 25MB.");
     }
 
-    const extension = getSafeImageExtension(file);
+    const watermarkedFile = await watermarkImageFile(file);
+    const extension = getSafeImageExtension(watermarkedFile);
     const safeName = slugifyFilePart(commonName) || "species-submission";
     const filePath = `species-submissions/${userId}/${Date.now()}-${safeName}.${extension}`;
     const { error } = await supabase.storage
       .from("isopedia-images")
-      .upload(filePath, file, {
+      .upload(filePath, watermarkedFile, {
         cacheControl: "3600",
         upsert: false,
-        contentType: file.type || "image/jpeg",
+        contentType: watermarkedFile.type || "image/jpeg",
+        metadata: { isopediaWatermarked: "true" },
       });
 
     if (error) throw new Error(error.message);

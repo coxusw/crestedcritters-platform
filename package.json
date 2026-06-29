@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "watermark:isopedia-images": "node scripts/watermark-isopedia-images.mjs",
     "lint": "eslint"
   },
   "dependencies": {

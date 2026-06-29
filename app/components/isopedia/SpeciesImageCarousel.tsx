@@ -61,6 +61,9 @@ export default function SpeciesImageCarousel({
           sizes="(min-width: 1024px) 420px, 100vw"
           className="object-contain"
         />
+        <span className="pointer-events-none absolute right-3 top-3 z-10 select-none text-sm font-black text-white/75 [text-shadow:0_1px_2px_rgba(0,0,0,0.85),0_0_7px_rgba(0,0,0,0.5)]">
+          Isopedia
+        </span>
 
         {cleanImages.length > 1 && (
           <>
@@ -116,7 +119,7 @@ export default function SpeciesImageCarousel({
               key={image.id}
               type="button"
               onClick={() => setActiveIndex(index)}
-              className={`overflow-hidden rounded-xl border p-1 transition ${
+              className={`relative overflow-hidden rounded-xl border p-1 transition ${
                 index === activeIndex
                   ? "border-emerald-300 bg-emerald-300/10"
                   : "border-white/10 bg-black/20 hover:border-emerald-300/40"
@@ -131,6 +134,9 @@ export default function SpeciesImageCarousel({
                 sizes="96px"
                 className="aspect-square w-full object-cover"
               />
+              <span className="pointer-events-none absolute right-1.5 top-1.5 z-10 select-none text-[11px] font-black leading-none text-white/75 [text-shadow:0_1px_2px_rgba(0,0,0,0.85)]">
+                Isopedia
+              </span>
             </button>
           ))}
         </div>

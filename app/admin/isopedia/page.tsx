@@ -300,6 +300,12 @@ export default async function AdminIsopediaPage() {
                 icon="Stats"
               />
               <AdminActionCard
+                href="/admin/isopedia/watermark-images"
+                title="Watermark Images"
+                description="Apply the approved Isopedia watermark to existing stored species and guide images."
+                icon="Images"
+              />
+              <AdminActionCard
                 href="/admin/isopedia/isotoken-shop"
                 title="IsoToken Shop"
                 description="Create IsoToken rewards, set prices, and choose active store items."
