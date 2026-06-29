@@ -258,9 +258,17 @@ export default async function AdminVerifyGalleryImagesPage({
                         />
                       </div>
 
-                      <a href={image.image_url} target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-sm font-semibold text-emerald-300 hover:text-emerald-200">
-                        Open image
-                      </a>
+                      <div className="mt-3 flex flex-wrap justify-center gap-3 text-sm font-semibold">
+                        <a href={image.image_url} target="_blank" rel="noopener noreferrer" className="text-emerald-300 hover:text-emerald-200">
+                          Open image
+                        </a>
+                        <Link
+                          href={`/admin/isopedia/repair-image?image_url=${encodeURIComponent(image.image_url)}`}
+                          className="text-amber-200 hover:text-amber-100"
+                        >
+                          Replace image
+                        </Link>
+                      </div>
                     </div>
 
                     <div className="p-6">

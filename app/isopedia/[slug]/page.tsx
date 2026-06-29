@@ -395,6 +395,7 @@ export default async function SpeciesPage({ params }: PageProps) {
 
   let collectionItems: CollectionItem[] = [];
   let canAccessAdmin = false;
+  let canReplaceImages = false;
   let birthDate: string | null = null;
   let ageRestrictionReady = false;
 
@@ -426,6 +427,7 @@ export default async function SpeciesPage({ params }: PageProps) {
       Boolean(adminProfile) ||
       profile?.role === "admin" ||
       profile?.role === "moderator";
+    canReplaceImages = Boolean(adminProfile) || profile?.role === "admin";
   }
 
   const initialOwned = collectionItems.some((item) => item.status === "owned");
@@ -755,6 +757,7 @@ export default async function SpeciesPage({ params }: PageProps) {
                 <SpeciesImageCarousel
                   images={carouselImages}
                   speciesName={species.common_name}
+                  canReplaceImages={canReplaceImages}
                 />
 
                 <div className="mt-4">

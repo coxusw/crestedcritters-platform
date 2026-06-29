@@ -154,7 +154,11 @@ export async function generateMetadata({
   };
 }
 
-function renderGuideBody(body: string, images: GuideImage[]) {
+function renderGuideBody(
+  body: string,
+  images: GuideImage[],
+  canReplaceImages: boolean
+) {
   const imageByPosition = new Map(
     images.map((image) => [Number(image.position), image])
   );
@@ -176,6 +180,7 @@ function renderGuideBody(body: string, images: GuideImage[]) {
           <GuideFigure
             key={`image-${position}-${partIndex}`}
             image={image}
+            canReplaceImages={canReplaceImages}
           />,
         ];
       }
@@ -196,7 +201,13 @@ function renderGuideBody(body: string, images: GuideImage[]) {
 
   const unplacedImages = images
     .filter((image) => !usedPositions.has(Number(image.position)))
-    .map((image) => <GuideFigure key={`unplaced-${image.id}`} image={image} />);
+    .map((image) => (
+      <GuideFigure
+        key={`unplaced-${image.id}`}
+        image={image}
+        canReplaceImages={canReplaceImages}
+      />
+    ));
 
   return [...rendered, ...unplacedImages];
 }
@@ -234,18 +245,26 @@ export default async function GuidePage({ params }: PageProps) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const { data: profile, error: profileError } = user
-    ? await supabase
-        .from("profiles")
-        .select("birth_date")
-        .eq("id", user.id)
-        .maybeSingle<{ birth_date: string | null }>()
-    : { data: null };
+  const [{ data: profile, error: profileError }, { data: adminProfile }] = user
+    ? await Promise.all([
+        supabase
+          .from("profiles")
+          .select("role, birth_date")
+          .eq("id", user.id)
+          .maybeSingle<{ role: string | null; birth_date: string | null }>(),
+        supabase
+          .from("admin_profiles")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle(),
+      ])
+    : [{ data: null, error: null }, { data: null }];
   const canPostDiscussion = Boolean(
     user &&
       (profileError ||
         (profile?.birth_date && !isUnderRestrictedAge(profile.birth_date)))
   );
+  const canReplaceImages = Boolean(adminProfile) || profile?.role === "admin";
 
   const [
     { data: images },
@@ -428,7 +447,7 @@ export default async function GuidePage({ params }: PageProps) {
             </div>
 
             <div className="grid gap-5 p-5 sm:p-8">
-              {renderGuideBody(guide.body, guideImages)}
+              {renderGuideBody(guide.body, guideImages, canReplaceImages)}
             </div>
           </article>
 
@@ -450,7 +469,13 @@ export default async function GuidePage({ params }: PageProps) {
   );
 }
 
-function GuideFigure({ image }: { image: GuideImage }) {
+function GuideFigure({
+  image,
+  canReplaceImages,
+}: {
+  image: GuideImage;
+  canReplaceImages: boolean;
+}) {
   return (
     <figure className="overflow-hidden rounded-3xl border border-white/10 bg-[#07130c]/80 shadow-xl shadow-black/20">
       <div className="relative min-h-[240px] bg-[#07130c] sm:min-h-[420px]">
@@ -461,6 +486,14 @@ function GuideFigure({ image }: { image: GuideImage }) {
           sizes="(min-width: 1024px) 900px, 100vw"
           className="object-contain"
         />
+        {canReplaceImages && (
+          <Link
+            href={`/admin/isopedia/repair-image?image_url=${encodeURIComponent(image.image_url)}`}
+            className="absolute right-3 top-3 rounded-full border border-emerald-300/30 bg-black/65 px-3 py-1.5 text-xs font-black text-emerald-100 shadow-lg transition hover:bg-emerald-400 hover:text-slate-950"
+          >
+            Replace image
+          </Link>
+        )}
       </div>
 
       {image.caption && (

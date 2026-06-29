@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 export type SpeciesCarouselImage = {
@@ -15,9 +16,11 @@ export type SpeciesCarouselImage = {
 export default function SpeciesImageCarousel({
   images,
   speciesName,
+  canReplaceImages = false,
 }: {
   images: SpeciesCarouselImage[];
   speciesName: string;
+  canReplaceImages?: boolean;
 }) {
   const cleanImages = useMemo(
     () => images.filter((image) => Boolean(image.imageUrl)),
@@ -37,6 +40,9 @@ export default function SpeciesImageCarousel({
   }
 
   const activeImage = cleanImages[Math.min(activeIndex, cleanImages.length - 1)];
+  const replaceImageHref = `/admin/isopedia/repair-image?image_url=${encodeURIComponent(
+    activeImage.imageUrl
+  )}`;
 
   function goPrevious() {
     setActiveIndex((current) =>
@@ -61,6 +67,15 @@ export default function SpeciesImageCarousel({
           sizes="(min-width: 1024px) 420px, 100vw"
           className="object-contain"
         />
+
+        {canReplaceImages && (
+          <Link
+            href={replaceImageHref}
+            className="absolute right-3 top-3 rounded-full border border-emerald-300/30 bg-black/65 px-3 py-1.5 text-xs font-black text-emerald-100 shadow-lg transition hover:bg-emerald-400 hover:text-slate-950"
+          >
+            Replace image
+          </Link>
+        )}
 
         {cleanImages.length > 1 && (
           <>

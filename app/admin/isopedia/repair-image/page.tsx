@@ -8,6 +8,7 @@ type PageProps = {
     repaired?: string;
     refs?: string;
     error?: string;
+    image_url?: string;
   }>;
 };
 
@@ -38,6 +39,7 @@ export default async function RepairImagePage({ searchParams }: PageProps) {
   }
 
   const params = await searchParams;
+  const selectedImageUrl = params?.image_url || "";
 
   return (
     <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
@@ -86,6 +88,7 @@ export default async function RepairImagePage({ searchParams }: PageProps) {
                 name="image_url"
                 type="url"
                 required
+                defaultValue={selectedImageUrl}
                 placeholder="https://.../storage/v1/object/public/isopedia-images/..."
                 className="rounded-xl border border-white/10 bg-[#07130c] px-4 py-3 text-sm text-white"
               />
