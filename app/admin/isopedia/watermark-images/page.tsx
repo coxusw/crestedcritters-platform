@@ -9,6 +9,7 @@ type PageProps = {
     skipped?: string;
     failed?: string;
     limit?: string;
+    force?: string;
   }>;
 };
 
@@ -33,6 +34,7 @@ export default async function WatermarkImagesPage({ searchParams }: PageProps) {
   const processed = Number(params?.processed || 0);
   const skipped = Number(params?.skipped || 0);
   const failed = Number(params?.failed || 0);
+  const force = params?.force === "true";
   const hasResult = Boolean(params?.processed || params?.skipped || params?.failed);
 
   return (
@@ -67,6 +69,7 @@ export default async function WatermarkImagesPage({ searchParams }: PageProps) {
               Watermarked {processed} image{processed === 1 ? "" : "s"}.
               Skipped {skipped} already-watermarked image{skipped === 1 ? "" : "s"}.
               Failed {failed}.
+              {force ? " Force mode was on." : ""}
             </p>
           </section>
         )}
@@ -74,8 +77,8 @@ export default async function WatermarkImagesPage({ searchParams }: PageProps) {
         <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
           <h2 className="text-xl font-bold">Run a batch</h2>
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            Start with a small batch. Files are tagged after processing so this
-            tool can skip them on later runs.
+            Start with a small batch. Use force mode if an earlier run marked
+            files as watermarked but the watermark is not visible yet.
           </p>
 
           <form action={watermarkExistingIsopediaImages} className="mt-5 grid gap-4">
@@ -93,6 +96,24 @@ export default async function WatermarkImagesPage({ searchParams }: PageProps) {
                 <option value="10">10 images</option>
                 <option value="25">25 images</option>
               </select>
+            </label>
+
+            <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/20 p-4">
+              <input
+                type="checkbox"
+                name="force"
+                value="true"
+                className="mt-1 h-4 w-4 rounded border-white/20 bg-[#07130c] accent-emerald-400"
+              />
+              <span>
+                <span className="block text-sm font-bold text-white">
+                  Force re-watermark
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-slate-300">
+                  Reprocess images even if storage metadata says they were
+                  already watermarked, and refresh image URLs to bypass cache.
+                </span>
+              </span>
             </label>
 
             <button

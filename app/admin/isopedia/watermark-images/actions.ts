@@ -24,10 +24,21 @@ type ImageSource = {
   columns: string[];
 };
 
+type ImageReference = {
+  table: string;
+  id: string;
+  column: string;
+  value: string;
+};
+
 function cleanLimit(value: FormDataEntryValue | null) {
   const limit = Number(value || 10);
   if (!Number.isFinite(limit)) return 10;
   return Math.min(25, Math.max(1, Math.round(limit)));
+}
+
+function cleanForce(value: FormDataEntryValue | null) {
+  return value === "true";
 }
 
 function storagePathFromPublicUrl(url: string, supabaseUrl: string) {
@@ -74,38 +85,47 @@ async function collectImagePaths(
 ) {
   const { data, error } = await supabase
     .from(source.table)
-    .select(source.columns.join(","));
+    .select(["id", ...source.columns].join(","));
 
   if (error) {
     throw new Error(`Could not read ${source.table}: ${error.message}`);
   }
 
-  const paths = new Set<string>();
+  const refsByPath = new Map<string, ImageReference[]>();
 
   for (const row of (data || []) as unknown[]) {
     const values = row as Record<string, unknown>;
+    const id = String(values.id || "");
+    if (!id) continue;
 
     for (const column of source.columns) {
-      const storagePath = storagePathFromPublicUrl(String(values[column] || ""), supabaseUrl);
-      if (storagePath) paths.add(storagePath);
+      const value = String(values[column] || "");
+      const storagePath = storagePathFromPublicUrl(value, supabaseUrl);
+      if (!storagePath) continue;
+
+      const refs = refsByPath.get(storagePath) || [];
+      refs.push({ table: source.table, id, column, value });
+      refsByPath.set(storagePath, refs);
     }
   }
 
-  return paths;
+  return refsByPath;
 }
 
 async function collectAllImagePaths(supabase: ReturnType<typeof createSupabaseAdminClient>) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL.");
 
-  const allPaths = new Set<string>();
+  const allRefs = new Map<string, ImageReference[]>();
 
   for (const source of IMAGE_SOURCES) {
-    const sourcePaths = await collectImagePaths(supabase, supabaseUrl, source);
-    sourcePaths.forEach((path) => allPaths.add(path));
+    const sourceRefs = await collectImagePaths(supabase, supabaseUrl, source);
+    sourceRefs.forEach((refs, path) => {
+      allRefs.set(path, [...(allRefs.get(path) || []), ...refs]);
+    });
   }
 
-  return [...allPaths].sort();
+  return [...allRefs.entries()].sort(([a], [b]) => a.localeCompare(b));
 }
 
 function isAlreadyWatermarked(info: unknown) {
@@ -116,21 +136,50 @@ function isAlreadyWatermarked(info: unknown) {
   );
 }
 
+function cacheBustedUrl(url: string, marker: string) {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("wm", marker);
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+async function refreshImageReferences(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  refs: ImageReference[],
+  marker: string
+) {
+  for (const ref of refs) {
+    const nextValue = cacheBustedUrl(ref.value, marker);
+    if (nextValue === ref.value) continue;
+
+    await supabase
+      .from(ref.table)
+      .update({ [ref.column]: nextValue })
+      .eq("id", ref.id)
+      .eq(ref.column, ref.value);
+  }
+}
+
 export async function watermarkExistingIsopediaImages(formData: FormData) {
   await requireAdmin();
 
   const limit = cleanLimit(formData.get("limit"));
+  const force = cleanForce(formData.get("force"));
   const supabase = createSupabaseAdminClient();
-  const paths = await collectAllImagePaths(supabase);
+  const pathEntries = await collectAllImagePaths(supabase);
+  const marker = Date.now().toString();
   let processed = 0;
   let skipped = 0;
   let failed = 0;
 
-  for (const storagePath of paths) {
+  for (const [storagePath, refs] of pathEntries) {
     if (processed >= limit) break;
 
     const { data: info } = await supabase.storage.from(BUCKET).info(storagePath);
-    if (isAlreadyWatermarked(info)) {
+    if (!force && isAlreadyWatermarked(info)) {
       skipped += 1;
       continue;
     }
@@ -163,6 +212,7 @@ export async function watermarkExistingIsopediaImages(formData: FormData) {
         continue;
       }
 
+      await refreshImageReferences(supabase, refs, marker);
       processed += 1;
     } catch {
       failed += 1;
@@ -177,6 +227,7 @@ export async function watermarkExistingIsopediaImages(formData: FormData) {
     skipped: String(skipped),
     failed: String(failed),
     limit: String(limit),
+    force: force ? "true" : "false",
   });
 
   redirect(`/admin/isopedia/watermark-images?${params.toString()}`);
