@@ -901,7 +901,7 @@ export default async function PublicProfilePage({
 
                 <div className="mt-4 grid gap-4">
                   {messageThreads.length > 0 && (
-                    <div className="grid gap-3 lg:grid-cols-[320px_1fr]">
+                    <div className="grid gap-4">
                       <div className="overflow-hidden rounded-xl border border-white/10 bg-[#07130c]/70">
                         {messageThreads.map((thread) => {
                           const lastMessage = latestThreadMessage(thread);
@@ -915,36 +915,46 @@ export default async function PublicProfilePage({
                             <Link
                               key={thread.id}
                               href={`/profile/${usernameForLinks}?thread=${thread.id}#messages`}
-                              className={`block border-b border-white/10 p-3 transition last:border-b-0 ${
+                              className={`grid gap-2 border-b border-white/10 p-3 transition last:border-b-0 sm:grid-cols-[minmax(120px,180px)_1fr_auto] sm:items-center sm:gap-4 ${
                                 selected
                                   ? "bg-emerald-400/10"
                                   : "hover:bg-white/[0.04]"
                               }`}
                             >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <p className="truncate text-sm font-black text-white">
-                                    {threadParticipantLabel(otherParticipants)}
-                                  </p>
-                                  <p className="mt-1 truncate text-xs font-bold text-emerald-200/70">
+                              <div className="flex min-w-0 items-center gap-2">
+                                {unreadCount > 0 && (
+                                  <span
+                                    className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500"
+                                    aria-label={`${unreadCount} unread messages`}
+                                  />
+                                )}
+                                <p className={`truncate text-sm ${unreadCount > 0 ? "font-black text-white" : "font-bold text-emerald-50/75"}`}>
+                                  {threadParticipantLabel(otherParticipants)}
+                                </p>
+                              </div>
+
+                              <div className="min-w-0">
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <p className={`truncate text-sm ${unreadCount > 0 ? "font-black text-white" : "font-bold text-emerald-50/85"}`}>
                                     {thread.subject || "Isopedia message"}
                                   </p>
+                                  {unreadCount > 0 && (
+                                    <span className="shrink-0 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black leading-none text-white">
+                                      {unreadCount > 9 ? "9+" : unreadCount}
+                                    </span>
+                                  )}
                                 </div>
-                                {unreadCount > 0 && (
-                                  <span className="grid min-h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-black leading-none text-white">
-                                    {unreadCount > 9 ? "9+" : unreadCount}
-                                  </span>
+                                {lastMessage && (
+                                  <p className="mt-1 truncate text-xs leading-5 text-emerald-50/55">
+                                    {lastMessage.sender_id === profile.id
+                                      ? "You: "
+                                      : `${profileMessageSenderName(lastMessage.sender)}: `}
+                                    {lastMessage.body}
+                                  </p>
                                 )}
                               </div>
-                              {lastMessage && (
-                                <p className="mt-2 line-clamp-2 text-xs leading-5 text-emerald-50/55">
-                                  {lastMessage.sender_id === profile.id
-                                    ? "You: "
-                                    : `${profileMessageSenderName(lastMessage.sender)}: `}
-                                  {lastMessage.body}
-                                </p>
-                              )}
-                              <p className="mt-2 text-[11px] font-bold uppercase tracking-wide text-emerald-50/35">
+
+                              <p className="text-xs font-bold text-emerald-50/45 sm:text-right">
                                 {formatProfileDate(thread.last_message_at)}
                               </p>
                             </Link>
@@ -1050,57 +1060,56 @@ export default async function PublicProfilePage({
                     contactMessages.map((message) => (
                       <article
                         key={message.id}
-                        className={`rounded-xl border p-4 ${
+                        className={`rounded-xl border p-3 ${
                           message.admin_response && !message.user_read_at
                             ? "border-red-400/30 bg-red-500/10"
                             : "border-white/10 bg-[#07130c]/70"
                         }`}
                       >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
+                        <div className="grid gap-2 sm:grid-cols-[minmax(120px,180px)_1fr_auto] sm:items-start sm:gap-4">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black text-white">
+                              Contact Us
+                            </p>
+                            <p className="mt-1 truncate text-xs font-bold text-emerald-200/70">
                               {message.category}
                             </p>
-                            <h3 className="mt-2 text-base font-black text-white">
-                              {message.subject || "Contact message"}
-                            </h3>
-                            <p className="mt-1 text-xs text-emerald-50/40">
-                              Sent {formatProfileDate(message.created_at)}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex min-w-0 items-center gap-2">
+                              {message.admin_response && !message.user_read_at && (
+                                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
+                              )}
+                              <h3 className="truncate text-sm font-black text-white">
+                                {message.subject || "Contact message"}
+                              </h3>
+                              <span className="shrink-0 rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-100/70">
+                                {message.admin_response && !message.user_read_at
+                                  ? "Unread"
+                                  : message.status}
+                              </span>
+                            </div>
+                            <p className="mt-1 line-clamp-1 text-xs leading-5 text-emerald-50/55">
+                              You: {message.message}
+                            </p>
+
+                            <p className="mt-1 line-clamp-2 text-xs leading-5 text-emerald-50/65">
+                              {message.admin_response
+                                ? `Admin: ${message.admin_response}`
+                                : "No admin response yet."}
                             </p>
                           </div>
-                          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] font-black uppercase text-emerald-100/70">
-                            {message.admin_response && !message.user_read_at
-                              ? "Unread"
-                              : message.status}
-                          </span>
-                        </div>
 
-                        <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3">
-                          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-100/35">
-                            Your Message
-                          </p>
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-50/65">
-                            {message.message}
-                          </p>
-                        </div>
-
-                        {message.admin_response ? (
-                          <div className="mt-3 rounded-lg border border-emerald-400/20 bg-emerald-400/5 p-3">
-                            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
-                              Admin Response
-                            </p>
-                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-50/80">
-                              {message.admin_response}
-                            </p>
-                            <p className="mt-2 text-xs text-emerald-50/40">
-                              Responded {formatProfileDate(message.responded_at)}
-                            </p>
+                          <div className="text-xs font-bold text-emerald-50/45 sm:text-right">
+                            <p>Sent {formatProfileDate(message.created_at)}</p>
+                            {message.admin_response && (
+                              <p className="mt-1">
+                                Responded {formatProfileDate(message.responded_at)}
+                              </p>
+                            )}
                           </div>
-                        ) : (
-                          <p className="mt-3 text-sm text-emerald-50/45">
-                            No admin response yet.
-                          </p>
-                        )}
+                        </div>
                       </article>
                     ))}
 
