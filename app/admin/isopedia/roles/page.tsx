@@ -359,7 +359,12 @@ export default async function RoleManagementPage({
                       <div className="mt-3 flex flex-wrap gap-4 text-sm text-emerald-50/60">
                         {profile.username ? (
                           <>
-                            <span>Username: {profile.username}</span>
+                            <a
+                              href={`${productionIsopediaUrl}/profile/${profile.username}`}
+                              className="font-semibold text-emerald-300 hover:text-emerald-200"
+                            >
+                              Username: {profile.username}
+                            </a>
                             <span>Created: {formatAdminDate(profile.created_at)}</span>
 
                             <a

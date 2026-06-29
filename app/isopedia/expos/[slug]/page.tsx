@@ -589,7 +589,7 @@ function UserListCard({
                 </p>
 
                 {user.profiles?.username && (
-                  <p className="mt-1 text-sm text-emerald-300">
+                  <p className="mt-1 text-sm font-semibold text-emerald-300">
                     Username: {user.profiles.username}
                   </p>
                 )}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   type Dispatch,
   type SetStateAction,
@@ -58,6 +59,12 @@ function getAuthorName(comment: DiscussionComment) {
     comment.profiles?.username ||
     "Unknown User"
   );
+}
+
+function profileHref(comment: DiscussionComment) {
+  return comment.profiles?.username
+    ? `/profile/${comment.profiles.username}`
+    : null;
 }
 
 function LikeControl({
@@ -535,6 +542,7 @@ function CommentCard({
   isReply?: boolean;
 }) {
   const author = getAuthorName(comment);
+  const authorHref = profileHref(comment);
   const isOwner = currentUserId === comment.user_id;
   const canEdit = comment.status === "active" && isOwner && !isDiscussionBanned;
   const canDelete = comment.status === "active" && (isOwner || canModerate);
@@ -561,12 +569,24 @@ function CommentCard({
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-bold text-white">{author}</p>
+          {authorHref ? (
+            <Link
+              href={authorHref}
+              className="font-bold text-white transition hover:text-emerald-200"
+            >
+              {author}
+            </Link>
+          ) : (
+            <p className="font-bold text-white">{author}</p>
+          )}
 
           {comment.profiles?.username && (
-            <p className="text-sm text-emerald-300">
+            <Link
+              href={`/profile/${comment.profiles.username}`}
+              className="mt-1 block text-sm font-semibold text-emerald-300 transition hover:text-emerald-200"
+            >
               Username: {comment.profiles.username}
-            </p>
+            </Link>
           )}
         </div>
 

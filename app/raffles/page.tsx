@@ -209,7 +209,18 @@ function CurrentRaffle({
           <div className="mt-4 grid max-h-96 gap-2 overflow-auto pr-1">
             {entries.length ? entries.map((entry) => (
               <div key={entry.id} className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
-                <div className="font-black text-white">@{entry.profiles?.username || entry.profiles?.display_name || "user"}</div>
+                {entry.profiles?.username ? (
+                  <Link
+                    href={`/profile/${entry.profiles.username}`}
+                    className="font-black text-white transition hover:text-emerald-200"
+                  >
+                    @{entry.profiles.username}
+                  </Link>
+                ) : (
+                  <div className="font-black text-white">
+                    {entry.profiles?.display_name || "user"}
+                  </div>
+                )}
                 <div className="mt-1 text-xs uppercase tracking-wide text-emerald-100/50">{entry.quantity} entry{entry.quantity === 1 ? "" : "ies"} via {entry.entry_source}</div>
               </div>
             )) : <p className="text-sm text-emerald-50/50">No entries yet.</p>}
