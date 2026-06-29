@@ -76,6 +76,10 @@ type RelatedSpecies = {
   difficulty: string | null;
 };
 
+type RelatedSpeciesCard = RelatedSpecies & {
+  display_image_url: string | null;
+};
+
 type ContributorProfile = {
   username: string | null;
   display_name: string | null;
@@ -613,8 +617,49 @@ export default async function SpeciesPage({ params }: PageProps) {
     relatedQuery = relatedQuery.eq("genus", species.genus);
   }
 
-  const { data: relatedSpecies } =
+  const { data: relatedSpeciesResult } =
     await relatedQuery.returns<RelatedSpecies[]>();
+
+  let relatedSpecies: RelatedSpeciesCard[] = (relatedSpeciesResult || []).map(
+    (related) => ({
+      ...related,
+      display_image_url: related.image_url,
+    })
+  );
+
+  const relatedSpeciesMissingImages = relatedSpecies.filter(
+    (related) => !related.display_image_url
+  );
+
+  if (relatedSpeciesMissingImages.length > 0) {
+    const { data: relatedGalleryImages } = await supabase
+      .from("isopedia_species_images")
+      .select("species_id, image_url")
+      .in(
+        "species_id",
+        relatedSpeciesMissingImages.map((related) => related.id)
+      )
+      .eq("status", "verified")
+      .order("is_featured", { ascending: false })
+      .order("created_at", { ascending: false })
+      .returns<Array<{ species_id: number; image_url: string }>>();
+
+    const relatedImageBySpeciesId = new Map<number, string>();
+
+    for (const image of relatedGalleryImages || []) {
+      if (!relatedImageBySpeciesId.has(image.species_id)) {
+        relatedImageBySpeciesId.set(image.species_id, image.image_url);
+      }
+    }
+
+    relatedSpecies = relatedSpecies.map((related) => ({
+      ...related,
+      display_image_url:
+        related.display_image_url ||
+        relatedImageBySpeciesId.get(related.id) ||
+        null,
+    }));
+  }
 
   const carouselImages: SpeciesCarouselImage[] = [
     ...(species.image_url
@@ -792,9 +837,9 @@ export default async function SpeciesPage({ params }: PageProps) {
                     className="group overflow-hidden rounded-3xl border border-white/10 bg-[#102016] shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-emerald-400/50"
                   >
                     <div className="flex h-48 items-center justify-center bg-[#07130c]/70 p-3">
-                      {related.image_url ? (
+                      {related.display_image_url ? (
                         <Image
-                          src={related.image_url}
+                          src={related.display_image_url}
                           alt={related.common_name}
                           width={360}
                           height={240}
