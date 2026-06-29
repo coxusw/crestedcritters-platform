@@ -250,8 +250,8 @@ export default async function AdminIsopediaPage() {
               />
               <AdminActionCard
                 href="/admin/isopedia/roles"
-                title="Role Manager"
-                description={`${totalAdmins} admin${totalAdmins === 1 ? "" : "s"} / ${totalModerators} moderator${totalModerators === 1 ? "" : "s"}.`}
+                title="Profiles / Roles"
+                description={`${totalUsers} profile${totalUsers === 1 ? "" : "s"} / ${totalAdmins} admin${totalAdmins === 1 ? "" : "s"} / ${totalModerators} moderator${totalModerators === 1 ? "" : "s"}.`}
                 icon="🛡️"
               />
               <AdminActionCard

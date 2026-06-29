@@ -394,6 +394,39 @@ async function sendThreadMessage(formData: FormData) {
   redirect(username ? `/profile/${username}?thread=${threadId}#messages` : "/account");
 }
 
+async function hideOwnThread(formData: FormData) {
+  "use server";
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const threadId = cleanText(formData.get("thread_id"), 80);
+  const username = cleanText(formData.get("username"), 80);
+
+  if (!threadId) {
+    throw new Error("Missing message thread.");
+  }
+
+  const { error } = await supabase
+    .from("isopedia_message_thread_participants")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("thread_id", threadId)
+    .eq("profile_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath(username ? `/profile/${username}` : "/account");
+  redirect(username ? `/profile/${username}#messages` : "/account");
+}
+
 export default async function PublicProfilePage({
   params,
   searchParams,
@@ -648,6 +681,9 @@ export default async function PublicProfilePage({
                     <h1 className="break-words text-3xl font-black tracking-tight text-white sm:text-5xl">
                       {publicName}
                     </h1>
+                    <p className="mt-2 text-sm font-bold text-emerald-50/55">
+                      Account created {formatProfileDate(profile.created_at)}
+                    </p>
                   </div>
 
                   <Link
@@ -965,21 +1001,39 @@ export default async function PublicProfilePage({
                       <article className="rounded-xl border border-white/10 bg-[#07130c]/70 p-4">
                         {selectedThread ? (
                           <>
-                            <div className="border-b border-white/10 pb-3">
-                              <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
-                                Conversation
-                              </p>
-                              <h3 className="mt-2 text-lg font-black text-white">
-                                {selectedThread.subject || "Isopedia message"}
-                              </h3>
-                              <p className="mt-1 text-xs text-emerald-50/45">
-                                With{" "}
-                                {threadParticipantLabel(
-                                  selectedThread.participants.filter(
-                                    (participant) => participant.profile_id !== profile.id
-                                  )
-                                )}
-                              </p>
+                            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-3">
+                              <div>
+                                <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
+                                  Conversation
+                                </p>
+                                <h3 className="mt-2 text-lg font-black text-white">
+                                  {selectedThread.subject || "Isopedia message"}
+                                </h3>
+                                <p className="mt-1 text-xs text-emerald-50/45">
+                                  With{" "}
+                                  {threadParticipantLabel(
+                                    selectedThread.participants.filter(
+                                      (participant) => participant.profile_id !== profile.id
+                                    )
+                                  )}
+                                </p>
+                              </div>
+
+                              <form action={hideOwnThread}>
+                                <input
+                                  type="hidden"
+                                  name="thread_id"
+                                  value={selectedThread.id}
+                                />
+                                <input
+                                  type="hidden"
+                                  name="username"
+                                  value={usernameForLinks}
+                                />
+                                <button className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-xs font-black text-red-100 transition hover:bg-red-400/10">
+                                  Delete
+                                </button>
+                              </form>
                             </div>
 
                             <div className="mt-4 grid max-h-[520px] gap-3 overflow-y-auto pr-1">

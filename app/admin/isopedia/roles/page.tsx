@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { productionIsopediaUrl } from "@/lib/isopedia-site";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ type Profile = {
   display_name: string | null;
   business_name: string | null;
   role: Role | null;
+  created_at: string | null;
 };
 
 async function updateRole(formData: FormData) {
@@ -83,6 +85,60 @@ async function updateRole(formData: FormData) {
   redirect("/admin/isopedia/roles?updated=true");
 }
 
+async function deleteProfile(formData: FormData) {
+  "use server";
+
+  const supabase = await createSupabaseServerClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/admin/login");
+  }
+
+  const [{ data: actingProfile }, { data: adminProfile }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle(),
+
+    supabase.from("admin_profiles").select("id").eq("id", user.id).maybeSingle(),
+  ]);
+
+  const isAdmin = actingProfile?.role === "admin" || Boolean(adminProfile);
+  if (!isAdmin) {
+    redirect("/admin/isopedia/roles?error=not-authorized");
+  }
+
+  const profileId = String(formData.get("profile_id") || "");
+  if (!profileId) {
+    redirect("/admin/isopedia/roles?error=missing-profile");
+  }
+
+  if (profileId === user.id) {
+    redirect("/admin/isopedia/roles?error=self-delete");
+  }
+
+  try {
+    const adminSupabase = createSupabaseAdminClient();
+    const { error: authError } = await adminSupabase.auth.admin.deleteUser(profileId);
+    if (authError) throw authError;
+
+    await adminSupabase.from("profiles").delete().eq("id", profileId);
+  } catch (error) {
+    redirect(
+      `/admin/isopedia/roles?error=${encodeURIComponent(error instanceof Error ? error.message : String(error))}`
+    );
+  }
+
+  revalidatePath("/admin/isopedia/roles");
+  revalidatePath("/admin/isopedia");
+  redirect("/admin/isopedia/roles?deleted=true");
+}
+
 function getRoleBadge(role: string | null) {
   switch (role) {
     case "admin":
@@ -105,12 +161,23 @@ function getRoleBadge(role: string | null) {
   }
 }
 
+function formatAdminDate(value: string | null) {
+  if (!value) return "Not recorded";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not recorded";
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
 export default async function RoleManagementPage({
   searchParams,
 }: {
   searchParams?: Promise<{
     search?: string;
     updated?: string;
+    deleted?: string;
     error?: string;
   }>;
 }) {
@@ -159,7 +226,8 @@ export default async function RoleManagementPage({
       username,
       display_name,
       business_name,
-      role
+      role,
+      created_at
     `
     )
     .order("username", { ascending: true, nullsFirst: false });
@@ -209,12 +277,18 @@ export default async function RoleManagementPage({
           <Notice type="success" text="Role updated successfully." />
         )}
 
+        {params?.deleted === "true" && (
+          <Notice type="success" text="Profile deleted successfully." />
+        )}
+
         {params?.error && (
           <Notice
             type="error"
             text={
               params.error === "self-demotion"
                 ? "You cannot remove your own admin role."
+                : params.error === "self-delete"
+                  ? "You cannot delete your own profile."
                 : params.error === "not-authorized"
                   ? "Only admins can manage roles."
                   : params.error === "role-not-updated"
@@ -286,6 +360,7 @@ export default async function RoleManagementPage({
                         {profile.username ? (
                           <>
                             <span>Username: {profile.username}</span>
+                            <span>Created: {formatAdminDate(profile.created_at)}</span>
 
                             <a
                               href={`${productionIsopediaUrl}/profile/${profile.username}`}
@@ -295,48 +370,68 @@ export default async function RoleManagementPage({
                             </a>
                           </>
                         ) : (
-                          <span>No username set</span>
+                          <>
+                            <span>No username set</span>
+                            <span>Created: {formatAdminDate(profile.created_at)}</span>
+                          </>
                         )}
                       </div>
                     </div>
 
-                    <form action={updateRole} className="flex flex-wrap gap-2">
-                      <input
-                        type="hidden"
-                        name="profile_id"
-                        value={profile.id}
-                      />
+                    <div className="grid gap-2">
+                      <form action={updateRole} className="flex flex-wrap gap-2">
+                        <input
+                          type="hidden"
+                          name="profile_id"
+                          value={profile.id}
+                        />
 
-                      <button
-                        type="submit"
-                        name="role"
-                        value="user"
-                        disabled={role === "user" || isSelf}
-                        className="rounded-xl border border-white/10 bg-[#0b140d] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#18291d] disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        User
-                      </button>
+                        <button
+                          type="submit"
+                          name="role"
+                          value="user"
+                          disabled={role === "user" || isSelf}
+                          className="rounded-xl border border-white/10 bg-[#0b140d] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#18291d] disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          User
+                        </button>
 
-                      <button
-                        type="submit"
-                        name="role"
-                        value="moderator"
-                        disabled={role === "moderator" || isSelf}
-                        className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-bold text-amber-200 transition hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        Moderator
-                      </button>
+                        <button
+                          type="submit"
+                          name="role"
+                          value="moderator"
+                          disabled={role === "moderator" || isSelf}
+                          className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-bold text-amber-200 transition hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Moderator
+                        </button>
 
-                      <button
-                        type="submit"
-                        name="role"
-                        value="admin"
-                        disabled={role === "admin"}
-                        className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm font-bold text-red-200 transition hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        Admin
-                      </button>
-                    </form>
+                        <button
+                          type="submit"
+                          name="role"
+                          value="admin"
+                          disabled={role === "admin"}
+                          className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm font-bold text-red-200 transition hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Admin
+                        </button>
+                      </form>
+
+                      <form action={deleteProfile} className="flex justify-end">
+                        <input
+                          type="hidden"
+                          name="profile_id"
+                          value={profile.id}
+                        />
+                        <button
+                          type="submit"
+                          disabled={isSelf}
+                          className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-100 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Delete Profile
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 </div>
               );

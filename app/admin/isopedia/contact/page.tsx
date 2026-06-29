@@ -304,13 +304,40 @@ async function sendAdminThreadReply(formData: FormData) {
   redirect("/admin/isopedia/contact?sent=true");
 }
 
+async function hideAdminThread(formData: FormData) {
+  "use server";
+
+  const { supabase, user } = await requireAdmin();
+  const threadId = cleanText(formData.get("thread_id"), 80);
+
+  if (!threadId) throw new Error("Missing message thread.");
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("isopedia_message_thread_participants")
+    .upsert(
+      {
+        thread_id: threadId,
+        profile_id: user.id,
+        archived_at: now,
+        created_at: now,
+      },
+      { onConflict: "thread_id,profile_id" }
+    );
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin/isopedia/contact");
+  redirect("/admin/isopedia/contact?hidden=true");
+}
+
 export default async function AdminIsopediaContactPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; sent?: string; status?: string }>;
+  searchParams: Promise<{ saved?: string; sent?: string; hidden?: string; status?: string }>;
 }) {
   const params = await searchParams;
-  const { supabase } = await requireAdmin();
+  const { supabase, user } = await requireAdmin();
   const statusFilter = ["open", "reviewed", "archived"].includes(params.status || "")
     ? params.status
     : "open";
@@ -370,7 +397,20 @@ export default async function AdminIsopediaContactPage({
       }>
     >();
 
-  const threadIds = (messageThreads || []).map((thread) => thread.id);
+  const { data: hiddenThreadRows } = await supabase
+    .from("isopedia_message_thread_participants")
+    .select("thread_id")
+    .eq("profile_id", user.id)
+    .not("archived_at", "is", null)
+    .returns<Array<{ thread_id: string }>>();
+
+  const hiddenThreadIds = new Set(
+    (hiddenThreadRows || []).map((row) => row.thread_id)
+  );
+  const visibleMessageThreads = (messageThreads || []).filter(
+    (thread) => !hiddenThreadIds.has(thread.id)
+  );
+  const threadIds = visibleMessageThreads.map((thread) => thread.id);
   const [threadParticipantsResult, threadMessagesResult] = threadIds.length
     ? await Promise.all([
         supabase
@@ -426,7 +466,7 @@ export default async function AdminIsopediaContactPage({
     messagesByThread.set(message.thread_id, existing);
   }
 
-  const adminMessageThreads: AdminMessageThread[] = (messageThreads || []).map(
+  const adminMessageThreads: AdminMessageThread[] = visibleMessageThreads.map(
     (thread) => ({
       ...thread,
       participants: participantsByThread.get(thread.id) || [],
@@ -468,6 +508,12 @@ export default async function AdminIsopediaContactPage({
         {params.sent === "true" && (
           <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-100">
             Admin message sent.
+          </div>
+        )}
+
+        {params.hidden === "true" && (
+          <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-100">
+            Conversation deleted from your admin message list.
           </div>
         )}
 
@@ -581,6 +627,12 @@ export default async function AdminIsopediaContactPage({
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <form action={hideAdminThread}>
+                        <input type="hidden" name="thread_id" value={thread.id} />
+                        <button className="rounded-md border border-red-400/20 bg-red-400/5 px-3 py-2 text-xs font-bold text-red-100 hover:bg-red-400/10">
+                          Delete
+                        </button>
+                      </form>
                       {thread.participants
                         .filter((participant) => participant.profiles?.username)
                         .map((participant) => (

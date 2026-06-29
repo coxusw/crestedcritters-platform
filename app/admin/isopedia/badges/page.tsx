@@ -11,6 +11,7 @@ type Profile = {
   display_name: string | null;
   business_name: string | null;
   role: string | null;
+  created_at?: string | null;
 };
 
 type Badge = {
@@ -138,6 +139,112 @@ async function assignBadge(formData: FormData) {
   redirect("/admin/isopedia/badges?assigned=true");
 }
 
+async function assignBadgeToProfiles(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  profileIds: string[],
+  badgeId: string,
+  assignedBy: string
+) {
+  const uniqueProfileIds = [...new Set(profileIds)].filter(Boolean);
+  if (!uniqueProfileIds.length) return 0;
+
+  const { data: existingAssignments, error: existingError } = await supabase
+    .from("profile_badge_assignments")
+    .select("profile_id")
+    .eq("badge_id", badgeId)
+    .in("profile_id", uniqueProfileIds)
+    .returns<Array<{ profile_id: string }>>();
+
+  if (existingError) throw new Error(existingError.message);
+
+  const alreadyAssigned = new Set(
+    (existingAssignments || []).map((assignment) => assignment.profile_id)
+  );
+  const rows = uniqueProfileIds
+    .filter((profileId) => !alreadyAssigned.has(profileId))
+    .map((profileId) => ({
+      profile_id: profileId,
+      badge_id: badgeId,
+      assigned_by: assignedBy,
+    }));
+
+  if (!rows.length) return 0;
+
+  const { error } = await supabase.from("profile_badge_assignments").insert(rows);
+  if (error) throw new Error(error.message);
+
+  return rows.length;
+}
+
+async function assignBadgeByCriteria(formData: FormData) {
+  "use server";
+
+  const { supabase, user } = await requireAdmin();
+  const badgeId = cleanText(formData.get("badge_id"));
+  const criteria = cleanText(formData.get("criteria"));
+  const limit = Math.max(1, Math.min(5000, Number(formData.get("limit") || 10)));
+  const months = Math.max(1, Math.min(240, Number(formData.get("months") || 12)));
+
+  if (!badgeId) {
+    redirect("/admin/isopedia/badges?error=missing-badge");
+  }
+
+  let profileIds: string[] = [];
+
+  if (criteria === "first_accounts") {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id")
+      .order("created_at", { ascending: true, nullsFirst: false })
+      .limit(limit)
+      .returns<Array<{ id: string }>>();
+
+    if (error) throw new Error(error.message);
+    profileIds = (data || []).map((profile) => profile.id);
+  } else if (criteria === "all_current") {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id")
+      .range(0, 4999)
+      .returns<Array<{ id: string }>>();
+
+    if (error) throw new Error(error.message);
+    profileIds = (data || []).map((profile) => profile.id);
+  } else if (criteria === "account_age_months") {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - months);
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id")
+      .not("created_at", "is", null)
+      .lte("created_at", cutoff.toISOString())
+      .range(0, 4999)
+      .returns<Array<{ id: string }>>();
+
+    if (error) throw new Error(error.message);
+    profileIds = (data || []).map((profile) => profile.id);
+  } else {
+    redirect("/admin/isopedia/badges?error=invalid-criteria");
+  }
+
+  try {
+    const assignedCount = await assignBadgeToProfiles(
+      supabase,
+      profileIds,
+      badgeId,
+      user.id
+    );
+
+    revalidatePath("/admin/isopedia/badges");
+    redirect(`/admin/isopedia/badges?bulk=${assignedCount.toString()}`);
+  } catch (error) {
+    redirect(
+      `/admin/isopedia/badges?error=${encodeURIComponent(error instanceof Error ? error.message : String(error))}`
+    );
+  }
+}
+
 async function removeAssignment(formData: FormData) {
   "use server";
 
@@ -198,6 +305,7 @@ export default async function AdminBadgesPage({
     assigned?: string;
     removed?: string;
     updated?: string;
+    bulk?: string;
     error?: string;
   }>;
 }) {
@@ -212,7 +320,7 @@ export default async function AdminBadgesPage({
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, username, display_name, business_name, role")
+    .select("id, username, display_name, business_name, role, created_at")
     .not("username", "is", null)
     .order("username", { ascending: true })
     .returns<Profile[]>();
@@ -293,6 +401,11 @@ export default async function AdminBadgesPage({
         {params.assigned === "true" && <Notice text="Badge assigned." />}
         {params.removed === "true" && <Notice text="Badge removed from user." />}
         {params.updated === "true" && <Notice text="Badge updated." />}
+        {params.bulk && (
+          <Notice
+            text={`Criteria badge assignment complete. ${Number(params.bulk)} new assignment${Number(params.bulk) === 1 ? "" : "s"} added.`}
+          />
+        )}
 
         {params.error && (
           <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">
@@ -440,6 +553,85 @@ export default async function AdminBadgesPage({
             </div>
           </section>
         </div>
+
+        <section className="mt-8 rounded-3xl border border-white/10 bg-[#142318] p-6 shadow-xl shadow-black/20">
+          <h2 className="text-2xl font-bold text-white">Assign by Criteria</h2>
+          <p className="mt-2 text-sm leading-6 text-emerald-50/65">
+            Bulk-issue badges to matching accounts. Existing assignments are
+            skipped, so these actions are safe to rerun.
+          </p>
+
+          <form action={assignBadgeByCriteria} className="mt-6 grid gap-4 lg:grid-cols-[1fr_1fr_120px_120px_auto] lg:items-end">
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-emerald-50/80">
+                Badge
+              </span>
+              <select
+                name="badge_id"
+                required
+                className="rounded-xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+              >
+                <option value="">Choose badge</option>
+                {activeBadges.map((badge) => (
+                  <option key={badge.id} value={badge.id}>
+                    {badge.icon ? `${badge.icon} ` : ""}
+                    {badge.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-emerald-50/80">
+                Criteria
+              </span>
+              <select
+                name="criteria"
+                defaultValue="first_accounts"
+                className="rounded-xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+              >
+                <option value="first_accounts">First accounts created</option>
+                <option value="all_current">All current accounts</option>
+                <option value="account_age_months">Accounts at least N months old</option>
+              </select>
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-emerald-50/80">
+                First N
+              </span>
+              <input
+                name="limit"
+                type="number"
+                min="1"
+                max="5000"
+                defaultValue="10"
+                className="rounded-xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+              />
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-emerald-50/80">
+                Months
+              </span>
+              <input
+                name="months"
+                type="number"
+                min="1"
+                max="240"
+                defaultValue="12"
+                className="rounded-xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+              />
+            </label>
+
+            <button
+              type="submit"
+              className="rounded-xl bg-emerald-400 px-6 py-3 font-black text-slate-950 transition hover:bg-emerald-300"
+            >
+              Issue Badge
+            </button>
+          </form>
+        </section>
 
         <section className="mt-8 rounded-3xl border border-white/10 bg-[#142318] p-6 shadow-xl shadow-black/20">
           <h2 className="text-2xl font-bold text-white">Assigned Badges</h2>
