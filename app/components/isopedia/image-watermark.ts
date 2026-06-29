@@ -49,19 +49,19 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number) 
 }
 
 function drawWatermark(ctx: CanvasRenderingContext2D, width: number) {
-  const fontSize = Math.max(24, Math.min(54, Math.round(width * 0.06)));
-  const padding = Math.max(12, Math.round(width * 0.022));
+  const fontSize = Math.max(12, Math.min(30, Math.round(width * 0.032)));
+  const padding = Math.max(8, Math.round(width * 0.015));
 
   ctx.save();
-  ctx.globalAlpha = 0.42;
+  ctx.globalAlpha = 0.3;
   ctx.font = `800 ${fontSize}px Arial, Helvetica, sans-serif`;
   ctx.textAlign = "right";
   ctx.textBaseline = "top";
   ctx.fillStyle = "#ffffff";
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.46)";
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.32)";
   ctx.lineWidth = Math.max(1, Math.round(fontSize * 0.055));
-  ctx.shadowColor = "rgba(0, 0, 0, 0.58)";
-  ctx.shadowBlur = Math.max(4, Math.round(fontSize * 0.16));
+  ctx.shadowColor = "rgba(0, 0, 0, 0.36)";
+  ctx.shadowBlur = Math.max(2, Math.round(fontSize * 0.12));
   ctx.shadowOffsetY = Math.max(1, Math.round(fontSize * 0.05));
   ctx.strokeText(WATERMARK_TEXT, width - padding, padding);
   ctx.fillText(WATERMARK_TEXT, width - padding, padding);

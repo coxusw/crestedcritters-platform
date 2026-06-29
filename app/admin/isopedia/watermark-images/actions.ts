@@ -7,6 +7,7 @@ import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
   watermarkImageBuffer,
   watermarkedImageContentType,
+  watermarkedImageVersion,
 } from "@/lib/isopedia-image-watermark";
 
 const BUCKET = "isopedia-images";
@@ -204,7 +205,10 @@ export async function watermarkExistingIsopediaImages(formData: FormData) {
           upsert: true,
           cacheControl: "3600",
           contentType: watermarkedImageContentType(),
-          metadata: { isopediaWatermarked: "true" },
+          metadata: {
+            isopediaWatermarked: "true",
+            isopediaWatermarkVersion: watermarkedImageVersion(),
+          },
         });
 
       if (uploadError) {

@@ -5,6 +5,7 @@ import sharp from "sharp";
 
 const BUCKET = "isopedia-images";
 const WATERMARK_TEXT = "ISOPEDIA";
+const WATERMARK_VERSION = "soft-dot-20260629";
 
 const GLYPHS = {
   A: ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
@@ -62,10 +63,10 @@ function storagePathFromPublicUrl(url, supabaseUrl) {
 }
 
 function watermarkSvg(width) {
-  const pixel = Math.max(2, Math.min(5, Math.round(width * 0.004)));
-  const gap = Math.max(1, Math.round(pixel * 0.8));
-  const letterGap = Math.max(3, Math.round(pixel * 1.6));
-  const padding = Math.max(8, Math.round(width * 0.015));
+  const pixel = Math.max(1.1, Math.min(2.4, width * 0.0023));
+  const gap = Math.max(0.6, pixel * 0.55);
+  const letterGap = Math.max(1.5, pixel * 1.15);
+  const padding = Math.max(7, width * 0.012);
   const glyphWidth = 5 * pixel + 4 * gap;
   const glyphHeight = 7 * pixel + 6 * gap;
   const textWidth =
@@ -96,11 +97,11 @@ function watermarkSvg(width) {
 
   return Buffer.from(`
     <svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg">
-      <g fill="none" stroke="rgba(0,0,0,0.36)" stroke-width="${Math.max(
-        1,
-        Math.round(pixel * 0.75)
+      <g fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="${Math.max(
+        0.7,
+        pixel * 0.55
       )}" stroke-linejoin="round">${blocks}</g>
-      <g fill="rgba(255,255,255,0.38)">${blocks}</g>
+      <g fill="rgba(255,255,255,0.24)">${blocks}</g>
     </svg>
   `);
 }
@@ -196,7 +197,10 @@ async function main() {
         upsert: true,
         cacheControl: "3600",
         contentType: "image/jpeg",
-        metadata: { isopediaWatermarked: "true" },
+        metadata: {
+          isopediaWatermarked: "true",
+          isopediaWatermarkVersion: WATERMARK_VERSION,
+        },
       });
 
     if (uploadError) {

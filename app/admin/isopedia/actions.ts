@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "../../../lib/supabase-server";
 import {
   watermarkImageBuffer,
   watermarkedImageContentType,
+  watermarkedImageVersion,
 } from "@/lib/isopedia-image-watermark";
 
 function slugify(value: string) {
@@ -71,7 +72,10 @@ async function uploadSpeciesImage(
       cacheControl: "3600",
       upsert: false,
       contentType: watermarkedImageContentType(),
-      metadata: { isopediaWatermarked: "true" },
+      metadata: {
+        isopediaWatermarked: "true",
+        isopediaWatermarkVersion: watermarkedImageVersion(),
+      },
     });
 
   if (uploadError) {
