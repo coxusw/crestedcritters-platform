@@ -95,6 +95,24 @@ function isValidImage(file: File) {
   return ["image/jpeg", "image/png", "image/webp"].includes(file.type);
 }
 
+function readExpoDates(formData: FormData) {
+  const starts = [
+    cleanText(formData.get("starts_at")),
+    ...formData.getAll("additional_starts_at").map(cleanText),
+  ];
+  const ends = [
+    cleanText(formData.get("ends_at")),
+    ...formData.getAll("additional_ends_at").map(cleanText),
+  ];
+
+  return starts
+    .map((start, index) => ({
+      start,
+      end: ends[index] || "",
+    }))
+    .filter((date) => date.start || date.end);
+}
+
 export async function submitExpo(formData: FormData) {
   const supabase = await createSupabaseServerClient();
 
@@ -110,8 +128,6 @@ export async function submitExpo(formData: FormData) {
   const city = cleanText(formData.get("city"));
   const state = cleanText(formData.get("state")).toUpperCase();
   const venue = cleanText(formData.get("venue")) || null;
-  const startsAtRaw = cleanText(formData.get("starts_at"));
-  const endsAtRaw = cleanText(formData.get("ends_at"));
   const description = cleanText(formData.get("description")) || null;
   const flyerFile = formData.get("flyer_image");
 
@@ -127,32 +143,57 @@ export async function submitExpo(formData: FormData) {
     throw new Error("Please choose a valid US state.");
   }
 
-  if (!startsAtRaw) {
-    throw new Error("Start date and time are required.");
-  }
-
-  const startsAt = new Date(startsAtRaw);
-  const endsAt = endsAtRaw ? new Date(endsAtRaw) : null;
+  const submittedDates = readExpoDates(formData);
   const now = new Date();
   const maxFuture = addYears(now, 5);
 
-  if (Number.isNaN(startsAt.getTime())) {
-    throw new Error("Invalid start date.");
+  if (!submittedDates.length) {
+    throw new Error("At least one start date and time is required.");
   }
 
-  if (startsAt > maxFuture) {
-    throw new Error("Expo date cannot be more than 5 years in the future.");
+  const expoDates = submittedDates.map((date, index) => {
+    if (!date.start) {
+      throw new Error(`Start date is required for expo date ${index + 1}.`);
+    }
+
+    const startsAt = new Date(date.start);
+    const endsAt = date.end ? new Date(date.end) : null;
+
+    if (Number.isNaN(startsAt.getTime())) {
+      throw new Error(`Invalid start date for expo date ${index + 1}.`);
+    }
+
+    if (startsAt > maxFuture) {
+      throw new Error("Expo date cannot be more than 5 years in the future.");
+    }
+
+    if (endsAt && Number.isNaN(endsAt.getTime())) {
+      throw new Error(`Invalid end date for expo date ${index + 1}.`);
+    }
+
+    if (endsAt && endsAt < startsAt) {
+      throw new Error(
+        `End date cannot be before start date for expo date ${index + 1}.`
+      );
+    }
+
+    return { startsAt, endsAt };
+  });
+
+  const uniqueDateKeys = new Set(
+    expoDates.map(
+      (date) =>
+        `${date.startsAt.toISOString()}|${date.endsAt?.toISOString() || ""}`
+    )
+  );
+
+  if (uniqueDateKeys.size !== expoDates.length) {
+    throw new Error("Duplicate expo dates were submitted.");
   }
 
-  if (endsAt && Number.isNaN(endsAt.getTime())) {
-    throw new Error("Invalid end date.");
-  }
-
-  if (endsAt && endsAt < startsAt) {
-    throw new Error("End date cannot be before the start date.");
-  }
-
-  const baseSlug = slugify(`${name}-${city}-${state}-${startsAt.getFullYear()}`);
+  const baseSlug = slugify(
+    `${name}-${city}-${state}-${expoDates[0].startsAt.getFullYear()}`
+  );
   const slug = `${baseSlug}-${Math.random().toString(36).slice(2, 7)}`;
 
   let flyerImageUrl: string | null = null;
@@ -188,19 +229,26 @@ export async function submitExpo(formData: FormData) {
     flyerImageUrl = publicUrlData.publicUrl;
   }
 
-  const { error } = await supabase.from("isopedia_expos").insert({
-    name,
-    slug,
-    city,
-    state,
-    venue,
-    starts_at: startsAt.toISOString(),
-    ends_at: endsAt ? endsAt.toISOString() : null,
-    description,
-    flyer_image_url: flyerImageUrl,
-    status: "pending",
-    submitted_by: user.id,
-  });
+  const { error } = await supabase.from("isopedia_expos").insert(
+    expoDates.map((date, index) => ({
+      name,
+      slug:
+        index === 0
+          ? slug
+          : `${baseSlug}-${slugify(
+              date.startsAt.toISOString().slice(0, 10)
+            )}-${Math.random().toString(36).slice(2, 7)}`,
+      city,
+      state,
+      venue,
+      starts_at: date.startsAt.toISOString(),
+      ends_at: date.endsAt ? date.endsAt.toISOString() : null,
+      description,
+      flyer_image_url: flyerImageUrl,
+      status: "pending",
+      submitted_by: user.id,
+    }))
+  );
 
   if (error) {
     throw new Error(error.message);

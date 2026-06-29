@@ -171,7 +171,7 @@ export default async function SubmitExpoPage() {
             <div className="grid gap-5 sm:grid-cols-2">
               <label className="grid gap-2">
                 <span className="text-xs font-black uppercase tracking-widest text-emerald-100/50">
-                  Start Date / Time
+                  First Start Date / Time
                 </span>
 
                 <input
@@ -184,7 +184,7 @@ export default async function SubmitExpoPage() {
 
               <label className="grid gap-2">
                 <span className="text-xs font-black uppercase tracking-widest text-emerald-100/50">
-                  End Date / Time Optional
+                  First End Date / Time Optional
                 </span>
 
                 <input
@@ -194,6 +194,50 @@ export default async function SubmitExpoPage() {
                 />
               </label>
             </div>
+
+            <section className="rounded-2xl border border-white/10 bg-[#07130c]/70 p-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-emerald-100/50">
+                  Additional Dates Optional
+                </p>
+                <p className="mt-2 text-sm leading-6 text-emerald-50/55">
+                  Add up to 11 more dates for the same expo. Each date will be
+                  submitted as its own pending calendar entry using the same
+                  expo details and flyer.
+                </p>
+              </div>
+
+              <div className="mt-4 grid gap-4">
+                {Array.from({ length: 11 }, (_, index) => (
+                  <div
+                    key={index}
+                    className="grid gap-4 rounded-xl border border-white/10 bg-black/20 p-3 sm:grid-cols-2"
+                  >
+                    <label className="grid gap-2">
+                      <span className="text-xs font-bold uppercase tracking-widest text-emerald-100/45">
+                        Date {index + 2} Start
+                      </span>
+                      <input
+                        type="datetime-local"
+                        name="additional_starts_at"
+                        className="rounded-xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white outline-none focus:border-emerald-400/40"
+                      />
+                    </label>
+
+                    <label className="grid gap-2">
+                      <span className="text-xs font-bold uppercase tracking-widest text-emerald-100/45">
+                        Date {index + 2} End Optional
+                      </span>
+                      <input
+                        type="datetime-local"
+                        name="additional_ends_at"
+                        className="rounded-xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white outline-none focus:border-emerald-400/40"
+                      />
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </section>
 
             <label className="grid gap-2">
               <span className="text-xs font-black uppercase tracking-widest text-emerald-100/50">
