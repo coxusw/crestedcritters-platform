@@ -53,16 +53,17 @@ export default function SpeciesImageCarousel({
   return (
     <div className="space-y-4">
       <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-2xl bg-black/20">
-        <Image
-          src={activeImage.imageUrl}
-          alt={activeImage.alt || speciesName}
-          fill
-          priority={activeImage.isPrimary}
-          sizes="(min-width: 1024px) 420px, 100vw"
-          className="object-contain"
-        />
-        <span className="pointer-events-none absolute right-3 top-3 z-10 select-none text-sm font-black text-white/75 [text-shadow:0_1px_2px_rgba(0,0,0,0.85),0_0_7px_rgba(0,0,0,0.5)]">
-          Isopedia
+        <span className="relative inline-block max-h-full max-w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={activeImage.imageUrl}
+            alt={activeImage.alt || speciesName}
+            className="block max-h-full max-w-full object-contain"
+            fetchPriority={activeImage.isPrimary ? "high" : "auto"}
+          />
+          <span className="pointer-events-none absolute right-2 top-2 z-10 select-none text-xs font-black text-white/45 [text-shadow:0_1px_2px_rgba(0,0,0,0.7),0_0_5px_rgba(0,0,0,0.35)]">
+            Isopedia
+          </span>
         </span>
 
         {cleanImages.length > 1 && (
@@ -134,7 +135,7 @@ export default function SpeciesImageCarousel({
                 sizes="96px"
                 className="aspect-square w-full object-cover"
               />
-              <span className="pointer-events-none absolute right-1.5 top-1.5 z-10 select-none text-[11px] font-black leading-none text-white/75 [text-shadow:0_1px_2px_rgba(0,0,0,0.85)]">
+              <span className="pointer-events-none absolute right-1 top-1 z-10 select-none text-[9px] font-black leading-none text-white/45 [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
                 Isopedia
               </span>
             </button>
