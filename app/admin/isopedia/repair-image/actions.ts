@@ -6,6 +6,7 @@ import { requireContentAgentAdmin } from "@/lib/content-agent/security";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 
 const BUCKET = "isopedia-images";
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 
 const IMAGE_SOURCES = [
   { table: "isopedia_species", columns: ["image_url"] },
@@ -122,7 +123,7 @@ export async function repairWatermarkedImage(formData: FormData) {
     redirect("/admin/isopedia/repair-image?error=invalid-file-type");
   }
 
-  if (file.size > 12 * 1024 * 1024) {
+  if (file.size > MAX_IMAGE_BYTES) {
     redirect("/admin/isopedia/repair-image?error=file-too-large");
   }
 

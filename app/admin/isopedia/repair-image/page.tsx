@@ -17,7 +17,7 @@ function errorMessage(error: string) {
   if (error === "invalid-image-url") return "Paste a public Isopedia image URL from the isopedia-images bucket.";
   if (error === "missing-file") return "Choose the clean original image file.";
   if (error === "invalid-file-type") return "Replacement must be an image file.";
-  if (error === "file-too-large") return "Replacement image must be 12MB or smaller.";
+  if (error === "file-too-large") return "Replacement image must be 25MB or smaller.";
   return decodeURIComponent(error);
 }
 
