@@ -306,6 +306,12 @@ export default async function AdminIsopediaPage() {
                 icon="Images"
               />
               <AdminActionCard
+                href="/admin/isopedia/repair-image"
+                title="Repair Image"
+                description="Replace a junked watermarked image with a clean original without changing contributor credit."
+                icon="Repair"
+              />
+              <AdminActionCard
                 href="/admin/isopedia/isotoken-shop"
                 title="IsoToken Shop"
                 description="Create IsoToken rewards, set prices, and choose active store items."
