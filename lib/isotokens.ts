@@ -18,17 +18,18 @@ export async function getIsoTokenBalance(profileId: string) {
 }
 
 export async function getIsoTokenBalanceForProfile(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  _supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   profileId: string
 ) {
   try {
+    const admin = createSupabaseAdminClient();
     const [{ data: ledgerRows }, { data: purchases }] = await Promise.all([
-      supabase
+      admin
         .from("isotoken_ledger")
         .select("amount")
         .eq("profile_id", profileId)
         .returns<Array<{ amount: number }>>(),
-      supabase
+      admin
         .from("isotoken_purchases")
         .select("price_paid")
         .eq("profile_id", profileId)
