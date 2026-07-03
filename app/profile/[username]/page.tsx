@@ -495,6 +495,8 @@ export default async function PublicProfilePage({
     verifiedSpecies,
     suggestedEdits,
     verifiedEdits,
+    submittedImages,
+    galleryImages,
     imageEdits,
     discussionPosts,
     badgeAssignments,
@@ -517,10 +519,24 @@ export default async function PublicProfilePage({
       .select("id", { count: "exact", head: true })
       .eq("verified_by", profile.id),
     supabase
+      .from("isopedia_submissions")
+      .select("id, image_url")
+      .eq("submitted_by", profile.id)
+      .not("image_url", "is", null)
+      .returns<Array<{ id: string; image_url: string | null }>>(),
+    supabase
+      .from("isopedia_species_images")
+      .select("id, image_url")
+      .eq("credit_user_id", profile.id)
+      .not("image_url", "is", null)
+      .returns<Array<{ id: string; image_url: string | null }>>(),
+    supabase
       .from("isopedia_suggested_edits")
-      .select("id", { count: "exact", head: true })
+      .select("id, proposed_value")
       .eq("suggested_by", profile.id)
-      .eq("field_name", "image_url"),
+      .eq("field_name", "image_url")
+      .not("proposed_value", "is", null)
+      .returns<Array<{ id: string; proposed_value: string | null }>>(),
     supabase
       .from("isopedia_discussions")
       .select("id", { count: "exact", head: true })
@@ -558,7 +574,11 @@ export default async function PublicProfilePage({
   const verifiedSpeciesCount = verifiedSpecies.count || 0;
   const suggestedEditsCount = suggestedEdits.count || 0;
   const verifiedEditsCount = verifiedEdits.count || 0;
-  const imageEditsCount = imageEdits.count || 0;
+  const imageEditsCount = uniqueProfileImageContributionCount(
+    submittedImages.data || [],
+    galleryImages.data || [],
+    imageEdits.data || []
+  );
   const discussionPostsCount = discussionPosts.count || 0;
   const discussionLikesReceivedCount = await getDiscussionLikesReceivedCount(
     supabase,
@@ -1710,6 +1730,44 @@ function MiniMetric({ label, value }: { label: string; value: number }) {
       <p className="mt-1 text-2xl font-black text-white">{value}</p>
     </div>
   );
+}
+
+function canonicalProfileImageUrl(value: string | null) {
+  if (!value) return "";
+
+  try {
+    const parsed = new URL(value);
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return value.split("?")[0].split("#")[0];
+  }
+}
+
+function uniqueProfileImageContributionCount(
+  submittedImages: Array<{ id: string; image_url: string | null }>,
+  galleryImages: Array<{ id: string; image_url: string | null }>,
+  imageEdits: Array<{ id: string; proposed_value: string | null }>
+) {
+  const keys = new Set<string>();
+
+  for (const image of submittedImages) {
+    const key = canonicalProfileImageUrl(image.image_url);
+    if (key) keys.add(key);
+  }
+
+  for (const image of galleryImages) {
+    const key = canonicalProfileImageUrl(image.image_url);
+    if (key) keys.add(key);
+  }
+
+  for (const edit of imageEdits) {
+    const key = canonicalProfileImageUrl(edit.proposed_value);
+    if (key) keys.add(key);
+  }
+
+  return keys.size;
 }
 
 function TinyStat({ label, value }: { label: string; value: number }) {
