@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import IsopediaNotificationSettings from "@/app/components/isopedia/IsopediaAppSettings";
+import ProfileBannerUpload from "@/app/components/isopedia/ProfileBannerUpload";
 import ProfileLogoUpload from "@/app/components/isopedia/ProfileLogoUpload";
+import { getProfileFeatureAccess } from "@/lib/isopedia-feature-flags";
 
 type Profile = {
   id: string;
@@ -12,7 +14,9 @@ type Profile = {
   display_name: string | null;
   business_name: string | null;
   bio: string | null;
+  profile_banner_url: string | null;
   profile_logo_url: string | null;
+  role?: string | null;
   website_url: string | null;
   facebook_url: string | null;
   instagram_url: string | null;
@@ -84,10 +88,15 @@ async function saveProfile(formData: FormData) {
     .select("username")
     .eq("id", user.id)
     .maybeSingle<{ username: string | null }>();
+  const featureAccess = await getProfileFeatureAccess(supabase, user.id, [
+    "profile_banner_images",
+  ]);
+  const canUseProfileBanner = featureAccess.profile_banner_images === true;
 
   const display_name = cleanText(formData.get("display_name"));
   const username = existingProfile.data?.username || slugifyUsername(display_name);
   const bio = cleanText(formData.get("bio"));
+  const profile_banner_url = cleanText(formData.get("profile_banner_url"));
   const profile_logo_url = cleanText(formData.get("profile_logo_url"));
   const website_url = cleanText(formData.get("website_url"));
   const facebook_url = cleanText(formData.get("facebook_url"));
@@ -103,6 +112,7 @@ async function saveProfile(formData: FormData) {
     display_name,
     business_name: null,
     bio,
+    ...(canUseProfileBanner ? { profile_banner_url: profile_banner_url || null } : {}),
     profile_logo_url: profile_logo_url || null,
     website_url,
     facebook_url,
@@ -115,13 +125,14 @@ async function saveProfile(formData: FormData) {
   if (
     error &&
     (error.message.includes("profile_logo_url") ||
+      error.message.includes("profile_banner_url") ||
       error.message.includes("instagram_url"))
   ) {
-    const {
-      profile_logo_url: _profileLogoUrl,
-      instagram_url: _instagramUrl,
-      ...fallbackProfileUpdate
-    } = profileUpdate;
+    const fallbackProfileUpdate: Record<string, unknown> = { ...profileUpdate };
+    delete fallbackProfileUpdate.profile_banner_url;
+    delete fallbackProfileUpdate.profile_logo_url;
+    delete fallbackProfileUpdate.instagram_url;
+
     const { error: fallbackError } = await supabase
       .from("profiles")
       .upsert(fallbackProfileUpdate);
@@ -266,7 +277,7 @@ export default async function AccountPage({
   const profileQuery = await supabase
     .from("profiles")
     .select(
-      "id, username, display_name, business_name, bio, profile_logo_url, website_url, facebook_url, instagram_url"
+      "id, username, display_name, business_name, bio, profile_banner_url, profile_logo_url, role, website_url, facebook_url, instagram_url"
     )
     .eq("id", user.id)
     .maybeSingle<Profile>();
@@ -276,20 +287,25 @@ export default async function AccountPage({
   if (
     profileQuery.error &&
     (profileQuery.error.message.includes("profile_logo_url") ||
+      profileQuery.error.message.includes("profile_banner_url") ||
       profileQuery.error.message.includes("instagram_url"))
   ) {
     const fallbackQuery = await supabase
       .from("profiles")
-      .select("id, username, display_name, business_name, bio, website_url, facebook_url")
+      .select("id, username, display_name, business_name, bio, role, website_url, facebook_url")
       .eq("id", user.id)
-      .maybeSingle<Omit<Profile, "profile_logo_url" | "instagram_url">>();
+      .maybeSingle<Omit<Profile, "profile_banner_url" | "profile_logo_url" | "instagram_url">>();
 
     profile = fallbackQuery.data
-      ? { ...fallbackQuery.data, profile_logo_url: null, instagram_url: null }
+      ? { ...fallbackQuery.data, profile_banner_url: null, profile_logo_url: null, instagram_url: null }
       : null;
   }
 
   const username = profile?.username;
+  const featureAccess = await getProfileFeatureAccess(supabase, user.id, [
+    "profile_banner_images",
+  ]);
+  const canUseProfileBanner = featureAccess.profile_banner_images === true;
   const notificationQuery = await supabase
     .from("isopedia_notification_preferences")
     .select("push_enabled, notify_guides, notify_discussions, notify_expos, notify_verified_species, notify_messages")
@@ -487,6 +503,10 @@ export default async function AccountPage({
               </label>
 
               <ProfileLogoUpload initialUrl={profile?.profile_logo_url || null} />
+
+              {canUseProfileBanner && (
+                <ProfileBannerUpload initialUrl={profile?.profile_banner_url || null} />
+              )}
 
               <label className="grid gap-2">
                 <span className="text-sm font-medium text-slate-200">

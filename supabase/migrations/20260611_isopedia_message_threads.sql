@@ -310,8 +310,17 @@ as $$
   join public.isopedia_message_thread_messages m
     on m.thread_id = p.thread_id
   where p.profile_id = auth.uid()
+    and p.archived_at is null
     and m.sender_id is distinct from auth.uid()
-    and m.created_at > coalesce(p.last_read_at, 'epoch'::timestamptz);
+    and m.created_at > greatest(
+      coalesce(p.last_read_at, 'epoch'::timestamptz),
+      coalesce((
+        select max(own_messages.created_at)
+        from public.isopedia_message_thread_messages own_messages
+        where own_messages.thread_id = p.thread_id
+          and own_messages.sender_id = auth.uid()
+      ), 'epoch'::timestamptz)
+    );
 $$;
 
 grant execute on function public.send_isopedia_thread_message(uuid, text) to authenticated;

@@ -88,6 +88,7 @@ type ContributorProfile = {
 
 type ContributorCredit = {
   id: string;
+  image_url?: string | null;
   profiles: ContributorProfile | null;
 };
 
@@ -189,6 +190,28 @@ function galleryCreditName(image: GalleryImage) {
     image.profiles?.username ||
     "Community contributor"
   );
+}
+
+function contributorCreditName(credit: ContributorCredit) {
+  return (
+    credit.profiles?.display_name ||
+    credit.profiles?.business_name ||
+    credit.profiles?.username ||
+    "Community contributor"
+  );
+}
+
+function canonicalImageUrl(value: string | null) {
+  if (!value) return "";
+
+  try {
+    const parsed = new URL(value);
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return value.split("?")[0].split("#")[0];
+  }
 }
 
 function uniqueContributorCredits(credits: ContributorCredit[]) {
@@ -472,6 +495,7 @@ export default async function SpeciesPage({ params }: PageProps) {
     .select(
       `
       id,
+      image_url,
       profiles:submitted_by (
         username,
         display_name,
@@ -663,6 +687,14 @@ export default async function SpeciesPage({ params }: PageProps) {
     }));
   }
 
+  const primaryGalleryImage = (galleryImages || []).find(
+    (image) => canonicalImageUrl(image.image_url) === canonicalImageUrl(species.image_url)
+  );
+  const primarySubmissionCredit = (submissionCredits || []).find(
+    (credit) => canonicalImageUrl(credit.image_url || null) === canonicalImageUrl(species.image_url)
+  );
+  const primaryFallbackCredit = primarySubmissionCredit || speciesSubmitterCredits[0] || null;
+
   const carouselImages: SpeciesCarouselImage[] = [
     ...(species.image_url
       ? [
@@ -670,13 +702,19 @@ export default async function SpeciesPage({ params }: PageProps) {
             id: "primary",
             imageUrl: species.image_url,
             alt: species.common_name,
-            caption: "Primary species image.",
-            creditName: "Isopedia",
+            caption: primaryGalleryImage?.caption || null,
+            creditName: primaryGalleryImage
+              ? galleryCreditName(primaryGalleryImage)
+              : primaryFallbackCredit
+                ? contributorCreditName(primaryFallbackCredit)
+              : "Isopedia",
             isPrimary: true,
           },
         ]
       : []),
-    ...((galleryImages || []).map((image) => ({
+    ...((galleryImages || [])
+      .filter((image) => canonicalImageUrl(image.image_url) !== canonicalImageUrl(species.image_url))
+      .map((image) => ({
       id: image.id,
       imageUrl: image.image_url,
       alt: image.caption || species.common_name,

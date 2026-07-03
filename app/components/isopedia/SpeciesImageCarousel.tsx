@@ -116,23 +116,18 @@ export default function SpeciesImageCarousel({
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-[#102016] p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-widest text-emerald-300">
-              {activeImage.isPrimary ? "Primary Image" : "Gallery Image"}
-            </p>
+        <p className="text-sm font-black text-emerald-50">
+          Photo Credit:{" "}
+          <span className="text-emerald-300">
+            {activeImage.creditName || "Isopedia"}
+          </span>
+        </p>
 
-            <p className="mt-2 text-sm leading-6 text-emerald-50/75">
-              {activeImage.caption || "No caption provided."}
-            </p>
-          </div>
-
-          {activeImage.creditName && (
-            <p className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-black uppercase tracking-widest text-emerald-200">
-              Credit: {activeImage.creditName}
-            </p>
-          )}
-        </div>
+        {activeImage.caption && (
+          <p className="mt-2 text-sm leading-6 text-emerald-50/65">
+            {activeImage.caption}
+          </p>
+        )}
       </div>
 
       {cleanImages.length > 1 && (

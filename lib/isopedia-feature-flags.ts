@@ -31,16 +31,34 @@ export async function getProfileFeatureAccess(
     keys.map((key) => [key, defaultModes[key] === "enabled_all"])
   ) as Record<string, boolean>;
 
-  const { data, error } = await supabase
-    .from("isopedia_feature_flags")
-    .select("key, enabled, availability_mode")
-    .in("key", keys)
-    .returns<FeatureFlagRow[]>();
+  const [flagsResult, adminResult, profileResult] = await Promise.all([
+    supabase
+      .from("isopedia_feature_flags")
+      .select("key, enabled, availability_mode")
+      .in("key", keys)
+      .returns<FeatureFlagRow[]>(),
+    supabase.from("admin_profiles").select("id").eq("id", profileId).maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", profileId)
+      .maybeSingle<{ role: string | null }>(),
+  ]);
 
-  if (error) return access;
+  const data = flagsResult.data || [];
+  const isAdmin =
+    Boolean(adminResult.data) ||
+    profileResult.data?.role === "admin" ||
+    profileResult.data?.role === "moderator";
+
+  if (isAdmin && keys.includes("profile_banner_images")) {
+    access.profile_banner_images = true;
+  }
+
+  if (flagsResult.error) return access;
 
   const purchaseLockedKeys = new Set(
-    (data || [])
+    data
       .filter((flag) => currentMode(flag) === "isotoken_shop")
       .map((flag) => flag.key)
   );
@@ -51,7 +69,12 @@ export async function getProfileFeatureAccess(
     purchasedKeys = await getPurchasedFeatureKeys(supabase, profileId);
   }
 
-  for (const flag of data || []) {
+  for (const flag of data) {
+    if (flag.key === "profile_banner_images" && isAdmin) {
+      access[flag.key] = true;
+      continue;
+    }
+
     const mode = currentMode(flag);
 
     access[flag.key] =

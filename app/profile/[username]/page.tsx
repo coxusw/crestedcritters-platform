@@ -19,7 +19,9 @@ type Profile = {
   display_name: string | null;
   business_name: string | null;
   bio: string | null;
+  profile_banner_url: string | null;
   profile_logo_url: string | null;
+  role: string | null;
   website_url: string | null;
   facebook_url: string | null;
   instagram_url: string | null;
@@ -247,7 +249,7 @@ async function getProfileByUsername(
   username: string
 ) {
   const fullSelect =
-    "id, username, display_name, business_name, bio, profile_logo_url, website_url, facebook_url, instagram_url, created_at";
+    "id, username, display_name, business_name, bio, profile_banner_url, profile_logo_url, role, website_url, facebook_url, instagram_url, created_at";
 
   const query = await supabase
     .from("profiles")
@@ -263,12 +265,12 @@ async function getProfileByUsername(
       "id, username, display_name, business_name, bio, profile_logo_url, website_url, facebook_url, created_at"
     )
     .eq("username", username)
-    .maybeSingle<Omit<Profile, "instagram_url">>();
+    .maybeSingle<Omit<Profile, "profile_banner_url" | "role" | "instagram_url">>();
 
   if (!fallbackQuery.error) {
     return {
       data: fallbackQuery.data
-        ? { ...fallbackQuery.data, instagram_url: null }
+        ? { ...fallbackQuery.data, profile_banner_url: null, role: null, instagram_url: null }
         : null,
       error: fallbackQuery.error,
     };
@@ -280,13 +282,15 @@ async function getProfileByUsername(
       "id, username, display_name, business_name, bio, website_url, facebook_url, created_at"
     )
     .eq("username", username)
-    .maybeSingle<Omit<Profile, "profile_logo_url" | "instagram_url">>();
+    .maybeSingle<Omit<Profile, "profile_banner_url" | "profile_logo_url" | "role" | "instagram_url">>();
 
   return {
     data: minimalQuery.data
       ? {
           ...minimalQuery.data,
+          profile_banner_url: null,
           profile_logo_url: null,
+          role: null,
           instagram_url: null,
         }
       : null,
@@ -435,9 +439,13 @@ async function hideOwnThread(formData: FormData) {
     throw new Error("Missing message thread.");
   }
 
+  const now = new Date().toISOString();
   const { error } = await supabase
     .from("isopedia_message_thread_participants")
-    .update({ archived_at: new Date().toISOString() })
+    .update({
+      archived_at: now,
+      last_read_at: now,
+    })
     .eq("thread_id", threadId)
     .eq("profile_id", user.id);
 
@@ -567,6 +575,7 @@ export default async function PublicProfilePage({
     "expo_status_display_profiles",
     "recent_discussions_profiles",
     "public_collection_preview_profiles",
+    "profile_banner_images",
     "social_site_buttons_profiles",
   ]);
   const canUseRecentDiscussions =
@@ -574,6 +583,10 @@ export default async function PublicProfilePage({
   const canUseExpoStatus = featureAccess.expo_status_display_profiles ?? true;
   const canUseCollectionPreview =
     featureAccess.public_collection_preview_profiles ?? true;
+  const canUseProfileBanner =
+    featureAccess.profile_banner_images === true ||
+    profile.role === "admin" ||
+    profile.role === "moderator";
   const canUseSocialButtons = featureAccess.social_site_buttons_profiles ?? true;
   const recentDiscussions =
     canUseRecentDiscussions && (isOwner || visibility.recent_discussions_public)
@@ -590,23 +603,26 @@ export default async function PublicProfilePage({
     ? await getOwnMessageThreads(supabase, profile.id)
     : [];
   const selectedThread =
-    messageThreads.find((thread) => thread.id === selectedParams?.thread) ||
-    messageThreads[0] ||
-    null;
+    messageThreads.find((thread) => thread.id === selectedParams?.thread) || null;
   if (isOwner && selectedThread) {
     await supabase.rpc("mark_isopedia_thread_read", {
       target_thread_id: selectedThread.id,
     });
     selectedThread.current_last_read_at = new Date().toISOString();
   }
+  if (isOwner && contactMessages.some((message) => message.admin_response && !message.user_read_at)) {
+    const readAt = new Date().toISOString();
+    await markOwnMessagesRead(supabase);
+    for (const message of contactMessages) {
+      if (message.admin_response && !message.user_read_at) {
+        message.user_read_at = readAt;
+      }
+    }
+  }
   const unreadMessageCount =
     contactMessages.filter(
       (message) => message.admin_response && !message.user_read_at
     ).length + messageThreads.filter((thread) => threadUnreadCount(thread, profile.id) > 0).length;
-
-  if (isOwner && contactMessages.some((message) => message.admin_response && !message.user_read_at)) {
-    await markOwnMessagesRead(supabase);
-  }
 
   const profileJsonLd = {
     "@context": "https://schema.org",
@@ -689,7 +705,21 @@ export default async function PublicProfilePage({
 
           <div className="space-y-5">
             <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#102016] shadow-2xl shadow-black/30">
-              <div className="bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.16),transparent_38%),linear-gradient(135deg,rgba(6,78,59,0.55),rgba(7,19,12,0.95))] p-5 sm:p-7">
+              <div className="relative overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.16),transparent_38%),linear-gradient(135deg,rgba(6,78,59,0.55),rgba(7,19,12,0.95))] p-5 sm:p-7">
+                {canUseProfileBanner && profile.profile_banner_url && (
+                  <Image
+                    src={profile.profile_banner_url}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1280px) 1100px, 100vw"
+                    className="object-cover opacity-45"
+                    priority
+                  />
+                )}
+                {canUseProfileBanner && profile.profile_banner_url && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#07130c]/90 via-[#07130c]/65 to-[#07130c]/35" />
+                )}
+                <div className="relative z-10">
                 <div className="grid gap-5 text-center md:grid-cols-[104px_1fr_auto] md:items-center md:text-left">
                   <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#07130c] text-4xl font-black uppercase text-emerald-300 shadow-xl shadow-black/20 md:mx-0">
                     {profile.profile_logo_url ? (
@@ -731,6 +761,7 @@ export default async function PublicProfilePage({
                   {assignedBadges.map((badge) => (
                     <BadgeChip key={badge.id} badge={badge} />
                   ))}
+                </div>
                 </div>
               </div>
             </section>
@@ -1027,8 +1058,8 @@ export default async function PublicProfilePage({
                         })}
                       </div>
 
-                      <article className="rounded-xl border border-white/10 bg-[#07130c]/70 p-4">
-                        {selectedThread ? (
+                      {selectedThread && (
+                        <article className="rounded-xl border border-white/10 bg-[#07130c]/70 p-4">
                           <>
                             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-3">
                               <div>
@@ -1130,12 +1161,8 @@ export default async function PublicProfilePage({
                               </button>
                             </form>
                           </>
-                        ) : (
-                          <p className="text-sm text-emerald-50/50">
-                            Select a conversation.
-                          </p>
-                        )}
-                      </article>
+                        </article>
+                      )}
                     </div>
                   )}
 
@@ -1615,11 +1642,16 @@ function threadUnreadCount(thread: MessageThread, profileId: string) {
   const lastReadTime = thread.current_last_read_at
     ? new Date(thread.current_last_read_at).getTime()
     : 0;
+  const lastOwnMessageTime = thread.messages.reduce((latest, message) => {
+    if (message.sender_id !== profileId) return latest;
+    return Math.max(latest, new Date(message.created_at).getTime());
+  }, 0);
+  const effectiveReadTime = Math.max(lastReadTime, lastOwnMessageTime);
 
   return thread.messages.filter(
     (message) =>
       message.sender_id !== profileId &&
-      new Date(message.created_at).getTime() > lastReadTime
+      new Date(message.created_at).getTime() > effectiveReadTime
   ).length;
 }
 

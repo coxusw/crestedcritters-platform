@@ -18,6 +18,19 @@ function cleanText(value: FormDataEntryValue | null) {
   return text.length ? text : null;
 }
 
+function canonicalImageUrl(value: string | null) {
+  if (!value) return "";
+
+  try {
+    const parsed = new URL(value);
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return value.split("?")[0].split("#")[0];
+  }
+}
+
 function safeImageExtension(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
   if (extension === "jpeg") return "jpg";
@@ -107,6 +120,63 @@ function buildPayload(formData: FormData, imageUrl: string | null, slug: string)
   };
 }
 
+async function movePrimaryImageCredit(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  speciesId: string,
+  commonName: string,
+  previousImageUrl: string | null,
+  nextImageUrl: string | null
+) {
+  if (!previousImageUrl || !nextImageUrl) return;
+  if (canonicalImageUrl(previousImageUrl) === canonicalImageUrl(nextImageUrl)) return;
+
+  const { data: images } = await supabase
+    .from("isopedia_species_images")
+    .select("id, image_url")
+    .eq("species_id", Number(speciesId))
+    .returns<Array<{ id: string; image_url: string }>>();
+
+  const matchingImage = (images || []).find(
+    (image) => canonicalImageUrl(image.image_url) === canonicalImageUrl(previousImageUrl)
+  );
+
+  if (matchingImage) {
+    await supabase
+      .from("isopedia_species_images")
+      .update({
+        image_url: nextImageUrl,
+        is_featured: true,
+        status: "verified",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", matchingImage.id);
+    return;
+  }
+
+  const { data: submissionCredit } = await supabase
+    .from("isopedia_submissions")
+    .select("id, submitted_by, image_url")
+    .eq("status", "verified")
+    .eq("common_name", commonName)
+    .returns<Array<{ id: string; submitted_by: string | null; image_url: string | null }>>();
+
+  const matchingSubmission = (submissionCredit || []).find(
+    (submission) =>
+      submission.submitted_by &&
+      canonicalImageUrl(submission.image_url) === canonicalImageUrl(previousImageUrl)
+  );
+
+  if (!matchingSubmission) return;
+
+  await supabase
+    .from("isopedia_submissions")
+    .update({
+      image_url: nextImageUrl,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", matchingSubmission.id);
+}
+
 export async function createSpecies(formData: FormData) {
   const supabase = await requireAdmin();
 
@@ -176,6 +246,12 @@ export async function updateSpecies(
 
   const slug = slugInput ? slugify(slugInput) : slugify(slugBase || commonName);
 
+  const { data: currentSpecies } = await supabase
+    .from("isopedia_species")
+    .select("image_url")
+    .eq("id", id)
+    .maybeSingle<{ image_url: string | null }>();
+
   const uploadedFile = formData.get("image_file");
   const uploadedImageUrl =
     uploadedFile instanceof File
@@ -197,6 +273,14 @@ export async function updateSpecies(
   if (error) {
     throw new Error(error.message);
   }
+
+  await movePrimaryImageCredit(
+    supabase,
+    id,
+    commonName,
+    currentSpecies?.image_url || null,
+    payload.image_url
+  );
 
   revalidatePath("/isopedia");
   revalidatePath(`/isopedia/${oldSlug}`);

@@ -325,6 +325,7 @@ async function hideAdminThread(formData: FormData) {
       {
         thread_id: threadId,
         profile_id: user.id,
+        last_read_at: now,
         archived_at: now,
         created_at: now,
       },
