@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import MainSiteShell from "@/app/components/MainSiteShell";
 
 const title = "About / Q&A | Crested Critters";
 const description =
@@ -53,40 +53,7 @@ const questions = [
 
 export default function AboutPage() {
   return (
-    <main className="min-h-screen bg-[#0e0f10] text-[#e9ecef]">
-      <header className="border-b border-white/[0.06] bg-[#0b0c0d]">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5 px-4 py-3">
-          <Link href="/" aria-label="Crested Critters" className="shrink-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://crestedcritters.com/assets/images/logo.png"
-              alt="Crested Critters"
-              className="h-14 w-14 object-contain"
-            />
-          </Link>
-          <nav className="flex flex-wrap items-center justify-end gap-4 text-sm font-bold text-[#a8b0b8]">
-            <Link href="/" className="hover:text-[#7fb069]">
-              Home
-            </Link>
-            <a href="https://shop.crestedcritters.com/" className="hover:text-[#7fb069]">
-              Shop
-            </a>
-            <Link href="/about" className="text-[#7fb069]">
-              About
-            </Link>
-            <Link href="/contact" className="hover:text-[#7fb069]">
-              Contact
-            </Link>
-            <a href="https://isopedia.crestedcritters.com/" className="hover:text-[#7fb069]">
-              Isopedia
-            </a>
-            <a href="https://randomizer.crestedcritters.com/" className="hover:text-[#7fb069]">
-              Randomizer
-            </a>
-          </nav>
-        </div>
-      </header>
-
+    <MainSiteShell>
       <section className="mx-auto max-w-5xl px-4 py-10">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d6c06f]">
           Crested Critters
@@ -136,6 +103,6 @@ export default function AboutPage() {
           ))}
         </div>
       </section>
-    </main>
+    </MainSiteShell>
   );
 }

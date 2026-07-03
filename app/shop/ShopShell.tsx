@@ -1,20 +1,22 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 export default function ShopShell({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-[#0e0f10] text-[#e9ecef]">
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#0b0c0d]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-5 px-4 py-3">
-          <a href="/" aria-label="Crested Critters Shop" className="shrink-0">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5 px-4 py-3">
+          <a href="https://crestedcritters.com" aria-label="Crested Critters Home" className="shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="https://crestedcritters.com/assets/images/logo.png"
+              src="/assets/images/logo.png"
               alt="Crested Critters"
-              className="h-14 w-14 object-contain"
+              className="h-16 w-16 object-contain"
             />
           </a>
           <nav className="flex flex-wrap items-center justify-end gap-4 text-sm font-bold text-[#a8b0b8]">
-            <a href="/" className="hover:text-[#7fb069]">Shop</a>
+            <a href="https://crestedcritters.com" className="hover:text-[#7fb069]">Home</a>
+            <Link href="/" className="hover:text-[#7fb069]">Shop</Link>
             <a href="/cart" className="hover:text-[#7fb069]">Cart</a>
             <a href="/faq" className="hover:text-[#7fb069]">FAQ</a>
             <a href="/live-shipping" className="hover:text-[#7fb069]">Live Shipping</a>

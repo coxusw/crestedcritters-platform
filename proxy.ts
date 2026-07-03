@@ -6,6 +6,40 @@ export function proxy(request: NextRequest) {
   const isRandomizerHost = host === "randomizer.crestedcritters.com";
   const isAdminHost = host === "admin.crestedcritters.com";
   const isShopHost = host === "shop.crestedcritters.com";
+  const isMainHost =
+    host === "crestedcritters.com" || host === "www.crestedcritters.com";
+
+  if (isMainHost) {
+    const url = request.nextUrl.clone();
+
+    if (url.pathname === "/") {
+      url.pathname = "/main";
+      return NextResponse.rewrite(url);
+    }
+
+    if (url.pathname === "/contact" || url.pathname === "/contact/") {
+      url.pathname = "/main/contact";
+      return NextResponse.rewrite(url);
+    }
+
+    if (url.pathname === "/shop" || url.pathname === "/shop/") {
+      url.hostname = "shop.crestedcritters.com";
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+
+    if (url.pathname === "/isopedia" || url.pathname === "/isopedia/") {
+      url.hostname = "isopedia.crestedcritters.com";
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+
+    if (url.pathname === "/randomizer" || url.pathname === "/Randomizer") {
+      url.hostname = "randomizer.crestedcritters.com";
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+  }
 
   if (isIsopediaHost) {
     const url = request.nextUrl.clone();
