@@ -43,20 +43,19 @@ const sections = [
     ],
   },
   {
+    title: "Does Crested Critters follow all applicable laws?",
+    body: [
+      "Yes, Crested Critters follows all Federal and State laws, and has obtained and keeps all applicable permits needed. Crested Critters strives to stay up to date with all permits and laws and regulations. We will include the USDA Awareness letter in all live shipments. If we do not currently have an active PPQ-526 permit to ship live to a certain state it will not allow the order to go through to that address.",
+    ],
+    href: "/usda-awareness-letter.pdf",
+    linkLabel: "View USDA Awareness Letter",
+  },
+  {
     title: "Source",
     body: [
       "All products are from Crested Critters' own stock unless otherwise stated.",
       "Some products may come from other sources, and the product listing will state this.",
     ],
-  },
-  {
-    title: "Live products",
-    body: [
-      "Live isopods and springtails have separate shipping rules because weather, transit time, and state restrictions matter.",
-      "Please review the Live Shipping page before placing a live order.",
-    ],
-    href: "/live-shipping",
-    linkLabel: "View Live Shipping",
   },
   {
     title: "Order questions",
@@ -72,6 +71,15 @@ const sections = [
       "Used substrate, leaf litter, cork, moss, and any other enclosure material should be frozen for at least 72 hours before disposal.",
       "This helps prevent accidental introduction of non-native species and protects local ecosystems.",
     ],
+  },
+  {
+    title: "Live products",
+    body: [
+      "Live isopods and springtails have separate shipping rules because weather, transit time, and state restrictions matter.",
+      "Please review the Live Shipping page before placing a live order.",
+    ],
+    href: "/live-shipping",
+    linkLabel: "View Live Shipping",
   },
 ];
 
