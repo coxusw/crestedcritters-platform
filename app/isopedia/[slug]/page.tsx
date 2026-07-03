@@ -201,6 +201,10 @@ function contributorCreditName(credit: ContributorCredit) {
   );
 }
 
+function profileCreditUrl(profile: ContributorProfile | null | undefined) {
+  return profile?.username ? `/profile/${profile.username}` : null;
+}
+
 function canonicalImageUrl(value: string | null) {
   if (!value) return "";
 
@@ -708,6 +712,9 @@ export default async function SpeciesPage({ params }: PageProps) {
               : primaryFallbackCredit
                 ? contributorCreditName(primaryFallbackCredit)
               : "Isopedia",
+            creditProfileUrl: primaryGalleryImage
+              ? profileCreditUrl(primaryGalleryImage.profiles)
+              : profileCreditUrl(primaryFallbackCredit?.profiles),
             isPrimary: true,
           },
         ]
@@ -720,6 +727,7 @@ export default async function SpeciesPage({ params }: PageProps) {
       alt: image.caption || species.common_name,
       caption: image.caption,
       creditName: galleryCreditName(image),
+      creditProfileUrl: profileCreditUrl(image.profiles),
       isPrimary: false,
     })) satisfies SpeciesCarouselImage[]),
   ];

@@ -10,6 +10,7 @@ export type SpeciesCarouselImage = {
   alt: string;
   caption?: string | null;
   creditName?: string | null;
+  creditProfileUrl?: string | null;
   isPrimary?: boolean;
 };
 
@@ -118,9 +119,18 @@ export default function SpeciesImageCarousel({
       <div className="rounded-2xl border border-white/10 bg-[#102016] p-4">
         <p className="text-sm font-black text-emerald-50">
           Photo Credit:{" "}
-          <span className="text-emerald-300">
-            {activeImage.creditName || "Isopedia"}
-          </span>
+          {activeImage.creditProfileUrl ? (
+            <Link
+              href={activeImage.creditProfileUrl}
+              className="text-emerald-300 transition hover:text-emerald-200 hover:underline"
+            >
+              {activeImage.creditName || "Community contributor"}
+            </Link>
+          ) : (
+            <span className="text-emerald-300">
+              {activeImage.creditName || "Isopedia"}
+            </span>
+          )}
         </p>
 
         {activeImage.caption && (
