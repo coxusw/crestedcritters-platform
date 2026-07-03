@@ -69,6 +69,10 @@ export function proxy(request: NextRequest) {
       return NextResponse.next();
     }
 
+    if (url.pathname.includes(".")) {
+      return NextResponse.next();
+    }
+
     if (url.pathname === "/checkout/success") {
       url.pathname = "/shop/checkout/success";
       return NextResponse.rewrite(url);
