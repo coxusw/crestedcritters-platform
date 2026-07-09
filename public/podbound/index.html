@@ -22,6 +22,7 @@ button,select,input{font:inherit}button{cursor:pointer}.hidden{display:none!impo
 .btn{border:0;border-radius:10px;padding:10px 14px;font-weight:900;transition:.15s transform,.15s opacity}.btn:hover{transform:translateY(-1px)}.btn.primary{background:var(--forest);color:#fff8ed}.btn.secondary{background:#e5ddcc;color:var(--forest)}.btn.copper{background:var(--copper);color:white}.btn.text{background:transparent;color:var(--copper);padding-left:0}.button-row{display:flex;gap:8px;flex-wrap:wrap}.start-button{width:100%;margin-top:14px;padding:14px;font-size:1rem}
 .notice{padding:11px 13px;border-radius:10px;border:1px solid var(--stone);background:#eee8dc;margin:10px 0}.notice.good{background:#e5f0e4;border-color:#94b096}.notice.bad{background:#f6dfd8;border-color:#c98b7c}.notice.warn{background:#fff1cb;border-color:#d8b15a}
 .forecast-grid,.forecast-track{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}.forecast-card{min-width:0;border:1px solid var(--stone);border-radius:12px;background:#fffaf0;padding:10px;display:flex;flex-direction:column;gap:4px}.forecast-card span{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;font-weight:900;color:var(--moss)}.forecast-card b{font-size:.9rem}.forecast-card small{font-size:.72rem;color:var(--muted);line-height:1.3}.forecast-card.current{border:2px solid var(--copper);background:#fff1df;transform:translateY(-2px)}.forecast-card.past{opacity:.55}
+.current-forecast-summary{display:none}
 .rules-panel{margin-top:14px}.rules-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.rule-card{border:1px solid var(--stone);border-radius:12px;padding:10px;background:#fffaf0}.rule-card b{display:block;color:var(--forest)}.rule-card small{color:var(--muted)}
 .game-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:12px}.game-top h1{font-family:Georgia,"Times New Roman",serif;margin:.1rem 0}.game-meta{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.game-meta span{font-size:.73rem;padding:5px 8px;border:1px solid var(--stone);background:#fffaf0;border-radius:999px}.phase-label{font-weight:900;color:var(--copper)}.priority-display{margin-top:10px;padding:9px 12px;border-radius:10px;background:#e8e1d2}
 .game-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,.55fr);gap:14px;margin-top:14px}.arena-main{display:flex;flex-direction:column;gap:14px}.colonies{display:grid;grid-template-columns:1fr 1fr;gap:12px}.colony-board{border:1px solid var(--stone);border-radius:16px;background:var(--paper-2);padding:16px;position:relative}.colony-board.human{border-top:5px solid var(--copper)}.colony-board.bot{border-top:5px solid var(--forest)}.colony-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.colony-head h2{margin:.1rem 0;font-family:Georgia,"Times New Roman",serif}.score-orb{width:66px;height:66px;border-radius:50%;background:var(--forest);color:#fff8ed;display:grid;place-items:center;font-size:1.7rem;font-weight:1000;line-height:.8}.score-orb small{display:block;font-size:.56rem;text-transform:uppercase;letter-spacing:.08em}.stat-row{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.stat-row span{padding:4px 7px;border-radius:999px;background:#e7dfcf;font-size:.73rem}.state-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.state-grid div{background:#fffaf0;border:1px solid var(--stone);border-radius:9px;padding:8px;text-align:center}.state-grid strong{display:block;font-size:1.18rem}.state-grid span{font-size:.65rem;color:var(--muted)}.stash{margin-top:11px}.stash label{display:block;font-size:.7rem;text-transform:uppercase;font-weight:900;color:var(--moss);margin-bottom:5px}.stash>div{display:flex;gap:6px;flex-wrap:wrap;min-height:38px}.food-card{width:37px;height:49px;border-radius:8px;display:inline-grid;place-items:center;font-size:1.1rem;font-weight:1000;border:2px solid rgba(0,0,0,.16);box-shadow:0 4px 8px rgba(0,0,0,.12)}.food-card.compact{width:25px;height:33px;font-size:.78rem}.food-card.large{width:65px;height:84px;font-size:1.7rem;border:0}.food-2{background:#d7b978;color:#33250f}.food-3{background:#7e9a73;color:#142417}.food-4{background:#a65d35;color:white}.empty-stash{color:var(--muted);font-style:italic;font-size:.85rem}.behavior-box{margin-top:10px;padding:9px 10px;border-radius:10px;background:#ebe4d5}.behavior-box b{color:var(--forest)}.behavior-box p{margin:3px 0 0;font-size:.77rem;color:var(--muted)}.secure-flag{position:absolute;right:14px;bottom:12px;padding:5px 8px;border-radius:999px;background:#dbe9df;color:#2c5738;font-size:.7rem;font-weight:900}
@@ -133,6 +134,10 @@ body.game-active #turnControls{min-height:0;overflow:auto}
   body.game-active .game-summary-panel h1{font-size:1.05rem;margin:0}
   body.game-active #phaseLabel{font-size:.72rem}
   body.game-active #priorityDisplay{margin-top:3px;padding:4px 6px;font-size:.68rem}
+  body.game-active .current-forecast-summary{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:start;margin-top:4px;padding:6px 8px;border:1px solid var(--stone);border-left:4px solid var(--copper);border-radius:8px;background:#fffaf0;color:var(--ink)}
+  body.game-active .current-forecast-summary span{font-size:.54rem;text-transform:uppercase;letter-spacing:.08em;font-weight:900;color:var(--moss)}
+  body.game-active .current-forecast-summary b{font-size:.76rem;color:var(--forest);line-height:1.15}
+  body.game-active .current-forecast-summary small{grid-column:1/-1;font-size:.66rem;line-height:1.22;color:var(--muted)}
   body.game-active .game-utility-buttons{margin-top:5px!important}
   body.game-active .game-utility-buttons .btn{min-height:32px;padding:6px 9px;font-size:.72rem}
   body.game-active #forecastTrack{display:flex;gap:5px;overflow-x:auto;padding:3px 1px 1px;margin-top:4px}
@@ -391,6 +396,7 @@ body.modal-open{overflow:hidden}
   .game-summary-panel h1{font-size:1.35rem;margin:0 0 3px}
   .game-summary-panel #phaseLabel{font-size:.78rem}
   .game-summary-panel #priorityDisplay{font-size:.76rem;padding:6px 8px;margin-top:6px}
+  .game-summary-panel .current-forecast-summary{display:none}
   .game-summary-panel .game-meta{display:none}
   .game-summary-panel .game-top>div:last-child{width:100%}
   .game-utility-buttons{position:static;margin:6px 0 0!important;justify-content:flex-end!important}
@@ -548,7 +554,7 @@ body.modal-open{overflow:hidden}
       </nav>
       <div id="mobileStatusBar" class="mobile-status-bar" aria-live="polite"></div>
       <article class="panel game-summary-panel">
-        <div class="game-top"><div><span class="eyebrow">Live game</span><h1 id="roundTitle">Round 1 of 6</h1><div id="phaseLabel" class="phase-label"></div><div id="priorityDisplay" class="priority-display"></div></div><div><div id="gameMeta" class="game-meta"></div><div class="button-row game-utility-buttons" style="justify-content:flex-end;margin-top:8px"><button class="btn secondary" id="gameRulesToggle">Rules</button><button class="btn copper" id="resignGame">Resign</button><button class="btn secondary" id="newGame">New game</button></div></div></div>
+        <div class="game-top"><div><span class="eyebrow">Live game</span><h1 id="roundTitle">Round 1 of 6</h1><div id="phaseLabel" class="phase-label"></div><div id="priorityDisplay" class="priority-display"></div><div id="currentForecastSummary" class="current-forecast-summary"></div></div><div><div id="gameMeta" class="game-meta"></div><div class="button-row game-utility-buttons" style="justify-content:flex-end;margin-top:8px"><button class="btn secondary" id="gameRulesToggle">Rules</button><button class="btn copper" id="resignGame">Resign</button><button class="btn secondary" id="newGame">New game</button></div></div></div>
         <div id="forecastTrack" class="forecast-track"></div>
       </article>
       <div class="game-layout">
@@ -2435,6 +2441,8 @@ function renderGame(){
   $("#roundTitle").textContent=`Round ${game.round} of 6`;
   $("#phaseLabel").textContent=phaseText();
   $("#forecastTrack").innerHTML=game.forecast.map((k,i)=>`<article class="forecast-card ${i===game.round-1?"current":i<game.round-1?"past":""}"><span>Round ${i+1}</span><b>${esc(ENV[k].name)}</b><small>${esc(ENV[k].effect)}</small></article>`).join("");
+  const currentForecast=ENV[game.forecast[game.round-1]];
+  $("#currentForecastSummary").innerHTML=`<span>Current Forecast</span><b>${esc(currentForecast.name)}</b><small>${esc(currentForecast.effect)}</small>`;
   $("#humanBoard").innerHTML=colonyBoard(primary,"Your colony");$("#botBoard").innerHTML=colonyBoard(opponent,"Opponent colony");renderMobileStatusForPerspective(primary,opponent);
   $("#priorityDisplay").innerHTML=`<b>Priority:</b> ${playerName(game.priorityHolder)}${game.firstActorThisRound!==undefined&&game.currentOrder.length?` · First actor: ${playerName(game.firstActorThisRound)}`:""}`;
   renderControls();renderRoundLog();renderPlaytestNotes();
