@@ -37,6 +37,30 @@ type Submission = {
   verifier: Profile | null;
 };
 
+type SubmissionForDelete = {
+  id: string;
+  organism_type: string | null;
+  genus: string | null;
+  species: string | null;
+  morph: string | null;
+  common_name: string;
+  scientific_name: string | null;
+  image_url: string | null;
+  status: string | null;
+};
+
+type PublishedSpeciesForDelete = {
+  id: number;
+  organism_type: string | null;
+  genus: string | null;
+  species: string | null;
+  morph: string | null;
+  common_name: string;
+  scientific_name: string | null;
+  image_url: string | null;
+  created_at: string | null;
+};
+
 async function requireIsopediaAdmin() {
   const supabase = await createSupabaseServerClient();
   const {
@@ -181,6 +205,74 @@ async function deleteAdminSubmission(formData: FormData) {
 
   if (!submissionId) redirect("/admin/isopedia/verify?error=missing-submission");
 
+  const { data: submissionForDelete, error: readError } = await supabase
+    .from("isopedia_submissions")
+    .select(
+      `
+      id,
+      organism_type,
+      genus,
+      species,
+      morph,
+      common_name,
+      scientific_name,
+      image_url,
+      status
+    `
+    )
+    .eq("id", submissionId)
+    .maybeSingle<SubmissionForDelete>();
+
+  if (readError) {
+    redirect(
+      `/admin/isopedia/verify?error=${encodeURIComponent(
+        readError.message || "submission-read-failed"
+      )}`
+    );
+  }
+
+  if (!submissionForDelete) {
+    redirect("/admin/isopedia/verify?error=submission-not-found");
+  }
+
+  let deletedPublishedSpecies = false;
+
+  if (submissionForDelete.status === "verified") {
+    let matchingSpecies: PublishedSpeciesForDelete | undefined;
+
+    try {
+      matchingSpecies = await findPublishedSpeciesForSubmission(
+        supabase,
+        submissionForDelete
+      );
+    } catch (matchError) {
+      const message =
+        matchError instanceof Error ? matchError.message : "published-species-match-failed";
+      redirect(
+        `/admin/isopedia/verify?error=${encodeURIComponent(
+          `Could not check matching published species: ${message}`
+        )}`
+      );
+    }
+
+    if (matchingSpecies) {
+      const { error: speciesDeleteError } = await supabase
+        .from("isopedia_species")
+        .delete()
+        .eq("id", matchingSpecies.id);
+
+      if (speciesDeleteError) {
+        redirect(
+          `/admin/isopedia/verify?error=${encodeURIComponent(
+            speciesDeleteError.message || "published-species-delete-failed"
+          )}`
+        );
+      }
+
+      deletedPublishedSpecies = true;
+    }
+  }
+
   const { error } = await supabase
     .from("isopedia_submissions")
     .delete()
@@ -217,6 +309,7 @@ async function deleteAdminSubmission(formData: FormData) {
   redirect(
     `/admin/isopedia/verify?deleted=true${
       status ? `&deletedStatus=${encodeURIComponent(status)}` : ""
+    }${deletedPublishedSpecies ? "&deletedSpecies=true" : ""
     }`
   );
 }
@@ -229,6 +322,7 @@ export default async function AdminVerifySubmissionsPage({
     rejected?: string;
     deleted?: string;
     deletedStatus?: string;
+    deletedSpecies?: string;
     error?: string;
   }>;
 }) {
@@ -315,6 +409,9 @@ export default async function AdminVerifySubmissionsPage({
             Submission deleted
             {params.deletedStatus ? ` (${params.deletedStatus})` : ""}. Related
             IsoToken awards were reversed.
+            {params.deletedSpecies === "true"
+              ? " The matching published species entry was also removed."
+              : ""}
           </Notice>
         )}
         {params.error && <Notice tone="bad">{decodeURIComponent(params.error)}</Notice>}
@@ -466,6 +563,83 @@ function Notice({
 function profileName(profile: Profile | null) {
   if (!profile) return null;
   return profile.display_name || profile.business_name || profile.username;
+}
+
+function normalizeMatchValue(value: string | null | undefined) {
+  return (value || "").trim().toLowerCase();
+}
+
+function sameMatchValue(
+  left: string | null | undefined,
+  right: string | null | undefined
+) {
+  return normalizeMatchValue(left) === normalizeMatchValue(right);
+}
+
+function canonicalImageUrl(value: string | null | undefined) {
+  if (!value) return "";
+
+  try {
+    const parsed = new URL(value);
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return value.split("?")[0].split("#")[0];
+  }
+}
+
+function isPublishedSpeciesMatch(
+  submission: SubmissionForDelete,
+  species: PublishedSpeciesForDelete
+) {
+  const submissionImageUrl = canonicalImageUrl(submission.image_url);
+  const speciesImageUrl = canonicalImageUrl(species.image_url);
+  const imageMatches = submissionImageUrl
+    ? submissionImageUrl === speciesImageUrl
+    : !speciesImageUrl;
+
+  return (
+    imageMatches &&
+    sameMatchValue(submission.common_name, species.common_name) &&
+    sameMatchValue(submission.scientific_name, species.scientific_name) &&
+    sameMatchValue(submission.organism_type, species.organism_type) &&
+    sameMatchValue(submission.genus, species.genus) &&
+    sameMatchValue(submission.species, species.species) &&
+    sameMatchValue(submission.morph, species.morph)
+  );
+}
+
+async function findPublishedSpeciesForSubmission(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  submission: SubmissionForDelete
+) {
+  const { data: candidates, error } = await supabase
+    .from("isopedia_species")
+    .select(
+      `
+      id,
+      organism_type,
+      genus,
+      species,
+      morph,
+      common_name,
+      scientific_name,
+      image_url,
+      created_at
+    `
+    )
+    .eq("common_name", submission.common_name)
+    .order("created_at", { ascending: false })
+    .returns<PublishedSpeciesForDelete[]>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (candidates || []).find((candidate) =>
+    isPublishedSpeciesMatch(submission, candidate)
+  );
 }
 
 function statusClass(status: string) {
