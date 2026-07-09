@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSpeciesAnnouncementForSubmission } from "@/lib/content-agent/isopedia";
 import { awardIsoTokens } from "@/lib/isotokens";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
+import VerifySubmitButton from "@/app/components/isopedia/VerifySubmitButton";
+
+export const dynamic = "force-dynamic";
 
 type Profile = {
   id: string;
@@ -52,9 +55,20 @@ async function verifySubmission(formData: FormData) {
 
   const { data: submissionForReward } = await supabase
     .from("isopedia_submissions")
-    .select("id, submitted_by")
+    .select("id, submitted_by, status")
     .eq("id", submissionId)
-    .maybeSingle<{ id: string; submitted_by: string | null }>();
+    .maybeSingle<{ id: string; submitted_by: string | null; status: string | null }>();
+
+  if (!submissionForReward) {
+    redirect("/verify?error=submission-not-found");
+  }
+
+  if (submissionForReward.status !== "unverified") {
+    revalidatePath("/verify");
+    revalidatePath("/isopedia/verify");
+    revalidatePath("/admin/isopedia/verify");
+    redirect("/verify?verified=true&already=true");
+  }
 
   const { error } = await supabase.rpc("verify_isopedia_submission", {
     submission_id: submissionId,
@@ -115,9 +129,13 @@ async function verifySubmission(formData: FormData) {
   }
 
   revalidatePath("/review");
+  revalidatePath("/isopedia/review");
   revalidatePath("/verify");
+  revalidatePath("/isopedia/verify");
+  revalidatePath("/admin/isopedia/verify");
   revalidatePath("/");
   revalidatePath("/admin/isopedia");
+  revalidatePath("/admin/isopedia/review");
   revalidatePath("/admin/content-agent");
   redirect("/verify?verified=true");
 }
@@ -141,7 +159,10 @@ async function rejectSubmission(formData: FormData) {
   }
 
   revalidatePath("/review");
+  revalidatePath("/isopedia/review");
   revalidatePath("/verify");
+  revalidatePath("/isopedia/verify");
+  revalidatePath("/admin/isopedia/verify");
   revalidatePath("/admin/isopedia");
   redirect("/verify?rejected=true");
 }
@@ -155,6 +176,8 @@ export default async function VerifySubmissionsPage({
     error?: string;
   }>;
 }) {
+  noStore();
+
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
 
@@ -371,9 +394,9 @@ export default async function VerifySubmissionsPage({
                             name="submission_id"
                             value={submission.id}
                           />
-                          <button className="rounded-2xl bg-emerald-400 px-4 py-2 font-bold text-slate-950">
+                          <VerifySubmitButton>
                             Verify & Publish
-                          </button>
+                          </VerifySubmitButton>
                         </form>
                       ) : (
                         <span className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-slate-400">
