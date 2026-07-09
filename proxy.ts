@@ -4,6 +4,7 @@ export function proxy(request: NextRequest) {
   const host = request.headers.get("host")?.toLowerCase().split(":")[0] || "";
   const isIsopediaHost = host === "isopedia.crestedcritters.com";
   const isRandomizerHost = host === "randomizer.crestedcritters.com";
+  const isPodboundHost = host === "podbound.crestedcritters.com";
   const isAdminHost = host === "admin.crestedcritters.com";
   const isShopHost = host === "shop.crestedcritters.com";
   const isMainHost =
@@ -89,6 +90,21 @@ export function proxy(request: NextRequest) {
     }
 
     return NextResponse.next();
+  }
+
+  if (isPodboundHost) {
+    const url = request.nextUrl.clone();
+
+    if (url.pathname === "/" || url.pathname === "/index.html") {
+      url.pathname = "/podbound";
+      return NextResponse.rewrite(url);
+    }
+
+    if (url.pathname.startsWith("/api/")) {
+      return NextResponse.next();
+    }
+
+    return NextResponse.rewrite(new URL("/podbound", request.url));
   }
 
   if (isShopHost) {

@@ -1,0 +1,2464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#193426">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<title>PodBound Two-Player Arena</title>
+<style>:root{
+  --paper:#f3efe4;--paper-2:#fbf7ed;--forest:#193426;--forest-dark:#10130f;--ink:#20251f;--muted:#667066;
+  --copper:#a65d35;--moss:#536858;--stone:#c9c1ac;--gold:#c49a48;--good:#4f7b58;--bad:#a34c3a;--warn:#b4842d;
+  --shadow:0 16px 40px rgba(20,28,22,.13);--radius:18px;
+}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#ebe5d7 0,var(--paper) 260px);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.45}
+button,select,input{font:inherit}button{cursor:pointer}.hidden{display:none!important}.app-shell{max-width:1440px;margin:auto;padding:20px}
+.app-header{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;background:var(--forest);color:#fff8ed;border-radius:24px;padding:24px 28px;box-shadow:var(--shadow);margin-bottom:14px}
+.brand-row{display:flex;align-items:center;gap:16px}.brand-mark{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;background:var(--gold);color:var(--forest-dark);font-weight:1000;font-size:1.25rem;box-shadow:inset 0 0 0 4px rgba(255,255,255,.18)}
+.eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;font-weight:900;color:var(--copper)}.app-header .eyebrow{color:#e0bd78}.app-header h1{font-family:Georgia,"Times New Roman",serif;font-size:clamp(1.9rem,4vw,3.1rem);line-height:1;margin:.25rem 0}.app-header p{margin:0;color:#d8dfd7;max-width:720px}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.health-badge{padding:8px 12px;border-radius:999px;font-size:.78rem;font-weight:900}.health-badge.pass{background:#dcebdc;color:#26442d}.health-badge.fail{background:#f2d3cb;color:#7c2e21}
+.panel{background:rgba(251,247,237,.96);border:1px solid var(--stone);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}.setup-grid{display:grid;grid-template-columns:minmax(320px,.82fr) minmax(0,1.45fr);gap:16px}.setup-card h2,.panel h2{font-family:Georgia,"Times New Roman",serif;margin:.1rem 0 .4rem;font-size:1.65rem}.hint{color:var(--muted);font-size:.9rem}.field{display:flex;flex-direction:column;gap:6px;margin:12px 0}.field label{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;font-weight:900;color:var(--moss)}select,input{width:100%;padding:11px 12px;border:1px solid var(--stone);border-radius:10px;background:#fffdf6;color:var(--ink)}.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}.custom-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;border:1px dashed var(--stone);border-radius:12px;background:#f8f2e6}
+.btn{border:0;border-radius:10px;padding:10px 14px;font-weight:900;transition:.15s transform,.15s opacity}.btn:hover{transform:translateY(-1px)}.btn.primary{background:var(--forest);color:#fff8ed}.btn.secondary{background:#e5ddcc;color:var(--forest)}.btn.copper{background:var(--copper);color:white}.btn.text{background:transparent;color:var(--copper);padding-left:0}.button-row{display:flex;gap:8px;flex-wrap:wrap}.start-button{width:100%;margin-top:14px;padding:14px;font-size:1rem}
+.notice{padding:11px 13px;border-radius:10px;border:1px solid var(--stone);background:#eee8dc;margin:10px 0}.notice.good{background:#e5f0e4;border-color:#94b096}.notice.bad{background:#f6dfd8;border-color:#c98b7c}.notice.warn{background:#fff1cb;border-color:#d8b15a}
+.forecast-grid,.forecast-track{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}.forecast-card{min-width:0;border:1px solid var(--stone);border-radius:12px;background:#fffaf0;padding:10px;display:flex;flex-direction:column;gap:4px}.forecast-card span{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;font-weight:900;color:var(--moss)}.forecast-card b{font-size:.9rem}.forecast-card small{font-size:.72rem;color:var(--muted);line-height:1.3}.forecast-card.current{border:2px solid var(--copper);background:#fff1df;transform:translateY(-2px)}.forecast-card.past{opacity:.55}
+.rules-panel{margin-top:14px}.rules-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.rule-card{border:1px solid var(--stone);border-radius:12px;padding:10px;background:#fffaf0}.rule-card b{display:block;color:var(--forest)}.rule-card small{color:var(--muted)}
+.game-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:12px}.game-top h1{font-family:Georgia,"Times New Roman",serif;margin:.1rem 0}.game-meta{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.game-meta span{font-size:.73rem;padding:5px 8px;border:1px solid var(--stone);background:#fffaf0;border-radius:999px}.phase-label{font-weight:900;color:var(--copper)}.priority-display{margin-top:10px;padding:9px 12px;border-radius:10px;background:#e8e1d2}
+.game-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,.55fr);gap:14px;margin-top:14px}.arena-main{display:flex;flex-direction:column;gap:14px}.colonies{display:grid;grid-template-columns:1fr 1fr;gap:12px}.colony-board{border:1px solid var(--stone);border-radius:16px;background:var(--paper-2);padding:16px;position:relative}.colony-board.human{border-top:5px solid var(--copper)}.colony-board.bot{border-top:5px solid var(--forest)}.colony-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.colony-head h2{margin:.1rem 0;font-family:Georgia,"Times New Roman",serif}.score-orb{width:66px;height:66px;border-radius:50%;background:var(--forest);color:#fff8ed;display:grid;place-items:center;font-size:1.7rem;font-weight:1000;line-height:.8}.score-orb small{display:block;font-size:.56rem;text-transform:uppercase;letter-spacing:.08em}.stat-row{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.stat-row span{padding:4px 7px;border-radius:999px;background:#e7dfcf;font-size:.73rem}.state-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.state-grid div{background:#fffaf0;border:1px solid var(--stone);border-radius:9px;padding:8px;text-align:center}.state-grid strong{display:block;font-size:1.18rem}.state-grid span{font-size:.65rem;color:var(--muted)}.stash{margin-top:11px}.stash label{display:block;font-size:.7rem;text-transform:uppercase;font-weight:900;color:var(--moss);margin-bottom:5px}.stash>div{display:flex;gap:6px;flex-wrap:wrap;min-height:38px}.food-card{width:37px;height:49px;border-radius:8px;display:inline-grid;place-items:center;font-size:1.1rem;font-weight:1000;border:2px solid rgba(0,0,0,.16);box-shadow:0 4px 8px rgba(0,0,0,.12)}.food-card.compact{width:25px;height:33px;font-size:.78rem}.food-card.large{width:65px;height:84px;font-size:1.7rem;border:0}.food-2{background:#d7b978;color:#33250f}.food-3{background:#7e9a73;color:#142417}.food-4{background:#a65d35;color:white}.empty-stash{color:var(--muted);font-style:italic;font-size:.85rem}.behavior-box{margin-top:10px;padding:9px 10px;border-radius:10px;background:#ebe4d5}.behavior-box b{color:var(--forest)}.behavior-box p{margin:3px 0 0;font-size:.77rem;color:var(--muted)}.secure-flag{position:absolute;right:14px;bottom:12px;padding:5px 8px;border-radius:999px;background:#dbe9df;color:#2c5738;font-size:.7rem;font-weight:900}
+.decision-panel{border:1px solid var(--stone);border-radius:16px;background:#fffaf0;padding:16px}.decision-panel h3{margin:.1rem 0 .35rem;font-family:Georgia,"Times New Roman",serif}.decision-panel p{margin:.25rem 0 .8rem;color:var(--muted)}.decision-panel.bot-turn{border-left:5px solid var(--forest)}.action-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.action-button{min-height:130px;text-align:left;padding:11px;border:1px solid var(--stone);border-radius:11px;background:#f9f3e7;color:var(--ink)}.action-button:hover{border-color:var(--copper);background:#fff0dc}.action-button b,.action-button span,.action-button small{display:block}.action-button b{font-size:1rem;color:var(--forest)}.action-button span{font-size:.76rem;margin:5px 0}.action-button small{font-size:.67rem;color:var(--muted)}.action-button.disabled{opacity:.45;cursor:not-allowed}.subchoice{margin-top:12px;padding-top:12px;border-top:1px solid var(--stone)}.payment-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.payment-option{min-height:84px;border:1px solid var(--stone);border-radius:10px;background:#fff;padding:9px;text-align:left}.payment-option:hover{border-color:var(--copper)}.payment-option span,.payment-option b,.payment-option small{display:block}.payment-option small{color:var(--muted);font-size:.72rem;margin-top:5px}.draw-choice{display:flex;gap:10px;flex-wrap:wrap}.round-log-panel{max-height:760px;overflow:auto}.round-log-panel h3{position:sticky;top:0;background:var(--paper-2);margin:0;padding:4px 0 10px}.round-entry{border-left:4px solid var(--stone);padding:9px 10px;margin:0 0 8px;background:#fffaf0;border-radius:0 10px 10px 0}.round-entry.live{border-left-color:var(--copper);background:#fff0dc}.round-entry header{display:flex;justify-content:space-between;gap:8px}.round-entry header span{color:var(--muted);font-size:.75rem}.round-entry p{margin:4px 0;font-size:.78rem}.round-entry small{color:var(--muted)}
+.result-hero{text-align:center;padding:24px;background:var(--forest);color:#fff8ed;border-radius:20px}.result-hero h1{font-family:Georgia,"Times New Roman",serif;font-size:2.7rem;margin:.25rem}.result-hero p{font-size:1.2rem}.valid-pill{display:inline-block;padding:7px 11px;border-radius:999px;font-weight:900}.valid-pill.valid{background:#dcebdc;color:#26442d}.valid-pill.invalid{background:#f2d3cb;color:#7c2e21}.score-breakdowns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}.breakdown-card{border:1px solid var(--stone);border-radius:15px;padding:15px;background:#fffaf0}.breakdown-card.human{border-top:5px solid var(--copper)}.breakdown-card.bot{border-top:5px solid var(--forest)}.math-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dotted var(--stone)}.math-row.subtotal{border-top:1px solid var(--ink);margin-top:5px}.math-row.total{border-top:3px solid var(--forest);border-bottom:0;margin-top:6px;font-size:1.08rem}.table-wrap{overflow:auto;border:1px solid var(--stone);border-radius:12px;background:#fffaf0}table{border-collapse:collapse;width:100%;font-size:.77rem}th,td{padding:8px;border-bottom:1px solid #ddd4c2;text-align:left;vertical-align:top}th{background:#e8e0d0;position:sticky;top:0}.result-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.footer-note{text-align:center;color:var(--muted);font-size:.72rem;margin:18px 0}
+@media(max-width:1080px){.setup-grid,.game-layout{grid-template-columns:1fr}.round-log-panel{max-height:none}.action-grid{grid-template-columns:repeat(3,1fr)}.forecast-grid,.forecast-track{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:720px){.app-shell{padding:10px}.app-header{padding:18px;flex-direction:column}.header-actions{justify-content:flex-start}.two-col,.colonies,.score-breakdowns{grid-template-columns:1fr}.action-grid,.payment-grid{grid-template-columns:1fr 1fr}.state-grid{grid-template-columns:repeat(2,1fr)}.forecast-grid,.forecast-track{grid-template-columns:repeat(2,1fr)}.rules-grid{grid-template-columns:1fr}.game-top{flex-direction:column}.game-meta{justify-content:flex-start}.custom-grid{grid-template-columns:1fr}}
+
+/* V41.2 Playtest Edition */
+.playtest-details{border:1px solid var(--line);border-radius:14px;background:#f7f0e2;margin:4px 0 16px;padding:0 12px}
+.playtest-details summary{cursor:pointer;padding:11px 0;font-weight:850}.playtest-details summary span{color:var(--muted);font-size:.78rem;font-weight:650;margin-left:5px}
+.compact-fields{padding:2px 0 2px}.compact-fields .field{margin-bottom:10px}
+.side-stack{display:grid;gap:14px;align-content:start}.quick-notes-panel textarea,.feedback-panel textarea{resize:vertical;min-height:88px}
+.quick-notes-panel h3{margin-bottom:12px}.feedback-panel{margin:14px 0}.feedback-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.feedback-panel .two-col{align-items:start}.feedback-panel .field{margin-bottom:0}
+@media(max-width:1000px){.feedback-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.feedback-grid{grid-template-columns:1fr}}
+
+/* V41.3 Cultivate clarity */
+.cultivate-status{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:11px;margin:10px 0 13px;border-radius:13px;border:1px solid var(--line)}
+.cultivate-status.good{background:#e8f1e5;border-color:#b8ccb4}.cultivate-status.warn{background:#fff0cf;border-color:#d9bd73}
+.cultivate-status span{display:flex;flex-direction:column;gap:2px;text-align:center;padding:7px;border-radius:9px;background:rgba(255,255,255,.58);font-size:1.05rem;font-weight:850}
+.cultivate-status span b{font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.cultivate-status p{grid-column:1/-1;margin:1px 2px 0;font-size:.82rem;line-height:1.4}
+.species-rule-note{margin:-4px 0 14px;padding:9px 10px;border-left:4px solid var(--copper);background:#f6e7db;border-radius:0 9px 9px 0;font-size:.8rem;line-height:1.4}
+@media(max-width:600px){.cultivate-status{grid-template-columns:1fr 1fr}.cultivate-status span:last-of-type{grid-column:1/-1}}
+
+/* Online rooms */
+.online-panel{border:1px solid var(--stone);border-radius:12px;background:#f8f2e6;margin:12px 0;padding:12px}
+.online-panel h3{margin:.1rem 0 .25rem;font-family:Georgia,"Times New Roman",serif;color:var(--forest)}
+.online-room-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-top:10px}
+.online-status{margin-top:9px;font-size:.82rem;color:var(--muted)}
+.online-status.good{color:var(--good);font-weight:850}.online-status.bad{color:var(--bad);font-weight:850}
+.room-code-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:#e7dfcf;color:var(--forest);font-weight:950;letter-spacing:.08em}
+
+/* V41.4 Dairy Cow payment-flow fix */
+.payment-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 12px;margin:10px 0;border:1px solid var(--line);border-radius:12px;background:#f5ecdc}
+.payment-summary>span{display:flex;align-items:center;gap:5px}.payment-summary>b{font-size:.84rem}
+
+
+/* V41.4 iPhone Playtest Edition — presentation-only mobile pass */
+html{min-width:0;overflow-x:hidden;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{min-width:0;min-height:100svh;overflow-x:hidden;overscroll-behavior-y:none}
+button,input,select,textarea{-webkit-tap-highlight-color:transparent}
+textarea{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--stone);border-radius:10px;background:#fffdf6;color:var(--ink)}
+
+@supports(padding:max(0px)){
+  .app-shell{
+    padding-top:max(12px,env(safe-area-inset-top));
+    padding-right:max(12px,env(safe-area-inset-right));
+    padding-bottom:max(22px,env(safe-area-inset-bottom));
+    padding-left:max(12px,env(safe-area-inset-left));
+  }
+}
+
+@media (hover:none) and (pointer:coarse){
+  .btn:hover,.action-button:hover,.payment-option:hover{transform:none}
+  .btn:active,.action-button:active,.payment-option:active,.food-card.large:active{transform:scale(.985)}
+}
+
+@media(max-width:760px){
+  body{background:var(--paper)}
+  .app-shell{padding:10px;max-width:100%}
+  .app-header{margin-bottom:10px;padding:16px;border-radius:18px;gap:14px}
+  .brand-row{align-items:flex-start;gap:12px}
+  .brand-mark{width:46px;height:46px;flex:0 0 46px;font-size:1rem}
+  .app-header h1{font-size:1.8rem;line-height:1.05;margin:.18rem 0 .35rem}
+  .app-header p{font-size:.86rem;line-height:1.4}
+  .header-actions{width:100%;display:grid;grid-template-columns:1fr auto;align-items:center}
+  .health-badge{display:flex;align-items:center;min-height:44px;padding:8px 10px}
+  .header-actions .btn{min-height:44px}
+
+  .panel{padding:14px;border-radius:15px;box-shadow:0 8px 22px rgba(20,28,22,.10)}
+  .setup-card h2,.panel h2{font-size:1.42rem}
+  .setup-grid{gap:10px}
+  .two-col{grid-template-columns:1fr}
+  .field{margin:10px 0}
+  select,input,textarea{font-size:16px;min-height:46px}
+  .btn{min-height:44px;padding:11px 13px}
+  .start-button{min-height:52px;font-size:1.02rem;position:sticky;bottom:max(8px,env(safe-area-inset-bottom));z-index:4;box-shadow:0 10px 24px rgba(16,19,15,.24)}
+
+  .forecast-grid,.forecast-track{
+    display:flex;
+    gap:9px;
+    overflow-x:auto;
+    padding:3px 2px 10px;
+    margin-right:-4px;
+    scroll-snap-type:x mandatory;
+    scroll-padding-left:2px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .forecast-grid::-webkit-scrollbar,.forecast-track::-webkit-scrollbar{display:none}
+  .forecast-card{
+    flex:0 0 min(82vw,310px);
+    min-height:132px;
+    scroll-snap-align:start;
+    padding:12px;
+  }
+  .forecast-card b{font-size:1rem}
+  .forecast-card small{font-size:.78rem}
+  .forecast-card.current{transform:none;box-shadow:0 0 0 2px rgba(166,93,53,.12)}
+
+  .game-top{gap:10px;margin-bottom:8px}
+  .game-top h1{font-size:1.7rem;line-height:1.05}
+  .game-meta{gap:5px}
+  .game-meta span{font-size:.69rem;padding:5px 7px}
+  .priority-display{font-size:.86rem}
+  .game-layout{gap:10px;margin-top:10px}
+  .arena-main{gap:10px}
+  .colonies{gap:10px}
+  .colony-board{padding:13px;border-radius:14px}
+  .colony-head{gap:8px}
+  .colony-head h2{font-size:1.35rem}
+  .score-orb{width:54px;height:54px;flex:0 0 54px;font-size:1.42rem}
+  .state-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+  .state-grid div{padding:7px 3px}
+  .state-grid strong{font-size:1.05rem}
+  .state-grid span{font-size:.58rem;line-height:1.1}
+  .stat-row{margin:8px 0}
+  .stat-row span{font-size:.68rem}
+  .food-card{width:40px;height:52px}
+  .behavior-box p{font-size:.78rem}
+
+  .decision-panel{padding:14px;border-radius:14px}
+  .decision-panel h3{font-size:1.25rem}
+  .action-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .action-button{min-height:112px;padding:11px;touch-action:manipulation}
+  .action-button:nth-child(5){grid-column:1/-1;min-height:92px}
+  .action-button b{font-size:1rem}
+  .action-button span{font-size:.78rem;line-height:1.32}
+  .action-button small{font-size:.7rem;line-height:1.3}
+  .payment-grid{grid-template-columns:1fr;gap:8px}
+  .payment-option{min-height:76px;padding:11px}
+  .payment-summary{align-items:flex-start}
+  .draw-choice{gap:12px;justify-content:flex-start}
+  .food-card.large{width:72px;height:92px;font-size:1.85rem;touch-action:manipulation}
+
+  .side-stack{gap:10px}
+  .quick-notes-panel{order:1}
+  .round-log-panel{order:2;max-height:330px}
+  .round-log-panel h3{padding-top:2px}
+  .round-entry p{font-size:.8rem}
+
+  .feedback-grid{grid-template-columns:1fr}
+  .score-breakdowns{gap:10px}
+  .result-hero{padding:20px 14px;border-radius:16px}
+  .result-hero h1{font-size:2.1rem}
+  .result-hero p{font-size:1rem}
+  .result-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .result-actions .btn{width:100%}
+  .result-actions .btn.primary,.result-actions .btn.copper{grid-column:1/-1}
+  .table-wrap{max-width:100%;-webkit-overflow-scrolling:touch}
+  table{min-width:840px}
+  th,td{padding:7px}
+  .footer-note{padding-bottom:max(8px,env(safe-area-inset-bottom))}
+}
+
+/* Bot action confirmation */
+.bot-action-modal{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:18px;background:rgba(16,19,15,.70)}
+.bot-action-modal.hidden{display:none!important}
+.bot-action-card{width:min(100%,430px);max-height:calc(100dvh - 36px);overflow:auto;background:var(--paper-2);border:1px solid var(--stone);border-radius:22px;box-shadow:0 24px 70px rgba(0,0,0,.34);padding:22px}
+.bot-action-card h2{font-family:Georgia,"Times New Roman",serif;color:var(--forest);font-size:clamp(1.7rem,7vw,2.35rem);line-height:1.05;margin:.3rem 0 .7rem}
+.bot-action-summary{display:grid;gap:8px;margin:14px 0 18px}
+.bot-action-line{padding:10px 12px;border-radius:11px;background:#f3ead9;border:1px solid #ded2bc;font-size:.94rem}
+.bot-action-line strong{color:var(--forest)}
+.bot-action-badge{display:inline-flex;align-items:center;width:max-content;padding:5px 9px;border-radius:999px;background:var(--forest);color:#fff8ed;font-size:.72rem;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.bot-action-continue{width:100%;min-height:52px;font-size:1rem}
+body.modal-open{overflow:hidden}
+@media(max-width:720px){.bot-action-modal{padding:max(14px,env(safe-area-inset-top)) 12px max(14px,env(safe-area-inset-bottom))}.bot-action-card{border-radius:18px;padding:19px}}
+
+@media(max-width:390px){
+  .app-header h1{font-size:1.58rem}
+  .panel{padding:12px}
+  .action-grid{grid-template-columns:1fr}
+  .action-button,.action-button:nth-child(5){grid-column:auto;min-height:88px}
+  .forecast-card{flex-basis:86vw}
+  .state-grid{grid-template-columns:repeat(2,1fr)}
+  .result-actions{grid-template-columns:1fr}
+  .result-actions .btn.primary,.result-actions .btn.copper{grid-column:auto}
+}
+
+@media(max-width:760px) and (orientation:landscape){
+  .app-header{padding:12px 14px}
+  .app-header p{display:none}
+  .forecast-card{flex-basis:48vw;min-height:112px}
+  .colonies{grid-template-columns:1fr 1fr}
+  .action-grid{grid-template-columns:repeat(3,1fr)}
+  .action-button:nth-child(5){grid-column:auto}
+}
+
+
+/* V41.4 Compact Mobile — reduced-scroll phone navigation */
+.mobile-setup-tabs,.mobile-game-tabs,.mobile-status-bar{display:none}
+.advanced-settings{border:1px solid var(--stone);border-radius:12px;background:#f8f2e6;margin:10px 0;padding:0 12px}
+.advanced-settings summary{cursor:pointer;padding:11px 0;font-weight:900;color:var(--forest)}
+.advanced-settings summary span{font-size:.75rem;color:var(--muted);font-weight:650;margin-left:5px}
+.behavior-box summary{cursor:pointer;list-style:none;font-weight:900;color:var(--forest)}
+.behavior-box summary::-webkit-details-marker{display:none}
+.behavior-box summary::after{content:"＋";float:right;color:var(--copper)}
+.behavior-box[open] summary::after{content:"−"}
+
+@media(max-width:760px){
+  body.game-active .app-header,body.game-active #healthDetail,body.game-active .footer-note,
+  body.result-active .app-header,body.result-active #healthDetail,body.result-active .footer-note{display:none!important}
+  body.game-active .app-shell,body.result-active .app-shell{padding-top:max(6px,env(safe-area-inset-top))}
+
+  .mobile-setup-tabs,.mobile-game-tabs{
+    display:grid;position:sticky;top:max(4px,env(safe-area-inset-top));z-index:30;
+    grid-template-columns:repeat(2,1fr);gap:4px;padding:4px;margin:0 0 8px;
+    border:1px solid var(--stone);border-radius:13px;background:rgba(243,239,228,.96);
+    box-shadow:0 7px 20px rgba(20,28,22,.12);backdrop-filter:blur(12px)
+  }
+  .mobile-game-tabs{grid-template-columns:repeat(4,1fr)}
+  .mobile-setup-tabs button,.mobile-game-tabs button{
+    border:0;border-radius:9px;min-height:40px;padding:7px 5px;background:transparent;color:var(--moss);
+    font-size:.75rem;font-weight:900;touch-action:manipulation
+  }
+  .mobile-setup-tabs button.active,.mobile-game-tabs button.active{background:var(--forest);color:#fff8ed}
+
+  #setupScreen{display:block}
+  #setupScreen>.mobile-setup-tabs{display:grid}
+  #setupScreen[data-mobile-tab="options"] .setup-forecast-panel{display:none}
+  #setupScreen[data-mobile-tab="forecast"] .setup-card{display:none}
+  #setupScreen[data-mobile-tab="forecast"] .setup-forecast-panel{display:block}
+  .advanced-settings:not([open]){padding-bottom:0}
+  .advanced-settings summary{min-height:45px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .advanced-settings summary span{max-width:55%;text-align:right}
+
+  .mobile-status-bar{
+    display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 0 8px;padding:7px;
+    border-radius:13px;background:var(--forest);color:#fff8ed;box-shadow:var(--shadow)
+  }
+  .mobile-status-card{min-width:0;padding:7px 8px;border-radius:9px;background:rgba(255,255,255,.08)}
+  .mobile-status-card b,.mobile-status-card span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mobile-status-card b{font-size:.77rem}.mobile-status-card span{font-size:.68rem;color:#d9e2da;margin-top:2px}
+  .mobile-env-line{grid-column:1/-1;font-size:.72rem;padding:1px 5px 2px;color:#f1d59d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .game-summary-panel{padding:10px 12px}
+  .game-summary-panel .game-top{margin:0}
+  .game-summary-panel .game-top>div:first-child{width:100%}
+  .game-summary-panel .eyebrow{display:none}
+  .game-summary-panel h1{font-size:1.35rem;margin:0 0 3px}
+  .game-summary-panel #phaseLabel{font-size:.78rem}
+  .game-summary-panel #priorityDisplay{font-size:.76rem;padding:6px 8px;margin-top:6px}
+  .game-summary-panel .game-meta{display:none}
+  .game-summary-panel .game-top>div:last-child{width:100%}
+  .game-utility-buttons{position:static;margin:6px 0 0!important;justify-content:flex-end!important}
+  .game-utility-buttons .btn{min-height:34px;padding:6px 9px;font-size:.68rem}
+
+  #gameScreen[data-mobile-tab="play"] #forecastTrack,
+  #gameScreen[data-mobile-tab="opponent"] #forecastTrack,
+  #gameScreen[data-mobile-tab="notes"] #forecastTrack{display:none}
+  #gameScreen[data-mobile-tab="forecast"] .game-layout{display:none}
+  #gameScreen[data-mobile-tab="forecast"] #forecastTrack{display:flex;margin-top:10px}
+
+  #gameScreen[data-mobile-tab="play"] .side-stack,
+  #gameScreen[data-mobile-tab="opponent"] .side-stack{display:none}
+  #gameScreen[data-mobile-tab="play"] #botBoard{display:none}
+  #gameScreen[data-mobile-tab="opponent"] #humanBoard,
+  #gameScreen[data-mobile-tab="opponent"] #turnControls{display:none}
+  #gameScreen[data-mobile-tab="notes"] .arena-main{display:none}
+  #gameScreen[data-mobile-tab="notes"] .side-stack{display:grid}
+  #gameScreen[data-mobile-tab="notes"] .round-log-panel{max-height:none}
+  #gameScreen[data-mobile-tab="notes"] .quick-notes-panel{order:1}
+  #gameScreen[data-mobile-tab="notes"] .round-log-panel{order:2}
+  .colonies{display:block}
+
+  .colony-board{padding:11px 12px}
+  .colony-head h2{font-size:1.22rem}
+  .stat-row{margin:6px 0}.stat-row span{font-size:.64rem;padding:3px 6px}
+  .state-grid{grid-template-columns:repeat(4,1fr)}
+  .stash{margin-top:8px}
+  .behavior-box{padding:8px 9px;margin-top:8px}
+  .behavior-box p{margin-top:6px}
+
+  .decision-panel{padding:11px 12px}
+  .decision-panel>p{font-size:.76rem;margin:.2rem 0 .55rem}
+  .action-grid{grid-template-columns:1fr 1fr;gap:7px}
+  .action-button,.action-button:nth-child(5){min-height:78px;padding:9px;grid-column:auto}
+  .action-button:nth-child(5){grid-column:1/-1;min-height:66px}
+  .action-button span{display:none}
+  .action-button b{font-size:.94rem}
+  .action-button small{font-size:.66rem;line-height:1.25;margin-top:5px}
+  .cultivate-status{grid-template-columns:repeat(3,1fr);gap:5px;padding:7px;margin:7px 0 9px}
+  .cultivate-status span,.cultivate-status span:last-of-type{grid-column:auto;padding:5px 2px;font-size:.9rem}
+  .cultivate-status span b{font-size:.57rem}.cultivate-status p{display:none}
+  .subchoice{margin-top:9px;padding-top:9px}
+  .payment-option{min-height:66px}
+
+  .setup-forecast-panel .forecast-card{flex-basis:88vw}
+}
+
+@media(max-width:390px){
+  .action-grid{grid-template-columns:1fr 1fr}
+  .action-button,.action-button:nth-child(5){min-height:74px}
+  .action-button:nth-child(5){grid-column:1/-1;min-height:64px}
+  .state-grid{grid-template-columns:repeat(4,1fr)}
+  .mobile-game-tabs button{font-size:.69rem;padding:6px 2px}
+}
+
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="app-header">
+    <div class="brand-row"><div class="brand-mark">PB</div><div><span class="eyebrow">Playable simulator</span><h1>PodBound Two-Player Arena</h1><p>Play a verified six-round game between two human colonies and capture a clean playtest report.</p></div></div>
+    <div class="header-actions"><span id="healthBadge" class="health-badge">Checking engine…</span><button class="btn secondary" id="rulesToggle">Quick rules</button></div>
+  </header>
+  <div id="healthDetail" class="hint" style="margin:0 5px 12px"></div>
+
+  <section id="rulesPanel" class="panel rules-panel hidden">
+    <div class="game-top"><div><span class="eyebrow">Quick reference</span><h2>One action per colony, every round</h2></div></div>
+    <div class="rules-grid">
+      <article class="rule-card"><b>Cultivate</b><small>Pay Consumption. Gain Population equal to Growth.</small></article>
+      <article class="rule-card"><b>Forage</b><small>Draw 2 Food, keep 1 unless the Environment changes it.</small></article>
+      <article class="rule-card"><b>Adapt</b><small>Remove 1 Stress.</small></article>
+      <article class="rule-card"><b>Scavenge</b><small>Take opponent Food and cause 1 Stress.</small></article>
+      <article class="rule-card"><b>Secure</b><small>Protect your Stash from Scavenge for the round.</small></article>
+    </div>
+    <div class="notice"><b>Final Colony Score:</b> Population − Stress − any Unstable penalty.</div>
+  </section>
+
+  <main>
+    <section id="setupScreen" class="setup-grid" data-mobile-tab="options">
+      <nav class="mobile-setup-tabs" aria-label="Setup sections">
+        <button type="button" class="active" data-setup-tab="options" aria-selected="true">Setup</button>
+        <button type="button" data-setup-tab="forecast" aria-selected="false">Forecast</button>
+      </nav>
+      <article class="panel setup-card">
+        <span class="eyebrow">Game setup</span><h2>Choose your colonies</h2><p class="hint">Player 1 controls the left colony. Player 2 controls the right colony. All Stashes and the full Forecast are visible.</p>
+        <details class="playtest-details">
+          <summary>Playtest details <span>optional</span></summary>
+          <div class="two-col compact-fields">
+            <div class="field"><label>Test name</label><input id="testName" placeholder="Example: Ducky timing test"></div>
+            <div class="field"><label>Tester</label><input id="testerName" placeholder="Name or initials"></div>
+          </div>
+        </details>
+        <div class="two-col"><div class="field"><label>Player 1 Species</label><select id="humanSpecies"></select></div><div class="field"><label>Player 2 Species</label><select id="botSpecies"></select></div></div>
+        <div id="speciesFeedingNote" class="species-rule-note hidden"></div>
+        <div class="field"><label>Forecast source</label><select id="forecastMode"><option value="official">Official Affinity track</option><option value="balanced">Balanced random Forecast</option><option value="pure">Pure random Forecast</option><option value="custom">Custom six-card Forecast</option></select></div>
+        <div id="officialRow" class="field"><label>Official track</label><select id="trackSelect"></select></div>
+        <div id="customBuilder" class="custom-grid hidden"><select class="custom-env"></select><select class="custom-env"></select><select class="custom-env"></select><select class="custom-env"></select><select class="custom-env"></select><select class="custom-env"></select></div>
+        <details id="advancedSettings" class="advanced-settings" open>
+          <summary>Advanced settings <span>priority, scoring & seed</span></summary>
+          <div class="two-col"><div class="field"><label>Mode</label><input value="Local two-player" disabled></div><div class="field"><label>Opening Priority</label><select id="openingPriority"><option value="random">Random</option><option value="human">Player 1</option><option value="bot">Player 2</option></select></div></div>
+          <div class="two-col"><div class="field"><label>Unstable scoring</label><select id="unstableMode"><option value="off">Off</option><option value="gt">−2 above Stability</option><option value="gte">−2 at or above Stability</option></select></div><div class="field"><label>Seed</label><input id="seed" value="PODBOUND-PLAYER-V41"></div></div>
+        </details>
+        <div class="online-panel">
+          <h3>Online room</h3>
+          <p class="hint">Create a room for Player 1, then share the code with Player 2 on another device.</p>
+          <div class="button-row"><button class="btn copper" id="createOnlineRoom" type="button">Create online room</button></div>
+          <div class="online-room-row">
+            <div class="field" style="margin:0"><label>Room code</label><input id="joinRoomCode" placeholder="ABC123" maxlength="8" autocomplete="off"></div>
+            <button class="btn secondary" id="joinOnlineRoom" type="button">Join</button>
+          </div>
+          <div id="onlineStatus" class="online-status">Online play requires Supabase room setup.</div>
+        </div>
+        <div id="setupError" class="notice bad hidden"></div>
+        <button class="btn primary start-button" id="startGame">Start Verified Game</button>
+      </article>
+      <article class="panel setup-forecast-panel"><span class="eyebrow">Visible Forecast</span><h2>Six rounds ahead</h2><p class="hint">Choose your Species with the complete track in view, just like the tabletop game.</p><div id="setupForecastPreview" class="forecast-grid"></div></article>
+    </section>
+
+    <section id="gameScreen" class="hidden" data-mobile-tab="play">
+      <nav class="mobile-game-tabs" aria-label="Game sections">
+        <button type="button" class="active" data-game-tab="play" aria-selected="true">Play</button>
+        <button type="button" data-game-tab="forecast" aria-selected="false">Forecast</button>
+        <button type="button" data-game-tab="opponent" aria-selected="false">Opponent</button>
+        <button type="button" data-game-tab="notes" aria-selected="false">Notes</button>
+      </nav>
+      <div id="mobileStatusBar" class="mobile-status-bar" aria-live="polite"></div>
+      <article class="panel game-summary-panel">
+        <div class="game-top"><div><span class="eyebrow">Live game</span><h1 id="roundTitle">Round 1 of 6</h1><div id="phaseLabel" class="phase-label"></div><div id="priorityDisplay" class="priority-display"></div></div><div><div id="gameMeta" class="game-meta"></div><div class="button-row game-utility-buttons" style="justify-content:flex-end;margin-top:8px"><button class="btn secondary" id="gameRulesToggle">Rules</button><button class="btn secondary" id="newGame">New game</button></div></div></div>
+        <div id="forecastTrack" class="forecast-track"></div>
+      </article>
+      <div class="game-layout">
+        <div class="arena-main">
+          <section class="colonies"><article id="humanBoard" class="colony-board human"></article><article id="botBoard" class="colony-board bot"></article></section>
+          <section id="turnControls"></section>
+        </div>
+        <aside class="side-stack">
+          <article class="panel round-log-panel"><h3>Round log</h3><div id="roundLog"></div></article>
+          <article class="panel quick-notes-panel">
+            <span class="eyebrow">Playtest notes</span>
+            <h3 id="roundNoteTitle">Round note</h3>
+            <div class="field"><label>How did this round feel?</label>
+              <select id="roundFeel">
+                <option value="">Not rated</option>
+                <option>Opportunity</option>
+                <option>Balanced</option>
+                <option>Pressure</option>
+                <option>Confusing</option>
+              </select>
+            </div>
+            <div class="field"><label>Round observation</label><textarea id="roundNote" rows="3" placeholder="What choice or interaction stood out?"></textarea></div>
+            <div class="field"><label>General notes</label><textarea id="generalNotes" rows="4" placeholder="Anything worth remembering after the game?"></textarea></div>
+            <p class="hint">Notes stay with this game and are included in the playtest report.</p>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section id="resultScreen" class="hidden">
+      <div id="resultHero" class="result-hero"></div><div id="resultMeta" class="game-meta" style="justify-content:center;margin:10px 0"></div><div id="integrityReport"></div>
+      <article class="panel feedback-panel">
+        <span class="eyebrow">Playtester feedback</span><h2>Quick post-game read</h2>
+        <div class="feedback-grid">
+          <div class="field"><label>Overall feel</label><select id="overallFeel"><option value="">Choose one</option><option>Fun</option><option>Promising</option><option>Mixed</option><option>Frustrating</option><option>Unclear</option></select></div>
+          <div class="field"><label>Species choice felt meaningful</label><select id="speciesMeaningful"><option value="">Choose one</option><option>Yes</option><option>Mixed</option><option>No</option></select></div>
+          <div class="field"><label>Forecast decisions felt meaningful</label><select id="forecastMeaningful"><option value="">Choose one</option><option>Yes</option><option>Mixed</option><option>No</option></select></div>
+          <div class="field"><label>Rules clarity</label><select id="rulesClarity"><option value="">Choose one</option><option>Clear</option><option>Some questions</option><option>Confusing</option></select></div>
+        </div>
+        <div class="two-col">
+          <div class="field"><label>Best or most interesting moment</label><textarea id="playtestHighlight" rows="4" placeholder="What worked especially well?"></textarea></div>
+          <div class="field"><label>Confusing or frustrating moment</label><textarea id="playtestConfusion" rows="4" placeholder="What needs another look?"></textarea></div>
+        </div>
+      </article>
+      <div id="scoreBreakdowns" class="score-breakdowns"></div>
+      <article class="panel"><span class="eyebrow">Complete game audit</span><h2>Every round and action</h2><div id="finalAuditTable" class="table-wrap"></div><div id="replayResult"></div><div class="result-actions"><button class="btn primary" id="verifyReplay">Verify exact replay</button><button class="btn secondary" id="downloadAudit">Game audit JSON</button><button class="btn secondary" id="downloadPlaytest">Playtest report</button><button class="btn secondary" id="copySummary">Copy summary</button><button class="btn copper" id="playAgain">Rematch</button><button class="btn secondary" id="backSetup">New setup</button></div></article>
+    </section>
+  </main>
+  <footer class="footer-note">PodBound Two-Player Arena · V41.4 local multiplayer · current V41 rules · V38 confirmed balance baseline</footer>
+</div>
+
+<div id="botActionModal" class="bot-action-modal hidden" role="dialog" aria-modal="true" aria-labelledby="botActionTitle">
+  <div class="bot-action-card">
+    <span class="bot-action-badge">Bot action resolved</span>
+    <h2 id="botActionTitle">The bot acted</h2>
+    <div id="botActionSummary" class="bot-action-summary"></div>
+    <button class="btn primary bot-action-continue" id="botActionContinue">Continue game</button>
+  </div>
+</div>
+<script>"use strict";
+
+const SPECIES = {
+  dairy: {
+    name: "Dairy Cow", stats: [5, 8, 5], title: "Voracious Brood",
+    behavior: "Once per game, after this colony Cultivates, it may discard up to 3 additional Food cards of one value. Gain 1 Population for each card discarded."
+  },
+  powder: {
+    name: "Powder Blue", stats: [3, 5, 4], title: "Efficient Feeding",
+    behavior: "When this colony Cultivates and pays exactly its required Food value with no excess, gain 2 Population."
+  },
+  sea: {
+    name: "Little Sea", stats: [3, 4, 4], title: "Hardy Rebound",
+    behavior: "When this colony Adapts, gain 1 Population for each Stress removed. If it removes 2 or more Stress, gain 1 additional Population."
+  },
+  ducky: {
+    name: "Rubber Ducky", stats: [2, 3, 2], title: "Patient Brood",
+    behavior: "When this colony Cultivates, if it did not Cultivate during the previous round, gain 3 Population. Cannot trigger in Round 1."
+  },
+  expansus: {
+    name: "Expansus", stats: [4, 6, 3], title: "Territorial Reach",
+    behavior: "When this colony successfully Scavenges, if the opponent has a value-4 Food card, take that card instead of their lowest-value Food card."
+  },
+  clown: {
+    name: "Clown Isopod", stats: [3, 4, 3], title: "Stand Your Ground",
+    behavior: "Once per game, when this colony acts second and chooses the same non-Cultivate action as the opponent, gain 2 Population."
+  }
+};
+
+const ENV = {
+  abundant_forage: {name:"Abundant Forage", category:"Opportunity", effect:"When a colony Forages this round, it may keep 1 additional Food card."},
+  withered_forage: {name:"Withered Forage", category:"Forage pressure", effect:"When a colony Forages this round, it draws 1 fewer Food card, to a minimum of 1."},
+  ant_invasion: {name:"Ant Invasion", category:"Stash pressure", effect:"At the end of this round, the colony with more Food cards discards its highest-value Food. If tied, neither discards."},
+  balanced_feeding: {name:"Balanced Feeding", category:"Precision", effect:"When a colony Cultivates using exactly 2 Food cards with a total value of 5 and pays with no excess, gain 2 Population."},
+  breeding_boom: {name:"Breeding Boom", category:"Breeding", effect:"When a Growth 2 or lower colony Cultivates after not Cultivating in the previous round, gain 2 Population. Round 1 counts as having waited."},
+  breeding_window: {name:"Breeding Window", category:"Breeding", effect:"When a colony Cultivates and pays its full Consumption using exactly 1 Food card, gain 2 Population."},
+  claimed_cache: {name:"Claimed Cache", category:"Scavenge payoff", effect:"When a colony Cultivates, if it successfully Scavenged during the previous round, it has -2 Consumption this round and gains 1 Population."},
+  exposed_cache: {name:"Exposed Cache", category:"Scavenge opportunity", effect:"After a colony successfully Scavenges this round, draw 1 Food."},
+  feeding_frenzy: {name:"Feeding Frenzy", category:"Cultivate payoff", effect:"When a colony Cultivates using 3 or more Food cards, gain 1 Population."},
+  fresh_food_drop: {name:"Fresh Food Drop", category:"Shared abundance", effect:"At the start of this round, each colony draws 1 additional Food."},
+  fresh_leaf_flush: {name:"Lingering Irritation", category:"Stress pressure", effect:"At the start of this round, each colony with exactly 1 Stress gains 1 Stress."},
+  growing_brood: {name:"Growing Brood", category:"Pressure", effect:"Colonies with Growth 4 or higher have +1 Consumption this round."},
+  irritant_bloom: {name:"Irritant Bloom", category:"Stress / Forage", effect:"After a colony Forages this round, it gains 1 Stress."},
+  last_scraps: {name:"Last Scraps", category:"Forage scarcity", effect:"When a Growth 3 or higher colony Forages this round, it draws 1 fewer Food card, to a minimum of 1."},
+  nutrient_rich: {name:"Nutrient-Rich Forage", category:"Feast", effect:"Each colony has -1 Consumption this round, to a minimum of 1."},
+  overturned_hide: {name:"Overturned Hide", category:"Stress / Cultivate", effect:"After a colony Cultivates this round, it gains 1 Stress."},
+  open_feeding_ground: {name:"Open Feeding Ground", category:"Priority / Forage", effect:"At the end of the round, if both colonies Foraged, the colony that acted second draws 1 Food."},
+  recovery_surge: {name:"Recovery Surge", category:"Recovery payoff", effect:"When a colony Adapts and removes at least 1 Stress, gain 1 Population."},
+  rich_pickings: {name:"Rich Pickings", category:"Scavenge payoff", effect:"After a colony successfully Scavenges a value-4 Food this round, gain 2 Population."},
+  room_to_expand: {name:"Shared Shelter", category:"Scavenge response", effect:"When the second colony to act chooses Secure after the first colony chose Scavenge, gain 2 Population."},
+  rotting_cache: {name:"Rotting Cache", category:"Stash pressure", effect:"At the end of this round, each colony with 4 or more Food cards discards 1 Food card of its choice."},
+  sheltered_cache: {name:"Sheltered Cache", category:"Secure opportunity", effect:"When a colony Secures this round, draw 1 Food."},
+  sheltered_refuge: {name:"Sheltered Refuge", category:"Secure recovery", effect:"When a colony Secures this round, remove 1 Stress."},
+  stable_microclimate: {name:"Stable Microclimate", category:"Recovery", effect:"When a colony Adapts this round, remove 1 additional Stress."},
+  sudden_dry_patch: {name:"Sudden Dry Patch", category:"Stress pressure", effect:"At the start of this round, each colony with 0 Stress gains 1 Stress."},
+  undisturbed_brood: {name:"Open Route", category:"Action matching / Recovery", effect:"When the second colony to act chooses the same non-Cultivate action as the first colony, remove 1 Stress."},
+  narrow_passage: {name:"Narrow Passage", category:"Action matching / Growth", effect:"When the second colony to act chooses the same non-Cultivate action as the first colony, gain 1 Population."},
+  follow_the_trail: {name:"Follow the Trail", category:"Action matching", effect:"At the end of the round, if both colonies chose the same action, each removes 1 Stress."}
+};
+
+const TRACKS = {
+  ducky: {
+    name:"Rubber Ducky Benchmark", intended:"ducky", story:"Pressure costly growers → breed cheaply → stay lean → shelter and wait → trigger the major brood → survive scarcity.",
+    cards:["growing_brood","breeding_window","ant_invasion","sheltered_cache","breeding_boom","last_scraps"]
+  },
+  dairy: {
+    name:"Dairy Cow Benchmark", intended:"dairy", story:"Open efficiently → manage early spoilage → shelter the Stash → refill → cash in during Feeding Frenzy → finish on shared abundance.",
+    cards:["nutrient_rich","rotting_cache","sheltered_cache","abundant_forage","feeding_frenzy","fresh_food_drop"]
+  },
+  powder: {
+    name:"Powder Blue Benchmark", intended:"powder", story:"Open efficiently → solve the 2 + 3 pair → absorb spoilage → outlast costly growers → protect the next solution → finish on shared abundance.",
+    cards:["nutrient_rich","balanced_feeding","rotting_cache","growing_brood","sheltered_cache","fresh_food_drop"]
+  },
+  sea: {
+    name:"Little Sea Benchmark", intended:"sea", story:"Pressure arrives → Cultivate under disturbance → irritation deepens → Forage through pressure → cash in the rebound → finish with a deep recovery.",
+    cards:["sudden_dry_patch","overturned_hide","fresh_leaf_flush","irritant_bloom","recovery_surge","stable_microclimate"]
+  },
+  expansus: {
+    name:"Expansus Benchmark", intended:"expansus", story:"Create targets → raid before protection → manage greed → face Secure counterplay → steal premium Food → cash in efficiently.",
+    cards:["fresh_food_drop","exposed_cache","ant_invasion","sheltered_cache","rich_pickings","claimed_cache"]
+  },
+  clown: {
+    name:"Clown Benchmark", intended:"clown", story:"Share an opening Forage → recover through the Open Route → grow by matching → Secure to recover → answer Scavenge from the Shared Shelter → finish with a shared-action payoff.",
+    cards:["open_feeding_ground","undisturbed_brood","narrow_passage","sheltered_refuge","room_to_expand","follow_the_trail"]
+  }
+};
+
+const ACTIONS = ["Cultivate","Forage","Adapt","Scavenge","Secure"];
+const AI_STYLES = {
+  growth: {
+    name:"Growth-first",
+    description:"Prioritizes its own Cultivate and Species payoff. Disrupts mainly when it has no strong scoring play."
+  },
+  balanced: {
+    name:"Balanced",
+    description:"Stalls only when Scavenge fully prevents a meaningful Cultivate and clearly beats its own scoring option."
+  },
+  disruptive: {
+    name:"Disruptive",
+    description:"Aggressively values denied growth and uses Priority to break opponent payments."
+  }
+};
+const SPECIES_KEYS = Object.keys(SPECIES);
+const ENV_KEYS = Object.keys(ENV);
+const ENGINE_NAME = "PodBound Competitive Game Engine";
+const ENGINE_VERSION = "41.0";
+const BOT_POLICY_VERSION = "41.0";
+const BOT_POLICY_LABELS = {
+  growth:"Growth-first Bot Policy V41",
+  balanced:"Balanced Bot Policy V41",
+  disruptive:"Aggressive Bot Policy V41"
+};
+function botPolicyLabel(style="balanced"){return BOT_POLICY_LABELS[style]||BOT_POLICY_LABELS.balanced}
+
+function hashString(text){
+  let h=2166136261>>>0;
+  for(const ch of String(text)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}
+  return h>>>0;
+}
+function rngFrom(seed){
+  let a=seed>>>0;
+  return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+}
+function shuffle(arr,rng){
+  const out=[...arr];
+  for(let i=out.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[out[i],out[j]]=[out[j],out[i]]}
+  return out;
+}
+function average(n,d){return d?n/d:0}
+function median(values){if(!values.length)return 0;const a=[...values].sort((x,y)=>x-y),m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2}
+function sum(arr){return arr.reduce((a,b)=>a+b,0)}
+function foodValue(stash){return sum(stash)}
+function clone(x){return JSON.parse(JSON.stringify(x))}
+function recordPopulation(game,p,amount,category,source,label){
+  if(!amount)return 0;
+  p.population+=amount;
+  game.audit.populationEvents.push({
+    round:game.round,player:p.index,species:p.species,amount,category,source,label
+  });
+  return amount;
+}
+function recordStress(game,p,delta,category,source,label,causedBy=null){
+  if(!delta)return 0;
+  p.stress+=delta;
+  if(p.stress<0)p.stress=0;
+  game.audit.stressEvents.push({
+    round:game.round,player:p.index,species:p.species,delta,category,source,label,causedBy
+  });
+  return delta;
+}
+function scoreFromState(population,stress,unstablePenalty){return population-stress-unstablePenalty}
+function compactAuditGame(g){
+  return clone({
+    gameId:g.gameId,valid:g.valid,integrity:g.integrity,suspiciousWarnings:g.suspiciousWarnings,
+    engine:g.engine,botPolicy:g.botPolicy,replayConfig:g.replayConfig,mirrorCheck:g.mirrorCheck,
+    scores:g.scores,winner:g.winner,openingPriority:g.openingPriority,forecast:g.forecast,
+    players:g.players.map((p,i)=>({species:p.species,population:p.population,stress:p.stress,stash:p.stash,score:g.scores[i],actions:p.actions,behavior:p.behavior})),
+    roundRecords:g.roundRecords,scoreBreakdowns:g.scoreBreakdowns
+  });
+}
+
+function makeDeck(rng){return shuffle([2,2,2,2,3,3,3,3,4,4,4,4],rng)}
+function makePlayer(species,index){
+  return{
+    species,index,population:5,stress:0,stash:[],secured:false,actedThisRound:false,actionThisRound:null,cowBurstUsed:false,
+    lastCultivatedRound:null,successfulScavengePrev:false,successfulScavengeThis:false,
+    wasScavengedPrev:false,wasScavengedThis:false,recoverySurgeTriggered:false,freshLeafFlushTriggered:false,
+    actions:Object.fromEntries(ACTIONS.map(a=>[a,0])),
+    behavior:{cowFoodConverted:0,cowBurstActivations:0,powderExact:0,seaRebounds:0,seaReboundFood:0,seaReboundPopulation:0,patientBrood:0,premiumScavenges:0,clownMatches:0,clownPopulation:0,growthDenials:0},
+    env:Object.fromEntries(ENV_KEYS.map(k=>[k,0]))
+  };
+}
+function growth(p){return SPECIES[p.species].stats[0]}
+function baseConsumption(p){return SPECIES[p.species].stats[1]}
+function stability(p){return SPECIES[p.species].stats[2]}
+function currentEnv(game){return game.forecast[game.round-1]}
+function nextEnv(game,offset=1){const i=game.round-1+offset;return i<6?game.forecast[i]:null}
+function consumption(game,p,roundIndex=game.round-1){
+  let c=baseConsumption(p),e=game.forecast[roundIndex];
+  if(e==="growing_brood"&&growth(p)>=4)c+=1;
+  if(e==="nutrient_rich")c=Math.max(1,c-1);
+  if(e==="claimed_cache"&&p.successfulScavengePrev)c=Math.max(1,c-2);
+  return c;
+}
+function isUnstable(p,mode){
+  if(mode==="gt")return p.stress>stability(p);
+  if(mode==="gte")return p.stress>=stability(p);
+  return false;
+}
+function finalScore(p,unstableMode="off"){return p.population-p.stress-(isUnstable(p,unstableMode)?2:0)}
+function aiStyle(game){return game.aiStyle||"balanced"}
+
+function refillDeck(game){
+  if(game.deck.length||!game.discard.length)return;
+  const rr=rngFrom(hashString(`${game.baseSeed}|reshuffle|${game.reshuffleCount++}`));
+  game.deck=shuffle(game.discard,rr);game.discard=[];
+}
+function drawOne(game){refillDeck(game);return game.deck.length?game.deck.pop():null}
+function drawMany(game,count){const out=[];for(let i=0;i<count;i++){const v=drawOne(game);if(v===null)break;out.push(v)}return out}
+function addFood(p,values){for(const v of values)if(v!==null&&v!==undefined)p.stash.push(v);p.stash.sort((a,b)=>a-b)}
+function discardFood(game,p,index){const v=p.stash.splice(index,1)[0];if(v!==undefined)game.discard.push(v);return v}
+
+function countValues(stash){const c={2:0,3:0,4:0};for(const v of stash)c[v]=(c[v]||0)+1;return c}
+function enumeratePayments(stash,required){
+  const c=countValues(stash),out=[];
+  for(let a=0;a<=c[2];a++)for(let b=0;b<=c[3];b++)for(let d=0;d<=c[4];d++){
+    const cards=a+b+d;if(!cards)continue;
+    const total=2*a+3*b+4*d;if(total<required)continue;
+    out.push({counts:{2:a,3:b,4:d},cards,total,overpay:total-required,exact:total===required,oneCard:cards===1});
+  }
+  return out;
+}
+function stashAfterCounts(stash,counts){
+  const left=countValues(stash);left[2]-=counts[2]||0;left[3]-=counts[3]||0;left[4]-=counts[4]||0;
+  const out=[];for(const v of [2,3,4])for(let i=0;i<left[v];i++)out.push(v);return out;
+}
+function powderLeanExact(p,pay){return !!(p&&pay&&p.species==="powder"&&pay.exact)}
+function balancedFeedingPayment(pay){
+  if(!pay||!pay.exact||pay.cards!==2)return false;
+  return (pay.counts[2]||0)===1&&(pay.counts[3]||0)===1;
+}
+function paymentImmediateBonus(game,p,pay,opp){
+  const e=currentEnv(game);let bonus=0;
+  if(powderLeanExact(p,pay))bonus+=2;
+  if(p.species==="ducky"&&game.round>1&&p.lastCultivatedRound!==game.round-1)bonus+=3;
+  if(e==="breeding_boom"&&growth(p)<=2&&(game.round===1||p.lastCultivatedRound!==game.round-1))bonus+=2;
+  if(e==="breeding_window"&&pay.oneCard)bonus+=2;
+  if(e==="balanced_feeding"&&balancedFeedingPayment(pay))bonus+=2;
+  if(e==="feeding_frenzy"&&pay.cards>=3)bonus+=1;
+  if(e==="claimed_cache"&&p.successfulScavengePrev)bonus+=1;
+  return bonus;
+}
+function choosePayment(game,p,opp){
+  const req=consumption(game,p),cands=enumeratePayments(p.stash,req);if(!cands.length)return null;
+  const e=currentEnv(game),nxt=nextEnv(game);
+  for(const pay of cands){
+    const immediate=paymentImmediateBonus(game,p,pay,opp);
+    let s=immediate*4.2-pay.overpay*1.15-pay.total*.045-pay.cards*.04;
+    if(powderLeanExact(p,pay))s+=3.2;
+    else if(p.species==="powder"&&pay.exact)s+=.35;
+    if(e==="balanced_feeding"&&balancedFeedingPayment(pay))s+=2.4;
+    if(e==="breeding_window"&&pay.oneCard)s+=4.8;
+    if(e==="feeding_frenzy"&&pay.cards>=3)s+=2.2;
+    if(p.species==="dairy"&&!p.cowBurstUsed){
+      const left=countValues(stashAfterCounts(p.stash,pay.counts));
+      s+=Math.min(3,Math.max(left[2],left[3],left[4]))*.65;
+    }
+    if(nxt==="breeding_window"){
+      const left=stashAfterCounts(p.stash,pay.counts),nextReq=consumption(game,p,game.round);
+      if(left.some(v=>v>=nextReq))s+=.7;
+    }
+    pay.choiceScore=s;
+  }
+  cands.sort((a,b)=>b.choiceScore-a.choiceScore||a.total-b.total||a.cards-b.cards);
+  return cands[0];
+}
+function removePayment(game,p,pay){
+  for(const v of [2,3,4])for(let n=0;n<(pay.counts[v]||0);n++){
+    const idx=p.stash.indexOf(v);if(idx>=0)discardFood(game,p,idx);
+  }
+}
+function canCultivate(game,p,opp){return Boolean(choosePayment(game,p,opp))}
+function exactPaymentPossible(game,p,stash=p.stash,roundIndex=game.round-1){return enumeratePayments(stash,consumption(game,p,roundIndex)).some(x=>x.exact)}
+function powderLeanPaymentPossible(game,p,stash=p.stash,roundIndex=game.round-1){
+  return exactPaymentPossible(game,p,stash,roundIndex);
+}
+
+function keptSelectionScore(game,p,kept){
+  const combined=[...p.stash,...kept],e=currentEnv(game),nxt=nextEnv(game);let s=foodValue(kept)*.72;
+  if(p.species==="powder"){
+    if(powderLeanPaymentPossible(game,p,combined))s+=5.2;
+    else if(exactPaymentPossible(game,p,combined))s+=.7;
+  }else if(exactPaymentPossible(game,p,combined))s+=1.1;
+  if(nxt&&["growing_brood","last_scraps","nutrient_rich"].includes(nxt)){
+    if(p.species==="powder"){
+      if(powderLeanPaymentPossible(game,p,combined,game.round))s+=3.0;
+      else if(exactPaymentPossible(game,p,combined,game.round))s+=.4;
+    }else if(exactPaymentPossible(game,p,combined,game.round))s+=.5;
+  }
+  if((e==="breeding_window"||nxt==="breeding_window")&&combined.some(v=>v>=consumption(game,p,nxt?game.round:game.round-1)))s+=p.species==="ducky"?3:1;
+  if(p.species==="dairy"&&!p.cowBurstUsed){
+    const c=countValues(combined);s+=Math.min(3,Math.max(0,Math.max(c[2],c[3],c[4])-1))*1.25;
+  }
+  if(p.species==="expansus")s+=Math.max(...kept,0)*.15;
+  return s;
+}
+function combinationsIndices(n,k){
+  const out=[];function rec(start,a){if(a.length===k){out.push([...a]);return}for(let i=start;i<n;i++){a.push(i);rec(i+1,a);a.pop()}}rec(0,[]);return out;
+}
+function chooseKept(game,p,drawn,keepCount){
+  keepCount=Math.min(keepCount,drawn.length);if(keepCount<=0)return[];if(keepCount===drawn.length)return[...drawn];
+  const options=combinationsIndices(drawn.length,keepCount).map(idx=>({idx,kept:idx.map(i=>drawn[i])}));
+  options.forEach(o=>o.score=keptSelectionScore(game,p,o.kept));
+  options.sort((a,b)=>b.score-a.score);return options[0].kept;
+}
+
+function removeStress(game,p,amount,source){
+  const removed=Math.min(amount,p.stress);if(removed<=0)return 0;
+  recordStress(game,p,-removed,"recovery",source,`Removed ${removed} Stress`);
+  if(currentEnv(game)==="recovery_surge"&&source==="adapt"&&!p.recoverySurgeTriggered){
+    recordPopulation(game,p,1,"environment","recovery_surge","Recovery Surge");
+    p.recoverySurgeTriggered=true;p.env.recovery_surge+=1;
+  }
+  return removed;
+}
+function cowBurstPlan(game,p,stash){
+  if(p.species!=="dairy"||p.cowBurstUsed||!stash.length)return null;
+  const counts=countValues(stash),round=game.round,e=currentEnv(game),nxt=nextEnv(game);
+  let best=null,bestScore=-Infinity;
+
+  for(const v of [2,3,4]){
+    for(let k=1;k<=Math.min(counts[v],3);k++){
+      const remaining=foodValue(stash)-k*v;
+      const nextNeed=round<6?consumption(game,p,Math.min(5,round)):0;
+      let score=k;
+
+      // Preserve enough Food for a later Cultivate unless the burst is urgent.
+      if(round<6){
+        score-=Math.max(0,nextNeed-remaining)*.17;
+        score-=k*v*(6-round)*.014;
+      }
+
+      // The one-time ability should usually feel like a real brood event.
+      if(k===1&&round<=3)score-=1.15;
+      if(k>=2)score+=.45;
+      if(k===3)score+=.35;
+
+      // Cash in before visible Stash pressure or at the end of the game.
+      if(e==="rotting_cache"&&stash.length>=4)score+=.9;
+      if(e==="ant_invasion")score+=.35;
+      if(nxt==="rotting_cache"||nxt==="ant_invasion")score+=.45;
+      if(e==="feeding_frenzy")score+=.25;
+      if(round===5)score+=.35;
+      if(round===6)score+=1.15;
+
+      if(score>bestScore){
+        bestScore=score;
+        best={value:v,count:k,score};
+      }
+    }
+  }
+
+  return bestScore>.7?best:null;
+}
+function estimateCowConversion(game,p,pay){
+  if(p.species!=="dairy"||p.cowBurstUsed)return 0;
+  const left=stashAfterCounts(p.stash,pay.counts);
+  return cowBurstPlan(game,p,left)?.count||0;
+}
+function chooseCowDiscard(game,p){
+  return cowBurstPlan(game,p,p.stash);
+}
+
+function expectedCultivateGain(game,p,opp,pay=choosePayment(game,p,opp)){
+  if(!pay)return 0;return growth(p)+paymentImmediateBonus(game,p,pay,opp)+estimateCowConversion(game,p,pay);
+}
+function roundsRemaining(game){return 7-game.round}
+function cultivateIdentityBonus(game,p,opp,pay){
+  if(!pay)return 0;
+  const e=currentEnv(game);let b=0;
+  if(p.species==="dairy")b+=Math.min(5,estimateCowConversion(game,p,pay)*1.4);
+  if(powderLeanExact(p,pay))b+=6.2;
+  if(p.species==="ducky"&&game.round>1&&p.lastCultivatedRound!==game.round-1)b+=5.8;
+  if(p.species==="expansus"&&e==="claimed_cache"&&p.successfulScavengePrev)b+=4.8;
+  if(e==="breeding_boom"&&growth(p)<=2&&(game.round===1||p.lastCultivatedRound!==game.round-1))b+=3.2;
+  if(e==="breeding_window"&&pay.oneCard)b+=3.2;
+  if(e==="feeding_frenzy"&&pay.cards>=3)b+=1.6;
+  return b;
+}
+function nextRoundCultivateEstimate(game,p,opp){
+  if(game.round>=6)return 0;
+  const fakeGame={...game,round:game.round+1};
+  const fakeP={...p,stash:[...p.stash,3]}; // average automatic draw
+  const fakeOpp={...opp};
+  const pay=choosePayment(fakeGame,fakeP,fakeOpp);
+  if(!pay)return 0;
+  return expectedCultivateGain(fakeGame,fakeP,fakeOpp,pay)+cultivateIdentityBonus(fakeGame,fakeP,fakeOpp,pay)*.35;
+}
+function shouldDelayCultivate(game,p,opp,pay){
+  if(!pay||game.round>=6)return false;
+  const current=expectedCultivateGain(game,p,opp,pay)+cultivateIdentityBonus(game,p,opp,pay)*.35;
+  const next=nextRoundCultivateEstimate(game,p,opp);
+  if(p.species==="ducky"){
+    const nxt=nextEnv(game);
+    if(["breeding_boom","breeding_window"].includes(nxt)&&next>=current+1.4)return true;
+  }
+  if(p.species==="expansus"&&nextEnv(game)==="claimed_cache"&&!p.successfulScavengePrev&&opp.stash.length&&!opp.secured)return true;
+  return next>=current+3.5&&game.round<=4;
+}
+function terminalActionValue(game,p,opp,action){
+  if(action==="Cultivate"){
+    const pay=choosePayment(game,p,opp);if(!pay)return-1e9;
+    return expectedCultivateGain(game,p,opp,pay)-(currentEnv(game)==="overturned_hide"?1:0);
+  }
+  if(action==="Adapt"){
+    const removed=Math.min(1+(currentEnv(game)==="stable_microclimate"?1:0),p.stress);
+    const seaRebound=p.species==="sea"&&removed?removed+(removed>=2?1:0):0;
+    return removed+(currentEnv(game)==="recovery_surge"&&removed?1:0)+seaRebound+(isUnstable(p,game.unstableMode)&&removed?1:0);
+  }
+  if(action==="Scavenge"){
+    if(opp.secured||!opp.stash.length)return-1e9;
+    const v=scavengedValue(p,opp),style=aiStyle(game);let value=1; // opponent gains base Stress
+    if(currentEnv(game)==="rich_pickings"&&v===4)value+=2;
+    const profile=scavengeDenialProfile(game,p,opp,v);
+    if(style==="disruptive")value+=profile.denial*1.15;
+    if(style==="balanced"&&shouldPreferStall(game,p,opp,v))value+=profile.denial*1.15;
+    const own=ownCultivateOpportunity(game,p,opp);
+    if(own>value+.75)value-=style==="growth"?3.5:2.5;
+    return value;
+  }
+  if(action==="Forage"){
+    const prof=expectedForageProfile(game,p);return prof.pop+prof.convert+prof.remove-prof.stressDelta;
+  }
+  return 0;
+}
+function evaluateCultivate(game,p,opp){
+  const pay=choosePayment(game,p,opp);if(!pay)return-1e9;
+  const e=currentEnv(game),immediate=expectedCultivateGain(game,p,opp,pay),identity=cultivateIdentityBonus(game,p,opp,pay);
+  let s=immediate*2.25+identity;
+  // Spending Food is good when it becomes Population; unused Food has no final value.
+  s+=pay.total*(.08+.09*game.round);
+  s+=game.round*.45;
+  if(game.round===5)s+=4.4;
+  if(game.round===6)s+=10.5;
+  if(e==="overturned_hide")s-=1.1;
+  if(e==="balanced_feeding"&&balancedFeedingPayment(pay))s+=1.4;
+  if(shouldDelayCultivate(game,p,opp,pay))s-=game.round===5?7.5:5.2;
+  if(p.stress>=stability(p))s-=.35;
+  return s;
+}
+function expectedForageProfile(game,p){
+  let draw=2,keep=1,stressDelta=0,pop=0,remove=0,convert=0;
+  const e=currentEnv(game);
+  if(e==="irritant_bloom")stressDelta+=1;
+  if(e==="withered_forage"||(e==="last_scraps"&&growth(p)>=3))draw=Math.max(1,draw-1);
+  if(e==="abundant_forage")keep+=1;
+  keep=Math.min(keep,draw);
+  return{draw,keep,stressDelta,remove,pop,convert};
+}
+function evaluateForage(game,p,opp){
+  const prof=expectedForageProfile(game,p),need=consumption(game,p),have=foodValue(p.stash),missing=Math.max(0,need-have);
+  const retained=Math.max(0,prof.keep-prof.convert),remaining=roundsRemaining(game);
+  const foodTimeValue=game.round<=2?1.45:game.round===3?1.0:game.round===4?.58:game.round===5?.22:0;
+  let s=retained*foodTimeValue+Math.min(4,missing*.7)+(prof.pop+prof.convert)*2.35-prof.stressDelta*1.1+prof.remove*1.35;
+  if(currentEnv(game)==="abundant_forage")s+=game.round<=3?1.7:.6;
+  if(["breeding_boom","breeding_window","feeding_frenzy","claimed_cache"].includes(nextEnv(game)))s+=missing>0?1.5:.2;
+  if(canCultivate(game,p,opp)){
+    s-=game.round<=3?.7:game.round===4?3.1:game.round===5?7.2:12;
+  }
+  if(have>=need*2)s-=2.2+game.round*.6;
+  if(game.round===6)s=terminalActionValue(game,p,opp,"Forage")*2.4;
+  return s;
+}
+function evaluateAdapt(game,p){
+  const e=currentEnv(game),amount=1+(e==="stable_microclimate"?1:0),removed=Math.min(amount,p.stress);
+  if(!removed&&e!=="recovery_surge")return-2.5;
+  let s=removed*2.0;
+  if(e==="stable_microclimate")s+=1.0;
+  if(e==="recovery_surge"&&removed)s+=2.3;
+  if(p.species==="sea"&&removed){
+    const rebound=removed+(removed>=2?1:0);
+    s+=rebound*2.6;
+  }
+  if(game.round===6)s=terminalActionValue(game,p,game.players[p.index===0?1:0],"Adapt")*2.4;
+  return s;
+}
+function scavengedValue(p,opp){if(!opp.stash.length)return null;return p.species==="expansus"&&opp.stash.includes(4)?4:Math.min(...opp.stash)}
+function cultivateOpportunityValue(game,p,opp,stash=p.stash){
+  const fake={...p,stash:[...stash]};
+  const pay=choosePayment(game,fake,opp);
+  if(!pay)return 0;
+  return expectedCultivateGain(game,fake,opp,pay)+cultivateIdentityBonus(game,fake,opp,pay)*.45;
+}
+function scavengeDenialProfile(game,p,opp,v=scavengedValue(p,opp)){
+  const empty={beforeValue:0,afterValue:0,beforePop:0,afterPop:0,denial:0,completeStop:false};
+  if(v===null||v===undefined||opp.secured||opp.actedThisRound||!opp.stash.length)return empty;
+  const beforePay=choosePayment(game,opp,p);
+  if(!beforePay)return empty;
+  const beforeValue=expectedCultivateGain(game,opp,p,beforePay)+cultivateIdentityBonus(game,opp,p,beforePay)*.45;
+  const beforePop=expectedCultivateGain(game,opp,p,beforePay);
+  const copy=[...opp.stash],idx=copy.indexOf(v);
+  if(idx<0)return empty;
+  copy.splice(idx,1);
+  const fake={...opp,stash:copy};
+  const afterPay=choosePayment(game,fake,p);
+  const afterValue=afterPay?expectedCultivateGain(game,fake,p,afterPay)+cultivateIdentityBonus(game,fake,p,afterPay)*.45:0;
+  const afterPop=afterPay?expectedCultivateGain(game,fake,p,afterPay):0;
+  let denial=Math.max(0,beforeValue-afterValue);
+  const completeStop=Boolean(beforePay&&!afterPay);
+  if(completeStop)denial+=1.35;
+  return{beforeValue,afterValue,beforePop,afterPop,denial,completeStop};
+}
+function scavengeDenialValue(game,p,opp,v=scavengedValue(p,opp)){return scavengeDenialProfile(game,p,opp,v).denial}
+function ownCultivateOpportunity(game,p,opp){
+  const pay=choosePayment(game,p,opp);
+  if(!pay)return 0;
+  return expectedCultivateGain(game,p,opp,pay)+cultivateIdentityBonus(game,p,opp,pay)*.45;
+}
+function shouldPreferStall(game,p,opp,v=scavengedValue(p,opp)){
+  const style=aiStyle(game);
+  if(style==="growth")return false;
+  const profile=scavengeDenialProfile(game,p,opp,v);
+  if(profile.denial<=0)return false;
+  const own=ownCultivateOpportunity(game,p,opp);
+  const ownProjected=finalScore(p,game.unstableMode)+own;
+  const enemyProjected=finalScore(opp,game.unstableMode)+profile.beforeValue;
+
+  if(style==="balanced"){
+    if(!profile.completeStop||profile.beforePop<3)return false;
+    if(own>0&&own>profile.beforePop-2)return false;
+    if(finalScore(p,game.unstableMode)>=finalScore(opp,game.unstableMode)+2)return false;
+    if(ownProjected>enemyProjected+1)return false;
+    return true;
+  }
+
+  if(own>0&&own>=profile.denial+.75)return false;
+  if(own>0&&ownProjected>enemyProjected+1)return false;
+  return profile.denial>=2.4||(!own&&profile.denial>=1.4);
+}
+function evaluateScavenge(game,p,opp){
+  if(opp.secured||!opp.stash.length)return-1e9;
+  const v=scavengedValue(p,opp),e=currentEnv(game),style=aiStyle(game);let s=1.8; // opponent's base Stress matters
+  const resourceValue=game.round<=3?v*.75:game.round===4?v*.48:game.round===5?v*.2:0;
+  s+=resourceValue;
+  if(e==="exposed_cache")s+=2.2;
+  if(e==="rich_pickings"&&v===4)s+=4.6;
+  if(p.species==="expansus"&&v===4)s+=3.4+v*.25;
+  if(nextEnv(game)==="claimed_cache")s+=4.8;
+  if(e==="claimed_cache"&&p.successfulScavengePrev)s-=7.0; // cash in instead of raiding again
+
+  const profile=scavengeDenialProfile(game,p,opp,v),own=ownCultivateOpportunity(game,p,opp);
+  if(style==="disruptive"){
+    s+=profile.denial*1.35;
+    if(profile.denial>=2.4)s+=1.0;
+  }else if(style==="balanced"&&shouldPreferStall(game,p,opp,v)){
+    s+=profile.denial*1.35+1.0;
+  }
+
+  if(own>0){
+    const denialCredit=style==="disruptive"?profile.denial:(style==="balanced"&&shouldPreferStall(game,p,opp,v)?profile.denial:0);
+    if(own>=denialCredit+.75)s-=2.2+(own-denialCredit)*.8;
+    const ownProjected=finalScore(p,game.unstableMode)+own;
+    const enemyProjected=finalScore(opp,game.unstableMode)+profile.beforeValue;
+    if(ownProjected>enemyProjected+1)s-=2.4;
+  }
+  if(canCultivate(game,p,opp))s-=style==="growth"?(game.round>=4?5.0:1.4):(game.round>=4?2.8:.55);
+  if(game.round===6)s=terminalActionValue(game,p,opp,"Scavenge")*2.4;
+  return s;
+}
+function evaluateSecure(game,p,opp){
+  const e=currentEnv(game);if(game.round===6)return-1e9;
+  if(
+    !p.stash.length &&
+    e!=="sheltered_cache" &&
+    !(e==="sheltered_refuge"&&p.stress>0) &&
+    !(
+      e==="room_to_expand" &&
+      opp.actedThisRound &&
+      opp.actionThisRound==="Scavenge"
+    )
+  )return-1e9;
+  const threat=opp.species==="expansus"||e==="exposed_cache"||e==="rich_pickings"||nextEnv(game)==="claimed_cache";
+  const hasPay=canCultivate(game,p,opp),nextPayoff=["breeding_boom","breeding_window","feeding_frenzy","claimed_cache"].includes(nextEnv(game));
+  let s=e==="sheltered_cache"?2.5:0;
+  if(e==="sheltered_refuge"&&p.stress>0)s+=2.8;
+  if(
+    e==="room_to_expand" &&
+    opp.actedThisRound &&
+    opp.actionThisRound==="Scavenge"
+  )s+=7.0;
+  if(threat&&p.stash.length)s+=2.0;
+  if(threat&&hasPay&&nextPayoff)s+=2.4;
+  if(
+    !threat &&
+    !nextPayoff &&
+    !(e==="sheltered_refuge"&&p.stress>0) &&
+    !(
+      e==="room_to_expand" &&
+      opp.actedThisRound &&
+      opp.actionThisRound==="Scavenge"
+    )
+  )s-=2.4;
+  if(hasPay&&!shouldDelayCultivate(game,p,opp,choosePayment(game,p,opp)))s-=game.round>=4?6.5:2.3;
+  if(foodValue(p.stash)>consumption(game,p)*1.6)s-=1.4; // don't protect unusable hoards
+  return s;
+}
+function abilityActionBonus(game,p,opp,action){
+  const pay=action==="Cultivate"?choosePayment(game,p,opp):null;
+  if(p.species==="dairy"&&action==="Cultivate"&&pay)return 1.5+estimateCowConversion(game,p,pay)*1.1;
+  if(action==="Cultivate"&&powderLeanExact(p,pay))return 6.0;
+  if(p.species==="sea"&&action==="Adapt"&&p.stress>0){
+    const removed=Math.min(1+(currentEnv(game)==="stable_microclimate"?1:0),p.stress);
+    const rebound=removed+(removed>=2?1:0);
+    const perPopulation=game.round<=4?2.0:game.round===5?1.0:.4;
+    return rebound*perPopulation;
+  }
+  if(p.species==="ducky"&&action==="Cultivate"&&game.round>1&&p.lastCultivatedRound!==game.round-1)return 5.5;
+  if(p.species==="expansus"&&action==="Scavenge"&&!opp.secured&&opp.stash.includes(4))return 3.6;
+  return 0;
+}
+function matchingActionAdjustment(game,p,opp,action){
+  if(!opp.actedThisRound||!opp.actionThisRound||action!==opp.actionThisRound)return 0;
+  const e=currentEnv(game);let s=0;
+  if(p.species==="clown"&&p.behavior.clownMatches===0&&action!=="Cultivate")s+=4.6;
+  if(e==="open_feeding_ground"&&action==="Forage")s+=game.round<=3?1.8:game.round===4?1.0:.35;
+  if(e==="undisturbed_brood"&&action!=="Cultivate"&&p.stress>0)s+=2.0;
+  if(e==="narrow_passage"&&action!=="Cultivate")s+=game.round<=4?2.6:game.round===5?1.7:.9;
+  if(e==="follow_the_trail"){
+    if(p.stress>0)s+=2.0;
+    if(opp.stress>0)s-=.9;
+  }
+  return s;
+}
+function actionScores(game,p,opp,withJitter=true){
+  const rows=[
+    {action:"Cultivate",score:evaluateCultivate(game,p,opp)},
+    {action:"Forage",score:evaluateForage(game,p,opp)},
+    {action:"Adapt",score:evaluateAdapt(game,p)},
+    {action:"Scavenge",score:evaluateScavenge(game,p,opp)},
+    {action:"Secure",score:evaluateSecure(game,p,opp)}
+  ];
+  for(const r of rows){
+    r.score+=abilityActionBonus(game,p,opp,r.action);
+    r.score+=matchingActionAdjustment(game,p,opp,r.action);
+  }
+  if(withJitter)for(const r of rows)r.score+=(game.decisionRng()-.5)*.18;
+  return rows.sort((a,b)=>b.score-a.score);
+}
+function chooseAction(game,p,opp){
+  const rows=actionScores(game,p,opp,true),cult=rows.find(r=>r.action==="Cultivate"),pay=choosePayment(game,p,opp);
+  if(game.round===6){
+    const terminal=ACTIONS.map(action=>({action,value:terminalActionValue(game,p,opp,action)})).sort((a,b)=>b.value-a.value);
+    return terminal[0].action;
+  }
+  // Ability cash-ins and late Cultivates receive priority over more setup.
+  if(pay){
+    const identity=cultivateIdentityBonus(game,p,opp,pay),delay=shouldDelayCultivate(game,p,opp,pay);
+    if(identity>=3.5&&!delay)return"Cultivate";
+    if(game.round===5&&!delay)return"Cultivate";
+    if(game.round===4&&!delay&&cult.score>=rows[0].score-1.0)return"Cultivate";
+  }
+  // Little Sea treats a stressed Adapt as a scoring and resource action.
+  if(p.species==="sea"&&p.stress>0){
+    const adapt=rows.find(r=>r.action==="Adapt");
+    if(adapt&&adapt.score>=rows[0].score-.35)return"Adapt";
+  }
+  // Balanced and Disruptive profiles may stall, but only their own policy can authorize it.
+  if(!opp.secured&&opp.stash.length&&!opp.actedThisRound&&shouldPreferStall(game,p,opp)){
+    const scav=rows.find(r=>r.action==="Scavenge");
+    const tolerance=aiStyle(game)==="disruptive"?1.0:.35;
+    if(scav&&scav.score>=rows[0].score-tolerance)return"Scavenge";
+  }
+  // Expansus still expresses its raid identity in every profile, but Growth-first cashes in sooner.
+  if(p.species==="expansus"&&currentEnv(game)==="claimed_cache"&&p.successfulScavengePrev&&pay)return"Cultivate";
+  if(p.species==="expansus"&&!opp.secured&&opp.stash.includes(4)&&game.round<=5){
+    const scav=rows.find(r=>r.action==="Scavenge");
+    const own=ownCultivateOpportunity(game,p,opp),denial=scavengeDenialValue(game,p,opp);
+    const margin=aiStyle(game)==="growth"?.15:aiStyle(game)==="balanced"?.5:.9;
+    if(scav.score>=rows[0].score-margin&&!(own>denial+(aiStyle(game)==="growth"?.5:1.0)))return"Scavenge";
+  }
+  return rows[0].action;
+}
+function chooseFirstActor(game,holder){
+  const other=holder===0?1:0,p=game.players[holder],opp=game.players[other],style=aiStyle(game);
+  const own=actionScores(game,p,opp,false)[0],enemy=actionScores(game,opp,p,false)[0];
+  const enemyDenial=(!p.secured&&p.stash.length)?scavengeDenialValue(game,opp,p):0;
+  const ownGrowth=ownCultivateOpportunity(game,p,opp);
+  if(ownGrowth>0&&enemyDenial>=2.0)return holder; // preserve a prepared cash-in
+  if(style!=="growth"&&shouldPreferStall(game,p,opp))return holder;
+  if(own.action==="Secure"||own.action==="Scavenge")return holder;
+  if(enemy.action==="Scavenge"&&p.stash.length)return holder;
+  if(p.species==="clown"&&opp.species!=="clown")return other;
+  if(opp.species==="clown"&&p.species!=="clown")return other;
+  if(currentEnv(game)==="ant_invasion"&&own.action!=="Cultivate"&&enemy.action==="Cultivate")return other;
+  return game.decisionRng()<.5?holder:other;
+}
+
+function performCultivate(game,p,opp){
+  const pay=choosePayment(game,p,opp);if(!pay)return performForage(game,p,opp);
+  const e=currentEnv(game),beforePop=p.population,beforeStress=p.stress;
+  removePayment(game,p,pay);
+  recordPopulation(game,p,growth(p),"cultivate","base_growth","Cultivate base Growth");
+  if(powderLeanExact(p,pay)){
+    recordPopulation(game,p,2,"behavior","powder_exact","Efficient Feeding");
+    p.behavior.powderExact++;
+  }
+  if(p.species==="ducky"&&game.round>1&&p.lastCultivatedRound!==game.round-1){
+    recordPopulation(game,p,3,"behavior","patient_brood","Patient Brood");
+    p.behavior.patientBrood++;
+  }
+  if(e==="breeding_boom"&&growth(p)<=2&&(game.round===1||p.lastCultivatedRound!==game.round-1)){
+    recordPopulation(game,p,2,"environment","breeding_boom","Breeding Boom");
+    p.env.breeding_boom++;
+  }
+  if(e==="breeding_window"&&pay.oneCard){
+    recordPopulation(game,p,2,"environment","breeding_window","Breeding Window");
+    p.env.breeding_window++;
+  }
+  if(e==="balanced_feeding"&&balancedFeedingPayment(pay)){
+    recordPopulation(game,p,2,"environment","balanced_feeding","Balanced Feeding");
+    p.env.balanced_feeding++;
+  }
+  if(e==="feeding_frenzy"&&pay.cards>=3){
+    recordPopulation(game,p,1,"environment","feeding_frenzy","Feeding Frenzy");
+    p.env.feeding_frenzy++;
+  }
+  if(e==="claimed_cache"&&p.successfulScavengePrev){
+    recordPopulation(game,p,1,"environment","claimed_cache","Claimed Cache");
+    p.env.claimed_cache++;
+  }
+  game.firstCultivateResolved=true;
+  if(p.species==="dairy"&&!p.cowBurstUsed){
+    const d=chooseCowDiscard(game,p);
+    if(d){
+      for(let i=0;i<d.count;i++){
+        const idx=p.stash.indexOf(d.value);
+        if(idx>=0)discardFood(game,p,idx);
+      }
+      recordPopulation(game,p,d.count,"behavior","voracious_brood","Voracious Brood");
+      p.behavior.cowFoodConverted+=d.count;
+      p.behavior.cowBurstActivations+=1;
+      p.cowBurstUsed=true;
+    }
+  }
+  if(e==="overturned_hide"){
+    recordStress(game,p,1,"environment","overturned_hide","Overturned Hide");
+    p.env.overturned_hide++;
+  }
+  p.lastCultivatedRound=game.round;p.actions.Cultivate++;
+  return{action:"Cultivate",popGain:p.population-beforePop,stressDelta:p.stress-beforeStress,payment:pay};
+}
+function performForage(game,p,opp){
+  const e=currentEnv(game),beforePop=p.population,beforeStress=p.stress;
+  let draw=2,keep=1;
+  if(e==="withered_forage"){draw=Math.max(1,draw-1);p.env.withered_forage++}
+  if(e==="last_scraps"&&growth(p)>=3){draw=Math.max(1,draw-1);p.env.last_scraps++}
+  if(e==="abundant_forage"){keep+=1;p.env.abundant_forage++}
+  const drawn=drawMany(game,draw),kept=chooseKept(game,p,drawn,Math.min(keep,drawn.length));
+  const remain=[...drawn];for(const v of kept){const i=remain.indexOf(v);if(i>=0)remain.splice(i,1)}
+  addFood(p,kept);game.discard.push(...remain);
+  if(e==="irritant_bloom"){recordStress(game,p,1,"environment","irritant_bloom","Irritant Bloom");p.env.irritant_bloom++}
+  p.actions.Forage++;
+  return{action:"Forage",popGain:p.population-beforePop,stressDelta:p.stress-beforeStress,drawn,kept};
+}
+function performAdapt(game,p){
+  const beforePop=p.population,beforeStress=p.stress,extra=currentEnv(game)==="stable_microclimate"?1:0;
+  const removed=removeStress(game,p,1+extra,"adapt");
+  if(extra&&removed>0)p.env.stable_microclimate+=1;
+  if(p.species==="sea"&&removed>0){
+    const rebound=removed+(removed>=2?1:0);
+    recordPopulation(game,p,rebound,"behavior","hardy_rebound","Hardy Rebound");
+    p.behavior.seaRebounds+=1;
+    p.behavior.seaReboundPopulation+=rebound;
+  }
+  p.actions.Adapt++;
+  return{action:"Adapt",popGain:p.population-beforePop,stressDelta:p.stress-beforeStress,removed};
+}
+function performSecure(game,p,opp){
+  const beforePop=p.population,beforeStress=p.stress;p.secured=true;
+  if(currentEnv(game)==="sheltered_cache"){const v=drawOne(game);if(v!==null)addFood(p,[v]);p.env.sheltered_cache++}
+  if(currentEnv(game)==="sheltered_refuge"){
+    const removed=removeStress(game,p,1,"sheltered_refuge");
+    if(removed>0)p.env.sheltered_refuge++;
+  }
+  if(
+    currentEnv(game)==="room_to_expand" &&
+    opp.actedThisRound &&
+    opp.actionThisRound==="Scavenge"
+  ){
+    recordPopulation(game,p,2,"environment","room_to_expand","Shared Shelter");
+    p.env.room_to_expand++;
+  }
+  p.actions.Secure++;
+  return{action:"Secure",popGain:p.population-beforePop,stressDelta:p.stress-beforeStress};
+}
+function performScavenge(game,p,opp){
+  if(opp.secured||!opp.stash.length)return performForage(game,p,opp);
+  const denialBefore=scavengeDenialProfile(game,p,opp);
+  const beforePop=p.population,beforeStress=p.stress,v=scavengedValue(p,opp),idx=opp.stash.indexOf(v);
+  opp.stash.splice(idx,1);addFood(p,[v]);recordStress(game,opp,1,"opponent","scavenge","Scavenged",p.index);opp.wasScavengedThis=true;p.successfulScavengeThis=true;
+  if(p.species==="expansus"&&v===4)p.behavior.premiumScavenges++;
+  if(currentEnv(game)==="exposed_cache"){const d=drawOne(game);if(d!==null)addFood(p,[d]);p.env.exposed_cache++}
+  if(currentEnv(game)==="rich_pickings"&&v===4){recordPopulation(game,p,2,"environment","rich_pickings","Rich Pickings");p.env.rich_pickings++}
+  if(denialBefore.completeStop)p.behavior.growthDenials++;
+  p.actions.Scavenge++;
+  return{action:"Scavenge",popGain:p.population-beforePop,stressDelta:p.stress-beforeStress,stolen:v};
+}
+function performAction(game,p){
+  const opp=game.players[p.index===0?1:0],action=chooseAction(game,p,opp);
+  let result;
+  if(action==="Cultivate")result=performCultivate(game,p,opp);
+  else if(action==="Forage")result=performForage(game,p,opp);
+  else if(action==="Adapt")result=performAdapt(game,p);
+  else if(action==="Scavenge")result=performScavenge(game,p,opp);
+  else result=performSecure(game,p,opp);
+  result.attemptedAction=action;
+  result.successfulScavenge=action==="Scavenge"&&result.action==="Scavenge"&&result.stolen!==undefined;
+  p.actionThisRound=result.action;
+  if(
+    currentEnv(game)==="narrow_passage" &&
+    opp.actedThisRound &&
+    opp.actionThisRound===result.action &&
+    result.action!=="Cultivate"
+  ){
+    recordPopulation(game,p,1,"environment","narrow_passage","Narrow Passage");
+    p.env.narrow_passage+=1;
+  }
+  if(
+    currentEnv(game)==="undisturbed_brood" &&
+    opp.actedThisRound &&
+    opp.actionThisRound===result.action &&
+    result.action!=="Cultivate"
+  ){
+    const removed=removeStress(game,p,1,"open_route");
+    if(removed>0)p.env.undisturbed_brood+=1;
+  }
+  p.actedThisRound=true;
+  return result;
+}
+
+function chooseRottingDiscard(game,p){
+  if(!p.stash.length)return-1;let bestIdx=0,bestLoss=Infinity;
+  for(let i=0;i<p.stash.length;i++){
+    const copy=[...p.stash];const v=copy.splice(i,1)[0];
+    let loss=v*.45;
+    if(p.species==="powder"&&powderLeanPaymentPossible(game,p,p.stash)&&!powderLeanPaymentPossible(game,p,copy))loss+=5;
+    if(p.species==="dairy"&&!p.cowBurstUsed){const before=countValues(p.stash),after=countValues(copy);if(Math.max(after[2],after[3],after[4])<Math.max(before[2],before[3],before[4]))loss+=1.2}
+    if(loss<bestLoss){bestLoss=loss;bestIdx=i}
+  }
+  return bestIdx;
+}
+function applyEndRoundEnvironment(game){
+  const e=currentEnv(game),events=[];
+  if(e==="ant_invasion"){
+    const a=game.players[0],b=game.players[1];
+    if(a.stash.length!==b.stash.length){const p=a.stash.length>b.stash.length?a:b;if(p.stash.length){const highest=Math.max(...p.stash),idx=p.stash.indexOf(highest);discardFood(game,p,idx);p.env.ant_invasion++;events.push(`${SPECIES[p.species].name} lost value-${highest}`)}}
+  }
+  if(e==="rotting_cache")for(const p of game.players)if(p.stash.length>=4){const idx=chooseRottingDiscard(game,p),v=discardFood(game,p,idx);p.env.rotting_cache++;events.push(`${SPECIES[p.species].name} discarded value-${v}`)}
+  const [a,b]=game.players,sameAction=a.actionThisRound&&a.actionThisRound===b.actionThisRound;
+  if(e==="open_feeding_ground"&&a.actionThisRound==="Forage"&&b.actionThisRound==="Forage"){
+    const second=game.players[game.firstActorThisRound===0?1:0];
+    const v=drawOne(game);
+    if(v!==null)addFood(second,[v]);
+    second.env.open_feeding_ground+=1;
+    events.push(`${SPECIES[second.species].name} drew Food after following the shared Forage`);
+  }
+  if(sameAction){
+    for(const p of game.players)if(p.species==="clown"&&p.index!==game.firstActorThisRound&&p.behavior.clownMatches===0&&p.actionThisRound!=="Cultivate"){
+      recordPopulation(game,p,2,"behavior","stand_your_ground","Stand Your Ground");p.behavior.clownMatches+=1;p.behavior.clownPopulation+=2;
+      events.push(`${SPECIES[p.species].name} stood its ground after matching a non-Cultivate action`);
+    }
+    if(e==="follow_the_trail")for(const p of game.players){
+      const removed=removeStress(game,p,1,"follow_the_trail");
+      if(removed>0)p.env.follow_the_trail+=1;
+    }
+  }
+  return events;
+}
+
+
+function buildScoreBreakdown(game,p,pos,score){
+  const events=game.audit.populationEvents.filter(e=>e.player===pos);
+  const positive=(category)=>events.filter(e=>e.category===category&&e.amount>0).reduce((n,e)=>n+e.amount,0);
+  const populationLosses=-events.filter(e=>e.amount<0).reduce((n,e)=>n+e.amount,0);
+  const unstablePenalty=isUnstable(p,game.unstableMode)?2:0;
+  const opponentStress=game.audit.stressEvents.filter(e=>e.player===pos&&e.causedBy!==null&&e.delta>0).reduce((n,e)=>n+e.delta,0);
+  return{
+    species:p.species,
+    startingPopulation:5,
+    cultivateGrowth:positive("cultivate"),
+    environmentBonuses:positive("environment"),
+    behaviorGains:positive("behavior"),
+    populationLosses,
+    finalPopulation:p.population,
+    finalStressDeduction:p.stress,
+    unstablePenalty,
+    finalScore:score,
+    opponentStressReceived:opponentStress,
+    populationEvents:events,
+    stressEvents:game.audit.stressEvents.filter(e=>e.player===pos)
+  };
+}
+function validateCompletedGame(result){
+  const errors=[],warnings=[];
+  if(result.roundRecords.length!==6)errors.push(`Expected 6 rounds; found ${result.roundRecords.length}.`);
+  let totalActions=0;
+  const perPlayer=[0,0];
+  for(const rr of result.roundRecords){
+    if(!Array.isArray(rr.actions)||rr.actions.length!==2)errors.push(`Round ${rr.round}: expected 2 resolved actions.`);
+    const actors=(rr.actions||[]).map(a=>a.player);
+    if(new Set(actors).size!==actors.length)errors.push(`Round ${rr.round}: a colony acted more than once.`);
+    for(const action of rr.actions||[]){
+      totalActions++;
+      if(action.player!==0&&action.player!==1)errors.push(`Round ${rr.round}: invalid player index.`);
+      else perPlayer[action.player]++;
+      if(!ACTIONS.includes(action.action))errors.push(`Round ${rr.round}: invalid resolved action ${action.action}.`);
+      if(action.attemptedAction&&!ACTIONS.includes(action.attemptedAction))errors.push(`Round ${rr.round}: invalid attempted action ${action.attemptedAction}.`);
+    }
+    for(const pr of rr.players||[]){
+      if(pr.population<0)errors.push(`Round ${rr.round}: negative Population for ${SPECIES[pr.species]?.name||pr.species}.`);
+      if(pr.stress<0)errors.push(`Round ${rr.round}: negative Stress for ${SPECIES[pr.species]?.name||pr.species}.`);
+      if(pr.stashCards<0||pr.stashValue<0)errors.push(`Round ${rr.round}: negative Food state for ${SPECIES[pr.species]?.name||pr.species}.`);
+      if(pr.popGain>10)warnings.push(`Round ${rr.round}: ${SPECIES[pr.species].name} gained ${pr.popGain} Population in one round.`);
+    }
+  }
+  if(totalActions!==12)errors.push(`Expected 12 total actions; found ${totalActions}.`);
+  for(let pos=0;pos<2;pos++){
+    const p=result.players[pos],name=SPECIES[p.species].name;
+    const actionTotal=Object.values(p.actions).reduce((a,b)=>a+b,0);
+    if(perPlayer[pos]!==6)errors.push(`${name}: expected 6 round actions; found ${perPlayer[pos]}.`);
+    if(actionTotal!==6)errors.push(`${name}: action counters total ${actionTotal}, expected 6.`);
+    if(p.population<0||p.stress<0)errors.push(`${name}: negative final state.`);
+    if(p.stash.some(v=>![2,3,4].includes(v)))errors.push(`${name}: invalid Food value in final Stash.`);
+    if(p.behavior.cowBurstActivations>1)errors.push(`${name}: Voracious Brood triggered more than once.`);
+    if(p.behavior.clownMatches>1)errors.push(`${name}: Stand Your Ground triggered more than once.`);
+    const roundPopulation=result.roundRecords.reduce((n,rr)=>n+(rr.players.find(x=>x.species===p.species)?.popGain||0),0);
+    const eventPopulation=result.audit.populationEvents.filter(e=>e.player===pos).reduce((n,e)=>n+e.amount,0);
+    if(5+roundPopulation!==p.population)errors.push(`${name}: round Population gains do not reconcile (${5+roundPopulation} vs ${p.population}).`);
+    if(5+eventPopulation!==p.population)errors.push(`${name}: source Population events do not reconcile (${5+eventPopulation} vs ${p.population}).`);
+    const stressEvents=result.audit.stressEvents.filter(e=>e.player===pos).reduce((n,e)=>n+e.delta,0);
+    if(stressEvents!==p.stress)errors.push(`${name}: Stress events do not reconcile (${stressEvents} vs ${p.stress}).`);
+    const penalty=isUnstable(p,result.unstableMode)?2:0;
+    const expected=scoreFromState(p.population,p.stress,penalty);
+    if(expected!==result.scores[pos])errors.push(`${name}: score mismatch (${expected} expected, ${result.scores[pos]} displayed).`);
+    if(result.scores[pos]>=24)warnings.push(`${name}: high score ${result.scores[pos]} — inspect the score audit.`);
+  }
+  if(result.players.some(p=>Object.values(p.actions).reduce((a,b)=>a+b,0)===0))warnings.push("A colony recorded zero actions.");
+  return{valid:errors.length===0,errors:[...new Set(errors)],warnings:[...new Set(warnings)]};
+}
+function verifyReplay(original,replayed){
+  const originalActions=original.roundRecords.map(r=>r.actions.map(a=>`${a.player}:${a.attemptedAction||a.action}>${a.action}`).join("|")).join(";");
+  const replayedActions=replayed.roundRecords.map(r=>r.actions.map(a=>`${a.player}:${a.attemptedAction||a.action}>${a.action}`).join("|")).join(";");
+  const errors=[];
+  if(JSON.stringify(original.scores)!==JSON.stringify(replayed.scores))errors.push("Final scores changed.");
+  if(originalActions!==replayedActions)errors.push("Action sequence changed.");
+  if(JSON.stringify(original.forecast)!==JSON.stringify(replayed.forecast))errors.push("Forecast changed.");
+  if(original.openingPriority!==replayed.openingPriority)errors.push("Opening Priority changed.");
+  return{matched:errors.length===0,errors};
+}
+function replayGame(config){return simulateGame(clone(config))}
+function simulateGame(opts){
+  const baseSeed=opts.seed>>>0,deckRng=rngFrom(hashString(`${baseSeed}|deck`));
+  const initialDeck=opts.deck?[...opts.deck]:makeDeck(deckRng);
+  const game={
+    baseSeed,round:1,forecast:[...opts.forecast],deck:[...initialDeck],discard:[],reshuffleCount:0,
+    priorityHolder:opts.priorityHolder??0,openingPriority:opts.priorityHolder??0,unstableMode:opts.unstableMode||"off",aiStyle:opts.aiStyle||"balanced",
+    decisionRng:rngFrom(hashString(`${baseSeed}|decision|${opts.species.join("|")}`)),
+    players:[makePlayer(opts.species[0],0),makePlayer(opts.species[1],1)],roundRecords:[],
+    audit:{populationEvents:[],stressEvents:[]}
+  };
+  for(game.round=1;game.round<=6;game.round++){
+    game.firstCultivateResolved=false;
+    for(const p of game.players){
+      p.successfulScavengePrev=p.successfulScavengeThis;p.successfulScavengeThis=false;
+      p.wasScavengedPrev=p.wasScavengedThis;p.wasScavengedThis=false;
+      p.secured=false;p.actedThisRound=false;p.actionThisRound=null;p.recoverySurgeTriggered=false;p.freshLeafFlushTriggered=false;
+      if(currentEnv(game)==="growing_brood"&&growth(p)>=4)p.env.growing_brood++;
+      if(currentEnv(game)==="last_scraps")p.env.last_scraps++;
+      if(currentEnv(game)==="nutrient_rich")p.env.nutrient_rich++;
+    }
+    const draws=game.players.map(p=>{const d=drawOne(game);if(d!==null)addFood(p,[d]);return{base:d,extra:[]}});
+    if(currentEnv(game)==="sudden_dry_patch")for(const p of game.players)if(p.stress===0){recordStress(game,p,1,"environment","sudden_dry_patch","Sudden Dry Patch");p.env.sudden_dry_patch++}
+    if(currentEnv(game)==="fresh_leaf_flush")for(const p of game.players)if(p.stress===1){recordStress(game,p,1,"environment","fresh_leaf_flush","Lingering Irritation");p.env.fresh_leaf_flush++}
+    if(currentEnv(game)==="fresh_food_drop")for(let i=0;i<game.players.length;i++){const p=game.players[i],v=drawOne(game);if(v!==null){addFood(p,[v]);draws[i].extra.push(v)}p.env.fresh_food_drop++}
+    const first=chooseFirstActor(game,game.priorityHolder),order=[first,first===0?1:0];
+    game.firstActorThisRound=first;
+    const before=game.players.map(p=>({pop:p.population,stress:p.stress,stashValue:foodValue(p.stash),stashCards:p.stash.length,stash:[...p.stash]}));
+    const actions=[];for(const i of order)actions.push({player:i,...performAction(game,game.players[i])});
+    const endEvents=applyEndRoundEnvironment(game);
+    game.roundRecords.push({
+      round:game.round,environment:currentEnv(game),priorityHolder:game.priorityHolder,firstActor:first,draws,actions,endEvents,
+      startPlayers:before.map((x,i)=>({species:game.players[i].species,population:x.pop,stress:x.stress,stashValue:x.stashValue,stashCards:x.stashCards,stash:x.stash})),
+      players:game.players.map((p,i)=>{
+        const action=actions.find(a=>a.player===i)||{};
+        return{species:p.species,population:p.population,stress:p.stress,stashValue:foodValue(p.stash),stashCards:p.stash.length,stash:[...p.stash],popGain:p.population-before[i].pop,stressDelta:p.stress-before[i].stress,action:action.action||"",attemptedAction:action.attemptedAction||action.action||"",stolen:action.stolen??null};
+      })
+    });
+    game.priorityHolder=game.priorityHolder===0?1:0;
+  }
+  const scores=game.players.map(p=>finalScore(p,game.unstableMode)),winner=scores[0]===scores[1]?-1:(scores[0]>scores[1]?0:1);
+  const replayConfig={seed:baseSeed,forecast:[...game.forecast],deck:[...initialDeck],priorityHolder:game.openingPriority,species:game.players.map(p=>p.species),unstableMode:game.unstableMode,aiStyle:game.aiStyle};
+  const result={
+    players:game.players,scores,winner,openingPriority:game.openingPriority,forecast:[...game.forecast],roundRecords:game.roundRecords,
+    audit:game.audit,unstableMode:game.unstableMode,initialDeck:[...initialDeck],initialDeckSignature:initialDeck.join("-"),
+    replayConfig,engine:{name:ENGINE_NAME,version:ENGINE_VERSION},botPolicy:{style:game.aiStyle,label:botPolicyLabel(game.aiStyle),version:BOT_POLICY_VERSION}
+  };
+  result.gameId=`PB41-${hashString(JSON.stringify(replayConfig)).toString(16).padStart(8,"0")}`;
+  result.scoreBreakdowns=game.players.map((p,i)=>buildScoreBreakdown(game,p,i,scores[i]));
+  result.integrity=validateCompletedGame(result);
+  result.valid=result.integrity.valid;
+  result.suspiciousWarnings=result.integrity.warnings;
+  return result;
+}
+function simulateMirrorPair(config,pairIndex,a,b,forecast){
+  const seed=hashString(`${config.seed}|${config.runTag||"run"}|${pairIndex}|${a}|${b}|${forecast.join("|")}`),r=rngFrom(seed);
+  const deck=makeDeck(r),priority=r()<.5?0:1;
+  const g1=simulateGame({seed:seed^0x9E3779B9,forecast,deck,priorityHolder:priority,species:[a,b],unstableMode:config.unstableMode,aiStyle:config.aiStyle||"balanced"});
+  const g2=simulateGame({seed:seed^0x85EBCA6B,forecast,deck,priorityHolder:priority,species:[b,a],unstableMode:config.unstableMode,aiStyle:config.aiStyle||"balanced"});
+  const errors=[];
+  if(g1.initialDeckSignature!==g2.initialDeckSignature)errors.push("Initial Food deck differs.");
+  if(g1.openingPriority!==g2.openingPriority)errors.push("Opening Priority differs.");
+  if(JSON.stringify(g1.forecast)!==JSON.stringify(g2.forecast))errors.push("Forecast differs.");
+  if(g1.players[0].species!==g2.players[1].species||g1.players[1].species!==g2.players[0].species)errors.push("Species were not swapped.");
+  const mirrorCheck={valid:errors.length===0,errors,sharedInitialDeck:g1.initialDeckSignature,openingPriority:priority};
+  g1.mirrorCheck=clone(mirrorCheck);g2.mirrorCheck=clone(mirrorCheck);
+  if(errors.length){
+    for(const g of [g1,g2]){
+      g.valid=false;g.integrity.valid=false;g.integrity.errors.push(...errors.map(e=>`Mirror check: ${e}`));
+    }
+  }
+  const mirrorGroupId=`PB41-M-${hashString(`${seed}|${a}|${b}|${forecast.join("|")}`).toString(16)}`;
+  g1.mirrorGroupId=mirrorGroupId;g2.mirrorGroupId=mirrorGroupId;
+  return[g1,g2];
+}
+function emptySpeciesAggregate(key){
+  return{key,name:SPECIES[key].name,games:0,wins:0,ties:0,score:0,population:0,stress:0,stashValue:0,unstable:0,
+    minScore:Infinity,maxScore:-Infinity,scoreCounts:{},
+    actions:Object.fromEntries(ACTIONS.map(a=>[a,0])),attemptedActions:Object.fromEntries(ACTIONS.map(a=>[a,0])),
+    scavengeAttempts:0,successfulScavenges:0,secureUses:0,foodStolen:0,opponentStressCaused:0,
+    behavior:Object.fromEntries(Object.keys(makePlayer(key,0).behavior).map(k=>[k,0])),
+    env:Object.fromEntries(ENV_KEYS.map(k=>[k,0])),rounds:Array.from({length:6},(_,i)=>({round:i+1,games:0,popGain:0,stressDelta:0,stashValue:0,actions:Object.fromEntries(ACTIONS.map(a=>[a,0])),environments:{}}))};
+}
+function createAccumulator(){
+  const matrix={};for(const a of SPECIES_KEYS){matrix[a]={};for(const b of SPECIES_KEYS)matrix[a][b]={games:0,wins:0,ties:0,scoreDiff:0}}
+  return{
+    games:0,rounds:0,ties:0,openingPriorityWins:0,nonOpeningPriorityWins:0,
+    validGames:0,invalidGames:0,simulationErrors:[],
+    mirror:{pairs:0,splits:0,sweeps:0,tiedPairs:0,invalidPairs:0},
+    species:Object.fromEntries(SPECIES_KEYS.map(k=>[k,emptySpeciesAggregate(k)])),
+    matrix,pairs:{},orderCounts:{},samples:[],
+    _auditExamples:Object.fromEntries(SPECIES_KEYS.map(k=>[k,{}]))
+  };
+}
+function addGame(acc,g,unstableMode="off",sampleLimit=12){
+  if(!g.valid){
+    acc.invalidGames++;
+    if(acc.simulationErrors.length<100)acc.simulationErrors.push({gameId:g.gameId,reasons:g.integrity.errors,replayConfig:g.replayConfig});
+    return false;
+  }
+  acc.validGames++;acc.games++;acc.rounds+=6;if(g.winner<0)acc.ties++;else if(g.winner===g.openingPriority)acc.openingPriorityWins++;else acc.nonOpeningPriorityWins++;
+  const winnerSpecies=g.winner<0?null:g.players[g.winner].species;
+  for(let pos=0;pos<2;pos++){
+    const p=g.players[pos],opp=g.players[pos===0?1:0],s=acc.species[p.species],score=g.scores[pos];
+    s.games++;s.score+=score;s.population+=p.population;s.stress+=p.stress;s.stashValue+=foodValue(p.stash);
+    s.minScore=Math.min(s.minScore,score);s.maxScore=Math.max(s.maxScore,score);s.scoreCounts[score]=(s.scoreCounts[score]||0)+1;
+    if(!acc._auditExamples[p.species][score])acc._auditExamples[p.species][score]=compactAuditGame(g);
+    if(isUnstable(p,unstableMode))s.unstable++;
+    if(g.winner===pos)s.wins++;if(g.winner<0)s.ties++;
+    for(const a of ACTIONS)s.actions[a]+=p.actions[a];
+    for(const rr of g.roundRecords){
+      const action=rr.actions.find(a=>a.player===pos);
+      if(action){
+        const attempted=action.attemptedAction||action.action;
+        s.attemptedActions[attempted]=(s.attemptedActions[attempted]||0)+1;
+        if(attempted==="Scavenge")s.scavengeAttempts++;
+        if(action.action==="Scavenge"&&action.stolen!==undefined){s.successfulScavenges++;s.foodStolen+=action.stolen}
+        if(action.action==="Secure")s.secureUses++;
+      }
+    }
+    s.opponentStressCaused+=g.audit.stressEvents.filter(e=>e.causedBy===pos&&e.delta>0).reduce((n,e)=>n+e.delta,0);
+    for(const k of Object.keys(s.behavior))s.behavior[k]+=p.behavior[k];for(const k of ENV_KEYS)s.env[k]+=p.env[k];
+    const m=acc.matrix[p.species][opp.species];m.games++;if(g.winner===pos)m.wins++;if(g.winner<0)m.ties++;m.scoreDiff+=g.scores[pos]-g.scores[pos===0?1:0];
+  }
+  for(const rr of g.roundRecords)for(const pr of rr.players){const row=acc.species[pr.species].rounds[rr.round-1];row.games++;row.popGain+=pr.popGain;row.stressDelta+=pr.stressDelta;row.stashValue+=pr.stashValue;row.actions[pr.action]++;row.environments[rr.environment]=(row.environments[rr.environment]||0)+1}
+  const pairKey=[g.players[0].species,g.players[1].species].sort().join("|");if(!acc.pairs[pairKey])acc.pairs[pairKey]={a:pairKey.split("|")[0],b:pairKey.split("|")[1],games:0,ties:0,wins:{},scores:{}};
+  const pm=acc.pairs[pairKey];pm.games++;if(winnerSpecies)pm.wins[winnerSpecies]=(pm.wins[winnerSpecies]||0)+1;else pm.ties++;
+  for(let pos=0;pos<2;pos++){const k=g.players[pos].species;pm.scores[k]=(pm.scores[k]||0)+g.scores[pos]}
+  const orderKey=g.forecast.join("|");acc.orderCounts[orderKey]=(acc.orderCounts[orderKey]||0)+1;
+  if(acc.samples.length<sampleLimit)acc.samples.push(compactAuditGame(g));
+  return true;
+}
+function addMirrorOutcome(acc,g1,g2){
+  acc.mirror.pairs++;
+  if(!g1.valid||!g2.valid||!g1.mirrorCheck?.valid||!g2.mirrorCheck?.valid){acc.mirror.invalidPairs++;return}
+  const w1=g1.winner<0?null:g1.players[g1.winner].species,w2=g2.winner<0?null:g2.players[g2.winner].species;
+  if(!w1||!w2)acc.mirror.tiedPairs++;else if(w1===w2)acc.mirror.sweeps++;else acc.mirror.splits++;
+}
+function finalizeAccumulator(acc){
+  const examples={};
+  for(const key of SPECIES_KEYS){
+    const s=acc.species[key];
+    if(!s.games)continue;
+    const scores=Object.entries(s.scoreCounts).map(([score,count])=>({score:Number(score),count})).sort((a,b)=>a.score-b.score);
+    let cumulative=0,medianScore=scores[0].score,target=(s.games-1)/2;
+    for(const row of scores){cumulative+=row.count;if(cumulative>target){medianScore=row.score;break}}
+    s.medianScore=medianScore;
+    examples[key]={
+      lowest:acc._auditExamples[key][s.minScore]||null,
+      median:acc._auditExamples[key][medianScore]||null,
+      highest:acc._auditExamples[key][s.maxScore]||null
+    };
+  }
+  acc.auditExamples=examples;
+  delete acc._auditExamples;
+  acc.species=Object.values(acc.species).filter(s=>s.games>0);
+  acc.pairs=Object.values(acc.pairs);
+  acc.engineHealth={
+    engine:`${ENGINE_NAME} V${ENGINE_VERSION}`,
+    validGames:acc.validGames,invalidGames:acc.invalidGames,
+    allValid:acc.invalidGames===0,
+    mirrorPairs:acc.mirror.pairs,invalidMirrorPairs:acc.mirror.invalidPairs
+  };
+  return acc;
+}
+function speciesRanking(result){
+  return[...result.species].sort((a,b)=>{
+    const ar=(a.games-a.ties)?a.wins/(a.games-a.ties):0,br=(b.games-b.ties)?b.wins/(b.games-b.ties):0;
+    return br-ar||average(b.score,b.games)-average(a.score,a.games)||b.wins-a.wins;
+  });
+}
+function matchupJobs(scope,focus,a,b){
+  if(scope==="focus")return SPECIES_KEYS.filter(k=>k!==focus).map(k=>({a:focus,b:k}));
+  if(scope==="single")return[{a,b}];
+  const out=[];for(let i=0;i<SPECIES_KEYS.length;i++)for(let j=i+1;j<SPECIES_KEYS.length;j++)out.push({a:SPECIES_KEYS[i],b:SPECIES_KEYS[j]});return out;
+}
+function allPermutations(arr){
+  const out=[];function rec(prefix,rest){if(!rest.length){out.push(prefix);return}for(let i=0;i<rest.length;i++)rec([...prefix,rest[i]],[...rest.slice(0,i),...rest.slice(i+1)])}rec([],arr);return out;
+}
+
+
+function runEngineHealthCheck(seed="PODBOUND-ENGINE-HEALTH-V41"){
+  const errors=[],games=[];
+  let index=0;
+  for(const [trackKey,track] of Object.entries(TRACKS)){
+    const a=track.intended,b=SPECIES_KEYS.find(k=>k!==a);
+    const [g1,g2]=simulateMirrorPair({seed,runTag:`health-${trackKey}`,unstableMode:"off",aiStyle:"balanced"},index++,a,b,track.cards);
+    games.push(g1,g2);
+  }
+  for(const g of games)if(!g.valid)errors.push(...g.integrity.errors.map(e=>`${g.gameId}: ${e}`));
+  const replay=games[0]?replayGame(games[0].replayConfig):null;
+  const replayCheck=games[0]&&replay?verifyReplay(games[0],replay):{matched:false,errors:["No health game generated."]};
+  if(!replayCheck.matched)errors.push(...replayCheck.errors.map(e=>`Replay: ${e}`));
+  return{
+    passed:errors.length===0,
+    engine:`${ENGINE_NAME} V${ENGINE_VERSION}`,
+    botPolicy:botPolicyLabel("balanced"),
+    gamesChecked:games.length,
+    mirrorPairsChecked:games.length/2,
+    actionsChecked:games.reduce((n,g)=>n+g.roundRecords.reduce((m,r)=>m+r.actions.length,0),0),
+    replayMatched:replayCheck.matched,
+    errors
+  };
+}
+
+
+
+// ---------------------------------------------------------------------------
+// Player Arena API — human versus the same V41 competitive bot engine
+// ---------------------------------------------------------------------------
+function normalizePlayerSeed(seed){return typeof seed==="number"?(seed>>>0):hashString(String(seed||"PODBOUND-PLAYER-V41"))}
+function clonePublicPlayer(p){return{species:p.species,index:p.index,population:p.population,stress:p.stress,stash:[...p.stash],secured:p.secured,actions:clone(p.actions),behavior:clone(p.behavior),lastCultivatedRound:p.lastCultivatedRound}}
+function activePlayerIndex(game){return game.currentOrder?.[game.currentActionIndex]??game.humanIndex}
+function playerLabel(game,index){return game.playerLabels?.[index]||`Player ${index+1}`}
+function opponentIndex(index){return index===0?1:0}
+function playerGameSnapshot(game){
+  return{
+    phase:game.phase,round:game.round,forecast:[...game.forecast],currentEnvironment:game.round<=6?currentEnv(game):null,
+    priorityHolder:game.priorityHolder,openingPriority:game.openingPriority,firstActorThisRound:game.firstActorThisRound,
+    order:game.currentOrder?[...game.currentOrder]:[],currentActor:game.currentOrder?.[game.currentActionIndex]??null,
+    humanIndex:game.humanIndex,botIndex:game.botIndex,players:game.players.map(clonePublicPlayer),
+    roundRecords:clone(game.roundRecords),lastMessage:game.lastMessage||"",pendingChoice:clone(game.pendingChoice||null),finished:game.phase==="finished"
+  };
+}
+function createPlayerGame(opts={}){
+  const humanIndex=0,botIndex=1,seedInput=opts.seed||"PODBOUND-PLAYER-V41",baseSeed=normalizePlayerSeed(seedInput);
+  const deckRng=rngFrom(hashString(`${baseSeed}|player-deck`)),initialDeck=opts.deck?[...opts.deck]:makeDeck(deckRng);
+  const humanSpecies=opts.humanSpecies||"ducky",botSpecies=opts.botSpecies||"dairy";
+  if(!SPECIES[humanSpecies]||!SPECIES[botSpecies])throw new Error("Unknown Species in Player Arena setup.");
+  const forecast=opts.forecast?.length===6?[...opts.forecast]:[...TRACKS[humanSpecies].cards];
+  if(forecast.some(k=>!ENV[k]))throw new Error("Player Arena Forecast contains an unknown Environment.");
+  let openingPriority;
+  if(opts.openingPriority==="human")openingPriority=humanIndex;
+  else if(opts.openingPriority==="bot")openingPriority=botIndex;
+  else if(opts.openingPriority===0||opts.openingPriority===1)openingPriority=opts.openingPriority;
+  else openingPriority=rngFrom(hashString(`${baseSeed}|opening-priority`))()<.5?humanIndex:botIndex;
+  const game={
+    baseSeed,seedInput,round:1,forecast,deck:[...initialDeck],initialDeck:[...initialDeck],discard:[],reshuffleCount:0,
+    priorityHolder:openingPriority,openingPriority,unstableMode:opts.unstableMode||"off",aiStyle:opts.aiStyle||"balanced",
+    decisionRng:rngFrom(hashString(`${baseSeed}|player-decisions|${humanSpecies}|${botSpecies}`)),
+    players:[makePlayer(humanSpecies,humanIndex),makePlayer(botSpecies,botIndex)],roundRecords:[],audit:{populationEvents:[],stressEvents:[]},
+    humanIndex,botIndex,phase:"between_rounds",currentOrder:[],currentActionIndex:0,currentActions:[],currentDraws:null,currentBefore:null,
+    pendingChoice:null,decisionLog:[],playerLabels:["Player 1","Player 2"],lastMessage:"Game ready.",engine:{name:ENGINE_NAME,version:ENGINE_VERSION},
+    botPolicy:{style:opts.aiStyle||"balanced",label:botPolicyLabel(opts.aiStyle||"balanced"),version:BOT_POLICY_VERSION}
+  };
+  return game;
+}
+function beginPlayerRound(game){
+  if(game.phase!=="between_rounds")throw new Error(`Cannot begin a round during phase ${game.phase}.`);
+  if(game.round>6)return finishPlayerGame(game);
+  game.firstCultivateResolved=false;game.pendingChoice=null;game.currentActions=[];game.currentOrder=[];game.currentActionIndex=0;
+  for(const p of game.players){
+    p.successfulScavengePrev=p.successfulScavengeThis;p.successfulScavengeThis=false;
+    p.wasScavengedPrev=p.wasScavengedThis;p.wasScavengedThis=false;
+    p.secured=false;p.actedThisRound=false;p.actionThisRound=null;p.recoverySurgeTriggered=false;p.freshLeafFlushTriggered=false;
+    if(currentEnv(game)==="growing_brood"&&growth(p)>=4)p.env.growing_brood++;
+    if(currentEnv(game)==="last_scraps")p.env.last_scraps++;
+    if(currentEnv(game)==="nutrient_rich")p.env.nutrient_rich++;
+  }
+  const draws=game.players.map(p=>{const d=drawOne(game);if(d!==null)addFood(p,[d]);return{base:d,extra:[]}});
+  if(currentEnv(game)==="sudden_dry_patch")for(const p of game.players)if(p.stress===0){recordStress(game,p,1,"environment","sudden_dry_patch","Sudden Dry Patch");p.env.sudden_dry_patch++}
+  if(currentEnv(game)==="fresh_leaf_flush")for(const p of game.players)if(p.stress===1){recordStress(game,p,1,"environment","fresh_leaf_flush","Lingering Irritation");p.env.fresh_leaf_flush++}
+  if(currentEnv(game)==="fresh_food_drop")for(let i=0;i<game.players.length;i++){const p=game.players[i],v=drawOne(game);if(v!==null){addFood(p,[v]);draws[i].extra.push(v)}p.env.fresh_food_drop++}
+  game.currentDraws=draws;
+  game.currentBefore=game.players.map(p=>({pop:p.population,stress:p.stress,stashValue:foodValue(p.stash),stashCards:p.stash.length,stash:[...p.stash]}));
+  const log={round:game.round,environment:currentEnv(game),priorityHolder:game.priorityHolder,firstActor:null,playerActions:{},rottingDiscards:{},humanAction:null,humanRottingDiscardValue:null};
+  game.decisionLog.push(log);
+  game.phase="priority_choice";game.lastMessage=`Round ${game.round}: ${playerLabel(game,game.priorityHolder)} holds Priority. Choose who acts first.`;
+  return playerGameSnapshot(game);
+}
+function setPlayerActionOrder(game,firstActor,chosenByHuman=true){
+  if(![0,1].includes(firstActor))throw new Error("First actor must be player 0 or 1.");
+  game.firstActorThisRound=firstActor;game.currentOrder=[firstActor,firstActor===0?1:0];game.currentActionIndex=0;
+  game.decisionLog[game.decisionLog.length-1].firstActor=firstActor;
+  game.phase="human_action";
+  return playerGameSnapshot(game);
+}
+function playerActionAvailability(game,index=game.humanIndex){
+  const p=game.players[index],opp=game.players[index===0?1:0];
+  return{
+    Cultivate:{available:enumeratePayments(p.stash,consumption(game,p)).length>0,reason:`Requires Food value ${consumption(game,p)}.`},
+    Forage:{available:true,reason:"Draw Food and choose what to keep."},
+    Adapt:{available:true,reason:p.stress?`Remove up to ${1+(currentEnv(game)==="stable_microclimate"?1:0)} Stress.`:"You currently have no Stress."},
+    Scavenge:{available:!opp.secured&&opp.stash.length>0,reason:opp.secured?"Opponent is Secure this round.":opp.stash.length?"Take Food and cause 1 Stress.":"Opponent has no Food to take."},
+    Secure:{available:true,reason:"Protect your Stash from Scavenge for the rest of the round."}
+  };
+}
+function playerPaymentOptions(game,index=game.humanIndex){
+  const p=game.players[index],opp=game.players[index===0?1:0],required=consumption(game,p);
+  return enumeratePayments(p.stash,required).map(pay=>({
+    counts:clone(pay.counts),cards:pay.cards,total:pay.total,overpay:pay.overpay,exact:pay.exact,oneCard:pay.oneCard,
+    immediateBonus:paymentImmediateBonus(game,p,pay,opp),remainingStash:stashAfterCounts(p.stash,pay.counts)
+  })).sort((a,b)=>a.overpay-b.overpay||a.cards-b.cards||a.total-b.total);
+}
+function playerCowBurstOptions(game,paymentCounts,index=game.humanIndex){
+  const p=game.players[index];if(p.species!=="dairy"||p.cowBurstUsed)return[];
+  const remaining=stashAfterCounts(p.stash,paymentCounts),counts=countValues(remaining),out=[{value:null,count:0,label:"Do not use Voracious Brood"}];
+  for(const v of [2,3,4])for(let count=1;count<=Math.min(3,counts[v]);count++)out.push({value:v,count,label:`Discard ${count} value-${v} Food · gain ${count} Population`});
+  return out;
+}
+function validatePaymentChoice(game,p,counts){
+  const req=consumption(game,p),key=JSON.stringify({2:Number(counts?.[2]||0),3:Number(counts?.[3]||0),4:Number(counts?.[4]||0)});
+  return enumeratePayments(p.stash,req).find(x=>JSON.stringify(x.counts)===key)||null;
+}
+function finishInteractiveAction(game,p,result,attemptedAction){
+  const opp=game.players[p.index===0?1:0];
+  result.attemptedAction=attemptedAction;result.successfulScavenge=attemptedAction==="Scavenge"&&result.action==="Scavenge"&&result.stolen!==undefined;
+  p.actionThisRound=result.action;
+  if(currentEnv(game)==="narrow_passage"&&opp.actedThisRound&&opp.actionThisRound===result.action&&result.action!=="Cultivate"){
+    recordPopulation(game,p,1,"environment","narrow_passage","Narrow Passage");p.env.narrow_passage+=1;result.popGain+=1;
+  }
+  if(currentEnv(game)==="undisturbed_brood"&&opp.actedThisRound&&opp.actionThisRound===result.action&&result.action!=="Cultivate"){
+    const removed=removeStress(game,p,1,"open_route");if(removed>0){p.env.undisturbed_brood+=1;result.stressDelta-=removed}
+  }
+  p.actedThisRound=true;game.currentActions.push({player:p.index,...result});
+  const log=game.decisionLog[game.decisionLog.length-1];
+  if(log){
+    log.playerActions=log.playerActions||{};
+    log.playerActions[p.index]=clone(game.pendingHumanDecision||{action:attemptedAction});
+    if(p.index===game.humanIndex)log.humanAction=clone(game.pendingHumanDecision||{action:attemptedAction});
+  }
+  game.pendingHumanDecision=null;game.pendingChoice=null;
+  game.currentActionIndex++;
+  if(game.currentActionIndex<2)game.phase="human_action";
+  else game.phase="end_round";
+  return result;
+}
+function performHumanCultivate(game,decision,index=activePlayerIndex(game)){
+  const p=game.players[index],opp=game.players[opponentIndex(index)],pay=validatePaymentChoice(game,p,decision.paymentCounts);
+  if(!pay)throw new Error("That Cultivate payment is not legal.");
+  const e=currentEnv(game),beforePop=p.population,beforeStress=p.stress;removePayment(game,p,pay);
+  recordPopulation(game,p,growth(p),"cultivate","base_growth","Cultivate base Growth");
+  if(powderLeanExact(p,pay)){recordPopulation(game,p,2,"behavior","powder_exact","Efficient Feeding");p.behavior.powderExact++}
+  if(p.species==="ducky"&&game.round>1&&p.lastCultivatedRound!==game.round-1){recordPopulation(game,p,3,"behavior","patient_brood","Patient Brood");p.behavior.patientBrood++}
+  if(e==="breeding_boom"&&growth(p)<=2&&(game.round===1||p.lastCultivatedRound!==game.round-1)){recordPopulation(game,p,2,"environment","breeding_boom","Breeding Boom");p.env.breeding_boom++}
+  if(e==="breeding_window"&&pay.oneCard){recordPopulation(game,p,2,"environment","breeding_window","Breeding Window");p.env.breeding_window++}
+  if(e==="balanced_feeding"&&balancedFeedingPayment(pay)){recordPopulation(game,p,2,"environment","balanced_feeding","Balanced Feeding");p.env.balanced_feeding++}
+  if(e==="feeding_frenzy"&&pay.cards>=3){recordPopulation(game,p,1,"environment","feeding_frenzy","Feeding Frenzy");p.env.feeding_frenzy++}
+  if(e==="claimed_cache"&&p.successfulScavengePrev){recordPopulation(game,p,1,"environment","claimed_cache","Claimed Cache");p.env.claimed_cache++}
+  game.firstCultivateResolved=true;
+  const burst=decision.cowDiscard||{count:0,value:null};
+  if(p.species==="dairy"&&!p.cowBurstUsed&&burst.count>0){
+    const count=Math.min(3,Number(burst.count)),value=Number(burst.value),available=p.stash.filter(v=>v===value).length;
+    if(![2,3,4].includes(value)||count<1||count>available)throw new Error("That Voracious Brood discard is not legal.");
+    for(let i=0;i<count;i++){const idx=p.stash.indexOf(value);discardFood(game,p,idx)}
+    recordPopulation(game,p,count,"behavior","voracious_brood","Voracious Brood");p.behavior.cowFoodConverted+=count;p.behavior.cowBurstActivations+=1;p.cowBurstUsed=true;
+  }
+  if(e==="overturned_hide"){recordStress(game,p,1,"environment","overturned_hide","Overturned Hide");p.env.overturned_hide++}
+  p.lastCultivatedRound=game.round;p.actions.Cultivate++;
+  game.pendingHumanDecision={action:"Cultivate",paymentCounts:clone(pay.counts),cowDiscard:clone(burst)};
+  return finishInteractiveAction(game,p,{action:"Cultivate",popGain:p.population-beforePop,stressDelta:p.stress-beforeStress,payment:pay},"Cultivate");
+}
+function beginHumanForage(game,index=activePlayerIndex(game)){
+  if(game.phase!=="human_action"||game.currentOrder[game.currentActionIndex]!==index)throw new Error("It is not this player's action.");
+  const p=game.players[index],e=currentEnv(game);let draw=2,keep=1;
+  if(e==="withered_forage")draw=Math.max(1,draw-1);
+  if(e==="last_scraps"&&growth(p)>=3)draw=Math.max(1,draw-1);
+  if(e==="abundant_forage")keep+=1;
+  const drawn=drawMany(game,draw);keep=Math.min(keep,drawn.length);
+  game.pendingChoice={type:"forage_keep",drawn,keep,playerIndex:index};game.phase="human_forage_choice";
+  return clone(game.pendingChoice);
+}
+function completeHumanForage(game,keptIndices){
+  if(game.phase!=="human_forage_choice"||game.pendingChoice?.type!=="forage_keep")throw new Error("No Forage choice is pending.");
+  const index=game.pendingChoice.playerIndex??activePlayerIndex(game),p=game.players[index],e=currentEnv(game),beforePop=p.population,beforeStress=p.stress,{drawn,keep}=game.pendingChoice;
+  const unique=[...new Set((keptIndices||[]).map(Number))];if(unique.length!==keep||unique.some(i=>i<0||i>=drawn.length))throw new Error(`Choose exactly ${keep} Food card(s).`);
+  const kept=unique.map(i=>drawn[i]),remain=drawn.filter((_,i)=>!unique.includes(i));addFood(p,kept);game.discard.push(...remain);
+  if(e==="withered_forage")p.env.withered_forage++;
+  if(e==="last_scraps"&&growth(p)>=3)p.env.last_scraps++;
+  if(e==="abundant_forage")p.env.abundant_forage++;
+  if(e==="irritant_bloom"){recordStress(game,p,1,"environment","irritant_bloom","Irritant Bloom");p.env.irritant_bloom++}
+  p.actions.Forage++;game.pendingHumanDecision={action:"Forage",keptValues:[...kept]};
+  return finishInteractiveAction(game,p,{action:"Forage",popGain:p.population-beforePop,stressDelta:p.stress-beforeStress,drawn:[...drawn],kept:[...kept]},"Forage");
+}
+function performHumanAction(game,decision){
+  const index=activePlayerIndex(game);
+  if(game.phase!=="human_action"||game.currentOrder[game.currentActionIndex]!==index)throw new Error("It is not this player's action.");
+  const action=decision?.action,availability=playerActionAvailability(game,index);if(!availability[action]?.available)throw new Error(`${action} is not available: ${availability[action]?.reason||"illegal action"}`);
+  if(action==="Forage")return beginHumanForage(game);
+  if(action==="Cultivate")return performHumanCultivate(game,decision,index);
+  const p=game.players[index],opp=game.players[opponentIndex(index)];let result;
+  if(action==="Adapt")result=performAdapt(game,p);
+  else if(action==="Scavenge")result=performScavenge(game,p,opp);
+  else if(action==="Secure")result=performSecure(game,p,opp);
+  else throw new Error("Unknown human action.");
+  game.pendingHumanDecision={action};return finishInteractiveAction(game,p,result,action);
+}
+function performBotTurn(game){
+  if(game.phase!=="bot_action"||game.currentOrder[game.currentActionIndex]!==game.botIndex)throw new Error("It is not the bot's action.");
+  const p=game.players[game.botIndex],result=performAction(game,p);game.currentActions.push({player:p.index,...result});game.currentActionIndex++;
+  if(game.currentActionIndex<2){const next=game.currentOrder[game.currentActionIndex];game.phase=next===game.humanIndex?"human_action":"bot_action"}
+  else game.phase="end_round";
+  game.lastMessage=`${SPECIES[p.species].name} chose ${result.attemptedAction||result.action}${result.action!==result.attemptedAction?` and resolved ${result.action}`:""}.`;
+  return clone(result);
+}
+function nextRottingDiscardPlayer(game){
+  if(currentEnv(game)!=="rotting_cache")return null;
+  const chosen=game.pendingRottingDiscards||{};
+  return game.players.find(p=>p.stash.length>=4&&chosen[p.index]===undefined)||null;
+}
+function humanRottingDiscardOptions(game,index=null){
+  const p=index===null?nextRottingDiscardPlayer(game):game.players[index];if(!p||currentEnv(game)!=="rotting_cache"||p.stash.length<4)return[];
+  return p.stash.map((value,index)=>({index,value}));
+}
+function applyInteractiveEndRound(game){
+  const e=currentEnv(game),events=[];
+  if(e==="ant_invasion"){
+    const a=game.players[0],b=game.players[1];
+    if(a.stash.length!==b.stash.length){const p=a.stash.length>b.stash.length?a:b;if(p.stash.length){const highest=Math.max(...p.stash),idx=p.stash.indexOf(highest);discardFood(game,p,idx);p.env.ant_invasion++;events.push(`${SPECIES[p.species].name} lost value-${highest}`)}}
+  }
+  if(e==="rotting_cache")for(const p of game.players)if(p.stash.length>=4){
+    const idx=Number(game.pendingRottingDiscards?.[p.index]);if(!Number.isInteger(idx)||idx<0||idx>=p.stash.length)throw new Error(`${playerLabel(game,p.index)} must choose one Food card to discard for Rotting Cache.`);
+    const v=discardFood(game,p,idx);p.env.rotting_cache++;events.push(`${SPECIES[p.species].name} discarded value-${v}`)
+  }
+  const [a,b]=game.players,sameAction=a.actionThisRound&&a.actionThisRound===b.actionThisRound;
+  if(e==="open_feeding_ground"&&a.actionThisRound==="Forage"&&b.actionThisRound==="Forage"){
+    const second=game.players[game.firstActorThisRound===0?1:0],v=drawOne(game);if(v!==null)addFood(second,[v]);second.env.open_feeding_ground+=1;events.push(`${SPECIES[second.species].name} drew Food after following the shared Forage`)
+  }
+  if(sameAction){
+    for(const p of game.players)if(p.species==="clown"&&p.index!==game.firstActorThisRound&&p.behavior.clownMatches===0&&p.actionThisRound!=="Cultivate"){
+      recordPopulation(game,p,2,"behavior","stand_your_ground","Stand Your Ground");p.behavior.clownMatches+=1;p.behavior.clownPopulation+=2;events.push(`${SPECIES[p.species].name} stood its ground after matching a non-Cultivate action`)
+    }
+    if(e==="follow_the_trail")for(const p of game.players){const removed=removeStress(game,p,1,"follow_the_trail");if(removed>0)p.env.follow_the_trail+=1}
+  }
+  return events;
+}
+function completePlayerRound(game,humanDiscardIndex=null){
+  if(game.phase!=="end_round")throw new Error("The round is not ready to end.");
+  game.pendingRottingDiscards=game.pendingRottingDiscards||{};
+  const neededPlayer=nextRottingDiscardPlayer(game);if(neededPlayer){game.phase="human_rotting_choice";game.pendingChoice={type:"rotting_discard",playerIndex:neededPlayer.index,options:humanRottingDiscardOptions(game,neededPlayer.index)};return playerGameSnapshot(game)}
+  game.phase="end_round";const endEvents=applyInteractiveEndRound(game);
+  const before=game.currentBefore;
+  game.roundRecords.push({
+    round:game.round,environment:currentEnv(game),priorityHolder:game.priorityHolder,firstActor:game.firstActorThisRound,draws:clone(game.currentDraws),actions:clone(game.currentActions),endEvents,
+    startPlayers:before.map((x,i)=>({species:game.players[i].species,population:x.pop,stress:x.stress,stashValue:x.stashValue,stashCards:x.stashCards,stash:[...x.stash]})),
+    players:game.players.map((p,i)=>{const action=game.currentActions.find(a=>a.player===i)||{};return{species:p.species,population:p.population,stress:p.stress,stashValue:foodValue(p.stash),stashCards:p.stash.length,stash:[...p.stash],popGain:p.population-before[i].pop,stressDelta:p.stress-before[i].stress,action:action.action||"",attemptedAction:action.attemptedAction||action.action||"",stolen:action.stolen??null}})
+  });
+  game.priorityHolder=game.priorityHolder===0?1:0;game.round++;game.pendingChoice=null;game.pendingRottingDiscards=null;
+  if(game.round>6)return finishPlayerGame(game);
+  game.phase="between_rounds";game.lastMessage=`Round ${game.round-1} complete.`;return playerGameSnapshot(game);
+}
+function resolveHumanRottingDiscard(game,index){
+  if(game.phase!=="human_rotting_choice")throw new Error("No Rotting Cache choice is pending.");
+  const playerIndex=game.pendingChoice?.playerIndex??game.humanIndex;
+  game.pendingRottingDiscards=game.pendingRottingDiscards||{};
+  game.pendingRottingDiscards[playerIndex]=index;
+  const log=game.decisionLog[game.decisionLog.length-1];
+  if(log){
+    log.rottingDiscards=log.rottingDiscards||{};
+    log.rottingDiscards[playerIndex]=game.players[playerIndex].stash[index];
+    if(playerIndex===game.humanIndex)log.humanRottingDiscardValue=game.players[playerIndex].stash[index];
+  }
+  game.phase="end_round";return completePlayerRound(game);
+}
+function finishPlayerGame(game){
+  if(game.result)return game.result;
+  const scores=game.players.map(p=>finalScore(p,game.unstableMode)),winner=scores[0]===scores[1]?-1:(scores[0]>scores[1]?0:1);
+  const replayConfig={seed:game.seedInput,deck:[...game.initialDeck],forecast:[...game.forecast],openingPriority:game.openingPriority,humanSpecies:game.players[game.humanIndex].species,botSpecies:game.players[game.botIndex].species,unstableMode:game.unstableMode,aiStyle:game.aiStyle,decisionLog:clone(game.decisionLog)};
+  const result={players:game.players,scores,winner,openingPriority:game.openingPriority,forecast:[...game.forecast],roundRecords:game.roundRecords,audit:game.audit,unstableMode:game.unstableMode,initialDeck:[...game.initialDeck],initialDeckSignature:game.initialDeck.join("-"),replayConfig,decisionLog:clone(game.decisionLog),engine:{name:ENGINE_NAME,version:ENGINE_VERSION},botPolicy:{style:game.aiStyle,label:botPolicyLabel(game.aiStyle),version:BOT_POLICY_VERSION}};
+  result.gameId=`PB-PLAYER-${hashString(JSON.stringify(replayConfig)).toString(16).padStart(8,"0")}`;result.scoreBreakdowns=game.players.map((p,i)=>buildScoreBreakdown(game,p,i,scores[i]));result.integrity=validateCompletedGame(result);result.valid=result.integrity.valid;result.suspiciousWarnings=result.integrity.warnings;result.humanIndex=game.humanIndex;result.botIndex=game.botIndex;
+  game.phase="finished";game.result=result;game.lastMessage="Game complete.";return result;
+}
+function replayPlayerGame(original){
+  const cfg=original.replayConfig||original,game=createPlayerGame({seed:cfg.seed,deck:cfg.deck,forecast:cfg.forecast,openingPriority:cfg.openingPriority,humanSpecies:cfg.humanSpecies,botSpecies:cfg.botSpecies,unstableMode:cfg.unstableMode,aiStyle:cfg.aiStyle});
+  for(const roundLog of cfg.decisionLog){
+    beginPlayerRound(game);
+    if(game.phase==="priority_choice")setPlayerActionOrder(game,roundLog.firstActor,true);
+    else if(game.firstActorThisRound!==roundLog.firstActor)throw new Error(`Replay order mismatch in Round ${roundLog.round}.`);
+    while(game.phase==="human_action"||game.phase==="bot_action"||game.phase==="human_forage_choice"){
+      if(game.phase==="bot_action")performBotTurn(game);
+      else if(game.phase==="human_action"){
+        const actor=activePlayerIndex(game),d=roundLog.playerActions?.[actor]||(actor===game.humanIndex?roundLog.humanAction:null);if(!d)throw new Error(`Missing ${playerLabel(game,actor)} action in Round ${roundLog.round}.`);
+        if(d.action==="Forage"){beginHumanForage(game);const drawn=game.pendingChoice.drawn,indices=[];for(const v of d.keptValues){const idx=drawn.findIndex((x,i)=>x===v&&!indices.includes(i));if(idx<0)throw new Error(`Replay Forage keep mismatch in Round ${roundLog.round}.`);indices.push(idx)}completeHumanForage(game,indices)}
+        else performHumanAction(game,d);
+      }
+    }
+    if(game.phase==="end_round")completePlayerRound(game);
+    while(game.phase==="human_rotting_choice"){
+      const actor=game.pendingChoice?.playerIndex??game.humanIndex,value=roundLog.rottingDiscards?.[actor]??(actor===game.humanIndex?roundLog.humanRottingDiscardValue:null);
+      const idx=game.players[actor].stash.indexOf(value);if(idx<0)throw new Error(`Replay Rotting Cache discard mismatch in Round ${roundLog.round}.`);
+      resolveHumanRottingDiscard(game,idx);
+    }
+  }
+  return game.result||finishPlayerGame(game);
+}
+function verifyPlayerReplay(original,replayed=replayPlayerGame(original)){
+  const errors=[];
+  if(JSON.stringify(original.scores)!==JSON.stringify(replayed.scores))errors.push("Final scores changed.");
+  const actions=x=>x.roundRecords.map(r=>r.actions.map(a=>`${a.player}:${a.attemptedAction||a.action}>${a.action}`).join("|")).join(";");
+  if(actions(original)!==actions(replayed))errors.push("Action sequence changed.");
+  if(JSON.stringify(original.forecast)!==JSON.stringify(replayed.forecast))errors.push("Forecast changed.");
+  if(JSON.stringify(original.initialDeck)!==JSON.stringify(replayed.initialDeck))errors.push("Initial Food deck changed.");
+  if(original.openingPriority!==replayed.openingPriority)errors.push("Opening Priority changed.");
+  return{matched:errors.length===0,errors,replayed};
+}
+
+const API={SPECIES,ENV,TRACKS,ACTIONS,AI_STYLES,SPECIES_KEYS,ENV_KEYS,ENGINE_NAME,ENGINE_VERSION,BOT_POLICY_VERSION,BOT_POLICY_LABELS,botPolicyLabel,hashString,rngFrom,shuffle,average,median,foodValue,finalScore,simulateGame,simulateMirrorPair,replayGame,verifyReplay,compactAuditGame,runEngineHealthCheck,createAccumulator,addGame,addMirrorOutcome,finalizeAccumulator,speciesRanking,matchupJobs,allPermutations,createPlayerGame,playerGameSnapshot,beginPlayerRound,setPlayerActionOrder,playerActionAvailability,playerPaymentOptions,playerCowBurstOptions,performHumanAction,beginHumanForage,completeHumanForage,performBotTurn,humanRottingDiscardOptions,completePlayerRound,resolveHumanRottingDiscard,finishPlayerGame,replayPlayerGame,verifyPlayerReplay};
+if(typeof module!=="undefined"&&module.exports)module.exports=API;
+if(typeof window!=="undefined")window.PodBoundCore=API;
+</script>
+<script>
+window.PODBOUND_SUPABASE = window.PODBOUND_SUPABASE || {
+  url: "",
+  anonKey: ""
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>(()=>{
+"use strict";
+const C=window.PodBoundCore;
+const {SPECIES,ENV,TRACKS,ACTIONS,AI_STYLES,SPECIES_KEYS,ENV_KEYS,ENGINE_NAME,ENGINE_VERSION,botPolicyLabel,hashString,rngFrom,shuffle,finalScore}=C;
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let game=null, result=null, selectedPayment=null;
+let playtest=freshPlaytestState();
+let online={
+  enabled:false,client:null,roomCode:"",playerIndex:null,playerToken:"",
+  revision:0,channel:null,saveTimer:null,applyingRemote:false
+};
+function freshPlaytestState(){
+  return{
+    testName:"",tester:"",
+    roundFeedback:Array.from({length:6},()=>({feel:"",note:""})),
+    generalNotes:"",
+    overallFeel:"",speciesMeaningful:"",forecastMeaningful:"",rulesClarity:"",
+    highlight:"",confusion:""
+  };
+}
+function cloneData(value){return JSON.parse(JSON.stringify(value))}
+function activeRoundNoteIndex(){
+  if(!game)return 0;
+  if(game.phase==="between_rounds")return Math.max(0,Math.min(5,game.round-2));
+  return Math.max(0,Math.min(5,game.round-1));
+}
+function downloadJson(data,name){
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+const RANDOM_GROUPS={
+  opportunity:["abundant_forage","balanced_feeding","breeding_boom","breeding_window","feeding_frenzy","fresh_food_drop","nutrient_rich","recovery_surge","stable_microclimate"],
+  pressure:["withered_forage","ant_invasion","fresh_leaf_flush","growing_brood","irritant_bloom","last_scraps","overturned_hide","rotting_cache","sudden_dry_patch"],
+  interaction:["claimed_cache","exposed_cache","open_feeding_ground","rich_pickings","room_to_expand","sheltered_cache","sheltered_refuge","undisturbed_brood","narrow_passage","follow_the_trail"]
+};
+const actionCopy={
+  Cultivate:"Pay your current Consumption in Food, then gain Population equal to Growth.",
+  Forage:"Draw 2 Food and keep 1. Environment cards may change the draw or keep amount.",
+  Adapt:"Remove 1 Stress. Stable Microclimate can remove one additional Stress.",
+  Scavenge:"Take Food from the opponent and give them 1 Stress. Secure blocks this action.",
+  Secure:"Protect your Stash from Scavenge for the rest of this round."
+};
+function playerName(index){return game?.playerLabels?.[index]||`Player ${Number(index)+1}`}
+function esc(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch]))}
+function seedRng(seed,label){return rngFrom(hashString(`${seed}|${label}`))}
+function randomToken(){return Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,"0")).join("")}
+function randomRoomCode(){const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";const bytes=crypto.getRandomValues(new Uint8Array(6));return Array.from(bytes,b=>alphabet[b%alphabet.length]).join("")}
+function onlineConfig(){
+  const cfg=window.PODBOUND_SUPABASE||{};
+  return{url:String(cfg.url||"").trim(),anonKey:String(cfg.anonKey||"").trim()};
+}
+function setOnlineStatus(message,type=""){
+  const el=$("#onlineStatus");if(!el)return;
+  el.className=`online-status ${type}`.trim();el.innerHTML=message;
+}
+function getOnlineClient(){
+  if(online.client)return online.client;
+  const cfg=onlineConfig();
+  if(!cfg.url||!cfg.anonKey)throw new Error("Missing Supabase public URL/anon key for online rooms.");
+  if(!window.supabase?.createClient)throw new Error("Supabase browser client did not load.");
+  online.client=window.supabase.createClient(cfg.url,cfg.anonKey);
+  return online.client;
+}
+function serializeOnlineState(){
+  return{version:1,updatedAt:new Date().toISOString(),playerLabels:["Player 1","Player 2"],game:cloneData(game),result:cloneData(result),playtest:cloneData(playtest)};
+}
+function applyOnlineState(state,revision){
+  online.applyingRemote=true;
+  try{
+    if(state?.game){game=state.game;game.playerLabels=state.playerLabels||["Player 1","Player 2"]}
+    result=state?.result||game?.result||null;
+    playtest=state?.playtest||freshPlaytestState();
+    online.revision=Number(revision||0);
+    if(game){
+      document.body.classList.toggle("result-active",game.phase==="finished");
+      document.body.classList.toggle("game-active",game.phase!=="finished");
+      $("#setupScreen").classList.add("hidden");
+      $("#gameScreen").classList.toggle("hidden",game.phase==="finished");
+      $("#resultScreen").classList.toggle("hidden",game.phase!=="finished");
+      if(game.phase==="finished"){result=game.result||result;renderResult()}else renderGame();
+    }
+  }finally{online.applyingRemote=false}
+}
+function onlineCanControl(){
+  if(!online.enabled||!game)return true;
+  if(game.phase==="priority_choice")return game.priorityHolder===online.playerIndex;
+  if(game.phase==="human_action")return activePlayerIndex(game)===online.playerIndex;
+  if(game.phase==="human_forage_choice")return (game.pendingChoice?.playerIndex??activePlayerIndex(game))===online.playerIndex;
+  if(game.phase==="human_rotting_choice")return (game.pendingChoice?.playerIndex??game.humanIndex)===online.playerIndex;
+  return true;
+}
+function onlineWaitingText(){
+  if(!game)return "Waiting for the room.";
+  if(game.phase==="priority_choice")return `Waiting for ${playerName(game.priorityHolder)} to choose action order.`;
+  if(game.phase==="human_action")return `Waiting for ${playerName(activePlayerIndex(game))} to choose an action.`;
+  if(game.phase==="human_forage_choice")return `Waiting for ${playerName(game.pendingChoice?.playerIndex??activePlayerIndex(game))} to choose Food.`;
+  if(game.phase==="human_rotting_choice")return `Waiting for ${playerName(game.pendingChoice?.playerIndex??game.humanIndex)} to discard for Rotting Cache.`;
+  return "Waiting for the other device.";
+}
+async function saveOnlineStateNow(){
+  if(!online.enabled||online.applyingRemote||!game)return;
+  const client=getOnlineClient(),nextRevision=online.revision+1;
+  const payload={room_state:serializeOnlineState(),revision:nextRevision,updated_at:new Date().toISOString()};
+  const {data,error}=await client.from("podbound_rooms").update(payload).eq("room_code",online.roomCode).eq("revision",online.revision).select("revision").single();
+  if(error){
+    setOnlineStatus(`Room sync conflict. Pulling latest state...`,"bad");
+    const latest=await client.from("podbound_rooms").select("room_state,revision").eq("room_code",online.roomCode).single();
+    if(!latest.error)applyOnlineState(latest.data.room_state,latest.data.revision);
+    return;
+  }
+  online.revision=data.revision;
+  setOnlineStatus(`Connected as ${playerName(online.playerIndex)} · room <span class="room-code-pill">${esc(online.roomCode)}</span>`,"good");
+}
+function queueOnlineSave(){
+  if(!online.enabled||online.applyingRemote||!game)return;
+  clearTimeout(online.saveTimer);
+  online.saveTimer=setTimeout(()=>saveOnlineStateNow().catch(e=>setOnlineStatus(esc(e.message),"bad")),120);
+}
+function subscribeOnlineRoom(){
+  if(online.channel)online.client.removeChannel(online.channel);
+  online.channel=online.client.channel(`podbound-room-${online.roomCode}`)
+    .on("postgres_changes",{event:"UPDATE",schema:"public",table:"podbound_rooms",filter:`room_code=eq.${online.roomCode}`},payload=>{
+      if(Number(payload.new.revision)>online.revision)applyOnlineState(payload.new.room_state,payload.new.revision);
+    })
+    .subscribe();
+}
+async function createOnlineRoom(){
+  try{
+    const client=getOnlineClient(),roomCode=randomRoomCode(),token=randomToken();
+    const seed=$("#seed").value.trim()||"PODBOUND-PLAYER-V41",humanSpecies=$("#humanSpecies").value;
+    let botSpecies=$("#botSpecies").value;if(botSpecies==="random")botSpecies=shuffle(SPECIES_KEYS.filter(k=>k!==humanSpecies),seedRng(seed,"bot-species"))[0];
+    const previousIdentity={testName:$("#testName").value.trim(),tester:$("#testerName").value.trim()};
+    playtest=freshPlaytestState();playtest.testName=previousIdentity.testName;playtest.tester=previousIdentity.tester;
+    game=C.createPlayerGame({humanSpecies,botSpecies,forecast:setupForecast(),seed,openingPriority:$("#openingPriority").value,aiStyle:"balanced",unstableMode:$("#unstableMode").value});
+    game.playerLabels=["Player 1","Player 2"];result=null;selectedPayment=null;C.beginPlayerRound(game);
+    const row={room_code:roomCode,room_state:serializeOnlineState(),host_token:token,revision:0};
+    const {error}=await client.from("podbound_rooms").insert(row);
+    if(error)throw error;
+    online={...online,enabled:true,client,roomCode,playerIndex:0,playerToken:token,revision:0,applyingRemote:false};
+    subscribeOnlineRoom();
+    setOnlineStatus(`Connected as Player 1 · share room <span class="room-code-pill">${esc(roomCode)}</span>`,"good");
+    document.body.classList.add("game-active");document.body.classList.remove("result-active");setMobileGameTab("play",false);
+    $("#setupScreen").classList.add("hidden");$("#gameScreen").classList.remove("hidden");$("#resultScreen").classList.add("hidden");renderGame();
+  }catch(e){setOnlineStatus(esc(e.message||e),"bad")}
+}
+async function joinOnlineRoom(){
+  try{
+    const client=getOnlineClient(),roomCode=$("#joinRoomCode").value.trim().toUpperCase();
+    if(!roomCode)throw new Error("Enter a room code.");
+    const {data,error}=await client.from("podbound_rooms").select("room_state,revision").eq("room_code",roomCode).single();
+    if(error||!data)throw new Error("Room not found.");
+    online={...online,enabled:true,client,roomCode,playerIndex:1,playerToken:randomToken(),revision:Number(data.revision||0),applyingRemote:false};
+    await client.from("podbound_rooms").update({guest_token:online.playerToken,updated_at:new Date().toISOString()}).eq("room_code",roomCode);
+    subscribeOnlineRoom();
+    setOnlineStatus(`Connected as Player 2 · room <span class="room-code-pill">${esc(roomCode)}</span>`,"good");
+    applyOnlineState(data.room_state,data.revision);
+  }catch(e){setOnlineStatus(esc(e.message||e),"bad")}
+}
+function speciesOption(k){return `<option value="${k}">${esc(SPECIES[k].name)} · ${SPECIES[k].stats.join(" / ")}</option>`}
+function environmentOption(k){return `<option value="${k}">${esc(ENV[k].name)}</option>`}
+function currentPenalty(p){if(!game||game.unstableMode==="off")return 0;const stability=SPECIES[p.species].stats[2];return game.unstableMode==="gt"?(p.stress>stability?2:0):(p.stress>=stability?2:0)}
+function projectedScore(p){return p.population-p.stress-currentPenalty(p)}
+function foodCards(stash,compact=false){return stash.length?stash.map(v=>`<span class="food-card food-${v} ${compact?"compact":""}">${v}</span>`).join(""):`<span class="empty-stash">Empty</span>`}
+function generateForecast(mode,seed){
+  const rng=seedRng(seed,"forecast");
+  if(mode==="pure")return shuffle(ENV_KEYS,rng).slice(0,6);
+  if(mode==="balanced"){
+    const cards=[];for(const group of Object.values(RANDOM_GROUPS))cards.push(...shuffle(group,rng).slice(0,2));return shuffle(cards,rng);
+  }
+  return null;
+}
+function setMobileSetupTab(tab){
+  const screen=$("#setupScreen");if(!screen)return;
+  screen.dataset.mobileTab=tab;
+  $$('[data-setup-tab]').forEach(btn=>{const active=btn.dataset.setupTab===tab;btn.classList.toggle("active",active);btn.setAttribute("aria-selected",active?"true":"false")});
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function setMobileGameTab(tab,scroll=true){
+  const screen=$("#gameScreen");if(!screen)return;
+  screen.dataset.mobileTab=tab;
+  $$('[data-game-tab]').forEach(btn=>{const active=btn.dataset.gameTab===tab;btn.classList.toggle("active",active);btn.setAttribute("aria-selected",active?"true":"false")});
+  if(scroll)window.scrollTo({top:0,behavior:"smooth"});
+}
+function wireMobileNavigation(){
+  $$('[data-setup-tab]').forEach(btn=>btn.onclick=()=>setMobileSetupTab(btn.dataset.setupTab));
+  $$('[data-game-tab]').forEach(btn=>btn.onclick=()=>setMobileGameTab(btn.dataset.gameTab));
+  const advanced=$("#advancedSettings");if(advanced&&window.matchMedia("(max-width:760px)").matches)advanced.open=false;
+}
+function renderMobileStatus(human,bot){
+  const host=$("#mobileStatusBar");if(!host||!game)return;
+  const env=ENV[currentEnv(game)];
+  host.innerHTML=`<div class="mobile-status-card"><b>Player 1 · ${projectedScore(human)} score</b><span>Pop ${human.population} · Stress ${human.stress} · Food ${human.stash.length}${human.stash.length?` [${human.stash.join(",")}]`:""}</span></div><div class="mobile-status-card"><b>Player 2 · ${projectedScore(bot)} score</b><span>Pop ${bot.population} · Stress ${bot.stress} · Food ${bot.stash.length}${bot.stash.length?` [${bot.stash.join(",")}]`:""}</span></div><div class="mobile-env-line">Round ${game.round}: ${esc(env.name)} · ${esc(env.effect)}</div>`;
+}
+
+function init(){
+  $("#humanSpecies").innerHTML=SPECIES_KEYS.map(speciesOption).join("");
+  $("#botSpecies").innerHTML='<option value="random">Random Species</option>'+SPECIES_KEYS.map(speciesOption).join("");
+  $("#trackSelect").innerHTML=Object.entries(TRACKS).map(([k,t])=>`<option value="${k}">${esc(t.name)}</option>`).join("");
+  if($("#botPolicy"))$("#botPolicy").innerHTML=Object.entries(AI_STYLES).map(([k,v])=>`<option value="${k}">${esc(v.name)} Bot Policy V41</option>`).join("");
+  const envOpts=ENV_KEYS.map(environmentOption).join("");
+  $$(".custom-env").forEach((s,i)=>{s.innerHTML=envOpts;s.value=TRACKS.ducky.cards[i]});
+  $("#humanSpecies").value="ducky";$("#botSpecies").value="random";$("#trackSelect").value="ducky";if($("#botPolicy"))$("#botPolicy").value="balanced";
+  $("#testName").value=playtest.testName;$("#testerName").value=playtest.tester;
+  $("#testName").oninput=e=>playtest.testName=e.target.value;$("#testerName").oninput=e=>playtest.tester=e.target.value;
+  $("#forecastMode").onchange=syncForecastSetup;$("#trackSelect").onchange=renderSetupPreview;$("#humanSpecies").onchange=()=>{if($("#forecastMode").value==="official"){$("#trackSelect").value=$("#humanSpecies").value}renderSetupPreview();renderSpeciesFeedingNote()};
+  $$(".custom-env").forEach(s=>s.onchange=renderSetupPreview);$("#seed").oninput=renderSetupPreview;
+  $("#startGame").onclick=startGame;$("#createOnlineRoom").onclick=createOnlineRoom;$("#joinOnlineRoom").onclick=joinOnlineRoom;$("#joinRoomCode").oninput=e=>e.target.value=e.target.value.toUpperCase();
+  $("#newGame").onclick=resetToSetup;$("#rulesToggle").onclick=()=>$("#rulesPanel").classList.toggle("hidden");
+  $("#gameRulesToggle").onclick=()=>$("#rulesPanel").classList.toggle("hidden");wireMobileNavigation();
+  const health=C.runEngineHealthCheck("PLAYER-ARENA-HEALTH");
+  $("#healthBadge").className=`health-badge ${health.passed?"pass":"fail"}`;$("#healthBadge").textContent=health.passed?`Engine verified · ${health.actionsChecked} actions checked`:`Engine check failed`;
+  $("#healthDetail").textContent=health.passed?`${health.engine} · ${health.botPolicy} · exact replay matched`:health.errors.join(" · ");
+  const cfg=onlineConfig();
+  setOnlineStatus(cfg.url&&cfg.anonKey?"Supabase configured. Create or join a room when ready.":"Supabase config missing. Add your public URL and anon key to window.PODBOUND_SUPABASE.","");
+  syncForecastSetup();renderSetupPreview();renderSpeciesFeedingNote();
+}
+function syncForecastSetup(){
+  const mode=$("#forecastMode").value;$("#officialRow").classList.toggle("hidden",mode!=="official");$("#customBuilder").classList.toggle("hidden",mode!=="custom");renderSetupPreview();
+}
+
+function renderSpeciesFeedingNote(){
+  const note=$("#speciesFeedingNote"),key=$("#humanSpecies").value;
+  if(!note)return;
+  if(key==="dairy"){
+    note.classList.remove("hidden");
+    note.innerHTML="<b>Dairy Cow feeding note:</b> Its base Cultivate cost is 8 Food value. It normally needs multiple Food cards before Cultivate becomes legal.";
+  }else note.classList.add("hidden");
+}
+function setupForecast(){
+  const mode=$("#forecastMode").value,seed=$("#seed").value.trim()||"PODBOUND-PLAYER-V41";
+  if(mode==="official")return [...TRACKS[$("#trackSelect").value].cards];
+  if(mode==="custom"){
+    const cards=$$(".custom-env").map(s=>s.value);if(new Set(cards).size!==6)throw new Error("Custom Forecasts must use six different Environment cards.");return cards;
+  }
+  return generateForecast(mode,seed);
+}
+function renderSetupPreview(){
+  try{const forecast=setupForecast();$("#setupForecastPreview").innerHTML=forecast.map((k,i)=>`<article class="forecast-card"><span>Round ${i+1}</span><b>${esc(ENV[k].name)}</b><small>${esc(ENV[k].effect)}</small></article>`).join("")}
+  catch(e){$("#setupForecastPreview").innerHTML=`<div class="notice bad">${esc(e.message)}</div>`}
+}
+function startGame(){
+  try{
+    const seed=$("#seed").value.trim()||"PODBOUND-PLAYER-V41",humanSpecies=$("#humanSpecies").value;
+    let botSpecies=$("#botSpecies").value;if(botSpecies==="random")botSpecies=shuffle(SPECIES_KEYS.filter(k=>k!==humanSpecies),seedRng(seed,"bot-species"))[0];
+    const previousIdentity={testName:$("#testName").value.trim(),tester:$("#testerName").value.trim()};
+    playtest=freshPlaytestState();playtest.testName=previousIdentity.testName;playtest.tester=previousIdentity.tester;
+    game=C.createPlayerGame({humanSpecies,botSpecies,forecast:setupForecast(),seed,openingPriority:$("#openingPriority").value,aiStyle:$("#botPolicy")?.value||"balanced",unstableMode:$("#unstableMode").value});
+    result=null;selectedPayment=null;document.body.classList.add("game-active");document.body.classList.remove("result-active");setMobileGameTab("play",false);$("#setupScreen").classList.add("hidden");$("#gameScreen").classList.remove("hidden");$("#resultScreen").classList.add("hidden");
+    C.beginPlayerRound(game);renderGame();
+  }catch(e){showSetupError(e.message)}
+}
+function showSetupError(msg){$("#setupError").textContent=msg;$("#setupError").classList.remove("hidden")}
+function resetToSetup(){
+  hideBotActionPopup();
+  if(online.channel&&online.client)online.client.removeChannel(online.channel);
+  online={...online,enabled:false,roomCode:"",playerIndex:null,playerToken:"",revision:0,channel:null,applyingRemote:false};
+  document.body.classList.remove("game-active","result-active");setMobileSetupTab("options");$("#setupError").classList.add("hidden");$("#setupScreen").classList.remove("hidden");$("#gameScreen").classList.add("hidden");$("#resultScreen").classList.add("hidden");game=null;result=null;renderSetupPreview();
+  const cfg=onlineConfig();setOnlineStatus(cfg.url&&cfg.anonKey?"Supabase configured. Create or join a room when ready.":"Supabase config missing. Add your public URL and anon key to window.PODBOUND_SUPABASE.","");
+}
+function renderGame(){
+  if(!game)return;if(game.phase==="finished"){result=game.result;renderResult();return}
+  const human=game.players[game.humanIndex],bot=game.players[game.botIndex];
+  $("#gameMeta").innerHTML=`<span>${esc(game.gameId||"Live two-player game")}</span><span>Local two-player</span><span>Seed: ${esc(game.seedInput)}</span>`;
+  $("#roundTitle").textContent=`Round ${game.round} of 6`;
+  $("#phaseLabel").textContent=phaseText();
+  $("#forecastTrack").innerHTML=game.forecast.map((k,i)=>`<article class="forecast-card ${i===game.round-1?"current":i<game.round-1?"past":""}"><span>Round ${i+1}</span><b>${esc(ENV[k].name)}</b><small>${esc(ENV[k].effect)}</small></article>`).join("");
+  $("#humanBoard").innerHTML=colonyBoard(human,true);$("#botBoard").innerHTML=colonyBoard(bot,false);renderMobileStatus(human,bot);
+  $("#priorityDisplay").innerHTML=`<b>Priority:</b> ${playerName(game.priorityHolder)}${game.firstActorThisRound!==undefined&&game.currentOrder.length?` · First actor: ${playerName(game.firstActorThisRound)}`:""}`;
+  renderControls();renderRoundLog();renderPlaytestNotes();
+  queueOnlineSave();
+}
+
+function renderPlaytestNotes(){
+  const feel=$("#roundFeel"),note=$("#roundNote"),general=$("#generalNotes"),title=$("#roundNoteTitle");
+  if(!feel||!note||!general||!game)return;
+  const index=activeRoundNoteIndex(),entry=playtest.roundFeedback[index];
+  title.textContent=`Round ${index+1} note`;
+  feel.value=entry.feel||"";note.value=entry.note||"";general.value=playtest.generalNotes||"";
+  feel.onchange=e=>playtest.roundFeedback[index].feel=e.target.value;
+  note.oninput=e=>playtest.roundFeedback[index].note=e.target.value;
+  general.oninput=e=>playtest.generalNotes=e.target.value;
+}
+function phaseText(){
+  const actor=game?playerName(activePlayerIndex(game)):"Player";
+  return game.phase==="priority_choice"?`${playerName(game.priorityHolder)} holds Priority — choose action order`:game.phase==="human_action"?`${actor}: choose your action`:game.phase==="human_forage_choice"?`${playerName(game.pendingChoice?.playerIndex??activePlayerIndex(game))}: choose which Food to keep`:game.phase==="bot_action"?`${playerName(game.botIndex)} is ready to act`:game.phase==="end_round"?"Both colonies acted — resolve the Environment":game.phase==="human_rotting_choice"?`${playerName(game.pendingChoice?.playerIndex??game.humanIndex)}: choose a Rotting Cache discard`:game.phase==="between_rounds"?"Round complete":"Game in progress";
+}
+function colonyBoard(p,isHuman){
+  const [g,c,s]=SPECIES[p.species].stats,penalty=currentPenalty(p);
+  return `<div class="colony-head"><div><span class="eyebrow">${isHuman?"Player 1 colony":"Player 2 colony"}</span><h2>${esc(SPECIES[p.species].name)}</h2></div><span class="score-orb">${projectedScore(p)}<small>score</small></span></div>
+  <div class="stat-row"><span><b>${g}</b> Growth</span><span><b>${c}</b> Consumption</span><span><b>${s}</b> Stability</span></div>
+  <div class="state-grid"><div><strong>${p.population}</strong><span>Population</span></div><div><strong>${p.stress}</strong><span>Stress</span></div><div><strong>${p.stash.length}</strong><span>Food cards</span></div><div><strong>${penalty?"−2":"0"}</strong><span>Unstable</span></div></div>
+  <div class="stash"><label>Stash</label><div>${foodCards(p.stash)}</div></div>
+  <details class="behavior-box" ${window.matchMedia("(min-width:761px)").matches?"open":""}><summary>${esc(SPECIES[p.species].title)}</summary><p>${esc(SPECIES[p.species].behavior)}</p></details>
+  ${p.secured?'<div class="secure-flag">Secure this round</div>':""}`;
+}
+function botStateSnapshot(){
+  const bot=game.players[game.botIndex],human=game.players[game.humanIndex];
+  return{
+    bot:{population:bot.population,stress:bot.stress,stash:[...bot.stash],secured:bot.secured},
+    human:{population:human.population,stress:human.stress,stash:[...human.stash],secured:human.secured}
+  };
+}
+function readableFood(values){
+  return values&&values.length?values.map(v=>`value-${v}`).join(", "):"none";
+}
+function botActionPopupDetails(botName,result,before,after){
+  const attempted=result.attemptedAction||result.action,actual=result.action;
+  const title=attempted!==actual?`${botName} tried ${attempted}, then ${actual}`:`${botName} chose ${actual}`;
+  const lines=[];
+  if(actual==="Cultivate"){
+    const paid=result.payment?.total??0,cards=result.payment?.cards??0;
+    lines.push(`<strong>Cultivate:</strong> paid ${paid} Food value using ${cards} card${cards===1?"":"s"}.`);
+  }else if(actual==="Forage"){
+    lines.push(`<strong>Forage:</strong> drew ${readableFood(result.drawn)} and kept ${readableFood(result.kept)}.`);
+  }else if(actual==="Adapt"){
+    lines.push(`<strong>Adapt:</strong> removed ${result.removed||0} Stress.`);
+  }else if(actual==="Scavenge"){
+    lines.push(`<strong>Scavenge:</strong> took a value-${result.stolen} Food card from your Stash.`);
+  }else if(actual==="Secure"){
+    lines.push(`<strong>Secure:</strong> protected its Stash from Scavenge for the rest of the round.`);
+  }
+  const botPop=after.bot.population-before.bot.population;
+  const botStress=after.bot.stress-before.bot.stress;
+  const humanPop=after.human.population-before.human.population;
+  const humanStress=after.human.stress-before.human.stress;
+  if(botPop)lines.push(`<strong>Bot Population:</strong> ${botPop>0?"+":""}${botPop}.`);
+  if(botStress)lines.push(`<strong>Bot Stress:</strong> ${botStress>0?"+":""}${botStress}.`);
+  if(humanPop)lines.push(`<strong>Your Population:</strong> ${humanPop>0?"+":""}${humanPop}.`);
+  if(humanStress)lines.push(`<strong>Your Stress:</strong> ${humanStress>0?"+":""}${humanStress}.`);
+  const botFoodDelta=after.bot.stash.length-before.bot.stash.length;
+  const humanFoodDelta=after.human.stash.length-before.human.stash.length;
+  if(botFoodDelta&&actual!=="Forage"&&actual!=="Scavenge")lines.push(`<strong>Bot Stash:</strong> ${botFoodDelta>0?"+":""}${botFoodDelta} Food card${Math.abs(botFoodDelta)===1?"":"s"}.`);
+  if(humanFoodDelta&&actual!=="Scavenge")lines.push(`<strong>Your Stash:</strong> ${humanFoodDelta>0?"+":""}${humanFoodDelta} Food card${Math.abs(humanFoodDelta)===1?"":"s"}.`);
+  if(!lines.length)lines.push(`<strong>Action resolved.</strong> No Population, Stress, or Stash totals changed.`);
+  return{title,html:lines.map(line=>`<div class="bot-action-line">${line}</div>`).join("")};
+}
+function hideBotActionPopup(){
+  const modal=$("#botActionModal");
+  if(!modal)return;
+  modal.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+function showBotActionPopup(details){
+  const modal=$("#botActionModal");
+  if(!modal)return;
+  $("#botActionTitle").textContent=details.title;
+  $("#botActionSummary").innerHTML=details.html;
+  modal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  setTimeout(()=>$("#botActionContinue")?.focus(),20);
+}
+
+function renderControls(){
+  const host=$("#turnControls");
+  if(online.enabled&&!onlineCanControl()){
+    host.innerHTML=`<div class="decision-panel"><h3>${esc(onlineWaitingText())}</h3><p>This device is connected as ${playerName(online.playerIndex)} in room <span class="room-code-pill">${esc(online.roomCode)}</span>.</p></div>`;
+    return;
+  }
+  if(game.phase==="priority_choice"){
+    host.innerHTML=`<div class="decision-panel"><h3>${playerName(game.priorityHolder)} chooses action order</h3><p>As Priority holder, choose which colony acts first this round.</p><div class="button-row"><button class="btn primary" id="humanFirst">Player 1 acts first</button><button class="btn secondary" id="botFirst">Player 2 acts first</button></div></div>`;
+    $("#humanFirst").onclick=()=>{C.setPlayerActionOrder(game,game.humanIndex,true);renderGame()};$("#botFirst").onclick=()=>{C.setPlayerActionOrder(game,game.botIndex,true);renderGame()};return;
+  }
+  if(game.phase==="bot_action"){
+    const bot=game.players[game.botIndex];host.innerHTML=`<div class="decision-panel bot-turn"><h3>${esc(SPECIES[bot.species].name)} will act</h3><p>${esc(botPolicyLabel(game.aiStyle))} will choose a legal competitive action using the visible Forecast and both Stashes.</p><button class="btn primary" id="resolveBot">Resolve Bot Action</button></div>`;$("#resolveBot").onclick=()=>{
+      const botName=SPECIES[game.players[game.botIndex].species].name;
+      const before=botStateSnapshot();
+      const actionResult=C.performBotTurn(game);
+      const after=botStateSnapshot();
+      const details=botActionPopupDetails(botName,actionResult,before,after);
+      renderGame();
+      showBotActionPopup(details);
+    };return;
+  }
+  if(game.phase==="human_action"){renderActionChoice(host);return}
+  if(game.phase==="human_forage_choice"){renderForageChoice(host);return}
+  if(game.phase==="end_round"){
+    host.innerHTML=`<div class="decision-panel"><h3>Resolve end of round</h3><p>Apply ${esc(ENV[game.forecast[game.round-1]].name)} and any matching-action effects.</p><button class="btn primary" id="resolveEnd">Resolve Round ${game.round}</button></div>`;$("#resolveEnd").onclick=()=>{C.completePlayerRound(game);renderGame()};return;
+  }
+  if(game.phase==="human_rotting_choice"){renderRottingChoice(host);return}
+  if(game.phase==="between_rounds"){
+    host.innerHTML=`<div class="decision-panel"><h3>Round ${game.round-1} complete</h3><button class="btn primary" id="nextRound">Begin Round ${game.round}</button></div>`;$("#nextRound").onclick=()=>{C.beginPlayerRound(game);renderGame()};return;
+  }
+  host.innerHTML="";
+}
+function renderActionChoice(host){
+  const actor=activePlayerIndex(game),av=C.playerActionAvailability(game,actor),resource=cultivateResourceStatus(actor);
+  const reason=a=>a!=="Cultivate"?av[a].reason:(resource.available
+    ?`Available · pay ${resource.cost} Food value from your ${resource.stashValue}.`
+    :`Unavailable · ${resource.stashValue}/${resource.cost} Food value · need ${resource.shortBy} more.`);
+  host.innerHTML=`<div class="decision-panel"><h3>${playerName(actor)}: choose your action</h3><p>${esc(ENV[game.forecast[game.round-1]].name)} is active.</p>${cultivateStatusHtml(actor)}<div class="action-grid">${ACTIONS.map(a=>`<button class="action-button ${av[a].available?"":"disabled"}" data-action="${a}" ${av[a].available?"":"disabled"} aria-disabled="${av[a].available?"false":"true"}"><b>${a}</b><span>${esc(actionCopy[a])}</span><small>${esc(reason(a))}</small></button>`).join("")}</div><div id="actionDetail"></div></div>`;
+  $$('[data-action]').forEach(b=>b.onclick=()=>chooseAction(b.dataset.action));
+}
+function effectiveConsumption(p){
+  let c=SPECIES[p.species].stats[1],e=game.forecast[game.round-1];if(e==="growing_brood"&&SPECIES[p.species].stats[0]>=4)c++;if(e==="nutrient_rich")c=Math.max(1,c-1);if(e==="claimed_cache"&&p.successfulScavengePrev)c=Math.max(1,c-2);return c;
+}
+
+function stashValueFor(p){return p.stash.reduce((n,v)=>n+v,0)}
+function cultivateResourceStatus(index=activePlayerIndex(game)){
+  const p=game.players[index],cost=effectiveConsumption(p),stashValue=stashValueFor(p);
+  const options=C.playerPaymentOptions(game,index);
+  return{
+    cost,stashValue,available:options.length>0,
+    shortBy:Math.max(0,cost-stashValue),
+    paymentCount:options.length
+  };
+}
+function cultivateStatusHtml(index=activePlayerIndex(game)){
+  const s=cultivateResourceStatus(index),name=playerName(index);
+  const message=s.available
+    ? `Cultivate is available. ${name}'s Stash has ${s.stashValue} Food value and the current cost is ${s.cost}.`
+    : `Cultivate is unavailable. ${name}'s Stash has ${s.stashValue} Food value, the current cost is ${s.cost}, and needs ${s.shortBy} more.`;
+  return `<div class="cultivate-status ${s.available?"good":"warn"}">
+    <span><b>Stash value</b>${s.stashValue}</span>
+    <span><b>Cultivate cost</b>${s.cost}</span>
+    <span><b>${s.available?"Legal payments":"Food still needed"}</b>${s.available?s.paymentCount:s.shortBy}</span>
+    <p>${esc(message)}</p>
+  </div>`;
+}
+function chooseAction(action){
+  if(action==="Cultivate"){renderPaymentChoice();return}
+  if(action==="Forage"){C.beginHumanForage(game);if(game.pendingChoice.keep===game.pendingChoice.drawn.length){C.completeHumanForage(game,game.pendingChoice.drawn.map((_,i)=>i))}renderGame();return}
+  try{C.performHumanAction(game,{action});renderGame()}catch(e){showActionError(e.message)}
+}
+function renderPaymentChoice(){
+  const actor=activePlayerIndex(game),opts=C.playerPaymentOptions(game,actor),host=$("#actionDetail");
+  const p=game.players[actor],cost=effectiveConsumption(p);
+  host.innerHTML=`<div class="subchoice"><h4>Choose Food payment</h4><p>Pay at least <b>${cost}</b> Food value. Excess value is lost.${p.species==="dairy"?" After paying, Voracious Brood may discard up to 3 additional cards of one value.":""}</p><div class="payment-grid">${opts.map((o,i)=>`<button type="button" class="payment-option" data-payment="${i}"><span>${paymentCards(o.counts)}</span><b>Total ${o.total}${o.exact?" · Exact":""}</b><small>${o.immediateBonus?`Visible bonus: +${o.immediateBonus} Population`:o.overpay?`Overpay ${o.overpay}`:"Legal payment"}</small></button>`).join("")}</div><button type="button" class="btn text" id="cancelPayment">Back to actions</button></div>`;
+  $$('[data-payment]').forEach(b=>b.onclick=()=>selectPayment(opts[Number(b.dataset.payment)]));$("#cancelPayment").onclick=()=>renderGame();
+}
+function paymentCards(counts){return [2,3,4].flatMap(v=>Array(Number(counts[v]||0)).fill(`<span class="food-card food-${v} compact">${v}</span>`)).join("+")}
+function selectPayment(payment){
+  selectedPayment=payment;const cow=C.playerCowBurstOptions(game,payment.counts,activePlayerIndex(game)),host=$("#actionDetail");
+  if(cow.length){
+    host.innerHTML=`<div class="subchoice"><h4>Confirm Cultivate · Voracious Brood</h4><p>Your Food payment is selected. Choose whether to use Dairy Cow’s optional once-per-game Behaviour.</p><div class="payment-summary"><span>${paymentCards(payment.counts)}</span><b>Selected payment · Total ${payment.total}</b></div><div class="payment-grid">${cow.map((o,i)=>`<button type="button" class="payment-option" data-cow="${i}"><b>${esc(o.label)}</b></button>`).join("")}</div><button type="button" class="btn text" id="backPayment">Change payment</button></div>`;
+    $$('[data-cow]').forEach(b=>b.onclick=()=>confirmCultivate(cow[Number(b.dataset.cow)]));$("#backPayment").onclick=()=>renderPaymentChoice();
+  }else confirmCultivate({count:0,value:null});
+}
+function confirmCultivate(cowDiscard){try{C.performHumanAction(game,{action:"Cultivate",paymentCounts:selectedPayment.counts,cowDiscard});selectedPayment=null;renderGame()}catch(e){showActionError(e.message)}}
+function renderForageChoice(host){
+  const pc=game.pendingChoice;host.innerHTML=`<div class="decision-panel"><h3>${playerName(pc.playerIndex)}: choose ${pc.keep} Food to keep</h3><p>${playerName(pc.playerIndex)} drew:</p><div class="draw-choice">${pc.drawn.map((v,i)=>`<button class="food-card food-${v} large" data-keep="${i}">${v}</button>`).join("")}</div><small>The unkept card goes to the discard pile.</small></div>`;$$('[data-keep]').forEach(b=>b.onclick=()=>{C.completeHumanForage(game,[Number(b.dataset.keep)]);renderGame()});
+}
+function renderRottingChoice(host){
+  const opts=game.pendingChoice.options,actor=game.pendingChoice.playerIndex;host.innerHTML=`<div class="decision-panel"><h3>${playerName(actor)}: Rotting Cache</h3><p>Choose one Food card to discard.</p><div class="draw-choice">${opts.map(o=>`<button class="food-card food-${o.value} large" data-rot="${o.index}">${o.value}</button>`).join("")}</div></div>`;$$('[data-rot]').forEach(b=>b.onclick=()=>{C.resolveHumanRottingDiscard(game,Number(b.dataset.rot));renderGame()});
+}
+function showActionError(msg){const d=$("#actionDetail")||$("#turnControls");d.insertAdjacentHTML("beforeend",`<div class="notice bad">${esc(msg)}</div>`)}
+function renderRoundLog(){
+  const live=game.currentActions?.length?`<article class="round-entry live"><header><b>Round ${game.round} · In progress</b><span>${esc(ENV[game.forecast[game.round-1]].name)}</span></header>${game.currentActions.map(a=>`<p>${playerName(a.player)}: <b>${esc(a.attemptedAction||a.action)}</b>${a.action!==a.attemptedAction?` → ${esc(a.action)}`:""}${a.stolen!==undefined?` · stole value-${a.stolen}`:""}</p>`).join("")}</article>`:"";
+  $("#roundLog").innerHTML=live+[...game.roundRecords].reverse().map(rr=>`<article class="round-entry"><header><b>Round ${rr.round}</b><span>${esc(ENV[rr.environment].name)}</span></header><p><b>Priority:</b> ${playerName(rr.priorityHolder)} · <b>First:</b> ${playerName(rr.firstActor)}</p>${rr.actions.map(a=>`<p>${playerName(a.player)}: <b>${esc(a.attemptedAction||a.action)}</b>${a.action!==a.attemptedAction?` → ${esc(a.action)}`:""}${a.stolen!==null&&a.stolen!==undefined?` · stole ${a.stolen}`:""}</p>`).join("")}${rr.endEvents.length?`<small>${rr.endEvents.map(esc).join(" · ")}</small>`:""}</article>`).join("");
+}
+function renderResult(){
+  document.body.classList.remove("game-active");document.body.classList.add("result-active");
+  $("#gameScreen").classList.add("hidden");$("#resultScreen").classList.remove("hidden");
+  const human=result.players[result.humanIndex],bot=result.players[result.botIndex],humanWon=result.winner===result.humanIndex;
+  $("#resultHero").innerHTML=`<span class="eyebrow">Verified final result</span><h1>${result.winner<0?"Tie game":humanWon?"Player 1 won!":"Player 2 won!"}</h1><p>${esc(SPECIES[human.species].name)} ${result.scores[result.humanIndex]} · ${esc(SPECIES[bot.species].name)} ${result.scores[result.botIndex]}</p><span class="valid-pill ${result.valid?"valid":"invalid"}">${result.valid?"Valid six-round game":"Invalid game — excluded"}</span>`;
+  $("#resultMeta").innerHTML=`${playtest.testName?`<span>${esc(playtest.testName)}</span>`:""}${playtest.tester?`<span>Tester: ${esc(playtest.tester)}</span>`:""}<span>${esc(result.gameId)}</span><span>${esc(result.engine.name)} V${esc(result.engine.version)}</span><span>Local two-player</span><span>12 total actions</span><span>Seed: ${esc(result.replayConfig.seed)}</span>`;
+  $("#scoreBreakdowns").innerHTML=result.scoreBreakdowns.map((b,i)=>`<article class="breakdown-card ${i===result.humanIndex?"human":"bot"}"><h3>Player ${i+1} · ${esc(SPECIES[b.species].name)}</h3><div class="math-row"><span>Starting Population</span><b>${b.startingPopulation}</b></div><div class="math-row"><span>Cultivate Growth</span><b>+${b.cultivateGrowth}</b></div><div class="math-row"><span>Environment bonuses</span><b>+${b.environmentBonuses}</b></div><div class="math-row"><span>Species Behaviour gains</span><b>+${b.behaviorGains}</b></div><div class="math-row"><span>Population losses</span><b>−${b.populationLosses}</b></div><div class="math-row subtotal"><span>Final Population</span><b>${b.finalPopulation}</b></div><div class="math-row"><span>Stress deduction</span><b>−${b.finalStressDeduction}</b></div><div class="math-row"><span>Unstable penalty</span><b>−${b.unstablePenalty}</b></div><div class="math-row total"><span>Final Colony Score</span><b>${b.finalScore}</b></div></article>`).join("");
+  $("#finalAuditTable").innerHTML=`<table><thead><tr><th>Round</th><th>Environment</th><th>Priority</th><th>First action</th><th>Second action</th><th>Player 1 Pop / Stress / Stash</th><th>Player 2 Pop / Stress / Stash</th></tr></thead><tbody>${result.roundRecords.map(rr=>`<tr><td>${rr.round}</td><td>${esc(ENV[rr.environment].name)}</td><td>Player ${rr.priorityHolder+1}</td><td>${auditAction(rr.actions[0])}</td><td>${auditAction(rr.actions[1])}</td><td>${auditState(rr.players[result.humanIndex])}</td><td>${auditState(rr.players[result.botIndex])}</td></tr>`).join("")}</tbody></table>`;
+  $("#integrityReport").innerHTML=result.valid?`<div class="notice good"><b>Integrity passed:</b> six rounds, six actions per colony, Population and Stress reconciled, final scores verified.</div>`:`<div class="notice bad"><b>Integrity failed:</b> ${result.integrity.errors.map(esc).join(" · ")}</div>`;
+  if(result.suspiciousWarnings.length)$("#integrityReport").insertAdjacentHTML("beforeend",`<div class="notice warn"><b>Warnings:</b> ${result.suspiciousWarnings.map(esc).join(" · ")}</div>`);
+  bindPlaytestFeedback();
+  $("#verifyReplay").onclick=verifyReplay;$("#downloadAudit").onclick=downloadAudit;
+  $("#downloadPlaytest").onclick=downloadPlaytestReport;$("#copySummary").onclick=copyPlaytestSummary;
+  $("#playAgain").onclick=()=>{$("#resultScreen").classList.add("hidden");$("#gameScreen").classList.remove("hidden");startSameSetup()};
+  $("#backSetup").onclick=resetToSetup;
+  queueOnlineSave();
+}
+
+function bindPlaytestFeedback(){
+  const fields={
+    overallFeel:"overallFeel",speciesMeaningful:"speciesMeaningful",
+    forecastMeaningful:"forecastMeaningful",rulesClarity:"rulesClarity",
+    playtestHighlight:"highlight",playtestConfusion:"confusion"
+  };
+  for(const [id,key] of Object.entries(fields)){
+    const el=$("#"+id);if(!el)continue;el.value=playtest[key]||"";
+    const event=el.tagName==="SELECT"?"change":"input";
+    el.addEventListener(event,e=>playtest[key]=e.target.value);
+  }
+}
+function playtestReport(){
+  return{
+    reportType:"PodBound Two-Player Arena Playtest Report",
+    appVersion:"41.4-local-two-player",
+    balanceBaseline:"V38",
+    rulesEngine:`${ENGINE_NAME} V${ENGINE_VERSION}`,
+    createdAt:new Date().toISOString(),
+    test:{name:playtest.testName,tester:playtest.tester},
+    feedback:cloneData(playtest),
+    game:result
+  };
+}
+function downloadPlaytestReport(){
+  const safe=(playtest.testName||result.gameId).replace(/[^a-z0-9_-]+/gi,"-").replace(/^-|-$/g,"");
+  downloadJson(playtestReport(),`podbound-playtest-${safe||result.gameId}.json`);
+}
+function summaryText(){
+  const human=result.players[result.humanIndex],bot=result.players[result.botIndex];
+  const ratedRounds=playtest.roundFeedback.map((r,i)=>r.feel||r.note?`R${i+1}: ${r.feel||"Unrated"}${r.note?` — ${r.note}`:""}`:"").filter(Boolean);
+  return [
+    `PodBound Playtest${playtest.testName?` — ${playtest.testName}`:""}`,
+    playtest.tester?`Tester: ${playtest.tester}`:"",
+    `Matchup: ${SPECIES[human.species].name} ${result.scores[result.humanIndex]} vs ${SPECIES[bot.species].name} ${result.scores[result.botIndex]}`,
+    `Result: ${result.winner<0?"Tie":result.winner===result.humanIndex?"Player 1 win":"Player 2 win"} · ${result.valid?"Valid game":"Invalid game"}`,
+    `Forecast: ${result.forecast.map(k=>ENV[k].name).join(" → ")}`,
+    `Mode: Local two-player`,
+    playtest.overallFeel?`Overall feel: ${playtest.overallFeel}`:"",
+    playtest.speciesMeaningful?`Species choice meaningful: ${playtest.speciesMeaningful}`:"",
+    playtest.forecastMeaningful?`Forecast decisions meaningful: ${playtest.forecastMeaningful}`:"",
+    playtest.rulesClarity?`Rules clarity: ${playtest.rulesClarity}`:"",
+    playtest.highlight?`Best moment: ${playtest.highlight}`:"",
+    playtest.confusion?`Confusing moment: ${playtest.confusion}`:"",
+    playtest.generalNotes?`General notes: ${playtest.generalNotes}`:"",
+    ...ratedRounds
+  ].filter(Boolean).join("\n");
+}
+async function copyPlaytestSummary(){
+  const button=$("#copySummary");
+  try{
+    await navigator.clipboard.writeText(summaryText());
+    button.textContent="Summary copied";
+    setTimeout(()=>button.textContent="Copy summary",1400);
+  }catch{
+    const textarea=document.createElement("textarea");textarea.value=summaryText();document.body.appendChild(textarea);
+    textarea.select();document.execCommand("copy");textarea.remove();
+    button.textContent="Summary copied";setTimeout(()=>button.textContent="Copy summary",1400);
+  }
+}
+function auditAction(a){return `Player ${a.player+1}: ${esc(a.attemptedAction||a.action)}${a.action!==a.attemptedAction?` → ${esc(a.action)}`:""}${a.stolen!==null&&a.stolen!==undefined?` · stole ${a.stolen}`:""}`}
+function auditState(p){return `${p.population} / ${p.stress} / ${p.stash.length?p.stash.join(","):"—"}`}
+function verifyReplay(){
+  const out=$("#replayResult");out.innerHTML='<div class="notice">Replaying exact seed, deck, Priority, and both players’ decisions…</div>';
+  setTimeout(()=>{try{const check=C.verifyPlayerReplay(result);out.innerHTML=`<div class="notice ${check.matched?"good":"bad"}"><b>${check.matched?"Exact replay matched":"Replay mismatch"}:</b> ${check.matched?"Scores, action sequence, Forecast, Food deck, and opening Priority were reproduced.":check.errors.map(esc).join(" · ")}</div>`}catch(e){out.innerHTML=`<div class="notice bad"><b>Replay error:</b> ${esc(e.message)}</div>`}},20);
+}
+function downloadAudit(){downloadJson(result,`podbound-player-game-${result.gameId}.json`)}
+function startSameSetup(){
+  const cfg=result.replayConfig,identity={testName:playtest.testName,tester:playtest.tester};
+  playtest=freshPlaytestState();playtest.testName=identity.testName?`${identity.testName} · Rematch`:"";playtest.tester=identity.tester;
+  game=C.createPlayerGame({humanSpecies:cfg.humanSpecies,botSpecies:cfg.botSpecies,forecast:cfg.forecast,seed:`${cfg.seed}-REMATCH`,openingPriority:"random",aiStyle:cfg.aiStyle,unstableMode:cfg.unstableMode});
+  result=null;document.body.classList.add("game-active");document.body.classList.remove("result-active");setMobileGameTab("play",false);C.beginPlayerRound(game);renderGame()
+}
+const botContinueButton=document.getElementById("botActionContinue");
+if(botContinueButton)botContinueButton.addEventListener("click",hideBotActionPopup);
+const botModal=document.getElementById("botActionModal");
+if(botModal)botModal.addEventListener("click",e=>{if(e.target===botModal)hideBotActionPopup()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")hideBotActionPopup()});
+
+if(document.readyState === "loading"){
+  document.addEventListener("DOMContentLoaded", init, {once:true});
+}else{
+  init();
+}
+// Some iPhone attachment viewers inject the document after DOMContentLoaded.
+// This fallback starts the arena if the first boot hook was skipped.
+setTimeout(()=>{
+  const badge=document.getElementById("healthBadge");
+  if(badge && /Checking engine/i.test(badge.textContent||"")) init();
+},150);
+
+})();
+</script>
+</body></html>
