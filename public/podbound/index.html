@@ -57,6 +57,73 @@ button,select,input{font:inherit}button{cursor:pointer}.hidden{display:none!impo
 .online-status.good{color:var(--good);font-weight:850}.online-status.bad{color:var(--bad);font-weight:850}
 .room-code-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:#e7dfcf;color:var(--forest);font-weight:950;letter-spacing:.08em}
 
+/* Full-viewport play surface */
+body.game-active{height:100dvh;overflow:hidden}
+body.game-active .app-header,body.game-active #healthDetail,body.game-active .footer-note{display:none!important}
+body.game-active .app-shell{height:100dvh;max-width:100%;display:flex;flex-direction:column;overflow:hidden}
+body.game-active main,body.game-active #gameScreen{flex:1;min-height:0;overflow:hidden}
+body.game-active main{display:flex;flex-direction:column}
+body.game-active #gameScreen{display:flex;flex-direction:column}
+body.game-active .game-summary-panel{flex:0 0 auto}
+body.game-active .game-layout{flex:1;min-height:0;overflow:hidden}
+body.game-active .arena-main,body.game-active .side-stack{min-height:0;overflow:hidden}
+body.game-active #turnControls{min-height:0;overflow:auto}
+
+@media(min-width:761px){
+  body.game-active .app-shell{padding:10px 12px}
+  body.game-active .game-summary-panel{padding:10px 12px;border-radius:12px}
+  body.game-active .game-summary-panel .game-top{margin-bottom:0}
+  body.game-active .game-summary-panel h1{font-size:1.35rem;margin:0}
+  body.game-active #phaseLabel{font-size:.82rem}
+  body.game-active #priorityDisplay{margin-top:5px;padding:6px 8px;font-size:.78rem}
+  body.game-active .game-utility-buttons{margin-top:5px!important}
+  body.game-active .game-utility-buttons .btn{min-height:32px;padding:6px 9px;font-size:.72rem}
+  body.game-active #forecastTrack{display:flex;gap:7px;overflow-x:auto;padding:4px 1px 2px;margin-top:7px}
+  body.game-active #forecastTrack .forecast-card{flex:1 1 0;min-width:118px;min-height:58px;padding:7px;border-radius:9px}
+  body.game-active #forecastTrack .forecast-card span{font-size:.58rem}
+  body.game-active #forecastTrack .forecast-card b{font-size:.78rem}
+  body.game-active #forecastTrack .forecast-card small{display:none}
+  body.game-active .game-layout{grid-template-columns:minmax(0,1.35fr) minmax(260px,.44fr);gap:10px;margin-top:10px}
+  body.game-active .arena-main{gap:9px}
+  body.game-active .colonies{gap:8px;min-height:0}
+  body.game-active .colony-board{padding:10px;border-radius:12px;overflow:auto}
+  body.game-active .colony-head h2{font-size:1.18rem}
+  body.game-active .score-orb{width:48px;height:48px;flex:0 0 48px;font-size:1.25rem}
+  body.game-active .stat-row{margin:6px 0;gap:4px}
+  body.game-active .stat-row span{font-size:.63rem;padding:3px 5px}
+  body.game-active .state-grid{gap:4px}
+  body.game-active .state-grid div{padding:5px 3px}
+  body.game-active .state-grid strong{font-size:.95rem}
+  body.game-active .state-grid span{font-size:.55rem}
+  body.game-active .stash{margin-top:7px}
+  body.game-active .stash>div{min-height:28px}
+  body.game-active .food-card{width:28px;height:36px;font-size:.85rem;border-radius:6px}
+  body.game-active .food-card.large{width:54px;height:68px;font-size:1.3rem}
+  body.game-active .behavior-box{margin-top:7px;padding:7px 8px}
+  body.game-active .behavior-box p{font-size:.68rem;line-height:1.25}
+  body.game-active .decision-panel{padding:10px 12px;border-radius:12px}
+  body.game-active .decision-panel h3{font-size:1.1rem}
+  body.game-active .decision-panel p{font-size:.78rem;margin:.15rem 0 .5rem}
+  body.game-active .action-grid{gap:6px}
+  body.game-active .action-button{min-height:78px;padding:8px}
+  body.game-active .action-button b{font-size:.9rem}
+  body.game-active .action-button span{display:none}
+  body.game-active .action-button small{font-size:.61rem;line-height:1.2;margin-top:4px}
+  body.game-active .cultivate-status{grid-template-columns:repeat(3,1fr);gap:5px;padding:7px;margin:7px 0 8px}
+  body.game-active .cultivate-status span{padding:5px 3px;font-size:.88rem}
+  body.game-active .cultivate-status span b{font-size:.56rem}
+  body.game-active .cultivate-status p{display:none}
+  body.game-active .side-stack{grid-template-rows:minmax(0,1fr) auto;gap:9px}
+  body.game-active .round-log-panel{max-height:none;min-height:0;overflow:auto;padding:10px}
+  body.game-active .round-log-panel h3{padding:0 0 6px;font-size:1rem}
+  body.game-active .round-entry{padding:7px 8px;margin-bottom:6px}
+  body.game-active .round-entry p{font-size:.7rem;line-height:1.25}
+  body.game-active .quick-notes-panel{padding:10px;max-height:205px;overflow:auto}
+  body.game-active .quick-notes-panel h3{margin:4px 0 6px;font-size:1rem}
+  body.game-active .quick-notes-panel .field{margin:6px 0}
+  body.game-active textarea{min-height:48px}
+}
+
 /* V41.4 Dairy Cow payment-flow fix */
 .payment-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 12px;margin:10px 0;border:1px solid var(--line);border-radius:12px;background:#f5ecdc}
 .payment-summary>span{display:flex;align-items:center;gap:5px}.payment-summary>b{font-size:.84rem}
@@ -312,6 +379,23 @@ body.modal-open{overflow:hidden}
   .payment-option{min-height:66px}
 
   .setup-forecast-panel .forecast-card{flex-basis:88vw}
+
+  body.game-active{height:100dvh;overflow:hidden}
+  body.game-active .app-shell,body.result-active .app-shell{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+  body.game-active main,body.game-active #gameScreen{flex:1;min-height:0;overflow:hidden}
+  body.game-active #gameScreen{display:flex;flex-direction:column}
+  body.game-active .mobile-game-tabs,
+  body.game-active .mobile-status-bar,
+  body.game-active .game-summary-panel{flex:0 0 auto}
+  body.game-active .game-summary-panel{padding:8px 9px}
+  body.game-active .game-summary-panel h1{font-size:1.2rem}
+  body.game-active .game-summary-panel #priorityDisplay{margin-top:4px;padding:5px 7px}
+  body.game-active .game-layout{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;margin-top:7px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+  body.game-active .arena-main,body.game-active .side-stack{min-height:0}
+  body.game-active .colony-board{padding:10px}
+  body.game-active .decision-panel{padding:10px}
+  body.game-active .mobile-status-bar{margin-bottom:6px;padding:6px}
+  body.game-active .mobile-game-tabs{margin-bottom:6px}
 }
 
 @media(max-width:390px){
