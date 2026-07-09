@@ -1,8 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const host = request.headers.get("host")?.toLowerCase().split(":")[0] || "";
+  const isPodboundHost = host === "podbound.crestedcritters.com";
+  const isLocalDevHost = host === "localhost" || host === "127.0.0.1";
+
+  if (!isPodboundHost && !isLocalDevHost) {
+    return new NextResponse("Not found", { status: 404 });
+  }
+
   const filePath = join(process.cwd(), "public", "podbound", "index.html");
   let html = await readFile(filePath, "utf8");
 
