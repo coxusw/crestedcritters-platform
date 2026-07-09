@@ -89,3 +89,57 @@ export async function awardIsoTokens(
     console.error("Failed to award IsoTokens:", error.message);
   }
 }
+
+export async function reverseIsoTokenAwards(
+  input: {
+    reasonKeys: string[];
+    description: string;
+  }
+) {
+  const reasonKeys = [...new Set(input.reasonKeys.filter(Boolean))];
+  if (!reasonKeys.length) return;
+
+  const admin = createSupabaseAdminClient();
+  const { data: awards, error: awardsError } = await admin
+    .from("isotoken_ledger")
+    .select("profile_id, amount, reason, reason_key, entity_type, entity_id")
+    .in("reason_key", reasonKeys)
+    .gt("amount", 0)
+    .returns<
+      Array<{
+        profile_id: string;
+        amount: number;
+        reason: string;
+        reason_key: string;
+        entity_type: string | null;
+        entity_id: string | null;
+      }>
+    >();
+
+  if (awardsError) {
+    throw new Error(awardsError.message);
+  }
+
+  if (!awards?.length) return;
+
+  const reversalRows = awards.map((award) => ({
+    profile_id: award.profile_id,
+    amount: -Math.abs(Number(award.amount || 0)),
+    reason: `${award.reason}_reversal`,
+    reason_key: `reversal:${award.reason_key}`,
+    description: input.description,
+    entity_type: award.entity_type,
+    entity_id: award.entity_id,
+  }));
+
+  const { error } = await admin
+    .from("isotoken_ledger")
+    .upsert(reversalRows, {
+      onConflict: "reason_key",
+      ignoreDuplicates: true,
+    });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
