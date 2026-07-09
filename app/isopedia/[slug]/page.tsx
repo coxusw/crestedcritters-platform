@@ -89,6 +89,11 @@ type ContributorProfile = {
 type ContributorCredit = {
   id: string;
   image_url?: string | null;
+  common_name?: string | null;
+  scientific_name?: string | null;
+  genus?: string | null;
+  species?: string | null;
+  morph?: string | null;
   profiles: ContributorProfile | null;
 };
 
@@ -216,6 +221,34 @@ function canonicalImageUrl(value: string | null) {
   } catch {
     return value.split("?")[0].split("#")[0];
   }
+}
+
+function normalizeCreditText(value: string | null | undefined) {
+  return (value || "").trim().toLowerCase();
+}
+
+function sameCreditText(
+  left: string | null | undefined,
+  right: string | null | undefined
+) {
+  return normalizeCreditText(left) === normalizeCreditText(right);
+}
+
+function matchesSpeciesSubmissionCredit(species: Species, credit: ContributorCredit) {
+  const speciesImageUrl = canonicalImageUrl(species.image_url);
+  const creditImageUrl = canonicalImageUrl(credit.image_url || null);
+
+  if (speciesImageUrl && creditImageUrl && speciesImageUrl === creditImageUrl) {
+    return true;
+  }
+
+  return (
+    sameCreditText(credit.common_name, species.common_name) &&
+    sameCreditText(credit.scientific_name, species.scientific_name) &&
+    sameCreditText(credit.genus, species.genus) &&
+    sameCreditText(credit.species, species.species) &&
+    sameCreditText(credit.morph, species.morph)
+  );
 }
 
 function uniqueContributorCredits(credits: ContributorCredit[]) {
@@ -500,6 +533,11 @@ export default async function SpeciesPage({ params }: PageProps) {
       `
       id,
       image_url,
+      common_name,
+      scientific_name,
+      genus,
+      species,
+      morph,
       profiles:submitted_by (
         username,
         display_name,
@@ -509,10 +547,13 @@ export default async function SpeciesPage({ params }: PageProps) {
     )
     .eq("status", "verified")
     .eq("common_name", species.common_name)
-    .limit(3)
+    .limit(20)
     .returns<ContributorCredit[]>();
 
-  const speciesSubmitterCredits = uniqueContributorCredits(submissionCredits || []);
+  const matchingSubmissionCredits = (submissionCredits || []).filter((credit) =>
+    matchesSpeciesSubmissionCredit(species, credit)
+  );
+  const speciesSubmitterCredits = uniqueContributorCredits(matchingSubmissionCredits);
 
   let changeHistoryResult = await supabase
     .from("isopedia_suggested_edits")
@@ -694,7 +735,7 @@ export default async function SpeciesPage({ params }: PageProps) {
   const primaryGalleryImage = (galleryImages || []).find(
     (image) => canonicalImageUrl(image.image_url) === canonicalImageUrl(species.image_url)
   );
-  const primarySubmissionCredit = (submissionCredits || []).find(
+  const primarySubmissionCredit = matchingSubmissionCredits.find(
     (credit) => canonicalImageUrl(credit.image_url || null) === canonicalImageUrl(species.image_url)
   );
   const primaryFallbackCredit = primarySubmissionCredit || speciesSubmitterCredits[0] || null;
