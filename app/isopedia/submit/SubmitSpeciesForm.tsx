@@ -2,15 +2,23 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
 const DIFFICULTY_OPTIONS = ["Beginner", "Intermediate", "Expert"] as const;
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 
 type Status = {
-  tone: "idle" | "good" | "bad";
+  tone: "idle" | "good" | "bad" | "warn";
   message: string;
+};
+
+type DuplicateMatch = {
+  id: string;
+  type: "species" | "submission";
+  title: string;
+  detail?: string | null;
+  href: string;
 };
 
 function cleanText(value: FormDataEntryValue | null) {
@@ -41,7 +49,11 @@ function getSafeImageExtension(file: File) {
 
 export default function SubmitSpeciesForm({ userId }: { userId: string }) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const approvedDuplicateSignatureRef = useRef("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>([]);
+  const [approvedDuplicateSignature, setApprovedDuplicateSignature] = useState("");
   const [status, setStatus] = useState<Status>({
     tone: "idle",
     message: "Fill in what you know. Only the common name is required.",
@@ -50,6 +62,37 @@ export default function SubmitSpeciesForm({ userId }: { userId: string }) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
+
+  function duplicateSignature(formData: FormData) {
+    return JSON.stringify({
+      commonName: cleanText(formData.get("common_name")).toLowerCase(),
+      scientificName: cleanText(formData.get("scientific_name")).toLowerCase(),
+      morph: cleanText(formData.get("morph")).toLowerCase(),
+    });
+  }
+
+  async function findSimilarEntries(formData: FormData) {
+    const response = await fetch("/api/isopedia/submission-duplicates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        commonName: cleanText(formData.get("common_name")),
+        scientificName: cleanText(formData.get("scientific_name")),
+        morph: cleanText(formData.get("morph")),
+      }),
+    });
+
+    const payload = (await response.json()) as {
+      error?: string;
+      matches?: DuplicateMatch[];
+    };
+
+    if (!response.ok) {
+      throw new Error(payload.error || "Could not check for similar entries.");
+    }
+
+    return payload.matches || [];
+  }
 
   async function uploadImage(file: File, commonName: string) {
     if (!file || file.size === 0) return null;
@@ -87,6 +130,7 @@ export default function SubmitSpeciesForm({ userId }: { userId: string }) {
     const formData = new FormData(event.currentTarget);
     const commonName = cleanText(formData.get("common_name"));
     const imageFile = formData.get("image_file");
+    const signature = duplicateSignature(formData);
 
     if (!commonName) {
       setStatus({ tone: "bad", message: "Common name is required." });
@@ -94,9 +138,28 @@ export default function SubmitSpeciesForm({ userId }: { userId: string }) {
     }
 
     setIsSubmitting(true);
-    setStatus({ tone: "idle", message: "Submitting species for review..." });
 
     try {
+      if (
+        signature !== approvedDuplicateSignature &&
+        signature !== approvedDuplicateSignatureRef.current
+      ) {
+        setStatus({ tone: "idle", message: "Checking for similar entries..." });
+        const matches = await findSimilarEntries(formData);
+
+        if (matches.length > 0) {
+          setDuplicateMatches(matches);
+          setStatus({
+            tone: "warn",
+            message:
+              "There seems to be a similar submission already. Please check you are not submitting the same entry.",
+          });
+          return;
+        }
+      }
+
+      setDuplicateMatches([]);
+      setStatus({ tone: "idle", message: "Submitting species for review..." });
       let imageUrl: string | null = null;
 
       if (imageFile instanceof File && imageFile.size > 0) {
@@ -145,15 +208,27 @@ export default function SubmitSpeciesForm({ userId }: { userId: string }) {
     }
   }
 
+  function continueAfterDuplicateWarning() {
+    const form = formRef.current;
+    if (!form) return;
+    const signature = duplicateSignature(new FormData(form));
+    approvedDuplicateSignatureRef.current = signature;
+    setApprovedDuplicateSignature(signature);
+    setDuplicateMatches([]);
+    window.setTimeout(() => form.requestSubmit(), 0);
+  }
+
   const statusClass =
     status.tone === "good"
       ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
+      : status.tone === "warn"
+        ? "border-amber-400/30 bg-amber-400/10 text-amber-100"
       : status.tone === "bad"
         ? "border-red-400/20 bg-red-400/10 text-red-100"
         : "border-white/10 bg-white/5 text-emerald-50/70";
 
   return (
-    <form onSubmit={submitSpecies} className="grid gap-6 p-6 sm:p-8">
+    <form ref={formRef} onSubmit={submitSpecies} className="grid gap-6 p-6 sm:p-8">
       <section className="grid gap-5 rounded-3xl border border-white/10 bg-[#07130c]/70 p-5">
         <div className="text-center">
           <p className="text-sm font-black uppercase tracking-[0.25em] text-emerald-300">
@@ -272,6 +347,58 @@ export default function SubmitSpeciesForm({ userId }: { userId: string }) {
         {status.message}
       </div>
 
+      {duplicateMatches.length > 0 && (
+        <section className="grid gap-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-amber-50">
+          <div className="text-center">
+            <h3 className="text-base font-black text-amber-100">
+              Similar entries found
+            </h3>
+            <p className="mt-1 text-sm leading-6 text-amber-50/80">
+              Open any possible match in a new tab to compare before submitting.
+            </p>
+          </div>
+
+          <div className="grid gap-2">
+            {duplicateMatches.map((match) => (
+              <a
+                key={`${match.type}-${match.id}`}
+                href={match.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl border border-amber-200/20 bg-black/20 p-3 transition hover:bg-black/30"
+              >
+                <span className="block text-xs font-black uppercase tracking-widest text-amber-200/70">
+                  {match.type === "species" ? "Existing entry" : "Pending review"}
+                </span>
+                <span className="mt-1 block font-black text-white">{match.title}</span>
+                {match.detail && (
+                  <span className="mt-1 block text-sm text-amber-50/70">
+                    {match.detail}
+                  </span>
+                )}
+              </a>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDuplicateMatches([])}
+              className="rounded-2xl border border-white/10 bg-[#07130c] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#102016]"
+            >
+              Review My Entry
+            </button>
+            <button
+              type="button"
+              onClick={continueAfterDuplicateWarning}
+              className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200"
+            >
+              Continue Submit Anyway
+            </button>
+          </div>
+        </section>
+      )}
+
       <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-center text-sm leading-6 text-amber-100">
         Species submissions are community-reviewed before becoming public.
         Please submit only information you believe is accurate and helpful.
@@ -287,7 +414,7 @@ export default function SubmitSpeciesForm({ userId }: { userId: string }) {
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || duplicateMatches.length > 0}
           className="rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? "Submitting..." : "Submit for Review"}

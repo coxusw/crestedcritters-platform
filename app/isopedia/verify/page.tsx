@@ -313,6 +313,7 @@ export default async function VerifySubmissionsPage({
 
               return (
                 <article
+                  id={`submission-${submission.id}`}
                   key={submission.id}
                   className="grid gap-5 rounded-3xl border border-white/10 bg-white/5 p-5 md:grid-cols-[220px_1fr]"
                 >
