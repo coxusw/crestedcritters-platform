@@ -56,6 +56,56 @@ button,select,input{font:inherit}button{cursor:pointer}.hidden{display:none!impo
 .online-status{margin-top:9px;font-size:.82rem;color:var(--muted)}
 .online-status.good{color:var(--good);font-weight:850}.online-status.bad{color:var(--bad);font-weight:850}
 .room-code-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:#e7dfcf;color:var(--forest);font-weight:950;letter-spacing:.08em}
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.mode-panel{border:1px solid var(--stone);border-radius:12px;background:#fffaf0;padding:12px}
+.mode-panel h3{margin:.1rem 0 .25rem;font-family:Georgia,"Times New Roman",serif;color:var(--forest)}
+.room-list{display:grid;gap:8px;margin-top:10px;max-height:220px;overflow:auto}
+.room-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border:1px solid var(--stone);border-radius:10px;background:#fffaf0;padding:9px}
+.room-row b,.room-row span{display:block}.room-row span{font-size:.76rem;color:var(--muted)}
+.compact-setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.setup-card .field{margin:8px 0}.setup-card .hint{margin:.25rem 0}
+
+@media(min-width:761px){
+  body:not(.game-active):not(.result-active){height:100dvh;overflow:hidden}
+  body:not(.game-active):not(.result-active) .app-shell{height:100dvh;max-width:1360px;display:flex;flex-direction:column;padding:10px 14px;overflow:hidden}
+  body:not(.game-active):not(.result-active) .app-header{flex:0 0 auto;margin-bottom:8px;padding:12px 16px;border-radius:16px}
+  body:not(.game-active):not(.result-active) .brand-mark{width:42px;height:42px;flex:0 0 42px;font-size:.92rem}
+  body:not(.game-active):not(.result-active) .app-header h1{font-size:1.75rem;margin:.1rem 0}
+  body:not(.game-active):not(.result-active) .app-header p{font-size:.82rem;line-height:1.25}
+  body:not(.game-active):not(.result-active) .header-actions .btn{min-height:34px;padding:7px 10px;font-size:.72rem}
+  body:not(.game-active):not(.result-active) #healthDetail{display:none}
+  body:not(.game-active):not(.result-active) main{flex:1;min-height:0;overflow:hidden}
+  body:not(.game-active):not(.result-active) #setupScreen{height:100%;min-height:0;overflow:hidden;grid-template-columns:minmax(360px,.78fr) minmax(0,1.22fr);gap:10px}
+  body:not(.game-active):not(.result-active) .panel{padding:12px;border-radius:12px}
+  body:not(.game-active):not(.result-active) .setup-card{overflow:hidden}
+  body:not(.game-active):not(.result-active) .setup-card h2,
+  body:not(.game-active):not(.result-active) .panel h2{font-size:1.22rem;margin:.05rem 0 .15rem}
+  body:not(.game-active):not(.result-active) .hint{font-size:.75rem;line-height:1.25}
+  body:not(.game-active):not(.result-active) .field{margin:5px 0;gap:3px}
+  body:not(.game-active):not(.result-active) .field label{font-size:.62rem}
+  body:not(.game-active):not(.result-active) select,
+  body:not(.game-active):not(.result-active) input{min-height:34px;padding:7px 8px;font-size:.78rem;border-radius:8px}
+  body:not(.game-active):not(.result-active) .playtest-details summary,
+  body:not(.game-active):not(.result-active) .advanced-settings summary{padding:7px 0;font-size:.78rem}
+  body:not(.game-active):not(.result-active) .mode-grid{gap:7px;margin-top:7px}
+  body:not(.game-active):not(.result-active) .mode-panel{padding:8px;border-radius:10px}
+  body:not(.game-active):not(.result-active) .mode-panel h3,
+  body:not(.game-active):not(.result-active) .online-panel h3{font-size:1rem;margin:0}
+  body:not(.game-active):not(.result-active) .start-button{min-height:36px;margin-top:6px;padding:8px 10px;font-size:.82rem}
+  body:not(.game-active):not(.result-active) .online-panel{margin:7px 0 0;padding:8px}
+  body:not(.game-active):not(.result-active) .online-room-row{margin-top:6px}
+  body:not(.game-active):not(.result-active) .room-list{max-height:94px;gap:5px;margin-top:6px}
+  body:not(.game-active):not(.result-active) .room-row{padding:6px;border-radius:8px}
+  body:not(.game-active):not(.result-active) .room-row span{font-size:.62rem}
+  body:not(.game-active):not(.result-active) .online-status{margin-top:5px;font-size:.68rem}
+  body:not(.game-active):not(.result-active) .setup-forecast-panel{overflow:hidden}
+  body:not(.game-active):not(.result-active) .forecast-grid{grid-template-columns:repeat(3,1fr);gap:6px}
+  body:not(.game-active):not(.result-active) .forecast-card{min-height:82px;padding:8px;border-radius:9px}
+  body:not(.game-active):not(.result-active) .forecast-card span{font-size:.55rem}
+  body:not(.game-active):not(.result-active) .forecast-card b{font-size:.78rem}
+  body:not(.game-active):not(.result-active) .forecast-card small{font-size:.62rem;line-height:1.2}
+  body:not(.game-active):not(.result-active) .footer-note{display:none}
+}
 
 /* Full-viewport play surface */
 body.game-active{height:100dvh;overflow:hidden}
@@ -71,57 +121,58 @@ body.game-active #turnControls{min-height:0;overflow:auto}
 
 @media(min-width:761px){
   body.game-active .app-shell{padding:10px 12px}
-  body.game-active .game-summary-panel{padding:10px 12px;border-radius:12px}
+  body.game-active .game-summary-panel{padding:6px 9px;border-radius:10px}
   body.game-active .game-summary-panel .game-top{margin-bottom:0}
-  body.game-active .game-summary-panel h1{font-size:1.35rem;margin:0}
-  body.game-active #phaseLabel{font-size:.82rem}
-  body.game-active #priorityDisplay{margin-top:5px;padding:6px 8px;font-size:.78rem}
+  body.game-active .game-summary-panel h1{font-size:1.05rem;margin:0}
+  body.game-active #phaseLabel{font-size:.72rem}
+  body.game-active #priorityDisplay{margin-top:3px;padding:4px 6px;font-size:.68rem}
   body.game-active .game-utility-buttons{margin-top:5px!important}
   body.game-active .game-utility-buttons .btn{min-height:32px;padding:6px 9px;font-size:.72rem}
-  body.game-active #forecastTrack{display:flex;gap:7px;overflow-x:auto;padding:4px 1px 2px;margin-top:7px}
-  body.game-active #forecastTrack .forecast-card{flex:1 1 0;min-width:118px;min-height:58px;padding:7px;border-radius:9px}
-  body.game-active #forecastTrack .forecast-card span{font-size:.58rem}
-  body.game-active #forecastTrack .forecast-card b{font-size:.78rem}
+  body.game-active #forecastTrack{display:flex;gap:5px;overflow-x:auto;padding:3px 1px 1px;margin-top:4px}
+  body.game-active #forecastTrack .forecast-card{flex:1 1 0;min-width:96px;min-height:42px;padding:5px;border-radius:8px}
+  body.game-active #forecastTrack .forecast-card span{font-size:.5rem}
+  body.game-active #forecastTrack .forecast-card b{font-size:.68rem}
   body.game-active #forecastTrack .forecast-card small{display:none}
-  body.game-active .game-layout{grid-template-columns:minmax(0,1.35fr) minmax(260px,.44fr);gap:10px;margin-top:10px}
-  body.game-active .arena-main{gap:9px}
-  body.game-active .colonies{gap:8px;min-height:0}
-  body.game-active .colony-board{padding:10px;border-radius:12px;overflow:auto}
-  body.game-active .colony-head h2{font-size:1.18rem}
-  body.game-active .score-orb{width:48px;height:48px;flex:0 0 48px;font-size:1.25rem}
-  body.game-active .stat-row{margin:6px 0;gap:4px}
-  body.game-active .stat-row span{font-size:.63rem;padding:3px 5px}
+  body.game-active .game-layout{grid-template-columns:minmax(0,1.5fr) minmax(230px,.36fr);gap:7px;margin-top:6px}
+  body.game-active .arena-main{gap:6px}
+  body.game-active .colonies{gap:6px;min-height:0}
+  body.game-active .colony-board{padding:7px;border-radius:10px;overflow:hidden}
+  body.game-active .colony-head h2{font-size:.98rem}
+  body.game-active .score-orb{width:38px;height:38px;flex:0 0 38px;font-size:1rem}
+  body.game-active .stat-row{margin:4px 0;gap:3px}
+  body.game-active .stat-row span{font-size:.54rem;padding:2px 4px}
   body.game-active .state-grid{gap:4px}
-  body.game-active .state-grid div{padding:5px 3px}
-  body.game-active .state-grid strong{font-size:.95rem}
-  body.game-active .state-grid span{font-size:.55rem}
-  body.game-active .stash{margin-top:7px}
-  body.game-active .stash>div{min-height:28px}
-  body.game-active .food-card{width:28px;height:36px;font-size:.85rem;border-radius:6px}
-  body.game-active .food-card.large{width:54px;height:68px;font-size:1.3rem}
-  body.game-active .behavior-box{margin-top:7px;padding:7px 8px}
-  body.game-active .behavior-box p{font-size:.68rem;line-height:1.25}
-  body.game-active .decision-panel{padding:10px 12px;border-radius:12px}
-  body.game-active .decision-panel h3{font-size:1.1rem}
-  body.game-active .decision-panel p{font-size:.78rem;margin:.15rem 0 .5rem}
-  body.game-active .action-grid{gap:6px}
-  body.game-active .action-button{min-height:78px;padding:8px}
-  body.game-active .action-button b{font-size:.9rem}
+  body.game-active .state-grid div{padding:3px 2px}
+  body.game-active .state-grid strong{font-size:.78rem}
+  body.game-active .state-grid span{font-size:.47rem}
+  body.game-active .stash{margin-top:4px}
+  body.game-active .stash label{font-size:.55rem;margin-bottom:2px}
+  body.game-active .stash>div{min-height:22px}
+  body.game-active .food-card{width:22px;height:29px;font-size:.7rem;border-radius:5px}
+  body.game-active .food-card.large{width:42px;height:54px;font-size:1.05rem}
+  body.game-active .behavior-box{margin-top:4px;padding:5px 6px}
+  body.game-active .behavior-box p{font-size:.58rem;line-height:1.18}
+  body.game-active .decision-panel{padding:7px 9px;border-radius:10px}
+  body.game-active .decision-panel h3{font-size:.95rem}
+  body.game-active .decision-panel p{font-size:.68rem;margin:.1rem 0 .35rem}
+  body.game-active .action-grid{gap:4px}
+  body.game-active .action-button{min-height:58px;padding:6px}
+  body.game-active .action-button b{font-size:.78rem}
   body.game-active .action-button span{display:none}
-  body.game-active .action-button small{font-size:.61rem;line-height:1.2;margin-top:4px}
-  body.game-active .cultivate-status{grid-template-columns:repeat(3,1fr);gap:5px;padding:7px;margin:7px 0 8px}
-  body.game-active .cultivate-status span{padding:5px 3px;font-size:.88rem}
-  body.game-active .cultivate-status span b{font-size:.56rem}
+  body.game-active .action-button small{font-size:.52rem;line-height:1.12;margin-top:3px}
+  body.game-active .cultivate-status{grid-template-columns:repeat(3,1fr);gap:3px;padding:5px;margin:4px 0 5px}
+  body.game-active .cultivate-status span{padding:3px 2px;font-size:.72rem}
+  body.game-active .cultivate-status span b{font-size:.46rem}
   body.game-active .cultivate-status p{display:none}
-  body.game-active .side-stack{grid-template-rows:minmax(0,1fr) auto;gap:9px}
-  body.game-active .round-log-panel{max-height:none;min-height:0;overflow:auto;padding:10px}
-  body.game-active .round-log-panel h3{padding:0 0 6px;font-size:1rem}
-  body.game-active .round-entry{padding:7px 8px;margin-bottom:6px}
-  body.game-active .round-entry p{font-size:.7rem;line-height:1.25}
-  body.game-active .quick-notes-panel{padding:10px;max-height:205px;overflow:auto}
-  body.game-active .quick-notes-panel h3{margin:4px 0 6px;font-size:1rem}
-  body.game-active .quick-notes-panel .field{margin:6px 0}
-  body.game-active textarea{min-height:48px}
+  body.game-active .side-stack{grid-template-rows:minmax(0,1fr) auto;gap:6px}
+  body.game-active .round-log-panel{max-height:none;min-height:0;overflow:auto;padding:7px}
+  body.game-active .round-log-panel h3{padding:0 0 4px;font-size:.86rem}
+  body.game-active .round-entry{padding:5px 6px;margin-bottom:4px}
+  body.game-active .round-entry p{font-size:.6rem;line-height:1.18}
+  body.game-active .quick-notes-panel{padding:7px;max-height:150px;overflow:auto}
+  body.game-active .quick-notes-panel h3{margin:3px 0 4px;font-size:.86rem}
+  body.game-active .quick-notes-panel .field{margin:4px 0}
+  body.game-active textarea{min-height:34px}
 }
 
 /* V41.4 Dairy Cow payment-flow fix */
@@ -435,7 +486,7 @@ body.modal-open{overflow:hidden}
         <button type="button" data-setup-tab="forecast" aria-selected="false">Forecast</button>
       </nav>
       <article class="panel setup-card">
-        <span class="eyebrow">Game setup</span><h2>Choose your colonies</h2><p class="hint">Player 1 controls the left colony. Player 2 controls the right colony. All Stashes and the full Forecast are visible.</p>
+        <span class="eyebrow">Game setup</span><h2>Choose how to play</h2><p class="hint">Play the original V41 bot or create an online room for another device.</p>
         <details class="playtest-details">
           <summary>Playtest details <span>optional</span></summary>
           <div class="two-col compact-fields">
@@ -443,28 +494,27 @@ body.modal-open{overflow:hidden}
             <div class="field"><label>Tester</label><input id="testerName" placeholder="Name or initials"></div>
           </div>
         </details>
-        <div class="two-col"><div class="field"><label>Player 1 Species</label><select id="humanSpecies"></select></div><div class="field"><label>Player 2 Species</label><select id="botSpecies"></select></div></div>
+        <div class="compact-setup-grid"><div class="field"><label>Your Species</label><select id="humanSpecies"></select></div><div class="field" id="botSpeciesField"><label>Bot Species</label><select id="botSpecies"></select></div></div>
         <div id="speciesFeedingNote" class="species-rule-note hidden"></div>
-        <div class="field"><label>Forecast source</label><select id="forecastMode"><option value="official">Official Affinity track</option><option value="balanced">Balanced random Forecast</option><option value="pure">Pure random Forecast</option><option value="custom">Custom six-card Forecast</option></select></div>
-        <div id="officialRow" class="field"><label>Official track</label><select id="trackSelect"></select></div>
+        <div class="compact-setup-grid"><div class="field"><label>Forecast source</label><select id="forecastMode"><option value="official">Official Affinity track</option><option value="balanced">Balanced random Forecast</option><option value="pure">Pure random Forecast</option><option value="custom">Custom six-card Forecast</option></select></div><div id="officialRow" class="field"><label>Official track</label><select id="trackSelect"></select></div></div>
         <div id="customBuilder" class="custom-grid hidden"><select class="custom-env"></select><select class="custom-env"></select><select class="custom-env"></select><select class="custom-env"></select><select class="custom-env"></select><select class="custom-env"></select></div>
-        <details id="advancedSettings" class="advanced-settings" open>
+        <details id="advancedSettings" class="advanced-settings">
           <summary>Advanced settings <span>priority, scoring & seed</span></summary>
-          <div class="two-col"><div class="field"><label>Mode</label><input value="Local two-player" disabled></div><div class="field"><label>Opening Priority</label><select id="openingPriority"><option value="random">Random</option><option value="human">Player 1</option><option value="bot">Player 2</option></select></div></div>
+          <div class="two-col"><div class="field"><label>Bot policy</label><select id="botPolicy"></select></div><div class="field"><label>Opening Priority</label><select id="openingPriority"><option value="random">Random</option><option value="human">You</option><option value="bot">Opponent</option></select></div></div>
           <div class="two-col"><div class="field"><label>Unstable scoring</label><select id="unstableMode"><option value="off">Off</option><option value="gt">−2 above Stability</option><option value="gte">−2 at or above Stability</option></select></div><div class="field"><label>Seed</label><input id="seed" value="PODBOUND-PLAYER-V41"></div></div>
         </details>
+        <div class="mode-grid">
+          <div class="mode-panel"><h3>Play the bot</h3><p class="hint">Use the original verified V41 bot opponent.</p><button class="btn primary start-button" id="startGame" type="button">Play vs Bot</button></div>
+          <div class="mode-panel"><h3>Create room</h3><p class="hint">Your species and forecast choices are shown in the lobby.</p><button class="btn copper start-button" id="createOnlineRoom" type="button">Create Online Room</button></div>
+        </div>
         <div class="online-panel">
-          <h3>Online room</h3>
-          <p class="hint">Create a room for Player 1, then share the code with Player 2 on another device.</p>
-          <div class="button-row"><button class="btn copper" id="createOnlineRoom" type="button">Create online room</button></div>
-          <div class="online-room-row">
-            <div class="field" style="margin:0"><label>Room code</label><input id="joinRoomCode" placeholder="ABC123" maxlength="8" autocomplete="off"></div>
-            <button class="btn secondary" id="joinOnlineRoom" type="button">Join</button>
-          </div>
+          <h3>Open rooms</h3>
+          <div class="compact-setup-grid"><div class="field"><label>Your Species to Join</label><select id="guestSpecies"></select></div><div class="field"><label>Room code</label><input id="joinRoomCode" placeholder="ABC123" maxlength="8" autocomplete="off"></div></div>
+          <div class="online-room-row"><button class="btn secondary" id="refreshRooms" type="button">Refresh Rooms</button><button class="btn secondary" id="joinOnlineRoom" type="button">Join</button></div>
+          <div id="roomList" class="room-list"></div>
           <div id="onlineStatus" class="online-status">Online play requires Supabase room setup.</div>
         </div>
         <div id="setupError" class="notice bad hidden"></div>
-        <button class="btn primary start-button" id="startGame">Start Verified Game</button>
       </article>
       <article class="panel setup-forecast-panel"><span class="eyebrow">Visible Forecast</span><h2>Six rounds ahead</h2><p class="hint">Choose your Species with the complete track in view, just like the tabletop game.</p><div id="setupForecastPreview" class="forecast-grid"></div></article>
     </section>
@@ -1718,7 +1768,7 @@ function createPlayerGame(opts={}){
     priorityHolder:openingPriority,openingPriority,unstableMode:opts.unstableMode||"off",aiStyle:opts.aiStyle||"balanced",
     decisionRng:rngFrom(hashString(`${baseSeed}|player-decisions|${humanSpecies}|${botSpecies}`)),
     players:[makePlayer(humanSpecies,humanIndex),makePlayer(botSpecies,botIndex)],roundRecords:[],audit:{populationEvents:[],stressEvents:[]},
-    humanIndex,botIndex,phase:"between_rounds",currentOrder:[],currentActionIndex:0,currentActions:[],currentDraws:null,currentBefore:null,
+    humanIndex,botIndex,mode:opts.mode||"online",phase:"between_rounds",currentOrder:[],currentActionIndex:0,currentActions:[],currentDraws:null,currentBefore:null,
     pendingChoice:null,decisionLog:[],playerLabels:["Player 1","Player 2"],lastMessage:"Game ready.",engine:{name:ENGINE_NAME,version:ENGINE_VERSION},
     botPolicy:{style:opts.aiStyle||"balanced",label:botPolicyLabel(opts.aiStyle||"balanced"),version:BOT_POLICY_VERSION}
   };
@@ -1744,14 +1794,19 @@ function beginPlayerRound(game){
   game.currentBefore=game.players.map(p=>({pop:p.population,stress:p.stress,stashValue:foodValue(p.stash),stashCards:p.stash.length,stash:[...p.stash]}));
   const log={round:game.round,environment:currentEnv(game),priorityHolder:game.priorityHolder,firstActor:null,playerActions:{},rottingDiscards:{},humanAction:null,humanRottingDiscardValue:null};
   game.decisionLog.push(log);
-  game.phase="priority_choice";game.lastMessage=`Round ${game.round}: ${playerLabel(game,game.priorityHolder)} holds Priority. Choose who acts first.`;
+  if(game.mode==="bot"&&game.priorityHolder===game.botIndex){
+    const first=chooseFirstActor(game,game.botIndex);setPlayerActionOrder(game,first,false);
+    game.lastMessage=`Round ${game.round}: The bot holds Priority and chose ${first===game.humanIndex?"you":"itself"} to act first.`;
+  }else{
+    game.phase="priority_choice";game.lastMessage=`Round ${game.round}: ${playerLabel(game,game.priorityHolder)} holds Priority. Choose who acts first.`;
+  }
   return playerGameSnapshot(game);
 }
 function setPlayerActionOrder(game,firstActor,chosenByHuman=true){
   if(![0,1].includes(firstActor))throw new Error("First actor must be player 0 or 1.");
   game.firstActorThisRound=firstActor;game.currentOrder=[firstActor,firstActor===0?1:0];game.currentActionIndex=0;
   game.decisionLog[game.decisionLog.length-1].firstActor=firstActor;
-  game.phase="human_action";
+  game.phase=game.mode==="bot"&&firstActor===game.botIndex?"bot_action":"human_action";
   return playerGameSnapshot(game);
 }
 function playerActionAvailability(game,index=game.humanIndex){
@@ -1800,7 +1855,10 @@ function finishInteractiveAction(game,p,result,attemptedAction){
   }
   game.pendingHumanDecision=null;game.pendingChoice=null;
   game.currentActionIndex++;
-  if(game.currentActionIndex<2)game.phase="human_action";
+  if(game.currentActionIndex<2){
+    const next=game.currentOrder[game.currentActionIndex];
+    game.phase=game.mode==="bot"&&next===game.botIndex?"bot_action":"human_action";
+  }
   else game.phase="end_round";
   return result;
 }
@@ -2049,11 +2107,18 @@ function getOnlineClient(){
   return online.client;
 }
 function serializeOnlineState(){
-  return{version:1,updatedAt:new Date().toISOString(),playerLabels:["Player 1","Player 2"],game:cloneData(game),result:cloneData(result),playtest:cloneData(playtest)};
+  return{version:1,status:game?"playing":"waiting",updatedAt:new Date().toISOString(),playerLabels:["Player 1","Player 2"],game:cloneData(game),result:cloneData(result),playtest:cloneData(playtest)};
 }
 function applyOnlineState(state,revision){
   online.applyingRemote=true;
   try{
+    if(state?.status==="waiting"&&!state?.game){
+      game=null;result=null;playtest=state.playtest||freshPlaytestState();online.revision=Number(revision||0);
+      document.body.classList.remove("game-active","result-active");
+      $("#setupScreen").classList.remove("hidden");$("#gameScreen").classList.add("hidden");$("#resultScreen").classList.add("hidden");
+      setOnlineStatus(`Room <span class="room-code-pill">${esc(online.roomCode)}</span> is waiting for Player 2.`,"good");
+      return;
+    }
     if(state?.game){game=state.game;game.playerLabels=state.playerLabels||["Player 1","Player 2"]}
     result=state?.result||game?.result||null;
     playtest=state?.playtest||freshPlaytestState();
@@ -2144,6 +2209,58 @@ async function joinOnlineRoom(){
   }catch(e){setOnlineStatus(esc(e.message||e),"bad")}
 }
 function speciesOption(k){return `<option value="${k}">${esc(SPECIES[k].name)} · ${SPECIES[k].stats.join(" / ")}</option>`}
+async function createOnlineRoom(){
+  try{
+    const client=getOnlineClient(),roomCode=randomRoomCode(),token=randomToken();
+    const seed=$("#seed").value.trim()||"PODBOUND-PLAYER-V41",hostSpecies=$("#humanSpecies").value,forecast=setupForecast(),forecastMode=$("#forecastMode").value,trackKey=$("#trackSelect").value;
+    const previousIdentity={testName:$("#testName").value.trim(),tester:$("#testerName").value.trim()};
+    playtest=freshPlaytestState();playtest.testName=previousIdentity.testName;playtest.tester=previousIdentity.tester;
+    game=null;result=null;selectedPayment=null;
+    const roomState={version:1,status:"waiting",updatedAt:new Date().toISOString(),playerLabels:["Player 1","Player 2"],setup:{hostSpecies,forecastMode,trackKey,trackName:TRACKS[trackKey]?.name||"Custom",forecast,seed,openingPriority:$("#openingPriority").value,unstableMode:$("#unstableMode").value},playtest:cloneData(playtest)};
+    const row={room_code:roomCode,room_state:roomState,host_token:token,revision:0};
+    const {error}=await client.from("podbound_rooms").insert(row);
+    if(error)throw error;
+    online={...online,enabled:true,client,roomCode,playerIndex:0,playerToken:token,revision:0,applyingRemote:false};
+    subscribeOnlineRoom();
+    setOnlineStatus(`Room created as Player 1. Share <span class="room-code-pill">${esc(roomCode)}</span>`,"good");
+    loadOpenRooms();
+  }catch(e){setOnlineStatus(esc(e.message||e),"bad")}
+}
+async function joinOnlineRoom(){
+  try{
+    const client=getOnlineClient(),roomCode=$("#joinRoomCode").value.trim().toUpperCase();
+    if(!roomCode)throw new Error("Enter a room code.");
+    const {data,error}=await client.from("podbound_rooms").select("room_state,revision").eq("room_code",roomCode).single();
+    if(error||!data)throw new Error("Room not found.");
+    const state=data.room_state||{},setup=state.setup;if(!setup)throw new Error("Room setup is missing.");
+    const guestSpecies=$("#guestSpecies").value;
+    playtest=state.playtest||freshPlaytestState();
+    game=C.createPlayerGame({humanSpecies:setup.hostSpecies,botSpecies:guestSpecies,forecast:setup.forecast,seed:setup.seed,openingPriority:setup.openingPriority,aiStyle:"balanced",unstableMode:setup.unstableMode,mode:"online"});
+    game.playerLabels=["Player 1","Player 2"];result=null;selectedPayment=null;C.beginPlayerRound(game);
+    const roomState={...state,status:"playing",updatedAt:new Date().toISOString(),guestSpecies,game:cloneData(game),result:null,playtest:cloneData(playtest)};
+    online={...online,enabled:true,client,roomCode,playerIndex:1,playerToken:randomToken(),revision:Number(data.revision||0),applyingRemote:false};
+    const {error:updateError}=await client.from("podbound_rooms").update({guest_token:online.playerToken,room_state:roomState,revision:online.revision+1,updated_at:new Date().toISOString()}).eq("room_code",roomCode).eq("revision",online.revision);
+    if(updateError)throw updateError;online.revision++;
+    subscribeOnlineRoom();
+    setOnlineStatus(`Connected as Player 2 · room <span class="room-code-pill">${esc(roomCode)}</span>`,"good");
+    applyOnlineState(roomState,online.revision);
+  }catch(e){setOnlineStatus(esc(e.message||e),"bad")}
+}
+async function loadOpenRooms(){
+  const list=$("#roomList");if(!list)return;
+  try{
+    const client=getOnlineClient();
+    const {data,error}=await client.from("podbound_rooms").select("room_code,room_state,created_at").order("created_at",{ascending:false}).limit(20);
+    if(error)throw error;
+    const rooms=(data||[]).filter(r=>r.room_state?.status==="waiting"&&r.room_state?.setup);
+    list.innerHTML=rooms.length?rooms.map(roomRowHtml).join(""):`<div class="notice">No open rooms yet.</div>`;
+    $$("[data-join-room]").forEach(btn=>btn.onclick=()=>{$("#joinRoomCode").value=btn.dataset.joinRoom;joinOnlineRoom()});
+  }catch(e){list.innerHTML=`<div class="notice bad">${esc(e.message||e)}</div>`}
+}
+function roomRowHtml(row){
+  const s=row.room_state.setup,forecast=s.forecastMode==="official"?`Official: ${s.trackName}`:s.forecastMode;
+  return `<div class="room-row"><div><b><span class="room-code-pill">${esc(row.room_code)}</span> ${esc(SPECIES[s.hostSpecies]?.name||s.hostSpecies)}</b><span>${esc(forecast)} · ${esc((s.forecast||[]).map(k=>ENV[k]?.name||k).join(" / "))}</span></div><button class="btn primary" type="button" data-join-room="${esc(row.room_code)}">Join</button></div>`;
+}
 function environmentOption(k){return `<option value="${k}">${esc(ENV[k].name)}</option>`}
 function currentPenalty(p){if(!game||game.unstableMode==="off")return 0;const stability=SPECIES[p.species].stats[2];return game.unstableMode==="gt"?(p.stress>stability?2:0):(p.stress>=stability?2:0)}
 function projectedScore(p){return p.population-p.stress-currentPenalty(p)}
@@ -2176,29 +2293,31 @@ function wireMobileNavigation(){
 function renderMobileStatus(human,bot){
   const host=$("#mobileStatusBar");if(!host||!game)return;
   const env=ENV[currentEnv(game)];
-  host.innerHTML=`<div class="mobile-status-card"><b>Player 1 · ${projectedScore(human)} score</b><span>Pop ${human.population} · Stress ${human.stress} · Food ${human.stash.length}${human.stash.length?` [${human.stash.join(",")}]`:""}</span></div><div class="mobile-status-card"><b>Player 2 · ${projectedScore(bot)} score</b><span>Pop ${bot.population} · Stress ${bot.stress} · Food ${bot.stash.length}${bot.stash.length?` [${bot.stash.join(",")}]`:""}</span></div><div class="mobile-env-line">Round ${game.round}: ${esc(env.name)} · ${esc(env.effect)}</div>`;
+  host.innerHTML=`<div class="mobile-status-card"><b>${esc(playerName(0))} · ${projectedScore(human)} score</b><span>Pop ${human.population} · Stress ${human.stress} · Food ${human.stash.length}${human.stash.length?` [${human.stash.join(",")}]`:""}</span></div><div class="mobile-status-card"><b>${esc(playerName(1))} · ${projectedScore(bot)} score</b><span>Pop ${bot.population} · Stress ${bot.stress} · Food ${bot.stash.length}${bot.stash.length?` [${bot.stash.join(",")}]`:""}</span></div><div class="mobile-env-line">Round ${game.round}: ${esc(env.name)} · ${esc(env.effect)}</div>`;
 }
 
 function init(){
   $("#humanSpecies").innerHTML=SPECIES_KEYS.map(speciesOption).join("");
   $("#botSpecies").innerHTML='<option value="random">Random Species</option>'+SPECIES_KEYS.map(speciesOption).join("");
+  $("#guestSpecies").innerHTML=SPECIES_KEYS.map(speciesOption).join("");
   $("#trackSelect").innerHTML=Object.entries(TRACKS).map(([k,t])=>`<option value="${k}">${esc(t.name)}</option>`).join("");
   if($("#botPolicy"))$("#botPolicy").innerHTML=Object.entries(AI_STYLES).map(([k,v])=>`<option value="${k}">${esc(v.name)} Bot Policy V41</option>`).join("");
   const envOpts=ENV_KEYS.map(environmentOption).join("");
   $$(".custom-env").forEach((s,i)=>{s.innerHTML=envOpts;s.value=TRACKS.ducky.cards[i]});
-  $("#humanSpecies").value="ducky";$("#botSpecies").value="random";$("#trackSelect").value="ducky";if($("#botPolicy"))$("#botPolicy").value="balanced";
+  $("#humanSpecies").value="ducky";$("#botSpecies").value="random";$("#guestSpecies").value="powder";$("#trackSelect").value="ducky";if($("#botPolicy"))$("#botPolicy").value="balanced";
   $("#testName").value=playtest.testName;$("#testerName").value=playtest.tester;
   $("#testName").oninput=e=>playtest.testName=e.target.value;$("#testerName").oninput=e=>playtest.tester=e.target.value;
   $("#forecastMode").onchange=syncForecastSetup;$("#trackSelect").onchange=renderSetupPreview;$("#humanSpecies").onchange=()=>{if($("#forecastMode").value==="official"){$("#trackSelect").value=$("#humanSpecies").value}renderSetupPreview();renderSpeciesFeedingNote()};
   $$(".custom-env").forEach(s=>s.onchange=renderSetupPreview);$("#seed").oninput=renderSetupPreview;
-  $("#startGame").onclick=startGame;$("#createOnlineRoom").onclick=createOnlineRoom;$("#joinOnlineRoom").onclick=joinOnlineRoom;$("#joinRoomCode").oninput=e=>e.target.value=e.target.value.toUpperCase();
+  $("#startGame").onclick=startGame;$("#createOnlineRoom").onclick=createOnlineRoom;$("#joinOnlineRoom").onclick=joinOnlineRoom;$("#refreshRooms").onclick=loadOpenRooms;$("#joinRoomCode").oninput=e=>e.target.value=e.target.value.toUpperCase();
   $("#newGame").onclick=resetToSetup;$("#rulesToggle").onclick=()=>$("#rulesPanel").classList.toggle("hidden");
   $("#gameRulesToggle").onclick=()=>$("#rulesPanel").classList.toggle("hidden");wireMobileNavigation();
   const health=C.runEngineHealthCheck("PLAYER-ARENA-HEALTH");
   $("#healthBadge").className=`health-badge ${health.passed?"pass":"fail"}`;$("#healthBadge").textContent=health.passed?`Engine verified · ${health.actionsChecked} actions checked`:`Engine check failed`;
   $("#healthDetail").textContent=health.passed?`${health.engine} · ${health.botPolicy} · exact replay matched`:health.errors.join(" · ");
   const cfg=onlineConfig();
-  setOnlineStatus(cfg.url&&cfg.anonKey?"Supabase configured. Create or join a room when ready.":"Supabase config missing. Add your public URL and anon key to window.PODBOUND_SUPABASE.","");
+  setOnlineStatus(cfg.url&&cfg.anonKey?"Supabase configured. Create, refresh, or join a room.":"Supabase config missing. Add your public URL and anon key to window.PODBOUND_SUPABASE.","");
+  if(cfg.url&&cfg.anonKey)loadOpenRooms();
   syncForecastSetup();renderSetupPreview();renderSpeciesFeedingNote();
 }
 function syncForecastSetup(){
@@ -2231,7 +2350,8 @@ function startGame(){
     let botSpecies=$("#botSpecies").value;if(botSpecies==="random")botSpecies=shuffle(SPECIES_KEYS.filter(k=>k!==humanSpecies),seedRng(seed,"bot-species"))[0];
     const previousIdentity={testName:$("#testName").value.trim(),tester:$("#testerName").value.trim()};
     playtest=freshPlaytestState();playtest.testName=previousIdentity.testName;playtest.tester=previousIdentity.tester;
-    game=C.createPlayerGame({humanSpecies,botSpecies,forecast:setupForecast(),seed,openingPriority:$("#openingPriority").value,aiStyle:$("#botPolicy")?.value||"balanced",unstableMode:$("#unstableMode").value});
+    game=C.createPlayerGame({humanSpecies,botSpecies,forecast:setupForecast(),seed,openingPriority:$("#openingPriority").value,aiStyle:$("#botPolicy")?.value||"balanced",unstableMode:$("#unstableMode").value,mode:"bot"});
+    game.playerLabels=["You","Bot"];
     result=null;selectedPayment=null;document.body.classList.add("game-active");document.body.classList.remove("result-active");setMobileGameTab("play",false);$("#setupScreen").classList.add("hidden");$("#gameScreen").classList.remove("hidden");$("#resultScreen").classList.add("hidden");
     C.beginPlayerRound(game);renderGame();
   }catch(e){showSetupError(e.message)}
@@ -2344,7 +2464,7 @@ function renderControls(){
     return;
   }
   if(game.phase==="priority_choice"){
-    host.innerHTML=`<div class="decision-panel"><h3>${playerName(game.priorityHolder)} chooses action order</h3><p>As Priority holder, choose which colony acts first this round.</p><div class="button-row"><button class="btn primary" id="humanFirst">Player 1 acts first</button><button class="btn secondary" id="botFirst">Player 2 acts first</button></div></div>`;
+    host.innerHTML=`<div class="decision-panel"><h3>${playerName(game.priorityHolder)} chooses action order</h3><p>As Priority holder, choose which colony acts first this round.</p><div class="button-row"><button class="btn primary" id="humanFirst">${esc(playerName(0))} acts first</button><button class="btn secondary" id="botFirst">${esc(playerName(1))} acts first</button></div></div>`;
     $("#humanFirst").onclick=()=>{C.setPlayerActionOrder(game,game.humanIndex,true);renderGame()};$("#botFirst").onclick=()=>{C.setPlayerActionOrder(game,game.botIndex,true);renderGame()};return;
   }
   if(game.phase==="bot_action"){
