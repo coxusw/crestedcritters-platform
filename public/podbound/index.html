@@ -2071,7 +2071,7 @@ let game=null, result=null, selectedPayment=null;
 let playtest=freshPlaytestState();
 let online={
   enabled:false,client:null,roomCode:"",playerIndex:null,playerToken:"",
-  revision:0,channel:null,saveTimer:null,applyingRemote:false
+  revision:0,channel:null,saveTimer:null,applyingRemote:false,seenActionKeys:new Set()
 };
 function freshPlaytestState(){
   return{
@@ -2106,6 +2106,8 @@ const actionCopy={
   Secure:"Protect your Stash from Scavenge for the rest of this round."
 };
 function playerName(index){return game?.playerLabels?.[index]||`Player ${Number(index)+1}`}
+function localPlayerIndex(){return online.enabled&&online.playerIndex!==null?online.playerIndex:0}
+function opponentPlayerIndex(){return localPlayerIndex()===0?1:0}
 function esc(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch]))}
 function seedRng(seed,label){return rngFrom(hashString(`${seed}|${label}`))}
 function randomToken(){return Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,"0")).join("")}
@@ -2155,6 +2157,7 @@ function applyOnlineState(state,revision){
       $("#gameScreen").classList.toggle("hidden",game.phase==="finished");
       $("#resultScreen").classList.toggle("hidden",game.phase!=="finished");
       if(game.phase==="finished"){result=game.result||result;renderResult()}else renderGame();
+      showNewOpponentActionPrompt();
     }
   }finally{online.applyingRemote=false}
 }
@@ -2214,7 +2217,7 @@ async function createOnlineRoom(){
     const row={room_code:roomCode,room_state:serializeOnlineState(),host_token:token,revision:0};
     const {error}=await client.from("podbound_rooms").insert(row);
     if(error)throw error;
-    online={...online,enabled:true,client,roomCode,playerIndex:0,playerToken:token,revision:0,applyingRemote:false};
+    online={...online,enabled:true,client,roomCode,playerIndex:0,playerToken:token,revision:0,applyingRemote:false,seenActionKeys:new Set()};
     subscribeOnlineRoom();
     setOnlineStatus(`Connected as Player 1 · share room <span class="room-code-pill">${esc(roomCode)}</span>`,"good");
     document.body.classList.add("game-active");document.body.classList.remove("result-active");setMobileGameTab("play",false);
@@ -2227,7 +2230,7 @@ async function joinOnlineRoom(){
     if(!roomCode)throw new Error("Enter a room code.");
     const {data,error}=await client.from("podbound_rooms").select("room_state,revision").eq("room_code",roomCode).single();
     if(error||!data)throw new Error("Room not found.");
-    online={...online,enabled:true,client,roomCode,playerIndex:1,playerToken:randomToken(),revision:Number(data.revision||0),applyingRemote:false};
+    online={...online,enabled:true,client,roomCode,playerIndex:1,playerToken:randomToken(),revision:Number(data.revision||0),applyingRemote:false,seenActionKeys:new Set()};
     await client.from("podbound_rooms").update({guest_token:online.playerToken,updated_at:new Date().toISOString()}).eq("room_code",roomCode);
     subscribeOnlineRoom();
     setOnlineStatus(`Connected as Player 2 · room <span class="room-code-pill">${esc(roomCode)}</span>`,"good");
@@ -2246,7 +2249,7 @@ async function createOnlineRoom(){
     const row={room_code:roomCode,room_state:roomState,host_token:token,revision:0};
     const {error}=await client.from("podbound_rooms").insert(row);
     if(error)throw error;
-    online={...online,enabled:true,client,roomCode,playerIndex:0,playerToken:token,revision:0,applyingRemote:false};
+    online={...online,enabled:true,client,roomCode,playerIndex:0,playerToken:token,revision:0,applyingRemote:false,seenActionKeys:new Set()};
     subscribeOnlineRoom();
     setOnlineStatus(`Room created as Player 1. Share <span class="room-code-pill">${esc(roomCode)}</span>`,"good");
     showWaitingRoom(roomState);
@@ -2268,7 +2271,7 @@ async function joinOnlineRoom(){
     game=C.createPlayerGame({humanSpecies:setup.hostSpecies,botSpecies:guestSpecies,forecast:setup.forecast,seed:setup.seed,openingPriority:setup.openingPriority,aiStyle:"balanced",unstableMode:setup.unstableMode,mode:"online"});
     game.playerLabels=["Player 1","Player 2"];result=null;selectedPayment=null;C.beginPlayerRound(game);
     const roomState={...state,status:"playing",updatedAt:new Date().toISOString(),guestSpecies,game:cloneData(game),result:null,playtest:cloneData(playtest)};
-    online={...online,enabled:true,client,roomCode,playerIndex:1,playerToken:randomToken(),revision:Number(data.revision||0),applyingRemote:false};
+    online={...online,enabled:true,client,roomCode,playerIndex:1,playerToken:randomToken(),revision:Number(data.revision||0),applyingRemote:false,seenActionKeys:new Set()};
     const {error:updateError}=await client.from("podbound_rooms").update({guest_token:online.playerToken,room_state:roomState,revision:online.revision+1,updated_at:new Date().toISOString()}).eq("room_code",roomCode).eq("revision",online.revision);
     if(updateError)throw updateError;online.revision++;
     subscribeOnlineRoom();
@@ -2350,6 +2353,12 @@ function renderMobileStatus(human,bot){
   host.innerHTML=`<div class="mobile-status-card"><b>${esc(playerName(0))} · ${projectedScore(human)} score</b><span>Pop ${human.population} · Stress ${human.stress} · Food ${human.stash.length}${human.stash.length?` [${human.stash.join(",")}]`:""}</span></div><div class="mobile-status-card"><b>${esc(playerName(1))} · ${projectedScore(bot)} score</b><span>Pop ${bot.population} · Stress ${bot.stress} · Food ${bot.stash.length}${bot.stash.length?` [${bot.stash.join(",")}]`:""}</span></div><div class="mobile-env-line">Round ${game.round}: ${esc(env.name)} · ${esc(env.effect)}</div>`;
 }
 
+function renderMobileStatusForPerspective(primary,opponent){
+  const host=$("#mobileStatusBar");if(!host||!game)return;
+  const env=ENV[currentEnv(game)];
+  host.innerHTML=`<div class="mobile-status-card"><b>${esc(playerName(primary.index))} · ${projectedScore(primary)} score</b><span>Pop ${primary.population} · Stress ${primary.stress} · Food ${primary.stash.length}${primary.stash.length?` [${primary.stash.join(",")}]`:""}</span></div><div class="mobile-status-card"><b>${esc(playerName(opponent.index))} · ${projectedScore(opponent)} score</b><span>Pop ${opponent.population} · Stress ${opponent.stress} · Food ${opponent.stash.length}${opponent.stash.length?` [${opponent.stash.join(",")}]`:""}</span></div><div class="mobile-env-line">Round ${game.round}: ${esc(env.name)} · ${esc(env.effect)}</div>`;
+}
+
 function init(){
   $("#humanSpecies").innerHTML=SPECIES_KEYS.map(speciesOption).join("");
   $("#botSpecies").innerHTML='<option value="random">Random Species</option>'+SPECIES_KEYS.map(speciesOption).join("");
@@ -2415,18 +2424,18 @@ function resetToSetup(closeRoom=true){
   if(closeRoom&&online.enabled){closeCurrentRoom();return}
   hideBotActionPopup();
   if(online.channel&&online.client)online.client.removeChannel(online.channel);
-  online={...online,enabled:false,roomCode:"",playerIndex:null,playerToken:"",revision:0,channel:null,applyingRemote:false};
+  online={...online,enabled:false,roomCode:"",playerIndex:null,playerToken:"",revision:0,channel:null,applyingRemote:false,seenActionKeys:new Set()};
   document.body.classList.remove("game-active","result-active");setMobileSetupTab("options");$("#setupError").classList.add("hidden");$("#setupScreen").classList.remove("hidden");$("#waitingScreen").classList.add("hidden");$("#gameScreen").classList.add("hidden");$("#resultScreen").classList.add("hidden");game=null;result=null;renderSetupPreview();
   const cfg=onlineConfig();setOnlineStatus(cfg.url&&cfg.anonKey?"Supabase configured. Create or join a room when ready.":"Supabase config missing. Add your public URL and anon key to window.PODBOUND_SUPABASE.","");
 }
 function renderGame(){
   if(!game)return;if(game.phase==="finished"){result=game.result;renderResult();return}
-  const human=game.players[game.humanIndex],bot=game.players[game.botIndex];
+  const primaryIndex=localPlayerIndex(),otherIndex=primaryIndex===0?1:0,primary=game.players[primaryIndex],opponent=game.players[otherIndex];
   $("#gameMeta").innerHTML=`<span>${esc(game.gameId||"Live two-player game")}</span><span>Local two-player</span><span>Seed: ${esc(game.seedInput)}</span>`;
   $("#roundTitle").textContent=`Round ${game.round} of 6`;
   $("#phaseLabel").textContent=phaseText();
   $("#forecastTrack").innerHTML=game.forecast.map((k,i)=>`<article class="forecast-card ${i===game.round-1?"current":i<game.round-1?"past":""}"><span>Round ${i+1}</span><b>${esc(ENV[k].name)}</b><small>${esc(ENV[k].effect)}</small></article>`).join("");
-  $("#humanBoard").innerHTML=colonyBoard(human,true);$("#botBoard").innerHTML=colonyBoard(bot,false);renderMobileStatus(human,bot);
+  $("#humanBoard").innerHTML=colonyBoard(primary,"Your colony");$("#botBoard").innerHTML=colonyBoard(opponent,"Opponent colony");renderMobileStatusForPerspective(primary,opponent);
   $("#priorityDisplay").innerHTML=`<b>Priority:</b> ${playerName(game.priorityHolder)}${game.firstActorThisRound!==undefined&&game.currentOrder.length?` · First actor: ${playerName(game.firstActorThisRound)}`:""}`;
   renderControls();renderRoundLog();renderPlaytestNotes();
   queueOnlineSave();
@@ -2446,9 +2455,9 @@ function phaseText(){
   const actor=game?playerName(activePlayerIndex(game)):"Player";
   return game.phase==="priority_choice"?`${playerName(game.priorityHolder)} holds Priority — choose action order`:game.phase==="human_action"?`${actor}: choose your action`:game.phase==="human_forage_choice"?`${playerName(game.pendingChoice?.playerIndex??activePlayerIndex(game))}: choose which Food to keep`:game.phase==="bot_action"?`${playerName(game.botIndex)} is ready to act`:game.phase==="end_round"?"Both colonies acted — resolve the Environment":game.phase==="human_rotting_choice"?`${playerName(game.pendingChoice?.playerIndex??game.humanIndex)}: choose a Rotting Cache discard`:game.phase==="between_rounds"?"Round complete":"Game in progress";
 }
-function colonyBoard(p,isHuman){
+function colonyBoard(p,label){
   const [g,c,s]=SPECIES[p.species].stats,penalty=currentPenalty(p);
-  return `<div class="colony-head"><div><span class="eyebrow">${isHuman?"Player 1 colony":"Player 2 colony"}</span><h2>${esc(SPECIES[p.species].name)}</h2></div><span class="score-orb">${projectedScore(p)}<small>score</small></span></div>
+  return `<div class="colony-head"><div><span class="eyebrow">${esc(label)}</span><h2>${esc(SPECIES[p.species].name)}</h2></div><span class="score-orb">${projectedScore(p)}<small>score</small></span></div>
   <div class="stat-row"><span><b>${g}</b> Growth</span><span><b>${c}</b> Consumption</span><span><b>${s}</b> Stability</span></div>
   <div class="state-grid"><div><strong>${p.population}</strong><span>Population</span></div><div><strong>${p.stress}</strong><span>Stress</span></div><div><strong>${p.stash.length}</strong><span>Food cards</span></div><div><strong>${penalty?"−2":"0"}</strong><span>Unstable</span></div></div>
   <div class="stash"><label>Stash</label><div>${foodCards(p.stash)}</div></div>
@@ -2494,7 +2503,7 @@ function botActionPopupDetails(botName,result,before,after){
   if(botFoodDelta&&actual!=="Forage"&&actual!=="Scavenge")lines.push(`<strong>Bot Stash:</strong> ${botFoodDelta>0?"+":""}${botFoodDelta} Food card${Math.abs(botFoodDelta)===1?"":"s"}.`);
   if(humanFoodDelta&&actual!=="Scavenge")lines.push(`<strong>Your Stash:</strong> ${humanFoodDelta>0?"+":""}${humanFoodDelta} Food card${Math.abs(humanFoodDelta)===1?"":"s"}.`);
   if(!lines.length)lines.push(`<strong>Action resolved.</strong> No Population, Stress, or Stash totals changed.`);
-  return{title,html:lines.map(line=>`<div class="bot-action-line">${line}</div>`).join("")};
+  return{badge:"Bot action resolved",title,html:lines.map(line=>`<div class="bot-action-line">${line}</div>`).join("")};
 }
 function hideBotActionPopup(){
   const modal=$("#botActionModal");
@@ -2505,11 +2514,46 @@ function hideBotActionPopup(){
 function showBotActionPopup(details){
   const modal=$("#botActionModal");
   if(!modal)return;
+  const badge=modal.querySelector(".bot-action-badge");if(badge)badge.textContent=details.badge||"Action resolved";
   $("#botActionTitle").textContent=details.title;
   $("#botActionSummary").innerHTML=details.html;
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
   setTimeout(()=>$("#botActionContinue")?.focus(),20);
+}
+function actionPromptKey(round,action,index){return `${round}:${index}:${action.player}:${action.attemptedAction||action.action}>${action.action}:${action.stolen??""}:${(action.kept||[]).join(",")}`}
+function actionPromptDetails(playerIndex,action){
+  const attempted=action.attemptedAction||action.action,actual=action.action,name=playerName(playerIndex);
+  const title=attempted!==actual?`${name} tried ${attempted}, then ${actual}`:`${name} chose ${actual}`;
+  const lines=[];
+  if(actual==="Cultivate"){
+    const paid=action.payment?.total??0,cards=action.payment?.cards??0;
+    lines.push(`<strong>Cultivate:</strong> paid ${paid} Food value using ${cards} card${cards===1?"":"s"}.`);
+  }else if(actual==="Forage"){
+    lines.push(`<strong>Forage:</strong> drew ${readableFood(action.drawn)} and kept ${readableFood(action.kept)}.`);
+  }else if(actual==="Adapt"){
+    lines.push(`<strong>Adapt:</strong> removed ${action.removed||0} Stress.`);
+  }else if(actual==="Scavenge"){
+    const target=playerIndex===localPlayerIndex()?"the opponent's":"your";
+    lines.push(`<strong>Scavenge:</strong> took a value-${action.stolen} Food card from ${target} Stash.`);
+  }else if(actual==="Secure"){
+    lines.push(`<strong>Secure:</strong> protected their Stash from Scavenge for the rest of the round.`);
+  }
+  if(action.popGain)lines.push(`<strong>Population:</strong> ${action.popGain>0?"+":""}${action.popGain}.`);
+  if(action.stressDelta)lines.push(`<strong>Stress:</strong> ${action.stressDelta>0?"+":""}${action.stressDelta}.`);
+  if(!lines.length)lines.push(`<strong>Action resolved.</strong> No Population, Stress, or Stash totals changed.`);
+  return{badge:"Opponent action resolved",title,html:lines.map(line=>`<div class="bot-action-line">${line}</div>`).join("")};
+}
+function showNewOpponentActionPrompt(){
+  if(!online.enabled||!game||online.playerIndex===null)return;
+  const opponent=opponentPlayerIndex(),actions=game.currentActions||[];
+  actions.forEach((action,index)=>{
+    if(action.player===localPlayerIndex())online.seenActionKeys.add(actionPromptKey(game.round,action,index));
+  });
+  const unseen=actions.map((action,index)=>({action,index,key:actionPromptKey(game.round,action,index)})).find(item=>item.action.player===opponent&&!online.seenActionKeys.has(item.key));
+  if(!unseen)return;
+  online.seenActionKeys.add(unseen.key);
+  showBotActionPopup(actionPromptDetails(opponent,unseen.action));
 }
 
 function renderControls(){
