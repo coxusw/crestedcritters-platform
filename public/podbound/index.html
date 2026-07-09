@@ -64,6 +64,12 @@ button,select,input{font:inherit}button{cursor:pointer}.hidden{display:none!impo
 .room-row b,.room-row span{display:block}.room-row span{font-size:.76rem;color:var(--muted)}
 .compact-setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .setup-card .field{margin:8px 0}.setup-card .hint{margin:.25rem 0}
+.waiting-screen{max-width:760px;margin:0 auto;align-self:center;width:100%}
+.waiting-card{text-align:center}
+.waiting-card h2{font-family:Georgia,"Times New Roman",serif;color:var(--forest);font-size:2rem;margin:.25rem 0}
+.waiting-meta{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:14px 0}
+.waiting-meta div{border:1px solid var(--stone);border-radius:10px;background:#fffaf0;padding:9px}
+.waiting-meta b,.waiting-meta span{display:block}.waiting-meta span{font-size:.75rem;color:var(--muted)}
 
 @media(min-width:761px){
   body:not(.game-active):not(.result-active){height:100dvh;overflow:hidden}
@@ -76,6 +82,7 @@ button,select,input{font:inherit}button{cursor:pointer}.hidden{display:none!impo
   body:not(.game-active):not(.result-active) #healthDetail{display:none}
   body:not(.game-active):not(.result-active) main{flex:1;min-height:0;overflow:hidden}
   body:not(.game-active):not(.result-active) #setupScreen{height:100%;min-height:0;overflow:hidden;grid-template-columns:minmax(360px,.78fr) minmax(0,1.22fr);gap:10px}
+  body:not(.game-active):not(.result-active) #waitingScreen{height:100%;display:flex;align-items:center;justify-content:center}
   body:not(.game-active):not(.result-active) .panel{padding:12px;border-radius:12px}
   body:not(.game-active):not(.result-active) .setup-card{overflow:hidden}
   body:not(.game-active):not(.result-active) .setup-card h2,
@@ -519,6 +526,16 @@ body.modal-open{overflow:hidden}
       <article class="panel setup-forecast-panel"><span class="eyebrow">Visible Forecast</span><h2>Six rounds ahead</h2><p class="hint">Choose your Species with the complete track in view, just like the tabletop game.</p><div id="setupForecastPreview" class="forecast-grid"></div></article>
     </section>
 
+    <section id="waitingScreen" class="waiting-screen hidden">
+      <article class="panel waiting-card">
+        <span class="eyebrow">Online room</span>
+        <h2 id="waitingTitle">Waiting for Player 2</h2>
+        <p id="waitingMessage" class="hint"></p>
+        <div id="waitingMeta" class="waiting-meta"></div>
+        <div class="button-row" style="justify-content:center"><button class="btn copper" id="resignRoom" type="button">Resign</button></div>
+      </article>
+    </section>
+
     <section id="gameScreen" class="hidden" data-mobile-tab="play">
       <nav class="mobile-game-tabs" aria-label="Game sections">
         <button type="button" class="active" data-game-tab="play" aria-selected="true">Play</button>
@@ -528,7 +545,7 @@ body.modal-open{overflow:hidden}
       </nav>
       <div id="mobileStatusBar" class="mobile-status-bar" aria-live="polite"></div>
       <article class="panel game-summary-panel">
-        <div class="game-top"><div><span class="eyebrow">Live game</span><h1 id="roundTitle">Round 1 of 6</h1><div id="phaseLabel" class="phase-label"></div><div id="priorityDisplay" class="priority-display"></div></div><div><div id="gameMeta" class="game-meta"></div><div class="button-row game-utility-buttons" style="justify-content:flex-end;margin-top:8px"><button class="btn secondary" id="gameRulesToggle">Rules</button><button class="btn secondary" id="newGame">New game</button></div></div></div>
+        <div class="game-top"><div><span class="eyebrow">Live game</span><h1 id="roundTitle">Round 1 of 6</h1><div id="phaseLabel" class="phase-label"></div><div id="priorityDisplay" class="priority-display"></div></div><div><div id="gameMeta" class="game-meta"></div><div class="button-row game-utility-buttons" style="justify-content:flex-end;margin-top:8px"><button class="btn secondary" id="gameRulesToggle">Rules</button><button class="btn copper" id="resignGame">Resign</button><button class="btn secondary" id="newGame">New game</button></div></div></div>
         <div id="forecastTrack" class="forecast-track"></div>
       </article>
       <div class="game-layout">
@@ -2112,11 +2129,15 @@ function serializeOnlineState(){
 function applyOnlineState(state,revision){
   online.applyingRemote=true;
   try{
+    if(state?.status==="closed"){
+      resetToSetup(false);
+      setOnlineStatus("This room was closed.","bad");
+      return;
+    }
     if(state?.status==="waiting"&&!state?.game){
       game=null;result=null;playtest=state.playtest||freshPlaytestState();online.revision=Number(revision||0);
       document.body.classList.remove("game-active","result-active");
-      $("#setupScreen").classList.remove("hidden");$("#gameScreen").classList.add("hidden");$("#resultScreen").classList.add("hidden");
-      setOnlineStatus(`Room <span class="room-code-pill">${esc(online.roomCode)}</span> is waiting for Player 2.`,"good");
+      showWaitingRoom(state);
       return;
     }
     if(state?.game){game=state.game;game.playerLabels=state.playerLabels||["Player 1","Player 2"]}
@@ -2127,6 +2148,7 @@ function applyOnlineState(state,revision){
       document.body.classList.toggle("result-active",game.phase==="finished");
       document.body.classList.toggle("game-active",game.phase!=="finished");
       $("#setupScreen").classList.add("hidden");
+      $("#waitingScreen").classList.add("hidden");
       $("#gameScreen").classList.toggle("hidden",game.phase==="finished");
       $("#resultScreen").classList.toggle("hidden",game.phase!=="finished");
       if(game.phase==="finished"){result=game.result||result;renderResult()}else renderGame();
@@ -2178,6 +2200,7 @@ function subscribeOnlineRoom(){
 }
 async function createOnlineRoom(){
   try{
+    if(online.enabled)throw new Error("You are already in a room. Resign before creating or joining another room.");
     const client=getOnlineClient(),roomCode=randomRoomCode(),token=randomToken();
     const seed=$("#seed").value.trim()||"PODBOUND-PLAYER-V41",humanSpecies=$("#humanSpecies").value;
     let botSpecies=$("#botSpecies").value;if(botSpecies==="random")botSpecies=shuffle(SPECIES_KEYS.filter(k=>k!==humanSpecies),seedRng(seed,"bot-species"))[0];
@@ -2223,16 +2246,20 @@ async function createOnlineRoom(){
     online={...online,enabled:true,client,roomCode,playerIndex:0,playerToken:token,revision:0,applyingRemote:false};
     subscribeOnlineRoom();
     setOnlineStatus(`Room created as Player 1. Share <span class="room-code-pill">${esc(roomCode)}</span>`,"good");
+    showWaitingRoom(roomState);
     loadOpenRooms();
   }catch(e){setOnlineStatus(esc(e.message||e),"bad")}
 }
 async function joinOnlineRoom(){
   try{
+    if(online.enabled)throw new Error("You are already in a room. Resign before creating or joining another room.");
     const client=getOnlineClient(),roomCode=$("#joinRoomCode").value.trim().toUpperCase();
     if(!roomCode)throw new Error("Enter a room code.");
     const {data,error}=await client.from("podbound_rooms").select("room_state,revision").eq("room_code",roomCode).single();
     if(error||!data)throw new Error("Room not found.");
-    const state=data.room_state||{},setup=state.setup;if(!setup)throw new Error("Room setup is missing.");
+    const state=data.room_state||{},setup=state.setup;
+    if(state.status!=="waiting")throw new Error("That room is no longer open.");
+    if(!setup){await client.from("podbound_rooms").update({room_state:{version:1,status:"closed",updatedAt:new Date().toISOString(),reason:"missing_setup"},updated_at:new Date().toISOString()}).eq("room_code",roomCode);loadOpenRooms();throw new Error("That room was invalid and has been closed.");}
     const guestSpecies=$("#guestSpecies").value;
     playtest=state.playtest||freshPlaytestState();
     game=C.createPlayerGame({humanSpecies:setup.hostSpecies,botSpecies:guestSpecies,forecast:setup.forecast,seed:setup.seed,openingPriority:setup.openingPriority,aiStyle:"balanced",unstableMode:setup.unstableMode,mode:"online"});
@@ -2260,6 +2287,30 @@ async function loadOpenRooms(){
 function roomRowHtml(row){
   const s=row.room_state.setup,forecast=s.forecastMode==="official"?`Official: ${s.trackName}`:s.forecastMode;
   return `<div class="room-row"><div><b><span class="room-code-pill">${esc(row.room_code)}</span> ${esc(SPECIES[s.hostSpecies]?.name||s.hostSpecies)}</b><span>${esc(forecast)} · ${esc((s.forecast||[]).map(k=>ENV[k]?.name||k).join(" / "))}</span></div><button class="btn primary" type="button" data-join-room="${esc(row.room_code)}">Join</button></div>`;
+}
+function showWaitingRoom(state){
+  const setup=state?.setup||{};
+  $("#setupScreen").classList.add("hidden");
+  $("#gameScreen").classList.add("hidden");
+  $("#resultScreen").classList.add("hidden");
+  $("#waitingScreen").classList.remove("hidden");
+  $("#waitingTitle").textContent="Waiting for Player 2";
+  $("#waitingMessage").innerHTML=`Room <span class="room-code-pill">${esc(online.roomCode)}</span> is open. Share the code or wait for someone from the lobby.`;
+  const forecast=setup.forecastMode==="official"?`Official: ${setup.trackName}`:setup.forecastMode||"Forecast";
+  $("#waitingMeta").innerHTML=`<div><b>${esc(SPECIES[setup.hostSpecies]?.name||setup.hostSpecies||"Host species")}</b><span>Your species</span></div><div><b>${esc(forecast)}</b><span>Forecast source</span></div>`;
+}
+async function closeCurrentRoom(){
+  if(!online.enabled||!online.roomCode){resetToSetup(false);return}
+  try{
+    const client=getOnlineClient();
+    const roomState={version:1,status:"closed",updatedAt:new Date().toISOString(),closedBy:online.playerIndex,game:cloneData(game),result:cloneData(result)};
+    await client.from("podbound_rooms").update({room_state:roomState,revision:online.revision+1,updated_at:new Date().toISOString()}).eq("room_code",online.roomCode);
+  }catch(e){
+    setOnlineStatus(esc(e.message||e),"bad");
+  }finally{
+    resetToSetup(false);
+    loadOpenRooms();
+  }
 }
 function environmentOption(k){return `<option value="${k}">${esc(ENV[k].name)}</option>`}
 function currentPenalty(p){if(!game||game.unstableMode==="off")return 0;const stability=SPECIES[p.species].stats[2];return game.unstableMode==="gt"?(p.stress>stability?2:0):(p.stress>=stability?2:0)}
@@ -2309,8 +2360,8 @@ function init(){
   $("#testName").oninput=e=>playtest.testName=e.target.value;$("#testerName").oninput=e=>playtest.tester=e.target.value;
   $("#forecastMode").onchange=syncForecastSetup;$("#trackSelect").onchange=renderSetupPreview;$("#humanSpecies").onchange=()=>{if($("#forecastMode").value==="official"){$("#trackSelect").value=$("#humanSpecies").value}renderSetupPreview();renderSpeciesFeedingNote()};
   $$(".custom-env").forEach(s=>s.onchange=renderSetupPreview);$("#seed").oninput=renderSetupPreview;
-  $("#startGame").onclick=startGame;$("#createOnlineRoom").onclick=createOnlineRoom;$("#joinOnlineRoom").onclick=joinOnlineRoom;$("#refreshRooms").onclick=loadOpenRooms;$("#joinRoomCode").oninput=e=>e.target.value=e.target.value.toUpperCase();
-  $("#newGame").onclick=resetToSetup;$("#rulesToggle").onclick=()=>$("#rulesPanel").classList.toggle("hidden");
+  $("#startGame").onclick=startGame;$("#createOnlineRoom").onclick=createOnlineRoom;$("#joinOnlineRoom").onclick=joinOnlineRoom;$("#refreshRooms").onclick=loadOpenRooms;$("#resignRoom").onclick=closeCurrentRoom;$("#joinRoomCode").oninput=e=>e.target.value=e.target.value.toUpperCase();
+  $("#newGame").onclick=resetToSetup;$("#resignGame").onclick=()=>online.enabled?closeCurrentRoom():resetToSetup(false);$("#rulesToggle").onclick=()=>$("#rulesPanel").classList.toggle("hidden");
   $("#gameRulesToggle").onclick=()=>$("#rulesPanel").classList.toggle("hidden");wireMobileNavigation();
   const health=C.runEngineHealthCheck("PLAYER-ARENA-HEALTH");
   $("#healthBadge").className=`health-badge ${health.passed?"pass":"fail"}`;$("#healthBadge").textContent=health.passed?`Engine verified · ${health.actionsChecked} actions checked`:`Engine check failed`;
@@ -2357,11 +2408,12 @@ function startGame(){
   }catch(e){showSetupError(e.message)}
 }
 function showSetupError(msg){$("#setupError").textContent=msg;$("#setupError").classList.remove("hidden")}
-function resetToSetup(){
+function resetToSetup(closeRoom=true){
+  if(closeRoom&&online.enabled){closeCurrentRoom();return}
   hideBotActionPopup();
   if(online.channel&&online.client)online.client.removeChannel(online.channel);
   online={...online,enabled:false,roomCode:"",playerIndex:null,playerToken:"",revision:0,channel:null,applyingRemote:false};
-  document.body.classList.remove("game-active","result-active");setMobileSetupTab("options");$("#setupError").classList.add("hidden");$("#setupScreen").classList.remove("hidden");$("#gameScreen").classList.add("hidden");$("#resultScreen").classList.add("hidden");game=null;result=null;renderSetupPreview();
+  document.body.classList.remove("game-active","result-active");setMobileSetupTab("options");$("#setupError").classList.add("hidden");$("#setupScreen").classList.remove("hidden");$("#waitingScreen").classList.add("hidden");$("#gameScreen").classList.add("hidden");$("#resultScreen").classList.add("hidden");game=null;result=null;renderSetupPreview();
   const cfg=onlineConfig();setOnlineStatus(cfg.url&&cfg.anonKey?"Supabase configured. Create or join a room when ready.":"Supabase config missing. Add your public URL and anon key to window.PODBOUND_SUPABASE.","");
 }
 function renderGame(){
