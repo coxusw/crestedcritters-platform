@@ -448,10 +448,13 @@ body.modal-open{overflow:hidden}
   body.game-active .game-summary-panel{padding:8px 9px}
   body.game-active .game-summary-panel h1{font-size:1.2rem}
   body.game-active .game-summary-panel #priorityDisplay{margin-top:4px;padding:5px 7px}
-  body.game-active .game-layout{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;margin-top:7px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+  body.game-active .game-layout{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;margin-top:7px;padding-bottom:max(140px,calc(env(safe-area-inset-bottom) + 96px));scroll-padding-bottom:max(140px,calc(env(safe-area-inset-bottom) + 96px))}
   body.game-active .arena-main,body.game-active .side-stack{min-height:0}
+  body.game-active #turnControls{overflow:visible;padding-bottom:max(96px,calc(env(safe-area-inset-bottom) + 72px))}
   body.game-active .colony-board{padding:10px}
-  body.game-active .decision-panel{padding:10px}
+  body.game-active .decision-panel{padding:10px;margin-bottom:max(24px,env(safe-area-inset-bottom))}
+  body.game-active .decision-panel .button-row{display:grid;grid-template-columns:1fr;gap:8px}
+  body.game-active .decision-panel .button-row .btn{width:100%;min-height:46px}
   body.game-active .mobile-status-bar{margin-bottom:6px;padding:6px}
   body.game-active .mobile-game-tabs{margin-bottom:6px}
 }
