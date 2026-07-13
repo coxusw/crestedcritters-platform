@@ -140,6 +140,7 @@ export default async function NotificationsPage({
           <FilterLink href={notificationFilterHref({ view: params.view, type: "discussion_reply" })} active={activeType === "discussion_reply"} label="Replies" />
           <FilterLink href={notificationFilterHref({ view: params.view, type: "mention" })} active={activeType === "mention"} label="Mentions" />
           <FilterLink href={notificationFilterHref({ view: params.view, type: "followed_species_discussion" })} active={activeType === "followed_species_discussion"} label="Species" />
+          <FilterLink href={notificationFilterHref({ view: params.view, type: "followed_species_photo" })} active={activeType === "followed_species_photo"} label="Photos" />
           <FilterLink href={notificationFilterHref({ view: params.view, type: "accepted_answer" })} active={activeType === "accepted_answer"} label="Answers" />
           <FilterLink href={notificationFilterHref({ view: params.view, type: "badge_awarded" })} active={activeType === "badge_awarded"} label="Badges" />
           <FilterLink href={notificationFilterHref({ view: params.view, type: "moderator_action" })} active={activeType === "moderator_action"} label="Moderation" />
