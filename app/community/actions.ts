@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { awardIsoTokens } from "@/lib/isotokens";
 import {
   communityExcerpt,
   communitySlug,
@@ -685,6 +686,18 @@ export async function createCommunityDiscussion(formData: FormData) {
   if (error) {
     console.error("Failed to create community discussion:", error.message);
     redirect(newDiscussionErrorPath(category.slug, "Your discussion could not be saved. Please try again."));
+  }
+
+  if (status === "published" && contentType === "guide") {
+    await awardIsoTokens(supabase, {
+      profileId: user.id,
+      amount: 5,
+      reason: "guide_submission",
+      reasonKey: `guide_submission:${id}`,
+      description: "Published a community guide.",
+      entityType: "community_discussion",
+      entityId: id,
+    });
   }
 
   let linkedSpeciesIds: number[] = [];
