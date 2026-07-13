@@ -35,12 +35,22 @@ type Badge = {
   color: string | null;
   icon: string | null;
   is_active: boolean | null;
+  visible_by_default: boolean | null;
+  default_priority: number | null;
 };
 
 type BadgeAssignment = {
   id: string;
+  badge_id: string;
   assigned_at: string | null;
   profile_badges: Badge | null;
+};
+
+type BadgeDisplaySetting = {
+  badge_id: string;
+  is_visible: boolean;
+  show_on_profile: boolean;
+  display_order: number | null;
 };
 
 type CollectionItem = {
@@ -508,6 +518,7 @@ export default async function PublicProfilePage({
     acceptedCommunityReplies,
     communityImages,
     badgeAssignments,
+    badgeDisplaySettings,
     collectionResult,
   ] = await Promise.all([
     supabase
@@ -576,6 +587,7 @@ export default async function PublicProfilePage({
       .select(
         `
         id,
+        badge_id,
         assigned_at,
         profile_badges:badge_id (
           id,
@@ -583,20 +595,52 @@ export default async function PublicProfilePage({
           description,
           color,
           icon,
-          is_active
+          is_active,
+          visible_by_default,
+          default_priority
         )
       `
       )
       .eq("profile_id", profile.id)
       .order("assigned_at", { ascending: false })
       .returns<BadgeAssignment[]>(),
+    supabase
+      .from("user_badge_display_settings")
+      .select("badge_id, is_visible, show_on_profile, display_order")
+      .eq("profile_id", profile.id)
+      .returns<BadgeDisplaySetting[]>(),
     getCollectionPreview(supabase, profile.id, isOwner),
   ]);
 
+  const badgeDisplaySettingsByBadgeId = new Map(
+    (badgeDisplaySettings.data || []).map((setting) => [setting.badge_id, setting])
+  );
   const assignedBadges =
     badgeAssignments.data
-      ?.map((assignment) => assignment.profile_badges)
-      .filter((badge): badge is Badge => Boolean(badge && badge.is_active)) ||
+      ?.filter((assignment) => {
+        const badge = assignment.profile_badges;
+        if (!badge?.is_active) return false;
+        const setting = badgeDisplaySettingsByBadgeId.get(assignment.badge_id);
+        const visible = setting?.is_visible ?? badge.visible_by_default ?? true;
+        const showOnProfile = setting?.show_on_profile ?? true;
+        return visible && showOnProfile;
+      })
+      .sort((left, right) => {
+        const leftBadge = left.profile_badges;
+        const rightBadge = right.profile_badges;
+        const leftSetting = badgeDisplaySettingsByBadgeId.get(left.badge_id);
+        const rightSetting = badgeDisplaySettingsByBadgeId.get(right.badge_id);
+        const orderDelta =
+          (leftSetting?.display_order ?? leftBadge?.default_priority ?? 100) -
+          (rightSetting?.display_order ?? rightBadge?.default_priority ?? 100);
+        if (orderDelta !== 0) return orderDelta;
+        return (
+          new Date(right.assigned_at || 0).getTime() -
+          new Date(left.assigned_at || 0).getTime()
+        );
+      })
+      .map((assignment) => assignment.profile_badges)
+      .filter((badge): badge is Badge => Boolean(badge)) ||
     [];
 
   const submittedSpeciesCount = submittedSpecies.count || 0;
