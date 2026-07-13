@@ -14,6 +14,8 @@ import {
   type MarketplaceDetails,
   communityProfileName,
   getInlineBadgesForProfiles,
+  isMarketplaceExpiredByDate,
+  marketplaceEffectiveStatus,
 } from "@/lib/community";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { InlineBadges } from "@/app/community/CommunityCards";
@@ -984,11 +986,8 @@ function MarketplaceDetailsPanel({
   canManage: boolean;
   returnPath: string;
 }) {
-  const expiredByDate = isMarketplaceExpired(details);
-  const effectiveStatus =
-    expiredByDate && ["available", "pending"].includes(details.listing_status)
-      ? "expired"
-      : details.listing_status;
+  const expiredByDate = isMarketplaceExpiredByDate(details.expiration_date);
+  const effectiveStatus = marketplaceEffectiveStatus(details);
 
   return (
     <section className="mt-6 rounded-lg border border-yellow-300/20 bg-yellow-300/10 p-4 sm:p-5">
@@ -1173,12 +1172,6 @@ function formatMarketplaceDate(value: string | null) {
     day: "numeric",
     year: "numeric",
   }).format(date);
-}
-
-function isMarketplaceExpired(details: MarketplaceDetails) {
-  if (!details.expiration_date) return false;
-  const expiration = new Date(`${details.expiration_date}T23:59:59`);
-  return expiration.getTime() < Date.now();
 }
 
 function marketplaceStatusClass(status: string) {

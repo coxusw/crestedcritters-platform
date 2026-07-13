@@ -5,6 +5,7 @@ import {
   getCommunityCategories,
   getCommunityDiscussions,
   getInlineBadgesForProfiles,
+  marketplaceEffectiveStatus,
   type MarketplaceDetails,
 } from "@/lib/community";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
@@ -249,6 +250,10 @@ function MiniDiscussion({
   discussion: { slug: string; title: string; reply_count: number };
   marketplaceDetails?: MarketplaceDetails | null;
 }) {
+  const marketplaceStatus = marketplaceDetails
+    ? marketplaceEffectiveStatus(marketplaceDetails)
+    : null;
+
   return (
     <Link
       href={`/community/discussion/${discussion.slug}`}
@@ -257,7 +262,7 @@ function MiniDiscussion({
       <p className="line-clamp-2 text-sm font-bold text-white">{discussion.title}</p>
       <p className="mt-1 text-xs text-emerald-50/45">
         {discussion.reply_count} replies
-        {marketplaceDetails ? ` | ${marketplaceLabel(marketplaceDetails.listing_status)}` : ""}
+        {marketplaceStatus ? ` | ${marketplaceLabel(marketplaceStatus)}` : ""}
       </p>
     </Link>
   );

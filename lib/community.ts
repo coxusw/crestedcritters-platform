@@ -106,6 +106,27 @@ export type MarketplaceDetails = {
   permit_notes: string | null;
 };
 
+export function marketplaceEffectiveStatus(details: {
+  listing_status: string | null;
+  expiration_date: string | null;
+}) {
+  if (
+    details.listing_status &&
+    ["available", "pending"].includes(details.listing_status) &&
+    isMarketplaceExpiredByDate(details.expiration_date)
+  ) {
+    return "expired";
+  }
+
+  return details.listing_status || "expired";
+}
+
+export function isMarketplaceExpiredByDate(expirationDate: string | null) {
+  if (!expirationDate) return false;
+  const expiration = new Date(`${expirationDate}T23:59:59`);
+  return Number.isFinite(expiration.getTime()) && expiration.getTime() < Date.now();
+}
+
 export type InlineBadge = {
   id: string;
   label: string;
@@ -245,18 +266,22 @@ export async function getCommunityDiscussions(
   if (options.marketplaceListingType || options.marketplaceStatus) {
     let marketplaceQuery = supabase
       .from("marketplace_listing_details")
-      .select("discussion_id")
+      .select("discussion_id, listing_status, expiration_date")
       .limit(1000);
 
     if (options.marketplaceListingType) {
       marketplaceQuery = marketplaceQuery.eq("listing_type", options.marketplaceListingType);
     }
-    if (options.marketplaceStatus) {
-      marketplaceQuery = marketplaceQuery.eq("listing_status", options.marketplaceStatus);
-    }
 
-    const { data: listingRows } = await marketplaceQuery.returns<Array<{ discussion_id: string }>>();
-    discussionIdFilters.push(new Set((listingRows || []).map((row) => row.discussion_id)));
+    const { data: listingRows } = await marketplaceQuery.returns<
+      Array<{ discussion_id: string; listing_status: string | null; expiration_date: string | null }>
+    >();
+    const filteredRows = options.marketplaceStatus
+      ? (listingRows || []).filter(
+          (row) => marketplaceEffectiveStatus(row) === options.marketplaceStatus
+        )
+      : listingRows || [];
+    discussionIdFilters.push(new Set(filteredRows.map((row) => row.discussion_id)));
   }
 
   const speciesId = Number(options.speciesId);

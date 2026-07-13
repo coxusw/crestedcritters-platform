@@ -5,6 +5,7 @@ import {
   type MarketplaceDetails,
   communityExcerpt,
   communityProfileName,
+  marketplaceEffectiveStatus,
 } from "@/lib/community";
 
 export function DiscussionCard({
@@ -19,6 +20,9 @@ export function DiscussionCard({
   const authorName = communityProfileName(discussion.author);
   const authorHref = discussion.author?.username
     ? `/profile/${discussion.author.username}`
+    : null;
+  const marketplaceStatus = marketplaceDetails
+    ? marketplaceEffectiveStatus(marketplaceDetails)
     : null;
 
   return (
@@ -54,8 +58,8 @@ export function DiscussionCard({
             )}
             {marketplaceDetails && (
               <>
-                <span className={`rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wide ${marketplaceStatusClass(marketplaceDetails.listing_status)}`}>
-                  {marketplaceLabel(marketplaceDetails.listing_status)}
+                <span className={`rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wide ${marketplaceStatusClass(marketplaceStatus || "expired")}`}>
+                  {marketplaceLabel(marketplaceStatus)}
                 </span>
                 <span className="rounded-md border border-yellow-300/20 bg-yellow-300/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-yellow-100">
                   {marketplaceLabel(marketplaceDetails.listing_type)}
@@ -97,7 +101,10 @@ export function DiscussionCard({
         {marketplaceDetails?.expiration_date && (
           <>
             <span>|</span>
-            <span>Expires {formatShortDate(marketplaceDetails.expiration_date)}</span>
+            <span>
+              {marketplaceStatus === "expired" ? "Expired" : "Expires"}{" "}
+              {formatShortDate(marketplaceDetails.expiration_date)}
+            </span>
           </>
         )}
       </div>
