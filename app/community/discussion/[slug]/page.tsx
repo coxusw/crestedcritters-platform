@@ -17,9 +17,11 @@ import LinkifiedText from "@/app/community/LinkifiedText";
 import {
   createCommunityReply,
   reportCommunityContent,
+  softDeleteCommunityReply,
   softDeleteCommunityDiscussion,
   toggleCommunityFollow,
   toggleCommunitySave,
+  updateCommunityReply,
 } from "@/app/community/actions";
 
 export async function generateMetadata({
@@ -52,6 +54,20 @@ export default async function CommunityDiscussionPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const [{ data: viewerProfile }, { data: viewerAdminProfile }] = user
+    ? await Promise.all([
+        supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle<{ role: string | null }>(),
+        supabase.from("admin_profiles").select("id").eq("id", user.id).maybeSingle(),
+      ])
+    : [{ data: null }, { data: null }];
+  const canModerate =
+    Boolean(viewerAdminProfile) ||
+    viewerProfile?.role === "admin" ||
+    viewerProfile?.role === "moderator";
 
   const { data: discussion, error } = await supabase
     .from("community_discussions")
@@ -374,6 +390,9 @@ export default async function CommunityDiscussionPage({
                   className="mt-4"
                   compact
                 />
+                {user && (reply.author_id === user.id || canModerate) && (
+                  <ReplyControls reply={reply} returnPath={returnPath} />
+                )}
               </article>
             ))}
           </div>
@@ -451,6 +470,47 @@ export default async function CommunityDiscussionPage({
         </section>
       </div>
     </main>
+  );
+}
+
+function ReplyControls({
+  reply,
+  returnPath,
+}: {
+  reply: CommunityReply;
+  returnPath: string;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap items-start gap-3 border-t border-white/10 pt-4">
+      <details className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#07130c] p-3">
+        <summary className="cursor-pointer text-sm font-black text-sky-100">
+          Edit reply
+        </summary>
+        <form action={updateCommunityReply} className="mt-3 grid gap-3">
+          <input type="hidden" name="reply_id" value={reply.id} />
+          <input type="hidden" name="return_path" value={returnPath} />
+          <textarea
+            name="body"
+            defaultValue={reply.body}
+            required
+            minLength={2}
+            rows={5}
+            className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none ring-emerald-400/30 focus:ring-4"
+          />
+          <button className="w-fit rounded-lg border border-sky-300/20 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-300/10">
+            Save Reply
+          </button>
+        </form>
+      </details>
+
+      <form action={softDeleteCommunityReply}>
+        <input type="hidden" name="reply_id" value={reply.id} />
+        <input type="hidden" name="return_path" value={returnPath} />
+        <button className="rounded-lg border border-red-300/20 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-400/10">
+          Delete reply
+        </button>
+      </form>
+    </div>
   );
 }
 

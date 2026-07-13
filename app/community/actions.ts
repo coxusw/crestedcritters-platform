@@ -503,6 +503,102 @@ export async function createCommunityReply(formData: FormData) {
   revalidatePath(discussionPath(discussion.slug));
 }
 
+export async function updateCommunityReply(formData: FormData) {
+  const { supabase, user, canModerate } = await authContext();
+  await ensureNotDiscussionBanned(supabase, user.id);
+
+  const replyId = textValue(formData.get("reply_id"));
+  const body = textValue(formData.get("body"));
+  const returnPath = textValue(formData.get("return_path")) || "/community";
+
+  if (!replyId) throw new Error("Missing reply.");
+  if (body.length < 2) throw new Error("Reply is too short.");
+
+  const { data: reply, error: readError } = await supabase
+    .from("community_replies")
+    .select("id, discussion_id, author_id, status, discussion:discussion_id(slug)")
+    .eq("id", replyId)
+    .maybeSingle<{
+      id: string;
+      discussion_id: string;
+      author_id: string | null;
+      status: string;
+      discussion: { slug: string } | null;
+    }>();
+
+  if (readError) throw new Error(readError.message);
+  if (!reply || reply.status !== "published") throw new Error("Reply not found.");
+  if (reply.author_id !== user.id && !canModerate) {
+    throw new Error("You cannot edit this reply.");
+  }
+
+  const { error } = await supabase
+    .from("community_replies")
+    .update({
+      body,
+      edited_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", replyId);
+
+  if (error) throw new Error(error.message);
+
+  const path = reply.discussion?.slug ? discussionPath(reply.discussion.slug) : returnPath;
+  revalidatePath(path);
+  redirect(`${path}#reply-${reply.id}`);
+}
+
+export async function softDeleteCommunityReply(formData: FormData) {
+  const { supabase, user, canModerate } = await authContext();
+
+  const replyId = textValue(formData.get("reply_id"));
+  const returnPath = textValue(formData.get("return_path")) || "/community";
+
+  if (!replyId) throw new Error("Missing reply.");
+
+  const { data: reply, error: readError } = await supabase
+    .from("community_replies")
+    .select("id, discussion_id, author_id, status, discussion:discussion_id(slug)")
+    .eq("id", replyId)
+    .maybeSingle<{
+      id: string;
+      discussion_id: string;
+      author_id: string | null;
+      status: string;
+      discussion: { slug: string } | null;
+    }>();
+
+  if (readError) throw new Error(readError.message);
+  if (!reply || reply.status !== "published") throw new Error("Reply not found.");
+  if (reply.author_id !== user.id && !canModerate) {
+    throw new Error("You cannot delete this reply.");
+  }
+
+  const { error } = await supabase
+    .from("community_replies")
+    .update({
+      status: "removed",
+      deleted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", replyId);
+
+  if (error) throw new Error(error.message);
+
+  await supabase
+    .from("community_images")
+    .update({ status: "removed" })
+    .eq("reply_id", replyId);
+
+  await supabase.rpc("community_recount_discussion_stats", {
+    target_discussion_id: reply.discussion_id,
+  });
+
+  const path = reply.discussion?.slug ? discussionPath(reply.discussion.slug) : returnPath;
+  revalidatePath(path);
+  redirect(path);
+}
+
 export async function softDeleteCommunityDiscussion(formData: FormData) {
   const { supabase, user, canModerate } = await authContext();
   const discussionId = textValue(formData.get("discussion_id"));
