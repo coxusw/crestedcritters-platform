@@ -517,7 +517,14 @@ async function getCommunitySearchDiscussionIds(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   term: string
 ) {
-  const [speciesResult, tagsResult] = await Promise.all([
+  const [
+    speciesResult,
+    tagsResult,
+    categoriesResult,
+    profilesResult,
+    repliesResult,
+    marketplaceResult,
+  ] = await Promise.all([
     supabase
       .from("isopedia_species")
       .select("id")
@@ -532,13 +539,42 @@ async function getCommunitySearchDiscussionIds(
       .or(`name.ilike.%${term}%,slug.ilike.%${term}%`)
       .limit(50)
       .returns<Array<{ id: string }>>(),
+    supabase
+      .from("community_categories")
+      .select("id")
+      .or(`name.ilike.%${term}%,slug.ilike.%${term}%,description.ilike.%${term}%`)
+      .limit(25)
+      .returns<Array<{ id: string }>>(),
+    supabase
+      .from("profiles")
+      .select("id")
+      .or(`username.ilike.%${term}%,display_name.ilike.%${term}%,business_name.ilike.%${term}%`)
+      .limit(50)
+      .returns<Array<{ id: string }>>(),
+    supabase
+      .from("community_replies")
+      .select("discussion_id")
+      .eq("status", "published")
+      .ilike("body", `%${term}%`)
+      .limit(200)
+      .returns<Array<{ discussion_id: string }>>(),
+    supabase
+      .from("marketplace_listing_details")
+      .select("discussion_id")
+      .or(
+        `species_or_product.ilike.%${term}%,quantity.ilike.%${term}%,price.ilike.%${term}%,location.ilike.%${term}%,state.ilike.%${term}%,expo_name.ilike.%${term}%,preferred_contact_method.ilike.%${term}%,permit_notes.ilike.%${term}%`
+      )
+      .limit(200)
+      .returns<Array<{ discussion_id: string }>>(),
   ]);
 
   const discussionIds = new Set<string>();
   const speciesIds = (speciesResult.data || []).map((row) => row.id);
   const tagIds = (tagsResult.data || []).map((row) => row.id);
+  const categoryIds = (categoriesResult.data || []).map((row) => row.id);
+  const profileIds = (profilesResult.data || []).map((row) => row.id);
 
-  const [speciesLinks, tagLinks] = await Promise.all([
+  const [speciesLinks, tagLinks, categoryDiscussions, profileDiscussions] = await Promise.all([
     speciesIds.length
       ? supabase
           .from("community_discussion_species")
@@ -555,10 +591,32 @@ async function getCommunitySearchDiscussionIds(
           .limit(500)
           .returns<Array<{ discussion_id: string }>>()
       : Promise.resolve({ data: [] as Array<{ discussion_id: string }> }),
+    categoryIds.length
+      ? supabase
+          .from("community_discussions")
+          .select("id")
+          .in("category_id", categoryIds)
+          .in("status", ["published", "expired"])
+          .limit(500)
+          .returns<Array<{ id: string }>>()
+      : Promise.resolve({ data: [] as Array<{ id: string }> }),
+    profileIds.length
+      ? supabase
+          .from("community_discussions")
+          .select("id")
+          .in("author_id", profileIds)
+          .in("status", ["published", "expired"])
+          .limit(500)
+          .returns<Array<{ id: string }>>()
+      : Promise.resolve({ data: [] as Array<{ id: string }> }),
   ]);
 
   for (const row of speciesLinks.data || []) discussionIds.add(row.discussion_id);
   for (const row of tagLinks.data || []) discussionIds.add(row.discussion_id);
+  for (const row of categoryDiscussions.data || []) discussionIds.add(row.id);
+  for (const row of profileDiscussions.data || []) discussionIds.add(row.id);
+  for (const row of repliesResult.data || []) discussionIds.add(row.discussion_id);
+  for (const row of marketplaceResult.data || []) discussionIds.add(row.discussion_id);
 
   return [...discussionIds].slice(0, 500);
 }
