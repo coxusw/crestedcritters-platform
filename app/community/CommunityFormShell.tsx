@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 const COMMUNITY_IMAGE_BUCKET = "isopedia-images";
@@ -46,6 +46,15 @@ function upsertUploadsInput(form: HTMLFormElement, uploads: UploadedCommunityIma
   input.value = JSON.stringify(uploads);
 }
 
+function isNextRedirectError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    String((error as { digest?: unknown }).digest).startsWith("NEXT_REDIRECT")
+  );
+}
+
 export default function CommunityFormShell({
   action,
   className,
@@ -57,13 +66,11 @@ export default function CommunityFormShell({
 }) {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const nativeSubmitReady = useRef(false);
   const supabase = createSupabaseBrowserClient();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    if (nativeSubmitReady.current) return;
-
     event.preventDefault();
+    if (isSubmitting) return;
 
     const form = event.currentTarget;
     setError("");
@@ -144,12 +151,14 @@ export default function CommunityFormShell({
       upsertUploadsInput(form, uploads);
       for (const input of fileInputs) input.value = "";
 
-      nativeSubmitReady.current = true;
-      form.requestSubmit();
-    } catch (uploadError) {
+      await action(new FormData(form));
       setIsSubmitting(false);
       setSubmitButtons(form, false);
-      setError(uploadError instanceof Error ? uploadError.message : "Images could not be uploaded.");
+    } catch (submitError) {
+      if (isNextRedirectError(submitError)) throw submitError;
+      setIsSubmitting(false);
+      setSubmitButtons(form, false);
+      setError(submitError instanceof Error ? submitError.message : "This could not be submitted.");
     }
   }
 
