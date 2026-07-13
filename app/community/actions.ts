@@ -1026,14 +1026,17 @@ export async function updateCommunityReply(formData: FormData) {
 
   const { data: reply, error: readError } = await supabase
     .from("community_replies")
-    .select("id, discussion_id, author_id, status, discussion:discussion_id(slug)")
+    .select("id, discussion_id, author_id, status, discussion:discussion_id(slug, category:category_id(images_enabled))")
     .eq("id", replyId)
     .maybeSingle<{
       id: string;
       discussion_id: string;
       author_id: string | null;
       status: string;
-      discussion: { slug: string } | null;
+      discussion: {
+        slug: string;
+        category: { images_enabled: boolean } | null;
+      } | null;
     }>();
 
   if (readError) throw new Error(readError.message);
@@ -1042,8 +1045,13 @@ export async function updateCommunityReply(formData: FormData) {
     throw new Error("You cannot edit this reply.");
   }
 
+  const imagesEnabled = Boolean(reply.discussion?.category?.images_enabled);
+  const imageFiles = imagesEnabled ? communityImageFiles(formData.getAll("image_files")) : [];
+  const uploadedImages = imagesEnabled ? communityUploadedImages(formData) : [];
   let removeImageIds: string[] = [];
-  if (requestedRemoveImageIds.length) {
+  let remainingActiveImageCount = 0;
+
+  if (imagesEnabled) {
     const { data: activeImages, error: activeImagesError } = await supabase
       .from("community_images")
       .select("id")
@@ -1055,6 +1063,24 @@ export async function updateCommunityReply(formData: FormData) {
 
     const activeImageIds = new Set((activeImages || []).map((image) => image.id));
     removeImageIds = requestedRemoveImageIds.filter((id) => activeImageIds.has(id));
+    remainingActiveImageCount = activeImageIds.size - removeImageIds.length;
+  }
+
+  const imageValidationError = validateCommunityImagePayload(imageFiles, uploadedImages);
+  if (imageValidationError) {
+    redirect(withQueryParam(`${returnPath}#reply-${replyId}`, "form_error", imageValidationError));
+  }
+  if (
+    imagesEnabled &&
+    remainingActiveImageCount + imageFiles.length + uploadedImages.length > MAX_COMMUNITY_IMAGE_FILES
+  ) {
+    redirect(
+      withQueryParam(
+        `${returnPath}#reply-${replyId}`,
+        "form_error",
+        `Please keep ${MAX_COMMUNITY_IMAGE_FILES} images or fewer on this reply.`
+      )
+    );
   }
 
   const { error } = await supabase
@@ -1079,9 +1105,31 @@ export async function updateCommunityReply(formData: FormData) {
     if (removeImagesError) throw new Error(removeImagesError.message);
   }
 
+  let imageWarning: string | null = null;
+  if (imagesEnabled) {
+    try {
+      imageWarning = uploadedImages.length
+        ? await saveUploadedCommunityImages(supabase, uploadedImages, user.id, {
+            replyId,
+          })
+        : await uploadCommunityImages(supabase, imageFiles, user.id, {
+            replyId,
+          });
+    } catch (imageError) {
+      console.error(
+        "Failed to attach updated community reply images:",
+        imageError instanceof Error ? imageError.message : imageError
+      );
+      imageWarning = "Images could not be attached. The reply was saved.";
+    }
+  }
+
   const path = reply.discussion?.slug ? discussionPath(reply.discussion.slug) : returnPath;
   revalidatePath(path);
-  redirect(`${path}#reply-${reply.id}`);
+  const destination = imageWarning
+    ? withQueryParam(`${path}#reply-${reply.id}`, "image_error", "1")
+    : `${path}#reply-${reply.id}`;
+  redirect(destination);
 }
 
 export async function softDeleteCommunityReply(formData: FormData) {

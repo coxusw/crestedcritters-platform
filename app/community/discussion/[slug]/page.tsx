@@ -453,6 +453,7 @@ export default async function CommunityDiscussionPage({
                   <ReplyControls
                     reply={reply}
                     images={imagesByReply.get(reply.id) || []}
+                    imagesEnabled={Boolean(discussion.category?.images_enabled)}
                     returnPath={returnPath}
                   />
                 )}
@@ -672,10 +673,12 @@ function ModerationButton({
 function ReplyControls({
   reply,
   images,
+  imagesEnabled,
   returnPath,
 }: {
   reply: CommunityReply;
   images: CommunityImage[];
+  imagesEnabled: boolean;
   returnPath: string;
 }) {
   return (
@@ -684,7 +687,7 @@ function ReplyControls({
         <summary className="cursor-pointer text-sm font-black text-sky-100">
           Edit reply
         </summary>
-        <form action={updateCommunityReply} className="mt-3 grid gap-3">
+        <CommunityFormShell action={updateCommunityReply} className="mt-3 grid gap-3">
           <input type="hidden" name="reply_id" value={reply.id} />
           <input type="hidden" name="return_path" value={returnPath} />
           <textarea
@@ -724,10 +727,25 @@ function ReplyControls({
               </div>
             </fieldset>
           )}
+          {imagesEnabled && (
+            <label className="grid gap-2">
+              <span className="text-sm font-black text-emerald-50/80">Add Images</span>
+              <input
+                name="image_files"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                multiple
+                className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-emerald-50/80 outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:font-black file:text-slate-950 hover:file:bg-emerald-300"
+              />
+              <span className="text-xs text-emerald-50/45">
+                Add up to 5 total JPG, PNG, WEBP, or GIF images. Each image must be under 10MB.
+              </span>
+            </label>
+          )}
           <button className="w-fit rounded-lg border border-sky-300/20 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-300/10">
             Save Reply
           </button>
-        </form>
+        </CommunityFormShell>
       </details>
 
       <form action={softDeleteCommunityReply}>
