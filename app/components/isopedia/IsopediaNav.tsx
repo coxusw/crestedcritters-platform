@@ -7,6 +7,7 @@ import IsopediaThemeToggle from "@/app/components/isopedia/IsopediaThemeToggle";
 type Props = {
   active?:
     | "database"
+    | "community"
     | "expos"
     | "guides"
     | "submit"
@@ -33,9 +34,9 @@ const mainNavItems = [
     key: "expos",
   },
   {
-    label: "Guides",
-    href: "/guides",
-    key: "guides",
+    label: "Community",
+    href: "/community",
+    key: "community",
   },
   {
     label: "Submit New Species",

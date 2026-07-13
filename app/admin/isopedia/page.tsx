@@ -277,6 +277,13 @@ export default async function AdminIsopediaPage() {
                 alert={totalDiscussionReports > 0}
               />
               <AdminActionCard
+                href="/admin/isopedia/community"
+                title="Community"
+                description="Manage community categories, reports, weekly prompts, and discussion controls."
+                icon="Community"
+                alert={totalDiscussionReports > 0}
+              />
+              <AdminActionCard
                 href="/admin/isopedia/contact"
                 title="Messages"
                 description={

@@ -1,5 +1,5 @@
 import { permanentRedirect } from "next/navigation";
 
-export default function IsopediaGuidesRedirectPage() {
+export default function GuidesRedirectPage() {
   permanentRedirect("/community/category/guides");
 }

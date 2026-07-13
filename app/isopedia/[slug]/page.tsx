@@ -127,6 +127,21 @@ type DiscussionComment = {
   } | null;
 };
 
+type LinkedCommunityDiscussion = {
+  discussion: {
+    id: string;
+    slug: string;
+    title: string;
+    content_type: string;
+    reply_count: number;
+    last_activity_at: string;
+    category: {
+      name: string;
+      slug: string;
+    } | null;
+  } | null;
+};
+
 function cleanRichText(html: string | null) {
   if (!html) return "";
 
@@ -666,6 +681,35 @@ export default async function SpeciesPage({ params }: PageProps) {
     user?.id || null
   );
 
+  const { data: linkedCommunityDiscussions } = await supabase
+    .from("community_discussion_species")
+    .select(
+      `
+      discussion:discussion_id (
+        id,
+        slug,
+        title,
+        content_type,
+        reply_count,
+        last_activity_at,
+        category:category_id (
+          name,
+          slug
+        )
+      )
+    `
+    )
+    .eq("species_id", species.id)
+    .order("created_at", { ascending: false })
+    .limit(6)
+    .returns<LinkedCommunityDiscussion[]>();
+
+  const communityDiscussions = (linkedCommunityDiscussions || [])
+    .map((row) => row.discussion)
+    .filter((discussion): discussion is NonNullable<LinkedCommunityDiscussion["discussion"]> =>
+      Boolean(discussion)
+    );
+
   let relatedQuery = supabase
     .from("isopedia_species")
     .select(
@@ -887,6 +931,65 @@ export default async function SpeciesPage({ params }: PageProps) {
               <p className="text-emerald-50/55">
                 No care notes have been added yet.
               </p>
+            )}
+          </section>
+
+          <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-8">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.25em] text-emerald-300">
+                  Community
+                </p>
+                <h2 className="mt-2 text-3xl font-black text-white">
+                  Discussions About {species.common_name}
+                </h2>
+              </div>
+              <Link
+                href={`/community/new?species=${species.id}`}
+                className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
+              >
+                Start Discussion
+              </Link>
+            </div>
+
+            {communityDiscussions.length ? (
+              <div className="grid gap-3">
+                {communityDiscussions.map((discussion) => (
+                  <Link
+                    key={discussion.id}
+                    href={`/community/discussion/${discussion.slug}`}
+                    className="rounded-2xl border border-white/10 bg-[#07130c]/70 p-4 transition hover:border-emerald-300/40"
+                  >
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-md border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-100">
+                        {discussion.content_type}
+                      </span>
+                      {discussion.category && (
+                        <span className="rounded-md border border-white/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-50/60">
+                          {discussion.category.name}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="mt-2 font-black text-white">{discussion.title}</h3>
+                    <p className="mt-1 text-xs text-emerald-50/45">
+                      {discussion.reply_count} replies / Active{" "}
+                      {new Date(discussion.last_activity_at).toLocaleDateString()}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-6 text-center">
+                <p className="text-emerald-50/60">
+                  No community posts have been linked to this species yet.
+                </p>
+                <Link
+                  href={`/community/new?species=${species.id}`}
+                  className="mt-4 inline-flex rounded-xl border border-emerald-400/30 px-4 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-400/10"
+                >
+                  Start the first one
+                </Link>
+              </div>
             )}
           </section>
 

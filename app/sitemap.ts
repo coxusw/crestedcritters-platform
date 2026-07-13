@@ -22,6 +22,13 @@ type Guide = {
   created_at: string | null;
 };
 
+type CommunityDiscussion = {
+  slug: string;
+  updated_at: string | null;
+  created_at: string | null;
+  content_type: string;
+};
+
 type Profile = {
   username: string | null;
 };
@@ -88,10 +95,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
 
     {
-      url: `${baseUrl}/guides`,
+      url: `${baseUrl}/community`,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.9,
+    },
+
+    {
+      url: `${baseUrl}/community/category/guides`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.8,
     },
 
     {
@@ -139,6 +153,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     exposResult,
     guidesResult,
     profilesResult,
+    communityResult,
   ] = await Promise.all([
     supabase
       .from("isopedia_species")
@@ -165,6 +180,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .select("username")
       .not("username", "is", null)
       .returns<Profile[]>(),
+
+    supabase
+      .from("community_discussions")
+      .select("slug, updated_at, created_at, content_type")
+      .in("status", ["published", "expired"])
+      .not("slug", "is", null)
+      .returns<CommunityDiscussion[]>(),
   ]);
 
   const speciesPages =
@@ -199,7 +221,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const guidePages =
     guidesResult.data?.map((guide) => ({
-      url: `${baseUrl}/guides/${guide.slug}`,
+      url: `${baseUrl}/community/discussion/${guide.slug}`,
       lastModified: guide.updated_at
         ? new Date(guide.updated_at)
         : guide.created_at
@@ -209,11 +231,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     })) || [];
 
+  const communityPages =
+    communityResult.data?.map((discussion) => ({
+      url: `${baseUrl}/community/discussion/${discussion.slug}`,
+      lastModified: discussion.updated_at
+        ? new Date(discussion.updated_at)
+        : discussion.created_at
+          ? new Date(discussion.created_at)
+          : new Date(),
+      changeFrequency: "weekly" as const,
+      priority: discussion.content_type === "guide" ? 0.7 : 0.6,
+    })) || [];
+
   return [
     ...defaultPages,
     ...speciesPages,
     ...expoPages,
     ...guidePages,
+    ...communityPages,
     ...profilePages,
   ];
 }

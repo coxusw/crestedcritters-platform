@@ -1,7 +1,7 @@
 import { permanentRedirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
-export default async function IsopediaGuideDetailRedirectPage({
+export default async function GuideDetailRedirectPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
