@@ -722,6 +722,16 @@ function ReplyControls({
                       <input name="remove_image_ids" type="checkbox" value={image.id} />
                       Remove image
                     </span>
+                    <span className="grid gap-1">
+                      <span>Caption</span>
+                      <input
+                        name={`image_caption_${image.id}`}
+                        defaultValue={image.caption || ""}
+                        maxLength={180}
+                        className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
+                        placeholder="Optional caption"
+                      />
+                    </span>
                   </label>
                 ))}
               </div>

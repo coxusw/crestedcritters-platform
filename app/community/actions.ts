@@ -188,6 +188,34 @@ function uniqueTextValues(values: FormDataEntryValue[]) {
   return [...new Set(values.map((value) => String(value).trim()).filter(Boolean))];
 }
 
+function communityImageCaption(formData: FormData, imageId: string) {
+  const caption = textValue(formData.get(`image_caption_${imageId}`));
+  return caption ? caption.slice(0, 180) : null;
+}
+
+async function updateCommunityImageCaptions(
+  supabase: SupabaseServerClient,
+  imageIds: string[],
+  formData: FormData,
+  target: { discussionId?: string; replyId?: string }
+) {
+  if (!imageIds.length) return;
+
+  for (const imageId of imageIds) {
+    let query = supabase
+      .from("community_images")
+      .update({ caption: communityImageCaption(formData, imageId) })
+      .eq("id", imageId)
+      .eq("status", "active");
+
+    if (target.discussionId) query = query.eq("discussion_id", target.discussionId);
+    if (target.replyId) query = query.eq("reply_id", target.replyId);
+
+    const { error } = await query;
+    if (error) throw new Error(error.message);
+  }
+}
+
 async function uploadCommunityImages(
   supabase: SupabaseServerClient,
   files: File[],
@@ -787,6 +815,7 @@ export async function updateCommunityDiscussion(formData: FormData) {
     ? uniqueTextValues(formData.getAll("remove_image_ids"))
     : [];
   let removeImageIds: string[] = [];
+  let captionImageIds: string[] = [];
   let remainingActiveImageCount = 0;
 
   if (discussion.category?.images_enabled) {
@@ -801,6 +830,7 @@ export async function updateCommunityDiscussion(formData: FormData) {
 
     const activeImageIds = new Set((activeImages || []).map((image) => image.id));
     removeImageIds = requestedRemoveImageIds.filter((id) => activeImageIds.has(id));
+    captionImageIds = [...activeImageIds].filter((id) => !removeImageIds.includes(id));
     remainingActiveImageCount = activeImageIds.size - removeImageIds.length;
   }
 
@@ -851,6 +881,14 @@ export async function updateCommunityDiscussion(formData: FormData) {
       .in("id", removeImageIds);
 
     if (removeImagesError) throw new Error(removeImagesError.message);
+  }
+  if (captionImageIds.length) {
+    const imageWriteClient = canModerate
+      ? (createSupabaseAdminClient() as unknown as SupabaseServerClient)
+      : supabase;
+    await updateCommunityImageCaptions(imageWriteClient, captionImageIds, formData, {
+      discussionId,
+    });
   }
 
   let imageWarning: string | null = null;
@@ -1049,6 +1087,7 @@ export async function updateCommunityReply(formData: FormData) {
   const imageFiles = imagesEnabled ? communityImageFiles(formData.getAll("image_files")) : [];
   const uploadedImages = imagesEnabled ? communityUploadedImages(formData) : [];
   let removeImageIds: string[] = [];
+  let captionImageIds: string[] = [];
   let remainingActiveImageCount = 0;
 
   if (imagesEnabled) {
@@ -1063,6 +1102,7 @@ export async function updateCommunityReply(formData: FormData) {
 
     const activeImageIds = new Set((activeImages || []).map((image) => image.id));
     removeImageIds = requestedRemoveImageIds.filter((id) => activeImageIds.has(id));
+    captionImageIds = [...activeImageIds].filter((id) => !removeImageIds.includes(id));
     remainingActiveImageCount = activeImageIds.size - removeImageIds.length;
   }
 
@@ -1103,6 +1143,14 @@ export async function updateCommunityReply(formData: FormData) {
       .in("id", removeImageIds);
 
     if (removeImagesError) throw new Error(removeImagesError.message);
+  }
+  if (captionImageIds.length) {
+    const imageWriteClient = canModerate
+      ? (createSupabaseAdminClient() as unknown as SupabaseServerClient)
+      : supabase;
+    await updateCommunityImageCaptions(imageWriteClient, captionImageIds, formData, {
+      replyId,
+    });
   }
 
   let imageWarning: string | null = null;
