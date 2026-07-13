@@ -51,6 +51,7 @@ export default async function CommunityPage({
     }),
     getCommunityDiscussions(supabase, {
       categorySlug: "marketplace-connections",
+      marketplaceStatus: "available",
       limit: 4,
     }),
   ]);
