@@ -11,6 +11,7 @@ import {
 } from "@/lib/community";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { InlineBadges } from "@/app/community/CommunityCards";
+import LinkifiedText from "@/app/community/LinkifiedText";
 import {
   createCommunityReply,
   reportCommunityContent,
@@ -252,7 +253,7 @@ export default async function CommunityDiscussionPage({
           </div>
 
           <div className="mt-6 whitespace-pre-wrap text-base leading-8 text-emerald-50/85">
-            {discussion.body}
+            <LinkifiedText text={discussion.body} />
           </div>
 
           {speciesResult.data && speciesResult.data.length > 0 && (
@@ -342,7 +343,7 @@ export default async function CommunityDiscussionPage({
                   )}
                 </div>
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-emerald-50/80">
-                  {reply.body}
+                  <LinkifiedText text={reply.body} />
                 </p>
               </article>
             ))}
