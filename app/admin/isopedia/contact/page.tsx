@@ -39,6 +39,7 @@ type ProfileRecipient = {
 type ThreadParticipant = {
   thread_id: string;
   profile_id: string;
+  last_read_at: string | null;
   profiles: ProfileRecipient | null;
 };
 
@@ -307,7 +308,7 @@ async function sendAdminThreadReply(formData: FormData) {
 
   revalidatePath("/admin/isopedia/contact");
   revalidatePath("/admin/isopedia");
-  redirect("/admin/isopedia/contact?sent=true");
+  redirect(`/admin/isopedia/contact?sent=true&thread=${encodeURIComponent(threadId)}`);
 }
 
 async function hideAdminThread(formData: FormData) {
@@ -341,13 +342,20 @@ async function hideAdminThread(formData: FormData) {
 export default async function AdminIsopediaContactPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; sent?: string; hidden?: string; status?: string }>;
+  searchParams: Promise<{
+    saved?: string;
+    sent?: string;
+    hidden?: string;
+    status?: string;
+    thread?: string;
+  }>;
 }) {
   const params = await searchParams;
   const { supabase, user } = await requireAdmin();
   const statusFilter = ["open", "reviewed", "archived"].includes(params.status || "")
     ? params.status
     : "open";
+  const selectedThreadId = cleanText(params.thread || "", 80);
 
   const { data: messages, error } = await supabase
     .from("isopedia_contact_messages")
@@ -426,6 +434,7 @@ export default async function AdminIsopediaContactPage({
             `
             thread_id,
             profile_id,
+            last_read_at,
             profiles:profile_id (
               id,
               username,
@@ -498,6 +507,20 @@ export default async function AdminIsopediaContactPage({
       return thread.messages.some((message) => !message.source_profile_message_id);
     })
     .slice(0, 25);
+  const selectedAdminThread =
+    adminMessageThreads.find((thread) => thread.id === selectedThreadId) || null;
+
+  if (selectedAdminThread) {
+    const readAt = new Date().toISOString();
+    await supabase.rpc("mark_isopedia_thread_read", {
+      target_thread_id: selectedAdminThread.id,
+    });
+    for (const participant of selectedAdminThread.participants) {
+      if (participant.profile_id === user.id) {
+        participant.last_read_at = readAt;
+      }
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
@@ -632,101 +655,167 @@ export default async function AdminIsopediaContactPage({
             your profile inbox.
           </p>
 
-          <div className="mt-5 grid gap-4">
+          <div className="mt-5 grid gap-4 lg:grid-cols-[320px_1fr]">
             {adminMessageThreads.length > 0 ? (
-              adminMessageThreads.map((thread) => (
-                <article
-                  key={thread.id}
-                  className="rounded-lg border border-lime-300/20 bg-lime-300/[0.04] p-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-black text-white">
-                        {thread.subject || "Isopedia message"}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-400">
-                        With {threadParticipantNames(thread.participants)}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Last message {formatDate(thread.last_message_at)}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <form action={hideAdminThread}>
-                        <input type="hidden" name="thread_id" value={thread.id} />
-                        <button className="rounded-md border border-red-400/20 bg-red-400/5 px-3 py-2 text-xs font-bold text-red-100 hover:bg-red-400/10">
-                          Delete
-                        </button>
-                      </form>
-                      {thread.participants
-                        .filter((participant) => participant.profiles?.username)
-                        .map((participant) => (
-                          <Link
-                            key={participant.profile_id}
-                            href={`/profile/${participant.profiles?.username}`}
-                            className="rounded-md border border-white/10 px-3 py-2 text-xs font-bold text-emerald-200 hover:bg-white/10"
-                          >
-                            @{participant.profiles?.username}
-                          </Link>
-                        ))}
-                    </div>
-                  </div>
+              <>
+                <div className="grid content-start gap-3">
+                  {adminMessageThreads.map((thread) => {
+                    const unreadCount = threadUnreadCount(thread, user.id);
+                    const isSelected = thread.id === selectedAdminThread?.id;
 
-                  <div className="mt-4 grid max-h-96 gap-3 overflow-y-auto rounded-md border border-white/10 bg-black/20 p-3">
-                    {thread.messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className="rounded-md border border-white/10 bg-white/[0.04] p-3"
+                    return (
+                      <article
+                        key={thread.id}
+                        className={`rounded-lg border p-4 ${
+                          isSelected
+                            ? "border-emerald-300/50 bg-emerald-300/[0.08]"
+                            : unreadCount > 0
+                              ? "border-lime-300/30 bg-lime-300/[0.05]"
+                              : "border-white/10 bg-black/20"
+                        }`}
                       >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
-                            {recipientName(message.sender || {})}
-                            {message.sender?.username
-                              ? ` (@${message.sender.username})`
-                              : ""}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black text-white">
+                              {thread.subject || "Isopedia message"}
+                            </p>
+                            <p className="mt-1 truncate text-xs text-slate-400">
+                              With {threadParticipantNames(thread.participants)}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {formatDate(thread.last_message_at)}
+                            </p>
+                          </div>
+                          {unreadCount > 0 && (
+                            <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-black text-white">
+                              {unreadCount}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Link
+                            href={adminThreadHref(thread.id, params)}
+                            className="rounded-md bg-emerald-400 px-3 py-2 text-xs font-black text-slate-950 hover:bg-emerald-300"
+                          >
+                            Open
+                          </Link>
+                          <form action={hideAdminThread}>
+                            <input type="hidden" name="thread_id" value={thread.id} />
+                            <button className="rounded-md border border-red-400/20 bg-red-400/5 px-3 py-2 text-xs font-bold text-red-100 hover:bg-red-400/10">
+                              Delete
+                            </button>
+                          </form>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+
+                <article className="rounded-lg border border-lime-300/20 bg-lime-300/[0.04] p-4">
+                  {selectedAdminThread ? (
+                    <>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-black text-white">
+                            {selectedAdminThread.subject || "Isopedia message"}
                           </p>
-                          <p className="text-xs text-slate-500">
-                            {formatDate(message.created_at)}
+                          <p className="mt-1 text-xs text-slate-400">
+                            With {threadParticipantNames(selectedAdminThread.participants)}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Last message {formatDate(selectedAdminThread.last_message_at)}
                           </p>
                         </div>
-                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-200">
-                          {message.body}
-                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <form action={hideAdminThread}>
+                            <input
+                              type="hidden"
+                              name="thread_id"
+                              value={selectedAdminThread.id}
+                            />
+                            <button className="rounded-md border border-red-400/20 bg-red-400/5 px-3 py-2 text-xs font-bold text-red-100 hover:bg-red-400/10">
+                              Delete
+                            </button>
+                          </form>
+                          {selectedAdminThread.participants
+                            .filter((participant) => participant.profiles?.username)
+                            .map((participant) => (
+                              <Link
+                                key={participant.profile_id}
+                                href={`/profile/${participant.profiles?.username}`}
+                                className="rounded-md border border-white/10 px-3 py-2 text-xs font-bold text-emerald-200 hover:bg-white/10"
+                              >
+                                @{participant.profiles?.username}
+                              </Link>
+                            ))}
+                        </div>
                       </div>
-                    ))}
 
-                    {thread.messages.length === 0 && (
-                      <p className="text-sm text-slate-400">
-                        No messages in this thread yet.
-                      </p>
-                    )}
-                  </div>
+                      <div className="mt-4 grid max-h-96 gap-3 overflow-y-auto rounded-md border border-white/10 bg-black/20 p-3">
+                        {selectedAdminThread.messages.map((message) => (
+                          <div
+                            key={message.id}
+                            className="rounded-md border border-white/10 bg-white/[0.04] p-3"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
+                                {recipientName(message.sender || {})}
+                                {message.sender?.username
+                                  ? ` (@${message.sender.username})`
+                                  : ""}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {formatDate(message.created_at)}
+                              </p>
+                            </div>
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-200">
+                              {message.body}
+                            </p>
+                          </div>
+                        ))}
 
-                  <form action={sendAdminThreadReply} className="mt-4 grid gap-3">
-                    <input type="hidden" name="thread_id" value={thread.id} />
-                    <label className="grid gap-2">
-                      <span className="text-sm font-bold text-slate-200">
-                        Reply
-                      </span>
-                      <textarea
-                        name="message_body"
-                        rows={3}
-                        maxLength={4000}
-                        required
-                        className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-white outline-none ring-emerald-400/30 focus:ring-4"
-                      />
-                    </label>
-                    <button
-                      type="submit"
-                      className="w-fit rounded-md bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 hover:bg-emerald-300"
-                    >
-                      Send Reply
-                    </button>
-                  </form>
+                        {selectedAdminThread.messages.length === 0 && (
+                          <p className="text-sm text-slate-400">
+                            No messages in this thread yet.
+                          </p>
+                        )}
+                      </div>
+
+                      <form action={sendAdminThreadReply} className="mt-4 grid gap-3">
+                        <input
+                          type="hidden"
+                          name="thread_id"
+                          value={selectedAdminThread.id}
+                        />
+                        <label className="grid gap-2">
+                          <span className="text-sm font-bold text-slate-200">
+                            Reply
+                          </span>
+                          <textarea
+                            name="message_body"
+                            rows={3}
+                            maxLength={4000}
+                            required
+                            className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-white outline-none ring-emerald-400/30 focus:ring-4"
+                          />
+                        </label>
+                        <button
+                          type="submit"
+                          className="w-fit rounded-md bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 hover:bg-emerald-300"
+                        >
+                          Send Reply
+                        </button>
+                      </form>
+                    </>
+                  ) : (
+                    <div className="rounded-md border border-white/10 bg-black/20 p-5 text-sm text-slate-300">
+                      Select a conversation from the inbox list to read and reply.
+                    </div>
+                  )}
                 </article>
-              ))
+              </>
             ) : (
-              <p className="rounded-md border border-white/10 bg-black/20 p-4 text-sm text-slate-400">
+              <p className="rounded-md border border-white/10 bg-black/20 p-4 text-sm text-slate-400 lg:col-span-2">
                 No admin message conversations yet.
               </p>
             )}
@@ -902,4 +991,36 @@ function threadParticipantNames(participants: ThreadParticipant[]) {
         : name;
     })
     .join(", ");
+}
+
+function adminThreadHref(
+  threadId: string,
+  params: { saved?: string; sent?: string; hidden?: string; status?: string; thread?: string }
+) {
+  const query = new URLSearchParams();
+  query.set("thread", threadId);
+  if (params.status) query.set("status", params.status);
+  return `/admin/isopedia/contact?${query.toString()}`;
+}
+
+function threadUnreadCount(thread: AdminMessageThread, profileId: string) {
+  const currentParticipant = thread.participants.find(
+    (participant) => participant.profile_id === profileId
+  );
+  const lastReadTime = currentParticipant?.last_read_at
+    ? new Date(currentParticipant.last_read_at).getTime()
+    : 0;
+  const lastOwnMessageTime = Math.max(
+    0,
+    ...thread.messages
+      .filter((message) => message.sender_id === profileId)
+      .map((message) => new Date(message.created_at).getTime())
+  );
+  const unreadSince = Math.max(lastReadTime, lastOwnMessageTime);
+
+  return thread.messages.filter(
+    (message) =>
+      message.sender_id !== profileId &&
+      new Date(message.created_at).getTime() > unreadSince
+  ).length;
 }
