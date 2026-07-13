@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 const COMMUNITY_IMAGE_BUCKET = "isopedia-images";
@@ -56,27 +56,20 @@ export default function CommunityFormShell({
   children: ReactNode;
 }) {
   const [error, setError] = useState("");
-  const preparedRef = useRef(false);
+  const [isSubmitting, startSubmitTransition] = useTransition();
   const supabase = createSupabaseBrowserClient();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
     const form = event.currentTarget;
     setError("");
     setSubmitButtons(form, true);
-
-    if (preparedRef.current) return;
 
     const fileInputs = Array.from(
       form.querySelectorAll<HTMLInputElement>("input[type='file'][name='image_files']")
     );
     const files = fileInputs.flatMap((input) => Array.from(input.files || []));
-
-    if (!files.length) {
-      preparedRef.current = true;
-      return;
-    }
-
-    event.preventDefault();
 
     if (files.length > MAX_COMMUNITY_IMAGE_FILES) {
       setSubmitButtons(form, false);
@@ -98,44 +91,50 @@ export default function CommunityFormShell({
       }
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setSubmitButtons(form, false);
-      setError("Please sign in before uploading images.");
-      return;
-    }
-
     try {
       const uploads: UploadedCommunityImage[] = [];
 
-      for (const [index, file] of files.entries()) {
-        const storagePath = `community/${user.id}/pending/${crypto.randomUUID()}.${safeImageExtension(file)}`;
-        const { error: uploadError } = await supabase.storage
-          .from(COMMUNITY_IMAGE_BUCKET)
-          .upload(storagePath, file, {
-            cacheControl: "3600",
-            upsert: false,
-            contentType: file.type || "image/jpeg",
+      if (files.length) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          setSubmitButtons(form, false);
+          setError("Please sign in before uploading images.");
+          return;
+        }
+
+        for (const [index, file] of files.entries()) {
+          const storagePath = `community/${user.id}/pending/${crypto.randomUUID()}.${safeImageExtension(file)}`;
+          const { error: uploadError } = await supabase.storage
+            .from(COMMUNITY_IMAGE_BUCKET)
+            .upload(storagePath, file, {
+              cacheControl: "3600",
+              upsert: false,
+              contentType: file.type || "image/jpeg",
+            });
+
+          if (uploadError) throw new Error(uploadError.message);
+
+          const { data } = supabase.storage.from(COMMUNITY_IMAGE_BUCKET).getPublicUrl(storagePath);
+          uploads.push({
+            image_url: data.publicUrl,
+            storage_path: storagePath,
+            alt_text: file.name || null,
+            position: index + 1,
           });
-
-        if (uploadError) throw new Error(uploadError.message);
-
-        const { data } = supabase.storage.from(COMMUNITY_IMAGE_BUCKET).getPublicUrl(storagePath);
-        uploads.push({
-          image_url: data.publicUrl,
-          storage_path: storagePath,
-          alt_text: file.name || null,
-          position: index + 1,
-        });
+        }
       }
 
       upsertUploadsInput(form, uploads);
       for (const input of fileInputs) input.value = "";
-      preparedRef.current = true;
-      requestAnimationFrame(() => form.requestSubmit());
+
+      const preparedFormData = new FormData(form);
+      startSubmitTransition(async () => {
+        await action(preparedFormData);
+        setSubmitButtons(form, false);
+      });
     } catch (uploadError) {
       setSubmitButtons(form, false);
       setError(uploadError instanceof Error ? uploadError.message : "Images could not be uploaded.");
@@ -143,7 +142,13 @@ export default function CommunityFormShell({
   }
 
   return (
-    <form action={action} className={className} encType="multipart/form-data" onSubmit={handleSubmit}>
+    <form
+      action={action}
+      aria-busy={isSubmitting}
+      className={className}
+      encType="multipart/form-data"
+      onSubmit={handleSubmit}
+    >
       {error && (
         <div className="rounded-lg border border-red-400/30 bg-red-500/10 p-4 text-sm font-bold text-red-100">
           {error}

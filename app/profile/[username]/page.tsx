@@ -82,6 +82,16 @@ type RecentCommunityActivity = {
   created_at: string;
 };
 
+type RecentCommunityImage = {
+  id: string;
+  image_url: string;
+  alt_text: string | null;
+  caption: string | null;
+  created_at: string;
+  href: string;
+  discussion_title: string;
+};
+
 type ExpoStatus = {
   id: string;
   status: "attending" | "vending";
@@ -108,22 +118,6 @@ type ContactMessage = {
   responded_at: string | null;
   user_read_at: string | null;
   created_at: string;
-};
-
-type ProfileMessage = {
-  id: string;
-  subject: string | null;
-  body: string;
-  audience: string;
-  read_at: string | null;
-  user_reply: string | null;
-  user_replied_at: string | null;
-  created_at: string;
-  sender: {
-    username: string | null;
-    display_name: string | null;
-    business_name: string | null;
-  } | null;
 };
 
 type MessageProfile = {
@@ -512,6 +506,7 @@ export default async function PublicProfilePage({
     communityPosts,
     communityReplies,
     acceptedCommunityReplies,
+    communityImages,
     badgeAssignments,
     collectionResult,
   ] = await Promise.all([
@@ -572,6 +567,11 @@ export default async function PublicProfilePage({
       .eq("status", "published")
       .eq("is_accepted_answer", true),
     supabase
+      .from("community_images")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", profile.id)
+      .eq("status", "active"),
+    supabase
       .from("profile_badge_assignments")
       .select(
         `
@@ -612,6 +612,7 @@ export default async function PublicProfilePage({
   const communityPostsCount = communityPosts.count || 0;
   const communityRepliesCount = communityReplies.count || 0;
   const acceptedCommunityRepliesCount = acceptedCommunityReplies.count || 0;
+  const communityImagesCount = communityImages.count || 0;
   const discussionLikesReceivedCount = await getDiscussionLikesReceivedCount(
     supabase,
     profile.id
@@ -647,6 +648,10 @@ export default async function PublicProfilePage({
   const recentCommunityActivity =
     canUseRecentDiscussions && (isOwner || visibility.recent_discussions_public)
       ? await getRecentCommunityActivity(supabase, profile.id)
+      : [];
+  const recentCommunityImages =
+    canUseRecentDiscussions && (isOwner || visibility.recent_discussions_public)
+      ? await getRecentCommunityImages(supabase, profile.id)
       : [];
   const expoStatuses =
     canUseExpoStatus && (isOwner || visibility.expo_status_public)
@@ -983,6 +988,53 @@ export default async function PublicProfilePage({
                         </p>
                       </Link>
                     ))}
+                  </ProfileActivityCard>
+                )}
+
+                {canUseRecentDiscussions &&
+                  (isOwner || visibility.recent_discussions_public) &&
+                  (isOwner || recentCommunityImages.length > 0) && (
+                  <ProfileActivityCard
+                    title="Community Photos"
+                    isOwner={isOwner}
+                    section="recent_discussions"
+                    username={usernameForLinks}
+                    isPublic={visibility.recent_discussions_public}
+                    showVisibilityControl={false}
+                    emptyText={
+                      isOwner
+                        ? "Your recent Community photos will show here."
+                        : "No recent Community photos yet."
+                    }
+                  >
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {recentCommunityImages.map((image) => (
+                        <Link
+                          key={image.id}
+                          href={image.href}
+                          className="group overflow-hidden rounded-xl border border-white/10 bg-[#07130c]/70 transition hover:border-emerald-400/50"
+                        >
+                          <div className="aspect-square overflow-hidden bg-black/20">
+                            <Image
+                              src={image.image_url}
+                              alt={image.alt_text || image.caption || image.discussion_title}
+                              width={240}
+                              height={240}
+                              sizes="(max-width: 640px) 50vw, 160px"
+                              className="h-full w-full object-cover transition group-hover:scale-105"
+                            />
+                          </div>
+                          <div className="p-2">
+                            <p className="line-clamp-1 text-xs font-black text-white">
+                              {image.discussion_title}
+                            </p>
+                            <p className="mt-1 text-[11px] font-bold text-emerald-100/40">
+                              {new Date(image.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
                   </ProfileActivityCard>
                 )}
 
@@ -1351,6 +1403,7 @@ export default async function PublicProfilePage({
                 <TinyStat label="Species Comments" value={discussionPostsCount} />
                 <TinyStat label="Community Posts" value={communityPostsCount} />
                 <TinyStat label="Community Replies" value={communityRepliesCount} />
+                <TinyStat label="Community Images" value={communityImagesCount} />
                 <TinyStat label="Accepted Answers" value={acceptedCommunityRepliesCount} />
                 <TinyStat label="Likes Earned" value={discussionLikesReceivedCount} />
                 <TinyStat label="Spent" value={spentIsoTokens} />
@@ -1624,6 +1677,83 @@ async function getRecentCommunityActivity(
     .slice(0, 4);
 }
 
+async function getRecentCommunityImages(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  profileId: string
+): Promise<RecentCommunityImage[]> {
+  const { data, error } = await supabase
+    .from("community_images")
+    .select(
+      `
+      id,
+      image_url,
+      alt_text,
+      caption,
+      created_at,
+      discussion:discussion_id (
+        slug,
+        title,
+        status
+      ),
+      reply:reply_id (
+        id,
+        discussion:discussion_id (
+          slug,
+          title,
+          status
+        )
+      )
+    `
+    )
+    .eq("owner_id", profileId)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(6)
+    .returns<
+      Array<{
+        id: string;
+        image_url: string;
+        alt_text: string | null;
+        caption: string | null;
+        created_at: string;
+        discussion: {
+          slug: string | null;
+          title: string | null;
+          status: string | null;
+        } | null;
+        reply: {
+          id: string;
+          discussion: {
+            slug: string | null;
+            title: string | null;
+            status: string | null;
+          } | null;
+        } | null;
+      }>
+    >();
+
+  if (error || !data) return [];
+
+  return data.flatMap((image) => {
+    const discussion = image.discussion || image.reply?.discussion || null;
+    if (!discussion?.slug || !["published", "expired"].includes(discussion.status || "")) {
+      return [];
+    }
+
+    return [
+      {
+        id: image.id,
+        image_url: image.image_url,
+        alt_text: image.alt_text,
+        caption: image.caption,
+        created_at: image.created_at,
+        href: `/community/discussion/${discussion.slug}${image.reply ? `#reply-${image.reply.id}` : ""}`,
+        discussion_title: discussion.title || "Community discussion",
+      },
+    ];
+  });
+}
+
 async function getProfileExpoStatuses(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   profileId: string
@@ -1670,39 +1800,6 @@ async function getOwnContactMessages(
     .order("created_at", { ascending: false })
     .limit(10)
     .returns<ContactMessage[]>();
-
-  if (error || !data) return [];
-
-  return data;
-}
-
-async function getOwnProfileMessages(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  profileId: string
-) {
-  const { data, error } = await supabase
-    .from("isopedia_profile_messages")
-    .select(
-      `
-      id,
-      subject,
-      body,
-      audience,
-      read_at,
-      user_reply,
-      user_replied_at,
-      created_at,
-      sender:sent_by (
-        username,
-        display_name,
-        business_name
-      )
-    `
-    )
-    .eq("recipient_id", profileId)
-    .order("created_at", { ascending: false })
-    .limit(10)
-    .returns<ProfileMessage[]>();
 
   if (error || !data) return [];
 
