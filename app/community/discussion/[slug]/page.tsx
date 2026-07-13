@@ -54,7 +54,14 @@ export default async function CommunityDiscussionPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ reported?: string; image_error?: string; form_error?: string }>;
+  searchParams: Promise<{
+    reported?: string;
+    image_error?: string;
+    form_error?: string;
+    saved?: string;
+    followed?: string;
+    listing_status?: string;
+  }>;
 }) {
   const { slug } = await params;
   const pageParams = await searchParams;
@@ -397,6 +404,25 @@ export default async function CommunityDiscussionPage({
         {pageParams.reported === "1" && (
           <div className="mt-4 rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-100">
             Report received. A moderator will review it.
+          </div>
+        )}
+        {pageParams.saved && (
+          <div className="mt-4 rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-100">
+            {pageParams.saved === "added"
+              ? "Discussion saved."
+              : "Discussion removed from saved items."}
+          </div>
+        )}
+        {pageParams.followed && (
+          <div className="mt-4 rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-100">
+            {pageParams.followed === "added"
+              ? "You are now following this discussion."
+              : "You are no longer following this discussion."}
+          </div>
+        )}
+        {pageParams.listing_status && (
+          <div className="mt-4 rounded-lg border border-yellow-300/30 bg-yellow-300/10 p-4 text-sm font-bold text-yellow-50">
+            Marketplace listing updated to {marketplaceLabel(pageParams.listing_status)}.
           </div>
         )}
         {pageParams.image_error === "1" && (

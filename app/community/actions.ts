@@ -1417,7 +1417,7 @@ export async function updateMarketplaceListingStatus(formData: FormData) {
     .update(listingUpdates)
     .eq("discussion_id", discussionId);
 
-  if (error) throw new Error(error.message);
+  if (error) redirect(withQueryParam(returnPath, "form_error", error.message));
 
   if (listingStatus === "expired" || discussion.status === "expired") {
     const { error: discussionError } = await writeClient
@@ -1428,13 +1428,13 @@ export async function updateMarketplaceListingStatus(formData: FormData) {
       })
       .eq("id", discussionId);
 
-    if (discussionError) throw new Error(discussionError.message);
+    if (discussionError) redirect(withQueryParam(returnPath, "form_error", discussionError.message));
   }
 
   revalidatePath(returnPath);
   revalidatePath(discussionPath(discussion.slug));
   revalidatePath("/community/category/marketplace-connections");
-  redirect(returnPath);
+  redirect(withQueryParam(returnPath, "listing_status", listingStatus));
 }
 
 export async function toggleCommunitySave(formData: FormData) {
@@ -1450,22 +1450,25 @@ export async function toggleCommunitySave(formData: FormData) {
     .maybeSingle<{ discussion_id: string }>();
 
   if (existing) {
-    await supabase
+    const { error } = await supabase
       .from("community_saves")
       .delete()
       .eq("discussion_id", discussionId)
       .eq("profile_id", user.id);
+    if (error) redirect(withQueryParam(returnPath, "form_error", error.message));
   } else {
-    await supabase.from("community_saves").insert({
+    const { error } = await supabase.from("community_saves").insert({
       discussion_id: discussionId,
       profile_id: user.id,
     });
+    if (error) redirect(withQueryParam(returnPath, "form_error", error.message));
   }
 
   await supabase.rpc("community_recount_discussion_stats", {
     target_discussion_id: discussionId,
   });
   revalidatePath(returnPath);
+  redirect(withQueryParam(returnPath, "saved", existing ? "removed" : "added"));
 }
 
 export async function toggleCommunityFollow(formData: FormData) {
@@ -1481,22 +1484,25 @@ export async function toggleCommunityFollow(formData: FormData) {
     .maybeSingle<{ discussion_id: string }>();
 
   if (existing) {
-    await supabase
+    const { error } = await supabase
       .from("community_follows")
       .delete()
       .eq("discussion_id", discussionId)
       .eq("profile_id", user.id);
+    if (error) redirect(withQueryParam(returnPath, "form_error", error.message));
   } else {
-    await supabase.from("community_follows").insert({
+    const { error } = await supabase.from("community_follows").insert({
       discussion_id: discussionId,
       profile_id: user.id,
     });
+    if (error) redirect(withQueryParam(returnPath, "form_error", error.message));
   }
 
   await supabase.rpc("community_recount_discussion_stats", {
     target_discussion_id: discussionId,
   });
   revalidatePath(returnPath);
+  redirect(withQueryParam(returnPath, "followed", existing ? "removed" : "added"));
 }
 
 export async function reportCommunityContent(formData: FormData) {
