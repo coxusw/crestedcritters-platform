@@ -76,20 +76,106 @@ export async function resolveCommunityReport(formData: FormData) {
   const reportId = textValue(formData.get("report_id"));
   const status = textValue(formData.get("status")) || "resolved";
   const notes = textValue(formData.get("moderator_notes")) || null;
+  const discussionId = textValue(formData.get("discussion_id"));
+  const discussionSlug = textValue(formData.get("discussion_slug"));
+  const replyId = textValue(formData.get("reply_id"));
+  const moderationAction = textValue(formData.get("moderation_action"));
+  const now = new Date().toISOString();
+
+  if (!reportId) redirect("/admin/isopedia/community?error=missing-report");
+
+  if (moderationAction) {
+    const targetUpdates: Record<string, string | boolean | null> = {
+      updated_at: now,
+    };
+
+    if (moderationAction === "hide_discussion") {
+      targetUpdates.status = "hidden";
+      targetUpdates.moderation_status = "actioned";
+    }
+    if (moderationAction === "remove_discussion") {
+      targetUpdates.status = "removed";
+      targetUpdates.moderation_status = "actioned";
+      targetUpdates.deleted_at = now;
+    }
+    if (moderationAction === "restore_discussion") {
+      targetUpdates.status = "published";
+      targetUpdates.moderation_status = "clear";
+      targetUpdates.deleted_at = null;
+    }
+    if (moderationAction === "lock_discussion") targetUpdates.locked = true;
+    if (moderationAction === "unlock_discussion") targetUpdates.locked = false;
+
+    if (discussionId && Object.keys(targetUpdates).length > 1) {
+      const { error: discussionError } = await supabase
+        .from("community_discussions")
+        .update(targetUpdates)
+        .eq("id", discussionId);
+
+      if (discussionError) {
+        redirect(`/admin/isopedia/community?error=${encodeURIComponent(discussionError.message)}`);
+      }
+
+      await supabase.from("community_moderation_history").insert({
+        discussion_id: discussionId,
+        moderator_id: user.id,
+        action: moderationAction,
+        notes,
+        metadata: { report_id: reportId },
+      });
+    }
+
+    const replyUpdates: Record<string, string | null> = {
+      updated_at: now,
+    };
+
+    if (moderationAction === "hide_reply") replyUpdates.status = "hidden";
+    if (moderationAction === "remove_reply") {
+      replyUpdates.status = "removed";
+      replyUpdates.deleted_at = now;
+    }
+    if (moderationAction === "restore_reply") {
+      replyUpdates.status = "published";
+      replyUpdates.deleted_at = null;
+    }
+
+    if (replyId && Object.keys(replyUpdates).length > 1) {
+      const { error: replyError } = await supabase
+        .from("community_replies")
+        .update(replyUpdates)
+        .eq("id", replyId);
+
+      if (replyError) {
+        redirect(`/admin/isopedia/community?error=${encodeURIComponent(replyError.message)}`);
+      }
+
+      await supabase.from("community_moderation_history").insert({
+        discussion_id: discussionId || null,
+        reply_id: replyId,
+        moderator_id: user.id,
+        action: moderationAction,
+        notes,
+        metadata: { report_id: reportId },
+      });
+    }
+  }
 
   const { error } = await supabase
     .from("community_reports")
     .update({
       status,
       moderator_notes: notes,
-      resolved_by: user.id,
-      resolved_at: new Date().toISOString(),
+      action_taken: moderationAction || null,
+      resolved_by: status === "reviewing" ? null : user.id,
+      resolved_at: status === "reviewing" ? null : now,
     })
     .eq("id", reportId);
 
   if (error) redirect(`/admin/isopedia/community?error=${encodeURIComponent(error.message)}`);
 
   revalidatePath("/admin/isopedia/community");
+  revalidatePath("/community");
+  if (discussionSlug) revalidatePath(`/community/discussion/${discussionSlug}`);
   redirect("/admin/isopedia/community?saved=report");
 }
 
@@ -109,8 +195,16 @@ export async function moderateCommunityDiscussion(formData: FormData) {
   if (action === "feature") updates.featured = true;
   if (action === "unfeature") updates.featured = false;
   if (action === "hide") updates.status = "hidden";
+  if (action === "remove") updates.status = "removed";
   if (action === "restore") updates.status = "published";
+  if (action === "approve") updates.status = "published";
   if (action === "archive") updates.status = "archived";
+  if (action === "flag") updates.moderation_status = "flagged";
+  if (action === "clear") updates.moderation_status = "clear";
+  if (["hide", "remove"].includes(action)) updates.moderation_status = "actioned";
+  if (["restore", "approve"].includes(action)) updates.moderation_status = "clear";
+  if (action === "remove") updates.deleted_at = new Date().toISOString();
+  if (["restore", "approve"].includes(action)) updates.deleted_at = null;
 
   const { error } = await supabase
     .from("community_discussions")
