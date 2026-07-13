@@ -26,18 +26,10 @@ type Props = {
 
 export function IsopediaInstallCard() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [installed, setInstalled] = useState(false);
-  const [isIos, setIsIos] = useState(false);
-  const [checkedInstallSupport, setCheckedInstallSupport] = useState(false);
+  const [installed, setInstalled] = useState(isStandaloneInstalled);
+  const [isIos] = useState(isAppleMobileBrowser);
 
   useEffect(() => {
-    setInstalled(
-      window.matchMedia("(display-mode: standalone)").matches ||
-        Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
-    );
-    setIsIos(isAppleMobileBrowser());
-    setCheckedInstallSupport(true);
-
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/isopedia-sw.js").catch(() => {});
     }
@@ -75,9 +67,7 @@ export function IsopediaInstallCard() {
       ? "Install Isopedia from Safari's Share menu. It only takes two taps."
       : installPrompt
         ? "This browser can install Isopedia directly."
-        : checkedInstallSupport
-          ? "If your browser supports app installs, use its install option from the address bar or browser menu."
-          : "Checking whether this browser can install Isopedia.";
+        : "If your browser supports app installs, use its install option from the address bar or browser menu.";
 
   return (
     <section className="isopedia-install-card mx-auto mt-4 max-w-5xl rounded-2xl border border-emerald-400/20 bg-[#102016] p-4 shadow-xl shadow-black/20 sm:mt-5">
@@ -146,11 +136,20 @@ const shareIcon = (
 );
 
 function isAppleMobileBrowser() {
+  if (typeof window === "undefined") return false;
   const ua = window.navigator.userAgent.toLowerCase();
   const platform = window.navigator.platform?.toLowerCase() || "";
   const touchMac = platform.includes("mac") && window.navigator.maxTouchPoints > 1;
 
   return /iphone|ipad|ipod/.test(ua) || touchMac;
+}
+
+function isStandaloneInstalled() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
+  );
 }
 
 export default function IsopediaNotificationSettings({
@@ -159,10 +158,11 @@ export default function IsopediaNotificationSettings({
   preferencesReady,
   savePreferencesAction,
 }: Props) {
-  const [pushSupported, setPushSupported] = useState(false);
-  const [pushStatus, setPushStatus] = useState("Checking browser support...");
+  const [pushSupported] = useState(supportsWebPush);
+  const [pushStatusOverride, setPushStatusOverride] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const pushStatus = pushStatusOverride || browserPushStatus(pushSupported, preferencesReady, vapidPublicKey);
   const canUsePush = useMemo(
     () => pushSupported && Boolean(vapidPublicKey) && preferencesReady,
     [pushSupported, vapidPublicKey, preferencesReady]
@@ -170,50 +170,24 @@ export default function IsopediaNotificationSettings({
 
   useEffect(() => {
     const hasServiceWorker = "serviceWorker" in navigator;
-    setPushSupported(hasServiceWorker && "PushManager" in window && "Notification" in window);
 
     if (hasServiceWorker) {
       navigator.serviceWorker.register("/isopedia-sw.js").catch(() => {
-        setPushStatus("The app installer is available, but the service worker could not register yet.");
+        setPushStatusOverride("The app installer is available, but the service worker could not register yet.");
       });
     }
 
   }, []);
 
-  useEffect(() => {
-    if (!pushSupported) {
-      setPushStatus("This browser does not support web push notifications.");
-      return;
-    }
-
-    if (!preferencesReady) {
-      setPushStatus("Notification settings need the Supabase notification table before they can be saved.");
-      return;
-    }
-
-    if (!vapidPublicKey) {
-      setPushStatus("Push notifications need NEXT_PUBLIC_VAPID_PUBLIC_KEY in Vercel before users can enable them.");
-      return;
-    }
-
-    setPushStatus(
-      Notification.permission === "granted"
-        ? "Browser notifications are allowed for Isopedia."
-        : Notification.permission === "denied"
-          ? "Browser notifications are blocked. Change this in your browser site settings."
-          : "Browser notifications are ready to enable."
-    );
-  }, [preferencesReady, pushSupported, vapidPublicKey]);
-
   async function enablePush() {
     if (!canUsePush || busy) return;
     setBusy(true);
-    setPushStatus("Asking your browser for notification permission...");
+    setPushStatusOverride("Asking your browser for notification permission...");
 
     try {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        setPushStatus("Notifications were not enabled.");
+        setPushStatusOverride("Notifications were not enabled.");
         return;
       }
 
@@ -234,9 +208,9 @@ export default function IsopediaNotificationSettings({
       const payload = await response.json();
 
       if (!response.ok) throw new Error(payload.error || "Could not save notification subscription.");
-      setPushStatus("Notifications are enabled for this browser.");
+      setPushStatusOverride("Notifications are enabled for this browser.");
     } catch (error) {
-      setPushStatus(error instanceof Error ? error.message : "Could not enable notifications.");
+      setPushStatusOverride(error instanceof Error ? error.message : "Could not enable notifications.");
     } finally {
       setBusy(false);
     }
@@ -245,7 +219,7 @@ export default function IsopediaNotificationSettings({
   async function disablePush() {
     if (!pushSupported || busy) return;
     setBusy(true);
-    setPushStatus("Turning off notifications for this browser...");
+    setPushStatusOverride("Turning off notifications for this browser...");
 
     try {
       const registration = await navigator.serviceWorker.getRegistration("/");
@@ -261,9 +235,9 @@ export default function IsopediaNotificationSettings({
       const payload = await response.json();
 
       if (!response.ok) throw new Error(payload.error || "Could not update notification settings.");
-      setPushStatus("Notifications are off for this browser.");
+      setPushStatusOverride("Notifications are off for this browser.");
     } catch (error) {
-      setPushStatus(error instanceof Error ? error.message : "Could not disable notifications.");
+      setPushStatusOverride(error instanceof Error ? error.message : "Could not disable notifications.");
     } finally {
       setBusy(false);
     }
@@ -303,14 +277,14 @@ export default function IsopediaNotificationSettings({
         <form action={savePreferencesAction} className="mt-6 grid gap-3 sm:grid-cols-2">
           <PreferenceCheck
             name="notify_guides"
-            label="Guide activity"
-            description="New guide activity and future guide replies."
+            label="Guide notifications"
+            description="Guide posts, guide replies, and guide-related mentions."
             defaultChecked={preferences.notify_guides}
           />
           <PreferenceCheck
             name="notify_discussions"
-            label="Discussion activity"
-            description="Replies, likes, and future watched species updates."
+            label="Community discussion notifications"
+            description="Replies, mentions, accepted answers, and followed species discussion updates."
             defaultChecked={preferences.notify_discussions}
           />
           <PreferenceCheck
@@ -366,6 +340,35 @@ function PreferenceCheck({
       </span>
     </label>
   );
+}
+
+function supportsWebPush() {
+  return (
+    typeof window !== "undefined" &&
+    typeof navigator !== "undefined" &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window &&
+    "Notification" in window
+  );
+}
+
+function browserPushStatus(
+  pushSupported: boolean,
+  preferencesReady: boolean,
+  vapidPublicKey: string
+) {
+  if (!pushSupported) return "This browser does not support web push notifications.";
+  if (!preferencesReady) {
+    return "Notification settings need the Supabase notification table before they can be saved.";
+  }
+  if (!vapidPublicKey) {
+    return "Push notifications need NEXT_PUBLIC_VAPID_PUBLIC_KEY in Vercel before users can enable them.";
+  }
+  if (Notification.permission === "granted") return "Browser notifications are allowed for Isopedia.";
+  if (Notification.permission === "denied") {
+    return "Browser notifications are blocked. Change this in your browser site settings.";
+  }
+  return "Browser notifications are ready to enable.";
 }
 
 function urlBase64ToUint8Array(value: string) {
