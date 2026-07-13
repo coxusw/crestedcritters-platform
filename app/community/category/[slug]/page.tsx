@@ -35,6 +35,7 @@ export default async function CommunityCategoryPage({
     listing_type?: string;
     listing_status?: string;
     has_images?: string;
+    species?: string;
   }>;
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
@@ -46,17 +47,25 @@ export default async function CommunityCategoryPage({
     category.slug === "species-help" ||
     category.slug === "identification-help";
 
-  const discussions = await getCommunityDiscussions(supabase, {
-    categorySlug: category.slug,
-    search: query.q,
-    sort: query.sort,
-    unansweredOnly: supportsAnsweredFilter && query.filter === "unanswered",
-    answeredOnly: supportsAnsweredFilter && query.filter === "answered",
-    hasImages: query.has_images === "true",
-    marketplaceListingType: category.marketplace_rules ? query.listing_type : undefined,
-    marketplaceStatus: category.marketplace_rules ? query.listing_status : undefined,
-    limit: 40,
-  });
+  const [speciesResult, discussions] = await Promise.all([
+    supabase
+      .from("isopedia_species")
+      .select("id, common_name, scientific_name")
+      .order("common_name", { ascending: true })
+      .returns<Array<{ id: number; common_name: string; scientific_name: string | null }>>(),
+    getCommunityDiscussions(supabase, {
+      categorySlug: category.slug,
+      search: query.q,
+      sort: query.sort,
+      speciesId: query.species,
+      unansweredOnly: supportsAnsweredFilter && query.filter === "unanswered",
+      answeredOnly: supportsAnsweredFilter && query.filter === "answered",
+      hasImages: query.has_images === "true",
+      marketplaceListingType: category.marketplace_rules ? query.listing_type : undefined,
+      marketplaceStatus: category.marketplace_rules ? query.listing_status : undefined,
+      limit: 40,
+    }),
+  ]);
   const badgesByProfile = await getInlineBadgesForProfiles(
     supabase,
     discussions.map((discussion) => discussion.author_id || "").filter(Boolean)
@@ -111,6 +120,16 @@ export default async function CommunityCategoryPage({
               <option value="replies">Most replies</option>
               <option value="views">Most viewed</option>
               <option value="saved">Most saved</option>
+            </FilterSelect>
+
+            <FilterSelect label="Species" name="species" value={query.species || ""}>
+              <option value="">All species</option>
+              {(speciesResult.data || []).map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.common_name}
+                  {item.scientific_name ? ` - ${item.scientific_name}` : ""}
+                </option>
+              ))}
             </FilterSelect>
 
             {supportsAnsweredFilter && (

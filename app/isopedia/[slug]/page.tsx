@@ -1014,6 +1014,12 @@ export default async function SpeciesPage({ params }: PageProps) {
               >
                 Start Discussion
               </Link>
+              <Link
+                href={`/community?species=${species.id}`}
+                className="rounded-xl border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/10"
+              >
+                View All
+              </Link>
               {user ? (
                 <form action={toggleSpeciesFollow}>
                   <input type="hidden" name="species_id" value={species.id} />

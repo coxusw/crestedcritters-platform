@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default async function CommunityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; sort?: string }>;
+  searchParams: Promise<{ q?: string; sort?: string; species?: string }>;
 }) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
@@ -25,11 +25,17 @@ export default async function CommunityPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [categories, recent, unanswered, guides, marketplace] = await Promise.all([
+  const [categories, speciesResult, recent, unanswered, guides, marketplace] = await Promise.all([
     getCommunityCategories(supabase),
+    supabase
+      .from("isopedia_species")
+      .select("id, common_name, scientific_name")
+      .order("common_name", { ascending: true })
+      .returns<Array<{ id: number; common_name: string; scientific_name: string | null }>>(),
     getCommunityDiscussions(supabase, {
       search: params.q,
       sort: params.sort,
+      speciesId: params.species,
       limit: 12,
     }),
     getCommunityDiscussions(supabase, {
@@ -86,13 +92,26 @@ export default async function CommunityPage({
             </div>
           </div>
 
-          <form className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto_auto]" action="/community">
+          <form className="mt-6 grid gap-3 lg:grid-cols-[1fr_minmax(220px,300px)_auto_auto]" action="/community">
             <input
               name="q"
               defaultValue={params.q || ""}
-              placeholder="Search discussions..."
+              placeholder="Search discussions, tags, or species..."
               className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
             />
+            <select
+              name="species"
+              defaultValue={params.species || ""}
+              className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+            >
+              <option value="">All species</option>
+              {(speciesResult.data || []).map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.common_name}
+                  {item.scientific_name ? ` - ${item.scientific_name}` : ""}
+                </option>
+              ))}
+            </select>
             <select
               name="sort"
               defaultValue={params.sort || "active"}

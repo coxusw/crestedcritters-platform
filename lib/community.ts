@@ -213,6 +213,7 @@ export async function getCommunityDiscussions(
     savedBy?: string;
     followedBy?: string;
     followingBy?: string;
+    speciesId?: number | string;
     search?: string;
     sort?: string;
     limit?: number;
@@ -255,6 +256,17 @@ export async function getCommunityDiscussions(
 
     const { data: listingRows } = await marketplaceQuery.returns<Array<{ discussion_id: string }>>();
     discussionIdFilters.push(new Set((listingRows || []).map((row) => row.discussion_id)));
+  }
+
+  const speciesId = Number(options.speciesId);
+  if (Number.isFinite(speciesId) && speciesId > 0) {
+    const { data: speciesRows } = await supabase
+      .from("community_discussion_species")
+      .select("discussion_id")
+      .eq("species_id", speciesId)
+      .returns<Array<{ discussion_id: string }>>();
+
+    discussionIdFilters.push(new Set((speciesRows || []).map((row) => row.discussion_id)));
   }
 
   if (options.savedBy) {
@@ -382,7 +394,14 @@ export async function getCommunityDiscussions(
   if (constrainedDiscussionIds) query = query.in("id", constrainedDiscussionIds);
   if (options.search) {
     const term = options.search.trim();
-    if (term) query = query.or(`title.ilike.%${term}%,body.ilike.%${term}%`);
+    if (term) {
+      const safeTerm = term.replace(/[%_,()]/g, " ").replace(/\s+/g, " ").trim();
+      if (safeTerm) {
+        const searchIds = await getCommunitySearchDiscussionIds(supabase, safeTerm);
+        const idFilter = searchIds.length ? `,id.in.(${searchIds.join(",")})` : "";
+        query = query.or(`title.ilike.%${safeTerm}%,body.ilike.%${safeTerm}%${idFilter}`);
+      }
+    }
   }
 
   const sort = options.sort || "active";
@@ -405,6 +424,56 @@ export async function getCommunityDiscussions(
   if (error) throw new Error(error.message);
 
   return data || [];
+}
+
+async function getCommunitySearchDiscussionIds(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  term: string
+) {
+  const [speciesResult, tagsResult] = await Promise.all([
+    supabase
+      .from("isopedia_species")
+      .select("id")
+      .or(
+        `common_name.ilike.%${term}%,scientific_name.ilike.%${term}%,genus.ilike.%${term}%,species.ilike.%${term}%,morph.ilike.%${term}%,trade_names.ilike.%${term}%`
+      )
+      .limit(50)
+      .returns<Array<{ id: number }>>(),
+    supabase
+      .from("community_tags")
+      .select("id")
+      .or(`name.ilike.%${term}%,slug.ilike.%${term}%`)
+      .limit(50)
+      .returns<Array<{ id: string }>>(),
+  ]);
+
+  const discussionIds = new Set<string>();
+  const speciesIds = (speciesResult.data || []).map((row) => row.id);
+  const tagIds = (tagsResult.data || []).map((row) => row.id);
+
+  const [speciesLinks, tagLinks] = await Promise.all([
+    speciesIds.length
+      ? supabase
+          .from("community_discussion_species")
+          .select("discussion_id")
+          .in("species_id", speciesIds)
+          .limit(500)
+          .returns<Array<{ discussion_id: string }>>()
+      : Promise.resolve({ data: [] as Array<{ discussion_id: string }> }),
+    tagIds.length
+      ? supabase
+          .from("community_discussion_tags")
+          .select("discussion_id")
+          .in("tag_id", tagIds)
+          .limit(500)
+          .returns<Array<{ discussion_id: string }>>()
+      : Promise.resolve({ data: [] as Array<{ discussion_id: string }> }),
+  ]);
+
+  for (const row of speciesLinks.data || []) discussionIds.add(row.discussion_id);
+  for (const row of tagLinks.data || []) discussionIds.add(row.discussion_id);
+
+  return [...discussionIds].slice(0, 500);
 }
 
 function intersectSets(sets: Array<Set<string>>) {
