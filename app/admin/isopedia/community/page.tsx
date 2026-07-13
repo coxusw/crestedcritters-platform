@@ -81,6 +81,31 @@ type Report = {
   } | null;
 };
 
+type ModerationHistory = {
+  id: string;
+  action: string;
+  notes: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  moderator: ProfileSummary | null;
+  discussion: {
+    id: string;
+    title: string | null;
+    slug: string | null;
+    status: string | null;
+  } | null;
+  reply: {
+    id: string;
+    body: string | null;
+    status: string | null;
+    discussion: {
+      id: string;
+      title: string | null;
+      slug: string | null;
+    } | null;
+  } | null;
+};
+
 type Prompt = {
   id: string;
   title: string;
@@ -221,7 +246,7 @@ export default async function AdminCommunityPage({
     reportQuery = reportQuery.eq("status", reportFilter);
   }
 
-  const [categories, discussions, reports, prompts] = await Promise.all([
+  const [categories, discussions, reports, prompts, history] = await Promise.all([
     supabase
       .from("community_categories")
       .select("*")
@@ -234,7 +259,49 @@ export default async function AdminCommunityPage({
       .select("id, title, description, weekday, enabled")
       .order("weekday", { ascending: true })
       .returns<Prompt[]>(),
+    supabase
+      .from("community_moderation_history")
+      .select(
+        `
+        id,
+        action,
+        notes,
+        metadata,
+        created_at,
+        moderator:moderator_id (
+          username,
+          display_name,
+          business_name
+        ),
+        discussion:discussion_id (
+          id,
+          title,
+          slug,
+          status
+        ),
+        reply:reply_id (
+          id,
+          body,
+          status,
+          discussion:discussion_id (
+            id,
+            title,
+            slug
+          )
+        )
+      `
+      )
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .returns<ModerationHistory[]>(),
   ]);
+  const openReportCount = (reports.data || []).filter((report) => report.status === "open").length;
+  const attentionDiscussionCount = (discussions.data || []).filter(
+    (discussion) =>
+      discussion.status === "pending" ||
+      discussion.moderation_status === "flagged" ||
+      discussion.report_count > 0
+  ).length;
 
   return (
     <main className="min-h-screen bg-[#08110d] px-4 py-6 text-slate-100">
@@ -256,6 +323,11 @@ export default async function AdminCommunityPage({
           <p className="mt-3 text-sm leading-6 text-slate-300">
             Manage categories, moderation, reports, and weekly recurring prompts.
           </p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <AdminStat label="Open Reports" value={openReportCount} />
+            <AdminStat label="Needs Review" value={attentionDiscussionCount} />
+            <AdminStat label="Recent Actions" value={(history.data || []).length} />
+          </div>
         </header>
 
         {params.saved && (
@@ -384,8 +456,39 @@ export default async function AdminCommunityPage({
             )}
           </div>
         </section>
+
+        <section className="rounded-lg border border-white/10 bg-white/[0.05] p-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black">Recent Moderation History</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Latest report resolutions, status changes, locks, removals, and staff actions.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3">
+            {(history.data || []).length ? (
+              (history.data || []).map((item) => (
+                <ModerationHistoryCard key={item.id} item={item} />
+              ))
+            ) : (
+              <p className="text-sm text-slate-400">No moderation actions have been recorded yet.</p>
+            )}
+          </div>
+        </section>
       </div>
     </main>
+  );
+}
+
+function AdminStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+      <div className="text-2xl font-black text-white">{value}</div>
+      <div className="mt-1 text-xs font-black uppercase tracking-wide text-slate-400">
+        {label}
+      </div>
+    </div>
   );
 }
 
@@ -515,6 +618,48 @@ function ReportCard({ report }: { report: Report }) {
   );
 }
 
+function ModerationHistoryCard({ item }: { item: ModerationHistory }) {
+  const targetDiscussion = item.discussion || item.reply?.discussion || null;
+  const targetTitle = item.reply
+    ? plainText(item.reply.body || "Moderated reply")
+    : item.discussion?.title || "Moderated discussion";
+  const targetStatus = item.reply?.status || item.discussion?.status || "unknown";
+
+  return (
+    <article className="rounded-lg border border-white/10 bg-black/20 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap gap-2">
+            <Badge tone="emerald" label={item.action} />
+            <Badge tone="slate" label={item.reply ? "Reply" : "Discussion"} />
+            <Badge tone="slate" label={targetStatus} />
+          </div>
+          <h3 className="mt-3 line-clamp-2 font-black text-white">{targetTitle}</h3>
+          <p className="mt-2 text-xs text-slate-500">
+            By {profileName(item.moderator)} / {formatDate(item.created_at)}
+          </p>
+          {item.notes && (
+            <p className="mt-2 text-sm leading-6 text-slate-300">{item.notes}</p>
+          )}
+          {formatHistoryMetadata(item.metadata) && (
+            <p className="mt-2 text-xs text-slate-500">
+              {formatHistoryMetadata(item.metadata)}
+            </p>
+          )}
+        </div>
+        {targetDiscussion?.slug && (
+          <Link
+            href={`/community/discussion/${targetDiscussion.slug}${item.reply ? `#reply-${item.reply.id}` : ""}`}
+            className="rounded-md border border-emerald-400/20 px-3 py-2 text-xs font-black text-emerald-100 hover:bg-emerald-400/10"
+          >
+            Open
+          </Link>
+        )}
+      </div>
+    </article>
+  );
+}
+
 function FilterLink({
   href,
   active,
@@ -563,6 +708,21 @@ function plainText(value: string) {
     .replace(/<[^>]*>/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function formatHistoryMetadata(metadata: Record<string, unknown> | null) {
+  if (!metadata) return "";
+  const reportId = typeof metadata.report_id === "string" ? metadata.report_id : "";
+  const toCategorySlug =
+    typeof metadata.to_category_slug === "string" ? metadata.to_category_slug : "";
+  const status = typeof metadata.status === "string" ? metadata.status : "";
+  return [
+    reportId ? `Report ${reportId.slice(0, 8)}` : "",
+    toCategorySlug ? `Moved to ${toCategorySlug}` : "",
+    status ? `Status ${status}` : "",
+  ]
+    .filter(Boolean)
+    .join(" / ");
 }
 
 function formatDate(value: string) {
