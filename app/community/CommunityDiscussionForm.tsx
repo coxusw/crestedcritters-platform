@@ -21,6 +21,7 @@ export default function CommunityDiscussionForm({
   initialDiscussion = null,
   selectedCategorySlug = "",
   selectedSpeciesId = "",
+  formError = "",
 }: {
   action: (formData: FormData) => Promise<void>;
   categories: CommunityCategory[];
@@ -28,6 +29,7 @@ export default function CommunityDiscussionForm({
   initialDiscussion?: InitialDiscussion | null;
   selectedCategorySlug?: string;
   selectedSpeciesId?: string;
+  formError?: string;
 }) {
   const selectedCategory =
     categories.find((category) => category.slug === selectedCategorySlug) ||
@@ -40,6 +42,12 @@ export default function CommunityDiscussionForm({
     <form action={action} className="grid gap-5" encType="multipart/form-data">
       {initialDiscussion && (
         <input type="hidden" name="discussion_id" value={initialDiscussion.id} />
+      )}
+
+      {formError && (
+        <div className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-4 text-sm font-bold text-amber-50">
+          {formError}
+        </div>
       )}
 
       <label className="grid gap-2">

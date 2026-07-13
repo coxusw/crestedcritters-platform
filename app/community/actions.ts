@@ -13,6 +13,16 @@ import { isUnderRestrictedAge } from "@/lib/isopedia-age";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
+type NotificationInsert = {
+  recipient_id: string;
+  actor_id: string;
+  type: string;
+  discussion_id: string;
+  reply_id?: string | null;
+  destination_url: string;
+  metadata: Record<string, unknown>;
+};
+
 const COMMUNITY_IMAGE_BUCKET = "isopedia-images";
 const MAX_COMMUNITY_IMAGE_FILES = 5;
 const MAX_COMMUNITY_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -50,10 +60,12 @@ function allowedMarketplaceStatus(value: string) {
 }
 
 function withQueryParam(path: string, key: string, value: string) {
-  const [base, query = ""] = path.split("?");
+  const [pathWithoutHash, hash = ""] = path.split("#");
+  const [base, query = ""] = pathWithoutHash.split("?");
   const params = new URLSearchParams(query);
   params.set(key, value);
-  return `${base}?${params.toString()}`;
+  const nextPath = `${base}?${params.toString()}`;
+  return hash ? `${nextPath}#${hash}` : nextPath;
 }
 
 function safeImageExtension(file: File) {
@@ -69,18 +81,20 @@ function communityImageFiles(entries: FormDataEntryValue[]) {
 
 function validateCommunityImageFiles(files: File[]) {
   if (files.length > MAX_COMMUNITY_IMAGE_FILES) {
-    throw new Error(`Please upload ${MAX_COMMUNITY_IMAGE_FILES} images or fewer.`);
+    return `Please upload ${MAX_COMMUNITY_IMAGE_FILES} images or fewer.`;
   }
 
   for (const file of files) {
     if (!COMMUNITY_IMAGE_TYPES.has(file.type)) {
-      throw new Error("Images must be JPG, PNG, WEBP, or GIF.");
+      return "Images must be JPG, PNG, WEBP, or GIF.";
     }
 
     if (file.size > MAX_COMMUNITY_IMAGE_BYTES) {
-      throw new Error("Each image must be smaller than 5MB.");
+      return "Each image must be smaller than 5MB.";
     }
   }
+
+  return null;
 }
 
 async function uploadCommunityImages(
@@ -89,8 +103,18 @@ async function uploadCommunityImages(
   ownerId: string,
   target: { discussionId?: string; replyId?: string }
 ) {
-  if (!files.length) return;
+  if (!files.length) return null;
 
+  let uploadClient: SupabaseServerClient = supabase;
+  let warning: string | null = null;
+  try {
+    uploadClient = createSupabaseAdminClient() as unknown as SupabaseServerClient;
+  } catch (error) {
+    console.error(
+      "Community image upload is using user client fallback:",
+      error instanceof Error ? error.message : error
+    );
+  }
   const rows: Array<{
     discussion_id: string | null;
     reply_id: string | null;
@@ -107,7 +131,7 @@ async function uploadCommunityImages(
 
     const extension = safeImageExtension(file);
     const storagePath = `community/${ownerId}/${targetId}/${crypto.randomUUID()}.${extension}`;
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await uploadClient.storage
       .from(COMMUNITY_IMAGE_BUCKET)
       .upload(storagePath, file, {
         cacheControl: "3600",
@@ -115,9 +139,13 @@ async function uploadCommunityImages(
         contentType: file.type || "image/jpeg",
       });
 
-    if (uploadError) throw new Error(uploadError.message);
+    if (uploadError) {
+      console.error("Failed to upload community image:", uploadError.message);
+      warning = "Some images could not be uploaded. The post was saved.";
+      continue;
+    }
 
-    const { data } = supabase.storage.from(COMMUNITY_IMAGE_BUCKET).getPublicUrl(storagePath);
+    const { data } = uploadClient.storage.from(COMMUNITY_IMAGE_BUCKET).getPublicUrl(storagePath);
     rows.push({
       discussion_id: target.discussionId || null,
       reply_id: target.replyId || null,
@@ -129,10 +157,61 @@ async function uploadCommunityImages(
     });
   }
 
-  const { error } = await supabase.from("community_images").insert(rows);
+  if (!rows.length) {
+    return warning || "Images could not be uploaded. The post was saved.";
+  }
+
+  const { error } = await uploadClient.from("community_images").insert(rows);
   if (error) {
-    console.error("Failed to load species follows for notifications:", error.message);
+    console.error("Failed to save community image rows:", error.message);
+    return "Images uploaded but could not be attached to the post.";
+  }
+
+  return warning;
+}
+
+async function insertNotificationsSkippingExisting(
+  rows: NotificationInsert[]
+) {
+  let admin: ReturnType<typeof createSupabaseAdminClient>;
+  try {
+    admin = createSupabaseAdminClient();
+  } catch (error) {
+    console.error(
+      "Failed to create notification client:",
+      error instanceof Error ? error.message : error
+    );
     return;
+  }
+
+  const dedupedRows: NotificationInsert[] = [];
+
+  for (const row of rows) {
+    let query = admin
+      .from("notifications")
+      .select("id")
+      .eq("recipient_id", row.recipient_id)
+      .eq("type", row.type)
+      .eq("discussion_id", row.discussion_id)
+      .limit(1);
+
+    query = row.reply_id
+      ? query.eq("reply_id", row.reply_id)
+      : query.is("reply_id", null);
+
+    const { data: existing, error } = await query.maybeSingle<{ id: string }>();
+    if (error) {
+      console.error("Failed to check existing notification:", error.message);
+      continue;
+    }
+    if (!existing) dedupedRows.push(row);
+  }
+
+  if (dedupedRows.length) {
+    const { error } = await admin.from("notifications").insert(dedupedRows);
+    if (error) {
+      console.error("Failed to create notifications:", error.message);
+    }
   }
 }
 
@@ -245,10 +324,7 @@ async function syncTags(
     }))
   );
 
-  if (error) {
-    console.error("Failed to load species follows for notifications:", error.message);
-    return;
-  }
+  if (error) throw new Error(error.message);
 }
 
 async function createMentionNotifications(
@@ -286,7 +362,7 @@ async function createMentionNotifications(
     }));
 
   if (rows.length) {
-    await supabase.from("notifications").insert(rows);
+    await insertNotificationsSkippingExisting(rows);
   }
 }
 
@@ -320,7 +396,17 @@ async function createSpeciesFollowNotifications({
 }) {
   if (!speciesIds.length) return;
 
-  const admin = createSupabaseAdminClient();
+  let admin: ReturnType<typeof createSupabaseAdminClient>;
+  try {
+    admin = createSupabaseAdminClient();
+  } catch (error) {
+    console.error(
+      "Failed to create species notification client:",
+      error instanceof Error ? error.message : error
+    );
+    return;
+  }
+
   const { data: follows, error } = await admin
     .from("species_follows")
     .select("profile_id, species_id, notify_discussions, notify_guides, notify_marketplace")
@@ -351,7 +437,7 @@ async function createSpeciesFollowNotifications({
 
   if (!recipientIds.length) return;
 
-  const { error: notificationError } = await admin.from("notifications").insert(
+  await insertNotificationsSkippingExisting(
     recipientIds.map((recipientId) => ({
       recipient_id: recipientId,
       actor_id: actorId,
@@ -365,10 +451,6 @@ async function createSpeciesFollowNotifications({
       },
     }))
   );
-
-  if (notificationError) {
-    console.error("Failed to create species follow notifications:", notificationError.message);
-  }
 }
 
 export async function createCommunityDiscussion(formData: FormData) {
@@ -390,7 +472,10 @@ export async function createCommunityDiscussion(formData: FormData) {
     throw new Error("Only staff can start discussions in this category.");
   }
   const imageFiles = category.images_enabled ? communityImageFiles(formData.getAll("image_files")) : [];
-  validateCommunityImageFiles(imageFiles);
+  const imageValidationError = validateCommunityImageFiles(imageFiles);
+  if (imageValidationError) {
+    redirect(withQueryParam(`/community/new?category=${category.slug}`, "form_error", imageValidationError));
+  }
 
   if (category.minimum_account_age_days > 0 && profile?.created_at) {
     const createdAt = new Date(profile.created_at).getTime();
@@ -436,8 +521,9 @@ export async function createCommunityDiscussion(formData: FormData) {
     category.species_tagging_enabled ? speciesIds : []
   );
   await syncTags(supabase, id, tags);
+  let imageWarning: string | null = null;
   if (category.images_enabled) {
-    await uploadCommunityImages(supabase, imageFiles, user.id, {
+    imageWarning = await uploadCommunityImages(supabase, imageFiles, user.id, {
       discussionId: id,
     });
   }
@@ -479,7 +565,10 @@ export async function createCommunityDiscussion(formData: FormData) {
 
   revalidatePath("/community");
   revalidatePath(`/community/category/${category.slug}`);
-  redirect(discussionPath(slug));
+  const destination = imageWarning
+    ? withQueryParam(discussionPath(slug), "image_error", "1")
+    : discussionPath(slug);
+  redirect(destination);
 }
 
 export async function updateCommunityDiscussion(formData: FormData) {
@@ -521,7 +610,12 @@ export async function updateCommunityDiscussion(formData: FormData) {
   const imageFiles = discussion.category?.images_enabled
     ? communityImageFiles(formData.getAll("image_files"))
     : [];
-  validateCommunityImageFiles(imageFiles);
+  const imageValidationError = validateCommunityImageFiles(imageFiles);
+  if (imageValidationError) {
+    redirect(
+      withQueryParam(`${discussionPath(discussion.slug)}/edit`, "form_error", imageValidationError)
+    );
+  }
 
   const { error } = await supabase
     .from("community_discussions")
@@ -542,15 +636,19 @@ export async function updateCommunityDiscussion(formData: FormData) {
     discussion.category?.species_tagging_enabled ? speciesIds : []
   );
   await syncTags(supabase, discussionId, tags);
+  let imageWarning: string | null = null;
   if (discussion.category?.images_enabled) {
-    await uploadCommunityImages(supabase, imageFiles, user.id, {
+    imageWarning = await uploadCommunityImages(supabase, imageFiles, user.id, {
       discussionId,
     });
   }
 
   revalidatePath(discussionPath(discussion.slug));
   revalidatePath(`/community/category/${discussion.category?.slug || ""}`);
-  redirect(discussionPath(discussion.slug));
+  const destination = imageWarning
+    ? withQueryParam(discussionPath(discussion.slug), "image_error", "1")
+    : discussionPath(discussion.slug);
+  redirect(destination);
 }
 
 export async function createCommunityReply(formData: FormData) {
@@ -583,7 +681,10 @@ export async function createCommunityReply(formData: FormData) {
   const imageFiles = discussion.category?.images_enabled
     ? communityImageFiles(formData.getAll("image_files"))
     : [];
-  validateCommunityImageFiles(imageFiles);
+  const imageValidationError = validateCommunityImageFiles(imageFiles);
+  if (imageValidationError) {
+    redirect(withQueryParam(discussionPath(discussion.slug), "form_error", imageValidationError));
+  }
 
   const { data: reply, error } = await supabase
     .from("community_replies")
@@ -596,22 +697,25 @@ export async function createCommunityReply(formData: FormData) {
     .single<{ id: string }>();
 
   if (error) throw new Error(error.message);
+  let imageWarning: string | null = null;
   if (discussion.category?.images_enabled) {
-    await uploadCommunityImages(supabase, imageFiles, user.id, {
+    imageWarning = await uploadCommunityImages(supabase, imageFiles, user.id, {
       replyId: reply.id,
     });
   }
 
   if (discussion.author_id && discussion.author_id !== user.id) {
-    await supabase.from("notifications").insert({
-      recipient_id: discussion.author_id,
-      actor_id: user.id,
-      type: "discussion_reply",
-      discussion_id: discussionId,
-      reply_id: reply.id,
-      destination_url: `${discussionPath(discussion.slug)}#reply-${reply.id}`,
-      metadata: { title: discussion.title },
-    });
+    await insertNotificationsSkippingExisting([
+      {
+        recipient_id: discussion.author_id,
+        actor_id: user.id,
+        type: "discussion_reply",
+        discussion_id: discussionId,
+        reply_id: reply.id,
+        destination_url: `${discussionPath(discussion.slug)}#reply-${reply.id}`,
+        metadata: { title: discussion.title },
+      },
+    ]);
   }
 
   await createMentionNotifications(
@@ -623,6 +727,10 @@ export async function createCommunityReply(formData: FormData) {
   );
 
   revalidatePath(discussionPath(discussion.slug));
+  const destination = imageWarning
+    ? withQueryParam(`${discussionPath(discussion.slug)}#reply-${reply.id}`, "image_error", "1")
+    : `${discussionPath(discussion.slug)}#reply-${reply.id}`;
+  redirect(destination);
 }
 
 export async function updateCommunityReply(formData: FormData) {

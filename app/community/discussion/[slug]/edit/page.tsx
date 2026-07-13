@@ -12,10 +12,12 @@ export const metadata = {
 
 export default async function EditCommunityDiscussionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ form_error?: string }>;
 }) {
-  const { slug } = await params;
+  const [{ slug }, pageParams] = await Promise.all([params, searchParams]);
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -78,6 +80,7 @@ export default async function EditCommunityDiscussionPage({
               categories={categories}
               species={speciesResult.data || []}
               initialDiscussion={discussion}
+              formError={pageParams.form_error || ""}
             />
           </div>
         </section>

@@ -13,7 +13,7 @@ export const metadata = {
 export default async function NewCommunityDiscussionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; species?: string }>;
+  searchParams: Promise<{ category?: string; species?: string; form_error?: string }>;
 }) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
@@ -57,6 +57,7 @@ export default async function NewCommunityDiscussionPage({
               species={speciesResult.data || []}
               selectedCategorySlug={params.category || ""}
               selectedSpeciesId={params.species || ""}
+              formError={params.form_error || ""}
             />
           </div>
         </section>

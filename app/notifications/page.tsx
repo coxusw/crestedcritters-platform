@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import {
+  clearReadNotifications,
+  deleteNotification,
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/app/notifications/actions";
@@ -81,6 +83,7 @@ export default async function NotificationsPage({
 
   const notifications = data || [];
   const unreadCount = notifications.filter((notification) => !notification.read_at).length;
+  const readCount = notifications.length - unreadCount;
 
   return (
     <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
@@ -98,12 +101,23 @@ export default async function NotificationsPage({
                 Replies, mentions, and community activity tied to your account.
               </p>
             </div>
-            {unreadCount > 0 && (
-              <form action={markAllNotificationsRead}>
-                <button className="rounded-lg border border-emerald-400/30 px-4 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-400/10">
-                  Mark all read
-                </button>
-              </form>
+            {(unreadCount > 0 || readCount > 0) && (
+              <div className="flex flex-wrap gap-2">
+                {unreadCount > 0 && (
+                  <form action={markAllNotificationsRead}>
+                    <button className="rounded-lg border border-emerald-400/30 px-4 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-400/10">
+                      Mark all read
+                    </button>
+                  </form>
+                )}
+                {readCount > 0 && (
+                  <form action={clearReadNotifications}>
+                    <button className="rounded-lg border border-red-400/20 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-400/10">
+                      Clear read
+                    </button>
+                  </form>
+                )}
+              </div>
             )}
           </div>
         </header>
@@ -194,6 +208,12 @@ function NotificationCard({ notification }: { notification: NotificationRow }) {
               </button>
             </form>
           )}
+          <form action={deleteNotification}>
+            <input type="hidden" name="notification_id" value={notification.id} />
+            <button className="rounded-lg border border-red-400/20 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-400/10">
+              Delete
+            </button>
+          </form>
         </div>
       </div>
     </article>

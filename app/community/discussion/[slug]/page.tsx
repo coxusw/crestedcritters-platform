@@ -53,7 +53,7 @@ export default async function CommunityDiscussionPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ reported?: string }>;
+  searchParams: Promise<{ reported?: string; image_error?: string; form_error?: string }>;
 }) {
   const { slug } = await params;
   const pageParams = await searchParams;
@@ -391,6 +391,16 @@ export default async function CommunityDiscussionPage({
         {pageParams.reported === "1" && (
           <div className="mt-4 rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-100">
             Report received. A moderator will review it.
+          </div>
+        )}
+        {pageParams.image_error === "1" && (
+          <div className="mt-4 rounded-lg border border-amber-300/30 bg-amber-300/10 p-4 text-sm font-bold text-amber-50">
+            Your post was saved, but one or more images could not be attached. Try editing the post and uploading the images again.
+          </div>
+        )}
+        {pageParams.form_error && (
+          <div className="mt-4 rounded-lg border border-amber-300/30 bg-amber-300/10 p-4 text-sm font-bold text-amber-50">
+            {pageParams.form_error}
           </div>
         )}
 
