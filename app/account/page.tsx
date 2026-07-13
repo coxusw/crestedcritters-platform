@@ -26,6 +26,7 @@ type NotificationPreferences = {
   push_enabled: boolean;
   notify_guides: boolean;
   notify_discussions: boolean;
+  notify_marketplace: boolean;
   notify_expos: boolean;
   notify_verified_species: boolean;
   notify_messages: boolean;
@@ -57,6 +58,7 @@ const defaultNotificationPreferences: NotificationPreferences = {
   push_enabled: false,
   notify_guides: true,
   notify_discussions: true,
+  notify_marketplace: true,
   notify_expos: true,
   notify_verified_species: true,
   notify_messages: true,
@@ -176,6 +178,7 @@ async function saveNotificationPreferences(formData: FormData) {
       profile_id: user.id,
       notify_guides: formData.get("notify_guides") === "on",
       notify_discussions: formData.get("notify_discussions") === "on",
+      notify_marketplace: formData.get("notify_marketplace") === "on",
       notify_expos: formData.get("notify_expos") === "on",
       notify_verified_species: formData.get("notify_verified_species") === "on",
       notify_messages: formData.get("notify_messages") === "on",
@@ -308,7 +311,7 @@ export default async function AccountPage({
   const canUseProfileBanner = featureAccess.profile_banner_images === true;
   const notificationQuery = await supabase
     .from("isopedia_notification_preferences")
-    .select("push_enabled, notify_guides, notify_discussions, notify_expos, notify_verified_species, notify_messages")
+    .select("push_enabled, notify_guides, notify_discussions, notify_marketplace, notify_expos, notify_verified_species, notify_messages")
     .eq("profile_id", user.id)
     .maybeSingle<NotificationPreferences>();
   const notificationPreferences = notificationQuery.data || defaultNotificationPreferences;

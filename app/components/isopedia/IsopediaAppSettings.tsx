@@ -7,6 +7,7 @@ type NotificationPreferences = {
   push_enabled: boolean;
   notify_guides: boolean;
   notify_discussions: boolean;
+  notify_marketplace: boolean;
   notify_expos: boolean;
   notify_verified_species: boolean;
   notify_messages: boolean;
@@ -286,6 +287,12 @@ export default function IsopediaNotificationSettings({
             label="Community discussion notifications"
             description="Replies, mentions, accepted answers, and followed species discussion updates."
             defaultChecked={preferences.notify_discussions}
+          />
+          <PreferenceCheck
+            name="notify_marketplace"
+            label="Marketplace notifications"
+            description="Marketplace replies, mentions, and followed species marketplace posts."
+            defaultChecked={preferences.notify_marketplace}
           />
           <PreferenceCheck
             name="notify_expos"

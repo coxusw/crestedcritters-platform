@@ -28,6 +28,7 @@ type NotificationPreference = {
   profile_id: string;
   notify_discussions: boolean | null;
   notify_guides: boolean | null;
+  notify_marketplace: boolean | null;
 };
 
 type UploadedCommunityImage = {
@@ -401,7 +402,7 @@ async function filterNotificationsByPreferences(
 
   const { data, error } = await admin
     .from("isopedia_notification_preferences")
-    .select("profile_id, notify_discussions, notify_guides")
+    .select("profile_id, notify_discussions, notify_guides, notify_marketplace")
     .in("profile_id", recipientIds)
     .returns<NotificationPreference[]>();
 
@@ -425,11 +426,12 @@ async function filterNotificationsByPreferences(
 
 function notificationPreferenceKey(
   row: NotificationInsert
-): "notify_discussions" | "notify_guides" | null {
+): "notify_discussions" | "notify_guides" | "notify_marketplace" | null {
   if (!["mention", "discussion_reply", "accepted_answer", "followed_species_discussion"].includes(row.type)) {
     return null;
   }
 
+  if (row.metadata.content_type === "marketplace") return "notify_marketplace";
   return row.metadata.content_type === "guide" ? "notify_guides" : "notify_discussions";
 }
 
