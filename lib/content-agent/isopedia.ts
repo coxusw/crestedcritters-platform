@@ -48,6 +48,7 @@ type CommunityDiscussionAnnouncementInput = {
   contentType: string;
   categoryName: string | null;
   authorId: string | null;
+  actorName?: string | null;
   imageUrl?: string | null;
 };
 
@@ -571,6 +572,7 @@ export async function createCommunityDiscussionAnnouncement({
   contentType,
   categoryName,
   authorId,
+  actorName = null,
   imageUrl = null,
 }: CommunityDiscussionAnnouncementInput) {
   const supabase = createSupabaseAdminClient();
@@ -591,7 +593,7 @@ export async function createCommunityDiscussionAnnouncement({
   const profilesById = await getProfilesByIds([authorId]);
   const authorName = authorId
     ? profileName(profilesById.get(authorId), "an Isopedia community member")
-    : "an Isopedia community member";
+    : actorName || "Isopedia";
   const discussionUrl = `${siteUrl()}/community/discussion/${slug}`;
   const categoryLabel = categoryName || communityPostTypeLabel(contentType);
   const excerpt = body.trim().replace(/\s+/g, " ").slice(0, 220);
