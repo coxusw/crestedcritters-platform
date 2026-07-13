@@ -15,6 +15,7 @@ import {
   reportDiscussionComment,
   toggleDiscussionLike,
 } from "@/app/components/isopedia/discussion-actions";
+import LinkifiedText from "@/app/community/LinkifiedText";
 
 type DiscussionComment = {
   id: string;
@@ -641,7 +642,7 @@ function CommentCard({
         </form>
       ) : (
         <div className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
-          {comment.body}
+          <LinkifiedText text={comment.body} />
         </div>
       )}
 
