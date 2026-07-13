@@ -150,7 +150,7 @@ export default function CommunityDiscussionForm({
             className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-sm text-emerald-50/80 outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:font-black file:text-slate-950 hover:file:bg-emerald-300"
           />
           <span className="text-xs text-emerald-50/45">
-            Add up to 5 JPG, PNG, WEBP, or GIF images. Each image must be under 5MB.
+            Add up to 5 JPG, PNG, WEBP, or GIF images. Each image must be under 10MB.
           </span>
         </label>
       )}

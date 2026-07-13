@@ -5,7 +5,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 const COMMUNITY_IMAGE_BUCKET = "isopedia-images";
 const MAX_COMMUNITY_IMAGE_FILES = 5;
-const MAX_COMMUNITY_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_COMMUNITY_IMAGE_BYTES = 10 * 1024 * 1024;
 const COMMUNITY_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 type UploadedCommunityImage = {
@@ -93,7 +93,7 @@ export default function CommunityFormShell({
 
       if (file.size > MAX_COMMUNITY_IMAGE_BYTES) {
         setSubmitButtons(form, false);
-        setError("Each image must be smaller than 5MB.");
+        setError("Each image must be smaller than 10MB.");
         return;
       }
     }

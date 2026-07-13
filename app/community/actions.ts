@@ -32,7 +32,7 @@ type UploadedCommunityImage = {
 
 const COMMUNITY_IMAGE_BUCKET = "isopedia-images";
 const MAX_COMMUNITY_IMAGE_FILES = 5;
-const MAX_COMMUNITY_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_COMMUNITY_IMAGE_BYTES = 10 * 1024 * 1024;
 const COMMUNITY_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 function textValue(value: FormDataEntryValue | null) {
@@ -138,7 +138,7 @@ function validateCommunityImageFiles(files: File[]) {
     }
 
     if (file.size > MAX_COMMUNITY_IMAGE_BYTES) {
-      return "Each image must be smaller than 5MB.";
+      return "Each image must be smaller than 10MB.";
     }
   }
 
