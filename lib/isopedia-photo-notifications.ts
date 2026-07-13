@@ -41,9 +41,31 @@ export async function createSpeciesPhotoNotifications({
 
   if (!recipientIds.length) return;
 
+  const { data: existingNotifications, error: existingError } = await admin
+    .from("notifications")
+    .select("recipient_id")
+    .eq("type", "followed_species_photo")
+    .eq("metadata->>image_id", imageId)
+    .in("recipient_id", recipientIds)
+    .returns<Array<{ recipient_id: string }>>();
+
+  if (existingError) {
+    console.error("Failed to check existing species photo notifications:", existingError.message);
+    return;
+  }
+
+  const existingRecipientIds = new Set(
+    (existingNotifications || []).map((notification) => notification.recipient_id)
+  );
+  const newRecipientIds = recipientIds.filter(
+    (recipientId) => !existingRecipientIds.has(recipientId)
+  );
+
+  if (!newRecipientIds.length) return;
+
   const destinationUrl = `/${publicSpeciesSlug(speciesSlug)}`;
   const { error: notificationError } = await admin.from("notifications").insert(
-    recipientIds.map((recipientId) => ({
+    newRecipientIds.map((recipientId) => ({
       recipient_id: recipientId,
       actor_id: actorId,
       type: "followed_species_photo",
