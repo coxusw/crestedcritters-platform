@@ -31,14 +31,16 @@ type NotificationRow = {
 
 export const metadata = {
   title: "Notifications | Isopedia",
+  robots: { index: false, follow: false },
 };
 
 export default async function NotificationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; saved?: string; error?: string }>;
+  searchParams: Promise<{ view?: string; type?: string; saved?: string; error?: string }>;
 }) {
   const params = await searchParams;
+  const activeType = allowedNotificationType(params.type);
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -76,6 +78,9 @@ export default async function NotificationsPage({
 
   if (params.view === "unread") {
     query = query.is("read_at", null);
+  }
+  if (activeType) {
+    query = query.eq("type", activeType);
   }
 
   const { data, error } = await query.returns<NotificationRow[]>();
@@ -123,12 +128,21 @@ export default async function NotificationsPage({
         </header>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <FilterLink href="/notifications" active={params.view !== "unread"} label="All" />
+          <FilterLink href={notificationFilterHref({ type: activeType })} active={params.view !== "unread"} label="All" />
           <FilterLink
-            href="/notifications?view=unread"
+            href={notificationFilterHref({ view: "unread", type: activeType })}
             active={params.view === "unread"}
             label="Unread"
           />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <FilterLink href={notificationFilterHref({ view: params.view })} active={!activeType} label="All Types" />
+          <FilterLink href={notificationFilterHref({ view: params.view, type: "discussion_reply" })} active={activeType === "discussion_reply"} label="Replies" />
+          <FilterLink href={notificationFilterHref({ view: params.view, type: "mention" })} active={activeType === "mention"} label="Mentions" />
+          <FilterLink href={notificationFilterHref({ view: params.view, type: "followed_species_discussion" })} active={activeType === "followed_species_discussion"} label="Species" />
+          <FilterLink href={notificationFilterHref({ view: params.view, type: "accepted_answer" })} active={activeType === "accepted_answer"} label="Answers" />
+          <FilterLink href={notificationFilterHref({ view: params.view, type: "badge_awarded" })} active={activeType === "badge_awarded"} label="Badges" />
+          <FilterLink href={notificationFilterHref({ view: params.view, type: "moderator_action" })} active={activeType === "moderator_action"} label="Moderation" />
         </div>
 
         {params.saved && (
@@ -313,6 +327,34 @@ function notificationLabel(type: string) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function allowedNotificationType(value?: string) {
+  return [
+    "discussion_reply",
+    "mention",
+    "followed_species_discussion",
+    "followed_species_photo",
+    "accepted_answer",
+    "moderator_action",
+    "badge_awarded",
+  ].includes(value || "")
+    ? value
+    : null;
+}
+
+function notificationFilterHref({
+  view,
+  type,
+}: {
+  view?: string;
+  type?: string | null;
+}) {
+  const params = new URLSearchParams();
+  if (view === "unread") params.set("view", "unread");
+  if (type) params.set("type", type);
+  const query = params.toString();
+  return query ? `/notifications?${query}` : "/notifications";
 }
 
 function discussionHref(notification: NotificationRow) {
