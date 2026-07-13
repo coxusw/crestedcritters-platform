@@ -59,10 +59,12 @@ export default function CommunityFormShell({
   action,
   className,
   children,
+  draftStorageKey,
 }: {
   action: (formData: FormData) => Promise<void>;
   className: string;
   children: ReactNode;
+  draftStorageKey?: string;
 }) {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -155,7 +157,10 @@ export default function CommunityFormShell({
       setIsSubmitting(false);
       setSubmitButtons(form, false);
     } catch (submitError) {
-      if (isNextRedirectError(submitError)) throw submitError;
+      if (isNextRedirectError(submitError)) {
+        if (draftStorageKey) window.localStorage.removeItem(draftStorageKey);
+        throw submitError;
+      }
       setIsSubmitting(false);
       setSubmitButtons(form, false);
       setError(submitError instanceof Error ? submitError.message : "This could not be submitted.");

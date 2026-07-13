@@ -20,6 +20,39 @@ type InitialDiscussion = {
   category_id: string;
 };
 
+type CommunityDiscussionDraft = {
+  categorySlug: string;
+  title: string;
+  body: string;
+  tags: string;
+  speciesIds: string[];
+};
+
+const COMMUNITY_DISCUSSION_DRAFT_KEY = "isopedia-community-new-discussion-draft";
+
+function readCommunityDiscussionDraft() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(COMMUNITY_DISCUSSION_DRAFT_KEY) || "null"
+    ) as Partial<CommunityDiscussionDraft> | null;
+    if (!parsed || typeof parsed !== "object") return null;
+
+    return {
+      categorySlug: typeof parsed.categorySlug === "string" ? parsed.categorySlug : "",
+      title: typeof parsed.title === "string" ? parsed.title : "",
+      body: typeof parsed.body === "string" ? parsed.body : "",
+      tags: typeof parsed.tags === "string" ? parsed.tags : "",
+      speciesIds: Array.isArray(parsed.speciesIds)
+        ? parsed.speciesIds.map((id) => String(id)).filter(Boolean)
+        : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function CommunityDiscussionForm({
   action,
   categories,
@@ -50,7 +83,9 @@ export default function CommunityDiscussionForm({
   const [activeCategorySlug, setActiveCategorySlug] = useState(initialCategory?.slug || "");
   const [title, setTitle] = useState(initialDiscussion?.title || "");
   const [body, setBody] = useState(initialDiscussion?.body || "");
+  const [tags, setTags] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [draftNotice, setDraftNotice] = useState("");
   const [speciesFilter, setSpeciesFilter] = useState("");
   const [selectedSpeciesValues, setSelectedSpeciesValues] = useState(
     [...new Set(selectedSpeciesIds.map((id) => String(id)).filter(Boolean))]
@@ -74,9 +109,51 @@ export default function CommunityDiscussionForm({
   }, [species, speciesFilter, selectedSpeciesValues]);
   const isMarketplace = selectedCategory?.slug === "marketplace-connections";
   const imagesEnabled = selectedCategory?.images_enabled ?? true;
+  const canUseDrafts = !initialDiscussion;
+
+  function saveDraft(next: Partial<CommunityDiscussionDraft>) {
+    if (!canUseDrafts || typeof window === "undefined") return;
+
+    window.localStorage.setItem(
+      COMMUNITY_DISCUSSION_DRAFT_KEY,
+      JSON.stringify({
+        categorySlug: next.categorySlug ?? activeCategorySlug,
+        title: next.title ?? title,
+        body: next.body ?? body,
+        tags: next.tags ?? tags,
+        speciesIds: next.speciesIds ?? selectedSpeciesValues,
+      })
+    );
+  }
+
+  function restoreDraft() {
+    const draft = readCommunityDiscussionDraft();
+    if (!draft) {
+      setDraftNotice("No saved draft found.");
+      return;
+    }
+
+    if (draft.categorySlug) setActiveCategorySlug(draft.categorySlug);
+    setTitle(draft.title);
+    setBody(draft.body);
+    setTags(draft.tags);
+    setSelectedSpeciesValues(draft.speciesIds);
+    setDraftNotice("Draft restored.");
+  }
+
+  function clearDraft() {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(COMMUNITY_DISCUSSION_DRAFT_KEY);
+    }
+    setDraftNotice("Draft cleared.");
+  }
 
   return (
-    <CommunityFormShell action={action} className="grid gap-5">
+    <CommunityFormShell
+      action={action}
+      className="grid gap-5"
+      draftStorageKey={canUseDrafts ? COMMUNITY_DISCUSSION_DRAFT_KEY : undefined}
+    >
       {initialDiscussion && (
         <input type="hidden" name="discussion_id" value={initialDiscussion.id} />
       )}
@@ -87,12 +164,37 @@ export default function CommunityDiscussionForm({
         </div>
       )}
 
+      {canUseDrafts && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+          <button
+            type="button"
+            onClick={restoreDraft}
+            className="rounded-lg border border-emerald-400/25 px-3 py-2 text-xs font-black text-emerald-100 hover:bg-emerald-400/10"
+          >
+            Restore Draft
+          </button>
+          <button
+            type="button"
+            onClick={clearDraft}
+            className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-emerald-50/80 hover:bg-white/10"
+          >
+            Clear Draft
+          </button>
+          {draftNotice && (
+            <span className="text-xs font-bold text-emerald-50/55">{draftNotice}</span>
+          )}
+        </div>
+      )}
+
       <label className="grid gap-2">
         <span className="text-sm font-black text-emerald-50/80">Category</span>
         <select
           name="category_slug"
           value={activeCategorySlug}
-          onChange={(event) => setActiveCategorySlug(event.target.value)}
+          onChange={(event) => {
+            setActiveCategorySlug(event.target.value);
+            saveDraft({ categorySlug: event.target.value });
+          }}
           className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
           disabled={Boolean(initialDiscussion)}
         >
@@ -118,7 +220,10 @@ export default function CommunityDiscussionForm({
         <input
           name="title"
           value={title}
-          onChange={(event) => setTitle(event.target.value)}
+          onChange={(event) => {
+            setTitle(event.target.value);
+            saveDraft({ title: event.target.value });
+          }}
           required
           minLength={4}
           maxLength={140}
@@ -132,7 +237,10 @@ export default function CommunityDiscussionForm({
         <textarea
           name="body"
           value={body}
-          onChange={(event) => setBody(event.target.value)}
+          onChange={(event) => {
+            setBody(event.target.value);
+            saveDraft({ body: event.target.value });
+          }}
           required
           minLength={10}
           rows={12}
@@ -190,11 +298,14 @@ export default function CommunityDiscussionForm({
             name="species_ids"
             multiple
             value={selectedSpeciesValues}
-            onChange={(event) =>
-              setSelectedSpeciesValues(
-                Array.from(event.currentTarget.selectedOptions, (option) => option.value)
-              )
-            }
+            onChange={(event) => {
+              const nextSpeciesIds = Array.from(
+                event.currentTarget.selectedOptions,
+                (option) => option.value
+              );
+              setSelectedSpeciesValues(nextSpeciesIds);
+              saveDraft({ speciesIds: nextSpeciesIds });
+            }}
             className="min-h-40 rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
           >
             {filteredSpecies.map((item) => (
@@ -214,6 +325,11 @@ export default function CommunityDiscussionForm({
         <span className="text-sm font-black text-emerald-50/80">Tags</span>
         <input
           name="tags"
+          value={tags}
+          onChange={(event) => {
+            setTags(event.target.value);
+            saveDraft({ tags: event.target.value });
+          }}
           className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
           placeholder="substrate, breeding, duckies"
         />
