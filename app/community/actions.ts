@@ -1249,6 +1249,127 @@ export async function softDeleteCommunityReply(formData: FormData) {
   redirect(path);
 }
 
+export async function setAcceptedCommunityReply(formData: FormData) {
+  const { supabase, user, canModerate } = await authContext();
+
+  const replyId = textValue(formData.get("reply_id"));
+  const accepted = textValue(formData.get("accepted")) !== "false";
+
+  if (!replyId) throw new Error("Missing reply.");
+
+  const { data: reply, error: readError } = await supabase
+    .from("community_replies")
+    .select(
+      `
+      id,
+      discussion_id,
+      author_id,
+      status,
+      discussion:discussion_id (
+        id,
+        slug,
+        title,
+        author_id,
+        content_type,
+        status,
+        category:category_id (slug)
+      )
+    `
+    )
+    .eq("id", replyId)
+    .maybeSingle<{
+      id: string;
+      discussion_id: string;
+      author_id: string | null;
+      status: string;
+      discussion: {
+        id: string;
+        slug: string;
+        title: string;
+        author_id: string | null;
+        content_type: string;
+        status: string;
+        category: { slug: string } | null;
+      } | null;
+    }>();
+
+  if (readError) throw new Error(readError.message);
+  if (!reply || reply.status !== "published" || !reply.discussion) {
+    throw new Error("Reply not found.");
+  }
+
+  if (reply.discussion.content_type !== "question") {
+    throw new Error("Only question threads can have accepted answers.");
+  }
+
+  if (reply.discussion.status !== "published") {
+    throw new Error("This discussion is not accepting answers.");
+  }
+
+  if (reply.discussion.author_id !== user.id && !canModerate) {
+    throw new Error("Only the discussion author or staff can accept an answer.");
+  }
+
+  const writeClient = createSupabaseAdminClient();
+  const now = new Date().toISOString();
+
+  const { error: clearError } = await writeClient
+    .from("community_replies")
+    .update({ is_accepted_answer: false, updated_at: now })
+    .eq("discussion_id", reply.discussion_id)
+    .eq("is_accepted_answer", true);
+
+  if (clearError) throw new Error(clearError.message);
+
+  if (accepted) {
+    const { error: replyError } = await writeClient
+      .from("community_replies")
+      .update({ is_accepted_answer: true, updated_at: now })
+      .eq("id", reply.id);
+
+    if (replyError) throw new Error(replyError.message);
+  }
+
+  const { error: discussionError } = await writeClient
+    .from("community_discussions")
+    .update({
+      answered: accepted,
+      accepted_reply_id: accepted ? reply.id : null,
+      updated_at: now,
+    })
+    .eq("id", reply.discussion_id);
+
+  if (discussionError) throw new Error(discussionError.message);
+
+  if (accepted && reply.author_id && reply.author_id !== user.id) {
+    await insertNotificationsSkippingExisting([
+      {
+        recipient_id: reply.author_id,
+        actor_id: user.id,
+        type: "accepted_answer",
+        discussion_id: reply.discussion_id,
+        reply_id: reply.id,
+        destination_url: `${discussionPath(reply.discussion.slug)}#reply-${reply.id}`,
+        metadata: { title: reply.discussion.title },
+      },
+    ]);
+  }
+
+  const path = discussionPath(reply.discussion.slug);
+  revalidatePath(path);
+  revalidatePath("/community");
+  if (reply.discussion.category?.slug) {
+    revalidatePath(`/community/category/${reply.discussion.category.slug}`);
+  }
+  redirect(
+    withQueryParam(
+      `${path}#reply-${reply.id}`,
+      "accepted_answer",
+      accepted ? "set" : "removed"
+    )
+  );
+}
+
 export async function softDeleteCommunityDiscussion(formData: FormData) {
   const { supabase, user, canModerate } = await authContext();
   const discussionId = textValue(formData.get("discussion_id"));

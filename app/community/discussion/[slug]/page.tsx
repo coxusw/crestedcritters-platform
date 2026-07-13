@@ -23,6 +23,7 @@ import {
   reportCommunityContent,
   softDeleteCommunityReply,
   softDeleteCommunityDiscussion,
+  setAcceptedCommunityReply,
   toggleCommunityFollow,
   toggleCommunitySave,
   updateMarketplaceListingStatus,
@@ -61,6 +62,7 @@ export default async function CommunityDiscussionPage({
     saved?: string;
     followed?: string;
     listing_status?: string;
+    accepted_answer?: string;
   }>;
 }) {
   const { slug } = await params;
@@ -425,6 +427,13 @@ export default async function CommunityDiscussionPage({
             Marketplace listing updated to {marketplaceLabel(pageParams.listing_status)}.
           </div>
         )}
+        {pageParams.accepted_answer && (
+          <div className="mt-4 rounded-lg border border-lime-300/30 bg-lime-300/10 p-4 text-sm font-bold text-lime-50">
+            {pageParams.accepted_answer === "set"
+              ? "Accepted answer updated."
+              : "Accepted answer removed."}
+          </div>
+        )}
         {pageParams.image_error === "1" && (
           <div className="mt-4 rounded-lg border border-amber-300/30 bg-amber-300/10 p-4 text-sm font-bold text-amber-50">
             Your post was saved, but one or more images could not be attached. Try editing the post and uploading the images again.
@@ -480,11 +489,23 @@ export default async function CommunityDiscussionPage({
                   className="mt-4"
                   compact
                 />
-                {user && (reply.author_id === user.id || canModerate) && (
+                {user &&
+                  (reply.author_id === user.id ||
+                    canModerate ||
+                    (discussion.content_type === "question" &&
+                      discussion.author_id === user.id)) && (
                   <ReplyControls
                     reply={reply}
                     images={imagesByReply.get(reply.id) || []}
                     imagesEnabled={Boolean(discussion.category?.images_enabled)}
+                    canManageReply={Boolean(
+                      user && (reply.author_id === user.id || canModerate)
+                    )}
+                    canManageAcceptedAnswer={Boolean(
+                      discussion.content_type === "question" &&
+                        user &&
+                        (discussion.author_id === user.id || canModerate)
+                    )}
                     returnPath={returnPath}
                   />
                 )}
@@ -705,97 +726,120 @@ function ReplyControls({
   reply,
   images,
   imagesEnabled,
+  canManageReply,
+  canManageAcceptedAnswer,
   returnPath,
 }: {
   reply: CommunityReply;
   images: CommunityImage[];
   imagesEnabled: boolean;
+  canManageReply: boolean;
+  canManageAcceptedAnswer: boolean;
   returnPath: string;
 }) {
   return (
     <div className="mt-4 flex flex-wrap items-start gap-3 border-t border-white/10 pt-4">
-      <details className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#07130c] p-3">
-        <summary className="cursor-pointer text-sm font-black text-sky-100">
-          Edit reply
-        </summary>
-        <CommunityFormShell action={updateCommunityReply} className="mt-3 grid gap-3">
+      {canManageAcceptedAnswer && (
+        <form action={setAcceptedCommunityReply}>
           <input type="hidden" name="reply_id" value={reply.id} />
           <input type="hidden" name="return_path" value={returnPath} />
-          <textarea
-            name="body"
-            defaultValue={reply.body}
-            required
-            minLength={2}
-            rows={5}
-            className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none ring-emerald-400/30 focus:ring-4"
+          <input
+            type="hidden"
+            name="accepted"
+            value={reply.is_accepted_answer ? "false" : "true"}
           />
-          {images.length > 0 && (
-            <fieldset className="grid gap-3 rounded-lg border border-white/10 bg-black/20 p-3">
-              <legend className="px-2 text-xs font-black uppercase tracking-wide text-emerald-50/60">
-                Reply Images
-              </legend>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {images.map((image) => (
-                  <label
-                    key={image.id}
-                    className="grid gap-2 rounded-lg border border-white/10 bg-[#07130c] p-2 text-xs font-bold text-emerald-50/75"
-                  >
-                    <span className="aspect-square overflow-hidden rounded-md bg-black/30">
-                      <Image
-                        src={image.image_url}
-                        alt={image.alt_text || image.caption || "Community image"}
-                        width={180}
-                        height={180}
-                        className="h-full w-full object-cover"
-                      />
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <input name="remove_image_ids" type="checkbox" value={image.id} />
-                      Remove image
-                    </span>
-                    <span className="grid gap-1">
-                      <span>Caption</span>
-                      <input
-                        name={`image_caption_${image.id}`}
-                        defaultValue={image.caption || ""}
-                        maxLength={180}
-                        className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
-                        placeholder="Optional caption"
-                      />
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          )}
-          {imagesEnabled && (
-            <label className="grid gap-2">
-              <span className="text-sm font-black text-emerald-50/80">Add Images</span>
-              <input
-                name="image_files"
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                multiple
-                className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-emerald-50/80 outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:font-black file:text-slate-950 hover:file:bg-emerald-300"
-              />
-              <span className="text-xs text-emerald-50/45">
-                Add up to 5 total JPG, PNG, WEBP, or GIF images. Each image must be under 10MB.
-              </span>
-            </label>
-          )}
-          <button className="w-fit rounded-lg border border-sky-300/20 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-300/10">
-            Save Reply
+          <button className="rounded-lg border border-lime-300/20 px-4 py-2 text-sm font-black text-lime-100 hover:bg-lime-300/10">
+            {reply.is_accepted_answer ? "Clear Accepted" : "Accept Answer"}
           </button>
-        </CommunityFormShell>
-      </details>
+        </form>
+      )}
 
-      <form action={softDeleteCommunityReply}>
-        <input type="hidden" name="reply_id" value={reply.id} />
-        <input type="hidden" name="return_path" value={returnPath} />
-        <button className="rounded-lg border border-red-300/20 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-400/10">
-          Delete reply
-        </button>
-      </form>
+      {canManageReply && (
+        <details className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#07130c] p-3">
+          <summary className="cursor-pointer text-sm font-black text-sky-100">
+            Edit reply
+          </summary>
+          <CommunityFormShell action={updateCommunityReply} className="mt-3 grid gap-3">
+            <input type="hidden" name="reply_id" value={reply.id} />
+            <input type="hidden" name="return_path" value={returnPath} />
+            <textarea
+              name="body"
+              defaultValue={reply.body}
+              required
+              minLength={2}
+              rows={5}
+              className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none ring-emerald-400/30 focus:ring-4"
+            />
+            {images.length > 0 && (
+              <fieldset className="grid gap-3 rounded-lg border border-white/10 bg-black/20 p-3">
+                <legend className="px-2 text-xs font-black uppercase tracking-wide text-emerald-50/60">
+                  Reply Images
+                </legend>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {images.map((image) => (
+                    <label
+                      key={image.id}
+                      className="grid gap-2 rounded-lg border border-white/10 bg-[#07130c] p-2 text-xs font-bold text-emerald-50/75"
+                    >
+                      <span className="aspect-square overflow-hidden rounded-md bg-black/30">
+                        <Image
+                          src={image.image_url}
+                          alt={image.alt_text || image.caption || "Community image"}
+                          width={180}
+                          height={180}
+                          className="h-full w-full object-cover"
+                        />
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <input name="remove_image_ids" type="checkbox" value={image.id} />
+                        Remove image
+                      </span>
+                      <span className="grid gap-1">
+                        <span>Caption</span>
+                        <input
+                          name={`image_caption_${image.id}`}
+                          defaultValue={image.caption || ""}
+                          maxLength={180}
+                          className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
+                          placeholder="Optional caption"
+                        />
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+            {imagesEnabled && (
+              <label className="grid gap-2">
+                <span className="text-sm font-black text-emerald-50/80">Add Images</span>
+                <input
+                  name="image_files"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  multiple
+                  className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-emerald-50/80 outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:font-black file:text-slate-950 hover:file:bg-emerald-300"
+                />
+                <span className="text-xs text-emerald-50/45">
+                  Add up to 5 total JPG, PNG, WEBP, or GIF images. Each image must be under 10MB.
+                </span>
+              </label>
+            )}
+            <button className="w-fit rounded-lg border border-sky-300/20 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-300/10">
+              Save Reply
+            </button>
+          </CommunityFormShell>
+        </details>
+      )}
+
+      {canManageReply && (
+        <form action={softDeleteCommunityReply}>
+          <input type="hidden" name="reply_id" value={reply.id} />
+          <input type="hidden" name="return_path" value={returnPath} />
+          <button className="rounded-lg border border-red-300/20 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-400/10">
+            Delete reply
+          </button>
+        </form>
+      )}
     </div>
   );
 }
