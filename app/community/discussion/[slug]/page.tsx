@@ -50,10 +50,13 @@ export async function generateMetadata({
 
 export default async function CommunityDiscussionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ reported?: string }>;
 }) {
   const { slug } = await params;
+  const pageParams = await searchParams;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -385,6 +388,12 @@ export default async function CommunityDiscussionPage({
           </div>
         </article>
 
+        {pageParams.reported === "1" && (
+          <div className="mt-4 rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-100">
+            Report received. A moderator will review it.
+          </div>
+        )}
+
         {canModerate && (
           <StaffDiscussionControls
             discussion={discussion}
@@ -431,6 +440,9 @@ export default async function CommunityDiscussionPage({
                 />
                 {user && (reply.author_id === user.id || canModerate) && (
                   <ReplyControls reply={reply} returnPath={returnPath} />
+                )}
+                {user && reply.author_id !== user.id && (
+                  <ReplyReportForm replyId={reply.id} returnPath={returnPath} />
                 )}
               </article>
             ))}
@@ -677,6 +689,43 @@ function ReplyControls({
         </button>
       </form>
     </div>
+  );
+}
+
+function ReplyReportForm({
+  replyId,
+  returnPath,
+}: {
+  replyId: string;
+  returnPath: string;
+}) {
+  return (
+    <details className="mt-4 rounded-lg border border-white/10 bg-[#07130c] p-3">
+      <summary className="cursor-pointer text-sm font-black text-red-100">
+        Report reply
+      </summary>
+      <form action={reportCommunityContent} className="mt-3 grid gap-3">
+        <input type="hidden" name="reply_id" value={replyId} />
+        <input type="hidden" name="return_path" value={returnPath} />
+        <select name="reason" className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-white">
+          <option>Spam</option>
+          <option>Harassment</option>
+          <option>Scam concern</option>
+          <option>Permit concern</option>
+          <option>Incorrect category</option>
+          <option>Other</option>
+        </select>
+        <textarea
+          name="details"
+          rows={3}
+          className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-white"
+          placeholder="Optional details"
+        />
+        <button className="w-fit rounded-lg border border-red-300/20 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-400/10">
+          Submit Report
+        </button>
+      </form>
+    </details>
   );
 }
 

@@ -49,6 +49,13 @@ function allowedMarketplaceStatus(value: string) {
     : null;
 }
 
+function withQueryParam(path: string, key: string, value: string) {
+  const [base, query = ""] = path.split("?");
+  const params = new URLSearchParams(query);
+  params.set(key, value);
+  return `${base}?${params.toString()}`;
+}
+
 function safeImageExtension(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
   if (extension === "jpeg") return "jpg";
@@ -982,4 +989,5 @@ export async function reportCommunityContent(formData: FormData) {
     });
   }
   revalidatePath(returnPath);
+  redirect(withQueryParam(returnPath, "reported", "1"));
 }
