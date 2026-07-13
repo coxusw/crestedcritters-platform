@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound, permanentRedirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 import sanitizeHtml from "sanitize-html";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
@@ -50,6 +51,10 @@ type Species = {
 
 type CollectionItem = {
   status: string;
+};
+
+type SpeciesFollow = {
+  species_id: number;
 };
 
 type GalleryImage = {
@@ -336,6 +341,52 @@ function historyContextValue(value: string | null) {
   return cleaned ? cleaned.slice(0, 2000) : null;
 }
 
+async function toggleSpeciesFollow(formData: FormData) {
+  "use server";
+
+  const speciesId = Number(formData.get("species_id"));
+  const slug = String(formData.get("slug") || "").trim();
+
+  if (!Number.isFinite(speciesId) || !slug) {
+    throw new Error("Unable to update species follow.");
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect(`/login?next=/${slug}`);
+  }
+
+  const { data: existing } = await supabase
+    .from("species_follows")
+    .select("species_id")
+    .eq("species_id", speciesId)
+    .eq("profile_id", user.id)
+    .maybeSingle<SpeciesFollow>();
+
+  if (existing) {
+    const { error } = await supabase
+      .from("species_follows")
+      .delete()
+      .eq("species_id", speciesId)
+      .eq("profile_id", user.id);
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase.from("species_follows").insert({
+      species_id: speciesId,
+      profile_id: user.id,
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  revalidatePath(`/${slug}`);
+  revalidatePath(`/isopedia/${slug}`);
+  redirect(`/${slug}`);
+}
+
 function isSuggestedEditContextSchemaError(error: { message?: string; code?: string } | null) {
   if (!error) return false;
   const message = `${error.code || ""} ${error.message || ""}`.toLowerCase();
@@ -473,9 +524,15 @@ export default async function SpeciesPage({ params }: PageProps) {
   let canReplaceImages = false;
   let birthDate: string | null = null;
   let ageRestrictionReady = false;
+  let isFollowingSpecies = false;
 
   if (user) {
-    const [{ data }, { data: profile, error: profileError }, { data: adminProfile }] =
+    const [
+      { data },
+      { data: profile, error: profileError },
+      { data: adminProfile },
+      { data: speciesFollow },
+    ] =
       await Promise.all([
         supabase
           .from("isopedia_user_species")
@@ -493,9 +550,16 @@ export default async function SpeciesPage({ params }: PageProps) {
           .select("id")
           .eq("id", user.id)
           .maybeSingle(),
+        supabase
+          .from("species_follows")
+          .select("species_id")
+          .eq("species_id", species.id)
+          .eq("profile_id", user.id)
+          .maybeSingle<SpeciesFollow>(),
       ]);
 
     collectionItems = data || [];
+    isFollowingSpecies = Boolean(speciesFollow);
     birthDate = profile?.birth_date || null;
     ageRestrictionReady = !profileError;
     canAccessAdmin =
@@ -950,6 +1014,22 @@ export default async function SpeciesPage({ params }: PageProps) {
               >
                 Start Discussion
               </Link>
+              {user ? (
+                <form action={toggleSpeciesFollow}>
+                  <input type="hidden" name="species_id" value={species.id} />
+                  <input type="hidden" name="slug" value={canonicalSlug} />
+                  <button className="rounded-xl border border-emerald-400/30 px-4 py-2 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/10">
+                    {isFollowingSpecies ? "Following" : "Follow Species"}
+                  </button>
+                </form>
+              ) : (
+                <Link
+                  href={`/login?next=/${canonicalSlug}`}
+                  className="rounded-xl border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/10"
+                >
+                  Sign In to Follow
+                </Link>
+              )}
             </div>
 
             {communityDiscussions.length ? (

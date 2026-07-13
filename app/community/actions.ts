@@ -123,7 +123,10 @@ async function uploadCommunityImages(
   }
 
   const { error } = await supabase.from("community_images").insert(rows);
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Failed to load species follows for notifications:", error.message);
+    return;
+  }
 }
 
 async function authContext() {
@@ -191,7 +194,7 @@ async function syncSpeciesLinks(
     .delete()
     .eq("discussion_id", discussionId);
 
-  if (!cleanedIds.length) return;
+  if (!cleanedIds.length) return cleanedIds;
 
   const { error } = await supabase.from("community_discussion_species").insert(
     cleanedIds.map((speciesId) => ({
@@ -201,6 +204,8 @@ async function syncSpeciesLinks(
   );
 
   if (error) throw new Error(error.message);
+
+  return cleanedIds;
 }
 
 async function syncTags(
@@ -233,7 +238,10 @@ async function syncTags(
     }))
   );
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Failed to load species follows for notifications:", error.message);
+    return;
+  }
 }
 
 async function createMentionNotifications(
@@ -272,6 +280,87 @@ async function createMentionNotifications(
 
   if (rows.length) {
     await supabase.from("notifications").insert(rows);
+  }
+}
+
+function speciesFollowNotificationsEnabled(
+  follow: {
+    notify_discussions: boolean | null;
+    notify_guides: boolean | null;
+    notify_marketplace: boolean | null;
+  },
+  contentType: string
+) {
+  if (contentType === "guide") return follow.notify_guides !== false;
+  if (contentType === "marketplace") return follow.notify_marketplace !== false;
+  return follow.notify_discussions !== false;
+}
+
+async function createSpeciesFollowNotifications({
+  discussionId,
+  actorId,
+  title,
+  slug,
+  speciesIds,
+  contentType,
+}: {
+  discussionId: string;
+  actorId: string;
+  title: string;
+  slug: string;
+  speciesIds: number[];
+  contentType: string;
+}) {
+  if (!speciesIds.length) return;
+
+  const admin = createSupabaseAdminClient();
+  const { data: follows, error } = await admin
+    .from("species_follows")
+    .select("profile_id, species_id, notify_discussions, notify_guides, notify_marketplace")
+    .in("species_id", speciesIds)
+    .returns<
+      Array<{
+        profile_id: string;
+        species_id: number;
+        notify_discussions: boolean | null;
+        notify_guides: boolean | null;
+        notify_marketplace: boolean | null;
+      }>
+    >();
+
+  if (error) {
+    console.error("Failed to load species follows for notifications:", error.message);
+    return;
+  }
+
+  const recipientIds = [
+    ...new Set(
+      (follows || [])
+        .filter((follow) => follow.profile_id !== actorId)
+        .filter((follow) => speciesFollowNotificationsEnabled(follow, contentType))
+        .map((follow) => follow.profile_id)
+    ),
+  ];
+
+  if (!recipientIds.length) return;
+
+  const { error: notificationError } = await admin.from("notifications").insert(
+    recipientIds.map((recipientId) => ({
+      recipient_id: recipientId,
+      actor_id: actorId,
+      type: "followed_species_discussion",
+      discussion_id: discussionId,
+      destination_url: discussionPath(slug),
+      metadata: {
+        title,
+        content_type: contentType,
+        species_ids: speciesIds,
+      },
+    }))
+  );
+
+  if (notificationError) {
+    console.error("Failed to create species follow notifications:", notificationError.message);
   }
 }
 
@@ -334,7 +423,11 @@ export async function createCommunityDiscussion(formData: FormData) {
 
   if (error) throw new Error(error.message);
 
-  await syncSpeciesLinks(supabase, id, category.species_tagging_enabled ? speciesIds : []);
+  const linkedSpeciesIds = await syncSpeciesLinks(
+    supabase,
+    id,
+    category.species_tagging_enabled ? speciesIds : []
+  );
   await syncTags(supabase, id, tags);
   if (category.images_enabled) {
     await uploadCommunityImages(supabase, imageFiles, user.id, {
@@ -366,6 +459,16 @@ export async function createCommunityDiscussion(formData: FormData) {
   }
 
   await createMentionNotifications(supabase, id, user.id, body, discussionPath(slug));
+  if (status === "published") {
+    await createSpeciesFollowNotifications({
+      discussionId: id,
+      actorId: user.id,
+      title,
+      slug,
+      speciesIds: linkedSpeciesIds,
+      contentType,
+    });
+  }
 
   revalidatePath("/community");
   revalidatePath(`/community/category/${category.slug}`);
