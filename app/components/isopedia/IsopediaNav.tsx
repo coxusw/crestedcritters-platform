@@ -17,6 +17,7 @@ type Props = {
     | "contact"
     | "legal"
     | "profile"
+    | "notifications"
     | "settings"
     | "admin"
     | "none";
@@ -83,6 +84,7 @@ export default async function IsopediaNav({
   let canAccessAdmin = false;
   let neededReviewCount = 0;
   let unreadMessageCount = 0;
+  let unreadNotificationCount = 0;
   let upcomingExpoCount = 0;
   let hasActiveRaffle = false;
 
@@ -122,6 +124,7 @@ export default async function IsopediaNav({
       contactMessagesResult,
       profileMessagesResult,
       threadMessagesResult,
+      notificationsResult,
     ] =
       await Promise.all([
         supabase
@@ -182,6 +185,12 @@ export default async function IsopediaNav({
           .is("read_at", null),
 
         supabase.rpc("own_isopedia_unread_message_count"),
+
+        supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("recipient_id", user.id)
+          .is("read_at", null),
       ]);
 
     username = profile?.username || null;
@@ -197,6 +206,7 @@ export default async function IsopediaNav({
       (threadMessagesResult.error
         ? profileMessagesResult.count || 0
         : threadMessagesResult.data || 0);
+    unreadNotificationCount = notificationsResult.count || 0;
 
     canAccessAdmin =
       Boolean(adminProfile) ||
@@ -282,6 +292,21 @@ export default async function IsopediaNav({
                   </span>
                 </Link>
               )}
+              <Link
+                href="/notifications"
+                className={`relative rounded-xl border px-4 py-2 text-sm font-black transition ${
+                  active === "notifications"
+                    ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+                    : "border-white/10 bg-[#07130c] text-white hover:bg-[#18291d]"
+                }`}
+              >
+                Notifications
+                {unreadNotificationCount > 0 && (
+                  <span className="absolute -right-2 -top-2 grid min-h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-black leading-none text-white shadow-lg shadow-red-950/40 ring-2 ring-[#102016]">
+                    {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+                  </span>
+                )}
+              </Link>
               <Link
                 href="/account?tab=settings"
                 className={`rounded-xl border px-4 py-2 text-sm font-black transition ${
