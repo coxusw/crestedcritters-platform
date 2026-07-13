@@ -10,6 +10,10 @@ type SelectedImage = {
   caption: string;
 };
 
+const MAX_GUIDE_IMAGES = 10;
+const MAX_GUIDE_IMAGE_BYTES = 10 * 1024 * 1024;
+const GUIDE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -63,7 +67,7 @@ export default function GuideSubmitForm() {
   }, []);
 
   function handleImageSelection(files: FileList | null) {
-    const selected = Array.from(files || []).slice(0, 10);
+    const selected = Array.from(files || []).slice(0, MAX_GUIDE_IMAGES);
 
     setImages(
       selected.map((file, index) => ({
@@ -73,8 +77,8 @@ export default function GuideSubmitForm() {
       }))
     );
 
-    if ((files?.length || 0) > 10) {
-      setNotice("Only the first 10 pictures will be used.");
+    if ((files?.length || 0) > MAX_GUIDE_IMAGES) {
+      setNotice(`Only the first ${MAX_GUIDE_IMAGES} pictures will be used.`);
     }
   }
 
@@ -129,8 +133,16 @@ export default function GuideSubmitForm() {
       const imageRows = [];
 
       for (const image of images) {
+        if (!GUIDE_IMAGE_TYPES.has(image.file.type)) {
+          throw new Error("Guide images must be JPG, PNG, WEBP, or GIF.");
+        }
+
+        if (image.file.size > MAX_GUIDE_IMAGE_BYTES) {
+          throw new Error("Each guide image must be smaller than 10MB.");
+        }
+
         const extension = image.file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const storagePath = `guides/${user.id}/${guide.id}/${image.position}-${crypto.randomUUID()}.${extension}`;
+        const storagePath = `community/${user.id}/${guide.id}/${image.position}-${crypto.randomUUID()}.${extension}`;
 
         const { error: uploadError } = await supabase.storage
           .from("isopedia-images")
@@ -149,17 +161,19 @@ export default function GuideSubmitForm() {
           .getPublicUrl(storagePath);
 
         imageRows.push({
-          guide_id: guide.id,
-          position: image.position,
+          discussion_id: guide.id,
+          owner_id: user.id,
           image_url: publicUrlData.publicUrl,
           storage_path: storagePath,
+          alt_text: image.file.name || null,
           caption: image.caption.trim() || null,
+          position: image.position,
         });
       }
 
       if (imageRows.length > 0) {
         const { error: imageError } = await supabase
-          .from("isopedia_guide_images")
+          .from("community_images")
           .insert(imageRows);
 
         if (imageError) {
@@ -167,7 +181,7 @@ export default function GuideSubmitForm() {
         }
       }
 
-      router.push(`/guides/${guide.slug}`);
+      router.push(`/community/discussion/${guide.slug}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not publish guide.");
@@ -217,8 +231,8 @@ export default function GuideSubmitForm() {
         <div className="mb-4">
           <h2 className="text-xl font-black text-white">Pictures</h2>
           <p className="mt-2 text-sm leading-6 text-emerald-50/55">
-            Add up to 10 pictures. Photos should be yours or shared with clear
-            permission.
+            Add up to {MAX_GUIDE_IMAGES} pictures. Photos should be yours or
+            shared with clear permission. Each image must be under 10MB.
           </p>
         </div>
 
