@@ -28,7 +28,17 @@ export default async function CommunityPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [categories, speciesResult, recent, trending, unanswered, guides, marketplace] = await Promise.all([
+  const [
+    categories,
+    speciesResult,
+    recent,
+    trending,
+    unanswered,
+    guides,
+    journals,
+    showcase,
+    marketplace,
+  ] = await Promise.all([
     getCommunityCategories(supabase),
     supabase
       .from("isopedia_species")
@@ -51,6 +61,14 @@ export default async function CommunityPage({
     }),
     getCommunityDiscussions(supabase, {
       categorySlug: "guides",
+      limit: 4,
+    }),
+    getCommunityDiscussions(supabase, {
+      categorySlug: "colony-journals",
+      limit: 4,
+    }),
+    getCommunityDiscussions(supabase, {
+      categorySlug: "show-off-your-collection",
       limit: 4,
     }),
     getCommunityDiscussions(supabase, {
@@ -196,6 +214,16 @@ export default async function CommunityPage({
               {guides.length ? guides.map((discussion) => (
                 <MiniDiscussion key={discussion.id} discussion={discussion} />
               )) : <p className="text-sm text-emerald-50/55">No guides have been published yet.</p>}
+            </Panel>
+            <Panel title="Colony Journals" href="/community/category/colony-journals">
+              {journals.length ? journals.map((discussion) => (
+                <MiniDiscussion key={discussion.id} discussion={discussion} />
+              )) : <p className="text-sm text-emerald-50/55">No colony journals have started yet.</p>}
+            </Panel>
+            <Panel title="Show Off Your Stuff" href="/community/category/show-off-your-collection">
+              {showcase.length ? showcase.map((discussion) => (
+                <MiniDiscussion key={discussion.id} discussion={discussion} />
+              )) : <p className="text-sm text-emerald-50/55">No showcase posts yet.</p>}
             </Panel>
             <Panel title="Marketplace Connections" href="/community/category/marketplace-connections">
               <p className="mb-3 text-xs leading-5 text-yellow-50/65">
