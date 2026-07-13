@@ -53,7 +53,7 @@ export default async function CommunityActivityPage() {
     ...(expos.data || []).map((item) => ({
       type: "expo",
       title: item.name,
-      href: `/expos/${item.slug}`,
+      href: `/isopedia/expos/${item.slug}`,
       createdAt: item.created_at,
     })),
   ].sort((left, right) => {
@@ -79,21 +79,45 @@ export default async function CommunityActivityPage() {
           </p>
         </header>
         <section className="mt-6 grid gap-3">
-          {items.map((item) => (
-            <Link
-              key={`${item.type}:${item.href}`}
-              href={item.href}
-              className="rounded-lg border border-white/10 bg-white/[0.05] p-4 hover:border-emerald-300/40"
-            >
-              <div className="text-xs font-black uppercase tracking-wide text-emerald-300">
-                {item.type}
+          {items.length ? (
+            items.map((item) => (
+              <Link
+                key={`${item.type}:${item.href}`}
+                href={item.href}
+                className="rounded-lg border border-white/10 bg-white/[0.05] p-4 hover:border-emerald-300/40"
+              >
+                <div className="text-xs font-black uppercase tracking-wide text-emerald-300">
+                  {item.type}
+                </div>
+                <div className="mt-1 font-black text-white">{item.title}</div>
+                <div className="mt-1 text-xs text-emerald-50/45">
+                  {item.createdAt ? new Date(item.createdAt).toLocaleString() : "Recently"}
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.03] p-8 text-center">
+              <h2 className="text-xl font-black text-white">No recent activity yet.</h2>
+              <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-emerald-50/60">
+                New discussions, species, and approved expos will show here as the
+                community grows.
+              </p>
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                <Link
+                  href="/community/new"
+                  className="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 hover:bg-emerald-300"
+                >
+                  Start a Discussion
+                </Link>
+                <Link
+                  href="/isopedia"
+                  className="rounded-lg border border-white/10 px-4 py-2 text-sm font-black text-white hover:bg-white/10"
+                >
+                  Browse Isopedia
+                </Link>
               </div>
-              <div className="mt-1 font-black text-white">{item.title}</div>
-              <div className="mt-1 text-xs text-emerald-50/45">
-                {item.createdAt ? new Date(item.createdAt).toLocaleString() : "Recently"}
-              </div>
-            </Link>
-          ))}
+            </div>
+          )}
         </section>
       </div>
     </main>
