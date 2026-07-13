@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import Link from "next/link";
 import Image from "next/image";
+import { createHash } from "crypto";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
@@ -156,13 +158,7 @@ export default async function CommunityDiscussionPage({
     notFound();
   }
 
-  await supabase.from("community_views").insert({
-    discussion_id: discussion.id,
-    profile_id: user?.id || null,
-  });
-  await supabase.rpc("community_recount_discussion_stats", {
-      target_discussion_id: discussion.id,
-  });
+  await recordCommunityView(discussion.id, user?.id || null);
 
   const [repliesResult, speciesResult, marketplaceResult, savedResult, followedResult, categoriesResult] =
     await Promise.all([
@@ -593,6 +589,66 @@ export default async function CommunityDiscussionPage({
       </div>
     </main>
   );
+}
+
+async function recordCommunityView(discussionId: string, profileId: string | null) {
+  try {
+    const admin = createSupabaseAdminClient();
+    const viewedAfter = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    const sessionKey = profileId ? null : await anonymousViewSessionKey();
+
+    let existingViewQuery = admin
+      .from("community_views")
+      .select("id")
+      .eq("discussion_id", discussionId)
+      .gte("viewed_at", viewedAfter)
+      .limit(1);
+
+    existingViewQuery = profileId
+      ? existingViewQuery.eq("profile_id", profileId)
+      : existingViewQuery.eq("session_key", sessionKey);
+
+    const { data: existingView, error: existingError } = await existingViewQuery
+      .maybeSingle<{ id: string }>();
+
+    if (existingError) {
+      console.error("Failed to check community view:", existingError.message);
+      return;
+    }
+
+    if (existingView) return;
+
+    const { error: insertError } = await admin.from("community_views").insert({
+      discussion_id: discussionId,
+      profile_id: profileId,
+      session_key: sessionKey,
+    });
+
+    if (insertError) {
+      console.error("Failed to record community view:", insertError.message);
+      return;
+    }
+
+    await admin.rpc("community_recount_discussion_stats", {
+      target_discussion_id: discussionId,
+    });
+  } catch (error) {
+    console.error(
+      "Community view tracking skipped:",
+      error instanceof Error ? error.message : error
+    );
+  }
+}
+
+async function anonymousViewSessionKey() {
+  const headerList = await headers();
+  const forwardedFor = headerList.get("x-forwarded-for") || "";
+  const userAgent = headerList.get("user-agent") || "";
+  const acceptLanguage = headerList.get("accept-language") || "";
+
+  return createHash("sha256")
+    .update(`${forwardedFor.split(",")[0].trim()}|${userAgent}|${acceptLanguage}`)
+    .digest("hex");
 }
 
 function StaffDiscussionControls({
