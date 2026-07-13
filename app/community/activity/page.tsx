@@ -1,8 +1,36 @@
 import Link from "next/link";
+import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 
-export const metadata = { title: "Community Activity | Isopedia" };
+export const metadata = {
+  title: "Community Activity | Isopedia",
+  description: "Recent public activity across Isopedia discussions, species, and expos.",
+  alternates: {
+    canonical: absoluteIsopediaUrl("/community/activity"),
+  },
+  openGraph: {
+    title: "Community Activity | Isopedia",
+    description: "Recent public activity across Isopedia discussions, species, and expos.",
+    url: absoluteIsopediaUrl("/community/activity"),
+    siteName: "Isopedia",
+    type: "website",
+    images: [
+      {
+        url: absoluteIsopediaUrl("/isopedia-social-preview.jpg"),
+        width: 1200,
+        height: 630,
+        alt: "Isopedia community activity",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Community Activity | Isopedia",
+    description: "Recent public activity across Isopedia discussions, species, and expos.",
+    images: [absoluteIsopediaUrl("/isopedia-social-preview.jpg")],
+  },
+};
 
 type ActivityItem = {
   type: string;

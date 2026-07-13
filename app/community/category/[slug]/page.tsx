@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   getCommunityCategoryBySlug,
@@ -19,9 +20,37 @@ export async function generateMetadata({
   const { slug } = await params;
   const supabase = await createSupabaseServerClient();
   const category = await getCommunityCategoryBySlug(supabase, slug);
+  const title = category ? `${category.name} | Isopedia Community` : "Community Category | Isopedia";
+  const description = category?.description || "Isopedia community category.";
+  const canonical = absoluteIsopediaUrl(`/community/category/${category?.slug || slug}`);
+
   return {
-    title: category ? `${category.name} | Isopedia Community` : "Community Category | Isopedia",
-    description: category?.description || "Isopedia community category.",
+    title,
+    description,
+    alternates: {
+      canonical,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      siteName: "Isopedia",
+      type: "website",
+      images: [
+        {
+          url: absoluteIsopediaUrl("/isopedia-social-preview.jpg"),
+          width: 1200,
+          height: 630,
+          alt: "Isopedia community category",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [absoluteIsopediaUrl("/isopedia-social-preview.jpg")],
+    },
   };
 }
 

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   getCommunityCategories,
@@ -15,6 +16,30 @@ import { DiscussionCard } from "@/app/community/CommunityCards";
 export const metadata: Metadata = {
   title: "Community | Isopedia",
   description: "Join Isopedia community discussions, guides, journals, marketplace connections, and species help.",
+  alternates: {
+    canonical: absoluteIsopediaUrl("/community"),
+  },
+  openGraph: {
+    title: "Community | Isopedia",
+    description: "Join Isopedia community discussions, guides, journals, marketplace connections, and species help.",
+    url: absoluteIsopediaUrl("/community"),
+    siteName: "Isopedia",
+    type: "website",
+    images: [
+      {
+        url: absoluteIsopediaUrl("/isopedia-social-preview.jpg"),
+        width: 1200,
+        height: 630,
+        alt: "Isopedia community",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Community | Isopedia",
+    description: "Join Isopedia community discussions, guides, journals, marketplace connections, and species help.",
+    images: [absoluteIsopediaUrl("/isopedia-social-preview.jpg")],
+  },
 };
 
 export default async function CommunityPage({

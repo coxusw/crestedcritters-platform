@@ -1,9 +1,11 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
 import Image from "next/image";
 import { createHash } from "crypto";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
+import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   type CommunityCategory,
@@ -12,6 +14,7 @@ import {
   type CommunityReply,
   type CommunitySpecies,
   type MarketplaceDetails,
+  communityExcerpt,
   communityProfileName,
   getInlineBadgesForProfiles,
   isMarketplaceExpiredByDate,
@@ -38,19 +41,60 @@ export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
-}) {
+}): Promise<Metadata> {
   const { slug } = await params;
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("community_discussions")
-    .select("title, excerpt, body, slug, status")
+    .select("title, excerpt, body, slug, status, content_type, created_at, updated_at")
     .eq("slug", slug)
-    .maybeSingle<{ title: string; excerpt: string | null; body: string; slug: string; status: string }>();
+    .maybeSingle<{
+      title: string;
+      excerpt: string | null;
+      body: string;
+      slug: string;
+      status: string;
+      content_type: string;
+      created_at: string;
+      updated_at: string;
+    }>();
+
+  const title = data ? `${data.title} | Isopedia Community` : "Community Discussion | Isopedia";
+  const description = data?.excerpt || (data?.body ? communityExcerpt(data.body, 155) : "Isopedia community discussion.");
+  const canonical = absoluteIsopediaUrl(`/community/discussion/${data?.slug || slug}`);
+  const shouldIndex = data?.status === "published";
 
   return {
-    title: data ? `${data.title} | Isopedia Community` : "Community Discussion | Isopedia",
-    description: data?.excerpt || "Isopedia community discussion.",
-    robots: data?.status === "published" ? undefined : { index: false, follow: false },
+    title,
+    description,
+    alternates: {
+      canonical,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      siteName: "Isopedia",
+      type: "article",
+      publishedTime: data?.created_at,
+      modifiedTime: data?.updated_at,
+      section: data?.content_type,
+      images: [
+        {
+          url: absoluteIsopediaUrl("/isopedia-social-preview.jpg"),
+          width: 1200,
+          height: 630,
+          alt: "Isopedia community discussion",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [absoluteIsopediaUrl("/isopedia-social-preview.jpg")],
+    },
+    robots: shouldIndex ? undefined : { index: false, follow: false },
   };
 }
 
