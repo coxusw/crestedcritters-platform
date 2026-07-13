@@ -24,6 +24,7 @@ import {
   softDeleteCommunityDiscussion,
   toggleCommunityFollow,
   toggleCommunitySave,
+  updateMarketplaceListingStatus,
   updateCommunityReply,
 } from "@/app/community/actions";
 
@@ -340,7 +341,11 @@ export default async function CommunityDiscussionPage({
           )}
 
           {marketplaceResult.data && (
-            <MarketplaceDetailsPanel details={marketplaceResult.data} />
+            <MarketplaceDetailsPanel
+              details={marketplaceResult.data}
+              canManage={Boolean(user && (discussion.author_id === user.id || canModerate))}
+              returnPath={returnPath}
+            />
           )}
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -713,24 +718,97 @@ function CommunityImageGrid({
   );
 }
 
-function MarketplaceDetailsPanel({ details }: { details: MarketplaceDetails }) {
+function MarketplaceDetailsPanel({
+  details,
+  canManage,
+  returnPath,
+}: {
+  details: MarketplaceDetails;
+  canManage: boolean;
+  returnPath: string;
+}) {
+  const expiredByDate = isMarketplaceExpired(details);
+  const effectiveStatus =
+    expiredByDate && ["available", "pending"].includes(details.listing_status)
+      ? "expired"
+      : details.listing_status;
+
   return (
-    <section className="mt-6 rounded-lg border border-yellow-300/20 bg-yellow-300/10 p-4">
-      <h2 className="font-black text-yellow-50">Marketplace Connection</h2>
+    <section className="mt-6 rounded-lg border border-yellow-300/20 bg-yellow-300/10 p-4 sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/70">
+            Marketplace Connection
+          </p>
+          <h2 className="mt-1 text-xl font-black text-yellow-50">
+            {formatMarketplaceValue(details.species_or_product) || "Listing Details"}
+          </h2>
+        </div>
+        <span className={`w-fit rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide ${marketplaceStatusClass(effectiveStatus)}`}>
+          {marketplaceLabel(effectiveStatus)}
+        </span>
+      </div>
+
       <p className="mt-2 text-sm leading-6 text-yellow-50/75">
-        Isopedia only provides a space for community members to connect. Users
-        are responsible for laws, permits, shipping restrictions, and transaction terms.
+        Isopedia only provides a space for community members to connect. Isopedia
+        does not process payments, verify transactions, guarantee products, or
+        participate in sales. Users are responsible for laws, permits, shipping
+        restrictions, weather decisions, payment arrangements, and transaction terms.
       </p>
+
+      {expiredByDate && details.listing_status !== "expired" && (
+        <p className="mt-4 rounded-lg border border-red-300/20 bg-red-400/10 p-3 text-sm font-bold text-red-100">
+          This listing has passed its expiration date.
+        </p>
+      )}
+
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <MarketplaceField label="Type" value={details.listing_type} />
-        <MarketplaceField label="Status" value={details.listing_status} />
+        <MarketplaceField label="Listing Type" value={marketplaceLabel(details.listing_type)} />
         <MarketplaceField label="Species/Product" value={details.species_or_product} />
         <MarketplaceField label="Quantity" value={details.quantity} />
         <MarketplaceField label="Price" value={details.price} />
         <MarketplaceField label="Location" value={[details.location, details.state].filter(Boolean).join(", ")} />
         <MarketplaceField label="Shipping" value={details.shipping_available ? "Available" : "Not listed"} />
         <MarketplaceField label="Local Pickup" value={details.local_pickup_available ? "Available" : "Not listed"} />
+        <MarketplaceField label="Expo" value={details.expo_name} />
+        <MarketplaceField label="Expires" value={formatMarketplaceDate(details.expiration_date)} />
+        <MarketplaceField label="Preferred Contact" value={details.preferred_contact_method} />
       </div>
+
+      {details.permit_notes && (
+        <div className="mt-3 rounded-md border border-yellow-100/10 bg-[#07130c]/70 p-3">
+          <div className="text-xs font-black uppercase tracking-wide text-yellow-50/50">
+            Permit or Shipping Notes
+          </div>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-yellow-50/85">
+            {details.permit_notes}
+          </p>
+        </div>
+      )}
+
+      {canManage && (
+        <form action={updateMarketplaceListingStatus} className="mt-4 flex flex-col gap-3 rounded-lg border border-yellow-100/10 bg-[#07130c]/70 p-3 sm:flex-row sm:items-end">
+          <input type="hidden" name="discussion_id" value={details.discussion_id} />
+          <input type="hidden" name="return_path" value={returnPath} />
+          <label className="grid flex-1 gap-2">
+            <span className="text-sm font-black text-yellow-50/85">Listing Status</span>
+            <select
+              name="listing_status"
+              defaultValue={details.listing_status}
+              className="rounded-lg border border-yellow-100/10 bg-black/20 px-4 py-3 text-white outline-none ring-yellow-300/30 focus:ring-4"
+            >
+              <option value="available">Available</option>
+              <option value="pending">Pending</option>
+              <option value="completed">Completed</option>
+              <option value="expired">Expired</option>
+              <option value="withdrawn">Withdrawn</option>
+            </select>
+          </label>
+          <button className="rounded-lg bg-yellow-300 px-4 py-3 text-sm font-black text-slate-950 hover:bg-yellow-200">
+            Update Status
+          </button>
+        </form>
+      )}
     </section>
   );
 }
@@ -742,4 +820,41 @@ function MarketplaceField({ label, value }: { label: string; value: string | nul
       <div className="mt-1 text-sm text-yellow-50/85">{value || "Not listed"}</div>
     </div>
   );
+}
+
+function marketplaceLabel(value: string | null) {
+  if (!value) return "Not listed";
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatMarketplaceValue(value: string | null) {
+  return value?.trim() || null;
+}
+
+function formatMarketplaceDate(value: string | null) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+function isMarketplaceExpired(details: MarketplaceDetails) {
+  if (!details.expiration_date) return false;
+  const expiration = new Date(`${details.expiration_date}T23:59:59`);
+  return expiration.getTime() < Date.now();
+}
+
+function marketplaceStatusClass(status: string) {
+  if (status === "available") return "border border-lime-300/20 bg-lime-300/15 text-lime-100";
+  if (status === "pending") return "border border-amber-300/20 bg-amber-300/15 text-amber-100";
+  if (status === "completed") return "border border-sky-300/20 bg-sky-300/15 text-sky-100";
+  if (status === "withdrawn") return "border border-slate-300/20 bg-slate-300/15 text-slate-100";
+  return "border border-red-300/20 bg-red-300/15 text-red-100";
 }

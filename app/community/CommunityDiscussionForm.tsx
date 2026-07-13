@@ -150,7 +150,8 @@ export default function CommunityDiscussionForm({
           <p className="text-sm leading-6 text-yellow-50/80">
             Isopedia only provides a space for community members to connect. Isopedia
             does not process payments, verify transactions, guarantee products, or
-            participate in sales.
+            participate in sales. Users are responsible for laws, permits, shipping
+            restrictions, weather decisions, payment arrangements, and transaction terms.
           </p>
 
           <div className="grid gap-4 sm:grid-cols-2">

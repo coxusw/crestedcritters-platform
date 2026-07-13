@@ -43,6 +43,12 @@ function allowedDiscussionStatus(value: string) {
   return ["published", "hidden", "archived", "removed"].includes(value) ? value : null;
 }
 
+function allowedMarketplaceStatus(value: string) {
+  return ["available", "pending", "completed", "expired", "withdrawn"].includes(value)
+    ? value
+    : null;
+}
+
 function safeImageExtension(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
   if (extension === "jpeg") return "jpg";
@@ -737,6 +743,52 @@ export async function moderateCommunityDiscussionFromThread(formData: FormData) 
     revalidatePath(`/community/category/${metadata.to_category_slug}`);
   }
   redirect(path);
+}
+
+export async function updateMarketplaceListingStatus(formData: FormData) {
+  const { supabase, user, canModerate } = await authContext();
+  const discussionId = textValue(formData.get("discussion_id"));
+  const listingStatus = allowedMarketplaceStatus(textValue(formData.get("listing_status")));
+  const returnPath = textValue(formData.get("return_path")) || "/community";
+
+  if (!discussionId) throw new Error("Missing marketplace listing.");
+  if (!listingStatus) throw new Error("Choose a valid listing status.");
+
+  const { data: discussion, error: readError } = await supabase
+    .from("community_discussions")
+    .select("id, slug, author_id, content_type, category:category_id(marketplace_rules)")
+    .eq("id", discussionId)
+    .maybeSingle<{
+      id: string;
+      slug: string;
+      author_id: string | null;
+      content_type: string;
+      category: { marketplace_rules: boolean } | null;
+    }>();
+
+  if (readError) throw new Error(readError.message);
+  if (!discussion || !discussion.category?.marketplace_rules) {
+    throw new Error("Marketplace listing not found.");
+  }
+  if (discussion.author_id !== user.id && !canModerate) {
+    throw new Error("You cannot update this marketplace listing.");
+  }
+
+  const writeClient = canModerate ? createSupabaseAdminClient() : supabase;
+  const { error } = await writeClient
+    .from("marketplace_listing_details")
+    .update({
+      listing_status: listingStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("discussion_id", discussionId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(returnPath);
+  revalidatePath(discussionPath(discussion.slug));
+  revalidatePath("/community/category/marketplace-connections");
+  redirect(returnPath);
 }
 
 export async function toggleCommunitySave(formData: FormData) {
