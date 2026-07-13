@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { filterReviewableGalleryImages } from "@/lib/isopedia-gallery-review";
+import { createSpeciesPhotoNotifications } from "@/lib/isopedia-photo-notifications";
 import { awardIsoTokens } from "@/lib/isotokens";
 
 type Profile = {
@@ -55,9 +56,26 @@ async function verifyGalleryImage(formData: FormData) {
 
   const { data: imageForReward } = await supabase
     .from("isopedia_species_images")
-    .select("id, credit_user_id")
+    .select(
+      `
+      id,
+      species_id,
+      credit_user_id,
+      status,
+      isopedia_species:species_id (
+        common_name,
+        slug
+      )
+    `
+    )
     .eq("id", imageId)
-    .maybeSingle<{ id: string; credit_user_id: string | null }>();
+    .maybeSingle<{
+      id: string;
+      species_id: number;
+      credit_user_id: string | null;
+      status: string;
+      isopedia_species: { common_name: string; slug: string } | null;
+    }>();
 
   const { error } = await supabase.rpc("verify_isopedia_species_image", {
     image_id: imageId,
@@ -93,6 +111,19 @@ async function verifyGalleryImage(formData: FormData) {
         entityId: imageId,
       });
     }
+  }
+
+  if (
+    imageForReward?.status === "unverified" &&
+    imageForReward.isopedia_species
+  ) {
+    await createSpeciesPhotoNotifications({
+      speciesId: imageForReward.species_id,
+      speciesName: imageForReward.isopedia_species.common_name,
+      speciesSlug: imageForReward.isopedia_species.slug,
+      imageId,
+      actorId: imageForReward.credit_user_id || user.id,
+    });
   }
 
   revalidatePath("/review");

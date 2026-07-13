@@ -234,6 +234,9 @@ function notificationTitle(notification: NotificationRow) {
   if (notification.type === "followed_species_discussion") {
     return `${actorName} started a discussion for a species you follow`;
   }
+  if (notification.type === "followed_species_photo") {
+    return `${actorName} added a photo to a species you follow`;
+  }
   if (notification.type === "accepted_answer") return "Your answer was accepted";
   if (notification.type === "moderator_action") return "A moderator updated your post";
   if (notification.type === "badge_awarded") return "You earned a badge";

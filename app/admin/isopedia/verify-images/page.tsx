@@ -6,6 +6,7 @@ import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { filterReviewableGalleryImages } from "@/lib/isopedia-gallery-review";
 import { productionIsopediaUrl } from "@/lib/isopedia-site";
 import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
+import { createSpeciesPhotoNotifications } from "@/lib/isopedia-photo-notifications";
 import { awardIsoTokens } from "@/lib/isotokens";
 
 type Profile = {
@@ -48,21 +49,44 @@ async function verifyAdminGalleryImage(formData: FormData) {
 
   const { data: imageForReward } = await supabase
     .from("isopedia_species_images")
-    .select("id, credit_user_id")
+    .select(
+      `
+      id,
+      species_id,
+      credit_user_id,
+      status,
+      isopedia_species:species_id (
+        common_name,
+        slug
+      )
+    `
+    )
     .eq("id", imageId)
-    .maybeSingle<{ id: string; credit_user_id: string | null }>();
+    .maybeSingle<{
+      id: string;
+      species_id: number;
+      credit_user_id: string | null;
+      status: string;
+      isopedia_species: { common_name: string; slug: string } | null;
+    }>();
 
-  const { error } = await supabase
+  const { data: verifiedImage, error } = await supabase
     .from("isopedia_species_images")
     .update({
       status: "verified",
       updated_at: new Date().toISOString(),
     })
     .eq("id", imageId)
-    .eq("status", "unverified");
+    .eq("status", "unverified")
+    .select("id")
+    .maybeSingle<{ id: string }>();
 
   if (error) {
     redirect(`/admin/isopedia/verify-images?error=${encodeURIComponent(error.message || "verify-failed")}`);
+  }
+
+  if (!verifiedImage) {
+    redirect("/admin/isopedia/verify-images?error=already-reviewed");
   }
 
   if (imageForReward?.credit_user_id) {
@@ -87,6 +111,19 @@ async function verifyAdminGalleryImage(formData: FormData) {
         entityId: imageId,
       });
     }
+  }
+
+  if (
+    imageForReward?.status === "unverified" &&
+    imageForReward.isopedia_species
+  ) {
+    await createSpeciesPhotoNotifications({
+      speciesId: imageForReward.species_id,
+      speciesName: imageForReward.isopedia_species.common_name,
+      speciesSlug: imageForReward.isopedia_species.slug,
+      imageId,
+      actorId: imageForReward.credit_user_id || user.id,
+    });
   }
 
   revalidatePath("/admin/isopedia/review");
