@@ -17,6 +17,9 @@ type PageProps = {
   params: Promise<{
     slug: string;
   }>;
+  searchParams?: Promise<{
+    rsvp?: string;
+  }>;
 };
 
 type Expo = {
@@ -113,6 +116,13 @@ function expoDescription(expo: Pick<Expo, "name" | "city" | "state" | "venue" | 
   );
 }
 
+function expoRsvpNotice(value: string) {
+  if (value === "attending") return "You are marked as attending this expo.";
+  if (value === "vending") return "You are marked as vending at this expo.";
+  if (value === "removed") return "Your expo status was removed.";
+  return "Expo status updated.";
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -167,8 +177,14 @@ export async function generateMetadata({
   };
 }
 
-export default async function ExpoDetailPage({ params }: PageProps) {
-  const { slug } = await params;
+export default async function ExpoDetailPage({
+  params,
+  searchParams,
+}: PageProps) {
+  const [{ slug }, pageParams] = await Promise.all([
+    params,
+    searchParams || Promise.resolve({} as { rsvp?: string }),
+  ]);
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -377,6 +393,12 @@ export default async function ExpoDetailPage({ params }: PageProps) {
         {expo.status !== "approved" && canModerate && (
           <div className="mb-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm font-bold text-amber-100">
             Moderator preview: this expo is currently {expo.status}.
+          </div>
+        )}
+
+        {pageParams.rsvp && (
+          <div className="mb-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-100">
+            {expoRsvpNotice(pageParams.rsvp)}
           </div>
         )}
 

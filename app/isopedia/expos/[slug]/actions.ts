@@ -50,6 +50,8 @@ export async function setExpoRsvp(formData: FormData) {
   }
 
   revalidatePath(`/expos/${expoSlug}`);
+  revalidatePath(`/isopedia/expos/${expoSlug}`);
+  redirect(`/expos/${expoSlug}?rsvp=${status}`);
 }
 
 export async function removeExpoRsvp(formData: FormData) {
@@ -81,4 +83,6 @@ export async function removeExpoRsvp(formData: FormData) {
   }
 
   revalidatePath(`/expos/${expoSlug}`);
+  revalidatePath(`/isopedia/expos/${expoSlug}`);
+  redirect(`/expos/${expoSlug}?rsvp=removed`);
 }
