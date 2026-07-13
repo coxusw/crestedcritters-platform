@@ -23,6 +23,10 @@ type CommunityDiscussion = {
   content_type: string;
 };
 
+type CommunityCategory = {
+  slug: string;
+};
+
 type Profile = {
   username: string | null;
 };
@@ -147,6 +151,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     exposResult,
     profilesResult,
     communityResult,
+    communityCategoriesResult,
   ] = await Promise.all([
     supabase
       .from("isopedia_species")
@@ -173,6 +178,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .eq("status", "published")
       .not("slug", "is", null)
       .returns<CommunityDiscussion[]>(),
+
+    supabase
+      .from("community_categories")
+      .select("slug")
+      .eq("is_active", true)
+      .not("slug", "is", null)
+      .returns<CommunityCategory[]>(),
   ]);
 
   const speciesPages =
@@ -217,10 +229,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: discussion.content_type === "guide" ? 0.7 : 0.6,
     })) || [];
 
+  const communityCategoryPages =
+    communityCategoriesResult.data
+      ?.filter((category) => category.slug && category.slug !== "guides")
+      .map((category) => ({
+        url: `${baseUrl}/community/category/${category.slug}`,
+        lastModified: new Date(),
+        changeFrequency: "daily" as const,
+        priority: 0.8,
+      })) || [];
+
   return [
     ...defaultPages,
     ...speciesPages,
     ...expoPages,
+    ...communityCategoryPages,
     ...communityPages,
     ...profilePages,
   ];

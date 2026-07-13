@@ -10,7 +10,7 @@ import {
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { DiscussionCard } from "@/app/community/CommunityCards";
 
-export const metadata = { title: "My Discussions | Isopedia Community" };
+export const metadata = { title: "My Discussions" };
 
 export default async function MyDiscussionsPage({
   searchParams,

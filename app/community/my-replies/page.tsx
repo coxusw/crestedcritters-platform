@@ -9,7 +9,7 @@ import {
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { DiscussionCard } from "@/app/community/CommunityCards";
 
-export const metadata = { title: "My Replies | Isopedia Community" };
+export const metadata = { title: "My Replies" };
 
 export default async function MyRepliesPage() {
   const supabase = await createSupabaseServerClient();

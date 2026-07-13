@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 
 export const metadata = {
-  title: "Community Activity | Isopedia",
+  title: "Community Activity",
   description: "Recent public activity across Isopedia discussions, species, and expos.",
   alternates: {
     canonical: absoluteIsopediaUrl("/community/activity"),

@@ -9,6 +9,7 @@ import {
   getMarketplaceDetailsByDiscussionIds,
   type MarketplaceDetails,
 } from "@/lib/community";
+import CommunityCategoryStructuredData from "@/app/components/isopedia/CommunityCategoryStructuredData";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { DiscussionCard } from "@/app/community/CommunityCards";
 
@@ -20,7 +21,8 @@ export async function generateMetadata({
   const { slug } = await params;
   const supabase = await createSupabaseServerClient();
   const category = await getCommunityCategoryBySlug(supabase, slug);
-  const title = category ? `${category.name} | Isopedia Community` : "Community Category | Isopedia";
+  const title = category ? category.name : "Community Category";
+  const socialTitle = category ? `${category.name} | Isopedia Community` : "Community Category | Isopedia";
   const description = category?.description || "Isopedia community category.";
   const canonical = absoluteIsopediaUrl(`/community/category/${category?.slug || slug}`);
 
@@ -31,7 +33,7 @@ export async function generateMetadata({
       canonical,
     },
     openGraph: {
-      title,
+      title: socialTitle,
       description,
       url: canonical,
       siteName: "Isopedia",
@@ -47,7 +49,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: socialTitle,
       description,
       images: [absoluteIsopediaUrl("/isopedia-social-preview.jpg")],
     },
@@ -106,7 +108,14 @@ export default async function CommunityCategoryPage({
     : new Map<string, MarketplaceDetails>();
 
   return (
-    <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
+    <>
+      <CommunityCategoryStructuredData
+        categoryName={category.name}
+        categorySlug={category.slug}
+        description={category.description}
+        discussions={discussions}
+      />
+      <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
       <div className="mx-auto max-w-6xl">
         <IsopediaNav active="community" />
 
@@ -268,7 +277,8 @@ export default async function CommunityCategoryPage({
           )}
         </section>
       </div>
-    </main>
+      </main>
+    </>
   );
 }
 

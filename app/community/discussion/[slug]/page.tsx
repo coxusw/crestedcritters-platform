@@ -39,6 +39,7 @@ import {
   updateMarketplaceListingStatus,
   updateCommunityReply,
 } from "@/app/community/actions";
+import CommunityDiscussionStructuredData from "@/app/components/isopedia/CommunityDiscussionStructuredData";
 
 export async function generateMetadata({
   params,
@@ -62,7 +63,8 @@ export async function generateMetadata({
       updated_at: string;
     }>();
 
-  const title = data ? `${data.title} | Isopedia Community` : "Community Discussion | Isopedia";
+  const title = data ? data.title : "Community Discussion";
+  const socialTitle = data ? `${data.title} | Isopedia Community` : "Community Discussion | Isopedia";
   const description = data?.excerpt || (data?.body ? communityExcerpt(data.body, 155) : "Isopedia community discussion.");
   const canonical = absoluteIsopediaUrl(`/community/discussion/${data?.slug || slug}`);
   const shouldIndex = data?.status === "published";
@@ -74,7 +76,7 @@ export async function generateMetadata({
       canonical,
     },
     openGraph: {
-      title,
+      title: socialTitle,
       description,
       url: canonical,
       siteName: "Isopedia",
@@ -93,7 +95,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: socialTitle,
       description,
       images: [absoluteIsopediaUrl("/isopedia-social-preview.jpg")],
     },
@@ -315,7 +317,19 @@ export default async function CommunityDiscussionPage({
   const discussionIsPinned = isCommunityPinned(discussion);
 
   return (
-    <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
+    <>
+      <CommunityDiscussionStructuredData
+        title={discussion.title}
+        body={discussion.body}
+        slug={discussion.slug}
+        createdAt={discussion.created_at}
+        updatedAt={discussion.updated_at}
+        categoryName={discussion.category?.name || null}
+        categorySlug={discussion.category?.slug || null}
+        author={discussion.author}
+        replies={repliesResult.data || []}
+      />
+      <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
       <div className="mx-auto max-w-5xl">
         <IsopediaNav active="community" />
         <div className="mb-4 flex flex-wrap gap-3 text-sm">
@@ -616,7 +630,8 @@ export default async function CommunityDiscussionPage({
           )}
         </section>
       </div>
-    </main>
+      </main>
+    </>
   );
 }
 

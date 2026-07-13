@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
+import HomepageStructuredData from "@/app/components/isopedia/HomepageStructuredData";
 import IsopediaBrowser from "@/app/components/isopedia/IsopediaBrowser";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { IsopediaInstallCard } from "@/app/components/isopedia/IsopediaAppSettings";
@@ -127,6 +129,15 @@ export async function IsopediaLandingPage() {
 
   return (
     <main className="isopedia-theme-root min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
+      <HomepageStructuredData
+        species={entries.map((entry) => ({
+          common_name: entry.common_name,
+          scientific_name: entry.scientific_name,
+          slug: publicSpeciesSlug(entry.slug),
+          image_url: entry.image_url,
+        }))}
+      />
+
       <div className="mx-auto max-w-7xl">
         <IsopediaNav active="database" />
 

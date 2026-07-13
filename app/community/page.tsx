@@ -14,7 +14,7 @@ import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { DiscussionCard } from "@/app/community/CommunityCards";
 
 export const metadata: Metadata = {
-  title: "Community | Isopedia",
+  title: "Community",
   description: "Join Isopedia community discussions, guides, journals, marketplace connections, and species help.",
   alternates: {
     canonical: absoluteIsopediaUrl("/community"),

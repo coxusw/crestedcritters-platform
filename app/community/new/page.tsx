@@ -8,7 +8,7 @@ import CommunityDiscussionForm from "@/app/community/CommunityDiscussionForm";
 import { createCommunityDiscussion } from "@/app/community/actions";
 
 export const metadata = {
-  title: "Start a Discussion | Isopedia Community",
+  title: "Start a Discussion",
 };
 
 export default async function NewCommunityDiscussionPage({

@@ -15,7 +15,7 @@ import {
   updateSpeciesFollowPreferences,
 } from "@/app/community/following/actions";
 
-export const metadata = { title: "Following | Isopedia Community" };
+export const metadata = { title: "Following" };
 
 type FollowedSpeciesRow = {
   species_id: number;
