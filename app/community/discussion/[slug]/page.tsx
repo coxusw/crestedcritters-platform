@@ -134,11 +134,16 @@ export default async function CommunityDiscussionPage({
     .eq("slug", slug)
     .maybeSingle<CommunityDiscussion>();
 
-  if (
-    error ||
-    !discussion ||
-    (!["published", "expired"].includes(discussion.status) && !canModerate)
-  ) {
+  if (error || !discussion) {
+    notFound();
+  }
+
+  const canViewDiscussion =
+    ["published", "expired"].includes(discussion.status) ||
+    canModerate ||
+    discussion.author_id === user?.id;
+
+  if (!canViewDiscussion) {
     notFound();
   }
 

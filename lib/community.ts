@@ -216,6 +216,7 @@ export async function getCommunityDiscussions(
     speciesId?: number | string;
     search?: string;
     sort?: string;
+    statuses?: string[];
     limit?: number;
     contentType?: string;
     unansweredOnly?: boolean;
@@ -326,6 +327,12 @@ export async function getCommunityDiscussions(
   const constrainedDiscussionIds = intersectSets(discussionIdFilters);
   if (constrainedDiscussionIds && constrainedDiscussionIds.length === 0) return [];
 
+  const statuses = options.statuses?.length
+    ? options.statuses.filter((status) =>
+        ["published", "expired", "pending", "hidden", "archived", "rejected"].includes(status)
+      )
+    : ["published", "expired"];
+
   let query = supabase
     .from("community_discussions")
     .select(
@@ -379,7 +386,7 @@ export async function getCommunityDiscussions(
       )
     `
     )
-    .in("status", ["published", "expired"]);
+    .in("status", statuses.length ? statuses : ["published", "expired"]);
 
   if (options.categorySlug) {
     const category = await getCommunityCategoryBySlug(supabase, options.categorySlug);

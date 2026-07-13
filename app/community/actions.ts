@@ -765,9 +765,14 @@ export async function createCommunityDiscussion(formData: FormData) {
 
   revalidatePath("/community");
   revalidatePath(`/community/category/${category.slug}`);
+  revalidatePath("/community/my-discussions");
+  const baseDestination =
+    status === "pending"
+      ? withQueryParam("/community/my-discussions", "submitted", "pending")
+      : discussionPath(slug);
   const destination = imageWarning
-    ? withQueryParam(discussionPath(slug), "image_error", "1")
-    : discussionPath(slug);
+    ? withQueryParam(baseDestination, "image_error", "1")
+    : baseDestination;
   redirect(destination);
 }
 

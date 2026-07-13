@@ -34,6 +34,11 @@ export function DiscussionCard({
             <span className="rounded-md border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-100">
               {discussion.content_type}
             </span>
+            {discussion.status !== "published" && (
+              <span className={`rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wide ${discussionStatusClass(discussion.status)}`}>
+                {marketplaceLabel(discussion.status)}
+              </span>
+            )}
             {discussion.category && (
               <Link
                 href={`/community/category/${discussion.category.slug}`}
@@ -161,5 +166,14 @@ function marketplaceStatusClass(status: string) {
   if (status === "pending") return "border border-amber-300/20 bg-amber-300/15 text-amber-100";
   if (status === "completed") return "border border-sky-300/20 bg-sky-300/15 text-sky-100";
   if (status === "withdrawn") return "border border-slate-300/20 bg-slate-300/15 text-slate-100";
+  return "border border-red-300/20 bg-red-300/15 text-red-100";
+}
+
+function discussionStatusClass(status: string) {
+  if (status === "pending") return "border border-amber-300/20 bg-amber-300/15 text-amber-100";
+  if (status === "hidden" || status === "archived") {
+    return "border border-sky-300/20 bg-sky-300/15 text-sky-100";
+  }
+  if (status === "expired") return "border border-slate-300/20 bg-slate-300/15 text-slate-100";
   return "border border-red-300/20 bg-red-300/15 text-red-100";
 }
