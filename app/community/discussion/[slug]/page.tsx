@@ -6,6 +6,7 @@ import Image from "next/image";
 import { createHash } from "crypto";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { absoluteIsopediaUrl } from "@/lib/isopedia-site";
+import { isUnderRestrictedAge } from "@/lib/isopedia-age";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   type CommunityCategory,
@@ -125,9 +126,9 @@ export default async function CommunityDiscussionPage({
     ? await Promise.all([
         supabase
           .from("profiles")
-          .select("role")
+          .select("role, birth_date")
           .eq("id", user.id)
-          .maybeSingle<{ role: string | null }>(),
+          .maybeSingle<{ role: string | null; birth_date: string | null }>(),
         supabase.from("admin_profiles").select("id").eq("id", user.id).maybeSingle(),
       ])
     : [{ data: null }, { data: null }];
@@ -135,6 +136,7 @@ export default async function CommunityDiscussionPage({
     Boolean(viewerAdminProfile) ||
     viewerProfile?.role === "admin" ||
     viewerProfile?.role === "moderator";
+  const postingRestrictedByAge = isUnderRestrictedAge(viewerProfile?.birth_date);
   const contentSupabase = canModerate ? createSupabaseAdminClient() : supabase;
 
   const { data: discussion, error } = await contentSupabase
@@ -561,7 +563,11 @@ export default async function CommunityDiscussionPage({
             ))}
           </div>
 
-          {user && !discussion.locked ? (
+          {user && postingRestrictedByAge ? (
+            <p className="mt-6 rounded-lg border border-amber-300/30 bg-amber-300/10 p-4 text-sm font-bold leading-6 text-amber-50">
+              Community posting is disabled for accounts under 13. You can still read public discussions.
+            </p>
+          ) : user && !discussion.locked ? (
             <CommunityReplyForm
               action={createCommunityReply}
               discussionId={discussion.id}

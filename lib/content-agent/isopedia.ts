@@ -40,6 +40,17 @@ type SpeciesLite = {
   image_url: string | null;
 };
 
+type CommunityDiscussionAnnouncementInput = {
+  id: string;
+  slug: string;
+  title: string;
+  body: string;
+  contentType: string;
+  categoryName: string | null;
+  authorId: string | null;
+  imageUrl?: string | null;
+};
+
 type CountQuery = PromiseLike<{
   count: number | null;
   error: { message: string } | null;
@@ -550,6 +561,104 @@ export async function createSpeciesAnnouncementForSubmission(submissionId: strin
   const publishResult = await publishSingleContentPost(post.id);
 
   return `Created and published species announcement for ${species.common_name || species.slug}. ${publishResult}`;
+}
+
+export async function createCommunityDiscussionAnnouncement({
+  id,
+  slug,
+  title,
+  body,
+  contentType,
+  categoryName,
+  authorId,
+  imageUrl = null,
+}: CommunityDiscussionAnnouncementInput) {
+  const supabase = createSupabaseAdminClient();
+  const page = await getPage("isopedia");
+
+  if (!page) throw new Error("Isopedia content agent page is missing.");
+
+  const existing = await supabase
+    .from("content_agent_posts")
+    .select("id")
+    .eq("source_type", "isopedia_community_discussion")
+    .eq("source_ref_id", id)
+    .maybeSingle();
+
+  if (existing.error) throw new Error(existing.error.message);
+  if (existing.data) return `Community discussion already has a content post: ${title}.`;
+
+  const profilesById = await getProfilesByIds([authorId]);
+  const authorName = authorId
+    ? profileName(profilesById.get(authorId), "an Isopedia community member")
+    : "an Isopedia community member";
+  const discussionUrl = `${siteUrl()}/community/discussion/${slug}`;
+  const categoryLabel = categoryName || communityPostTypeLabel(contentType);
+  const excerpt = body.trim().replace(/\s+/g, " ").slice(0, 220);
+  const caption = [
+    `New Isopedia Community discussion: ${title}`,
+    `Posted by ${authorName} in ${categoryLabel}.`,
+    excerpt ? `"${excerpt}${body.trim().length > 220 ? "..." : ""}"` : "",
+    `Join the discussion here: ${discussionUrl}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const post = await insertGeneratedPost({
+    pageKey: "isopedia",
+    scheduledAt: new Date(),
+    postType: "Community Discussion",
+    topicId: null,
+    topic: `Community discussion: ${title}`,
+    caption,
+    hashtags: page.default_hashtags || "#Isopedia #BioactiveCommunity",
+    imagePrompt: "",
+    status: "Approved",
+    sourceType: "isopedia_community_discussion",
+    sourceRefId: id,
+    rawPayload: {
+      discussion: {
+        id,
+        slug,
+        title,
+        contentType,
+        categoryName,
+        authorId,
+      },
+      discussionUrl,
+      authorName,
+    },
+  });
+
+  if (imageUrl) {
+    const { error: updateError } = await supabase
+      .from("content_agent_posts")
+      .update({
+        image_url: imageUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", post.id);
+
+    if (updateError) throw new Error(updateError.message);
+  }
+
+  await logContentAgent(
+    "isopedia_community_discussion",
+    "OK",
+    `Queued community discussion post for ${title}`,
+    "post",
+    post.id
+  );
+
+  return `Queued community discussion announcement for ${title}.`;
+}
+
+function communityPostTypeLabel(contentType: string) {
+  if (contentType === "guide") return "Guides";
+  if (contentType === "marketplace") return "Marketplace Connections";
+  if (contentType === "journal") return "Colony Journals";
+  if (contentType === "question") return "Help & Questions";
+  return "Community";
 }
 
 export async function createIsopediaStatsPost() {

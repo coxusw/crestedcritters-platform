@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
+import { createCommunityDiscussionAnnouncement } from "@/lib/content-agent/isopedia";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { awardIsoTokens } from "@/lib/isotokens";
 import {
@@ -832,6 +833,26 @@ export async function createCommunityDiscussion(formData: FormData) {
       "Failed to create community discussion notifications:",
       notificationError instanceof Error ? notificationError.message : notificationError
     );
+  }
+
+  if (status === "published") {
+    try {
+      await createCommunityDiscussionAnnouncement({
+        id,
+        slug,
+        title,
+        body,
+        contentType,
+        categoryName: category.name,
+        authorId: user.id,
+        imageUrl: uploadedImages[0]?.image_url || null,
+      });
+    } catch (announcementError) {
+      console.error(
+        "Failed to queue community discussion announcement:",
+        announcementError instanceof Error ? announcementError.message : announcementError
+      );
+    }
   }
 
   revalidatePath("/community");

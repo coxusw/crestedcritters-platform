@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { isUnderRestrictedAge } from "@/lib/isopedia-age";
 import { getCommunityCategories } from "@/lib/community";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import CommunityDiscussionForm from "@/app/community/CommunityDiscussionForm";
@@ -23,7 +24,12 @@ export default async function NewCommunityDiscussionPage({
 
   if (!user) redirect("/login?next=/community/new");
 
-  const [categories, speciesResult] = await Promise.all([
+  const [profileResult, categories, speciesResult] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("birth_date")
+      .eq("id", user.id)
+      .maybeSingle<{ birth_date: string | null }>(),
     getCommunityCategories(supabase),
     supabase
       .from("isopedia_species")
@@ -31,6 +37,7 @@ export default async function NewCommunityDiscussionPage({
       .order("common_name", { ascending: true })
       .returns<Array<{ id: number; common_name: string; scientific_name: string | null }>>(),
   ]);
+  const postingRestrictedByAge = isUnderRestrictedAge(profileResult.data?.birth_date);
 
   return (
     <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
@@ -50,17 +57,23 @@ export default async function NewCommunityDiscussionPage({
             Choose the best category, add useful details, and tag related species
             so other keepers can find and help with your post.
           </p>
-          <div className="mt-6">
-            <CommunityDiscussionForm
-              action={createCommunityDiscussion}
-              categories={categories}
-              species={speciesResult.data || []}
-              selectedCategorySlug={params.category || ""}
-              selectedSpeciesId={params.species || ""}
-              selectedSpeciesIds={params.species ? [params.species] : []}
-              formError={params.form_error || ""}
-            />
-          </div>
+          {postingRestrictedByAge ? (
+            <div className="mt-6 rounded-lg border border-amber-300/30 bg-amber-300/10 p-4 text-sm font-bold leading-6 text-amber-50">
+              Community posting is disabled for accounts under 13. You can still read public discussions and browse the community.
+            </div>
+          ) : (
+            <div className="mt-6">
+              <CommunityDiscussionForm
+                action={createCommunityDiscussion}
+                categories={categories}
+                species={speciesResult.data || []}
+                selectedCategorySlug={params.category || ""}
+                selectedSpeciesId={params.species || ""}
+                selectedSpeciesIds={params.species ? [params.species] : []}
+                formError={params.form_error || ""}
+              />
+            </div>
+          )}
         </section>
       </div>
     </main>
