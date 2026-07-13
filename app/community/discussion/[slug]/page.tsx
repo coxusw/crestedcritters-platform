@@ -567,7 +567,10 @@ export default async function CommunityDiscussionPage({
                   <option>Spam</option>
                   <option>Harassment</option>
                   <option>Scam concern</option>
+                  <option>Prohibited species</option>
                   <option>Permit concern</option>
+                  <option>Misrepresentation</option>
+                  <option>Duplicate listing</option>
                   <option>Incorrect category</option>
                   <option>Other</option>
                 </select>
@@ -921,7 +924,10 @@ function ReplyReportForm({
           <option>Spam</option>
           <option>Harassment</option>
           <option>Scam concern</option>
+          <option>Prohibited species</option>
           <option>Permit concern</option>
+          <option>Misrepresentation</option>
+          <option>Duplicate listing</option>
           <option>Incorrect category</option>
           <option>Other</option>
         </select>
