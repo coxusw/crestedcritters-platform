@@ -14,7 +14,7 @@ import { isUnderRestrictedAge } from "@/lib/isopedia-age";
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
 const COMMUNITY_IMAGE_BUCKET = "isopedia-images";
-const MAX_COMMUNITY_IMAGE_FILES = 4;
+const MAX_COMMUNITY_IMAGE_FILES = 5;
 const MAX_COMMUNITY_IMAGE_BYTES = 5 * 1024 * 1024;
 const COMMUNITY_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
