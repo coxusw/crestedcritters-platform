@@ -217,8 +217,48 @@ export async function getCommunityDiscussions(
     limit?: number;
     contentType?: string;
     unansweredOnly?: boolean;
+    answeredOnly?: boolean;
+    hasImages?: boolean;
+    marketplaceListingType?: string;
+    marketplaceStatus?: string;
   } = {}
 ) {
+  const discussionIdFilters: Array<Set<string>> = [];
+
+  if (options.hasImages) {
+    const { data: imageRows } = await supabase
+      .from("community_images")
+      .select("discussion_id")
+      .eq("status", "active")
+      .not("discussion_id", "is", null)
+      .limit(1000)
+      .returns<Array<{ discussion_id: string | null }>>();
+
+    discussionIdFilters.push(
+      new Set((imageRows || []).flatMap((row) => (row.discussion_id ? [row.discussion_id] : [])))
+    );
+  }
+
+  if (options.marketplaceListingType || options.marketplaceStatus) {
+    let marketplaceQuery = supabase
+      .from("marketplace_listing_details")
+      .select("discussion_id")
+      .limit(1000);
+
+    if (options.marketplaceListingType) {
+      marketplaceQuery = marketplaceQuery.eq("listing_type", options.marketplaceListingType);
+    }
+    if (options.marketplaceStatus) {
+      marketplaceQuery = marketplaceQuery.eq("listing_status", options.marketplaceStatus);
+    }
+
+    const { data: listingRows } = await marketplaceQuery.returns<Array<{ discussion_id: string }>>();
+    discussionIdFilters.push(new Set((listingRows || []).map((row) => row.discussion_id)));
+  }
+
+  const constrainedDiscussionIds = intersectSets(discussionIdFilters);
+  if (constrainedDiscussionIds && constrainedDiscussionIds.length === 0) return [];
+
   let query = supabase
     .from("community_discussions")
     .select(
@@ -283,6 +323,8 @@ export async function getCommunityDiscussions(
   if (options.authorId) query = query.eq("author_id", options.authorId);
   if (options.contentType) query = query.eq("content_type", options.contentType);
   if (options.unansweredOnly) query = query.eq("answered", false).eq("content_type", "question");
+  if (options.answeredOnly) query = query.eq("answered", true).eq("content_type", "question");
+  if (constrainedDiscussionIds) query = query.in("id", constrainedDiscussionIds);
   if (options.search) {
     const term = options.search.trim();
     if (term) query = query.or(`title.ilike.%${term}%,body.ilike.%${term}%`);
@@ -330,6 +372,12 @@ export async function getCommunityDiscussions(
   }
 
   return rows;
+}
+
+function intersectSets(sets: Array<Set<string>>) {
+  if (!sets.length) return null;
+  const [first, ...rest] = sets;
+  return [...first].filter((value) => rest.every((set) => set.has(value)));
 }
 
 export async function getInlineBadgesForProfiles(
