@@ -24,6 +24,12 @@ type NotificationInsert = {
   metadata: Record<string, unknown>;
 };
 
+type NotificationPreference = {
+  profile_id: string;
+  notify_discussions: boolean | null;
+  notify_guides: boolean | null;
+};
+
 type UploadedCommunityImage = {
   image_url: string;
   storage_path: string;
@@ -347,9 +353,10 @@ async function insertNotificationsSkippingExisting(
     return;
   }
 
+  const preferenceFilteredRows = await filterNotificationsByPreferences(admin, rows);
   const dedupedRows: NotificationInsert[] = [];
 
-  for (const row of rows) {
+  for (const row of preferenceFilteredRows) {
     let query = admin
       .from("notifications")
       .select("id")
@@ -376,6 +383,54 @@ async function insertNotificationsSkippingExisting(
       console.error("Failed to create notifications:", error.message);
     }
   }
+}
+
+async function filterNotificationsByPreferences(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  rows: NotificationInsert[]
+) {
+  const recipientIds = [
+    ...new Set(
+      rows
+        .filter((row) => notificationPreferenceKey(row))
+        .map((row) => row.recipient_id)
+    ),
+  ];
+
+  if (!recipientIds.length) return rows;
+
+  const { data, error } = await admin
+    .from("isopedia_notification_preferences")
+    .select("profile_id, notify_discussions, notify_guides")
+    .in("profile_id", recipientIds)
+    .returns<NotificationPreference[]>();
+
+  if (error) {
+    console.error("Failed to load notification preferences:", error.message);
+    return rows;
+  }
+
+  const preferencesByProfile = new Map((data || []).map((preference) => [preference.profile_id, preference]));
+
+  return rows.filter((row) => {
+    const preferenceKey = notificationPreferenceKey(row);
+    if (!preferenceKey) return true;
+
+    const preference = preferencesByProfile.get(row.recipient_id);
+    if (!preference) return true;
+
+    return preference[preferenceKey] !== false;
+  });
+}
+
+function notificationPreferenceKey(
+  row: NotificationInsert
+): "notify_discussions" | "notify_guides" | null {
+  if (!["mention", "discussion_reply", "accepted_answer", "followed_species_discussion"].includes(row.type)) {
+    return null;
+  }
+
+  return row.metadata.content_type === "guide" ? "notify_guides" : "notify_discussions";
 }
 
 async function authContext() {
@@ -495,7 +550,8 @@ async function createMentionNotifications(
   discussionId: string,
   actorId: string,
   body: string,
-  destinationUrl: string
+  destinationUrl: string,
+  contentType = "discussion"
 ) {
   const usernames = [
     ...new Set(
@@ -521,7 +577,7 @@ async function createMentionNotifications(
       type: "mention",
       discussion_id: discussionId,
       destination_url: destinationUrl,
-      metadata: { username: profile.username },
+      metadata: { username: profile.username, content_type: contentType },
     }));
 
   if (rows.length) {
@@ -758,7 +814,7 @@ export async function createCommunityDiscussion(formData: FormData) {
   }
 
   try {
-    await createMentionNotifications(supabase, id, user.id, body, discussionPath(slug));
+    await createMentionNotifications(supabase, id, user.id, body, discussionPath(slug), contentType);
     if (status === "published") {
       await createSpeciesFollowNotifications({
         discussionId: id,
@@ -985,13 +1041,14 @@ export async function createCommunityReply(formData: FormData) {
 
   const { data: discussion, error: discussionError } = await supabase
     .from("community_discussions")
-    .select("id, slug, title, author_id, status, locked, category:category_id(images_enabled)")
+    .select("id, slug, title, author_id, content_type, status, locked, category:category_id(images_enabled)")
     .eq("id", discussionId)
     .maybeSingle<{
       id: string;
       slug: string;
       title: string;
       author_id: string | null;
+      content_type: string;
       status: string;
       locked: boolean;
       category: { images_enabled: boolean } | null;
@@ -1048,7 +1105,7 @@ export async function createCommunityReply(formData: FormData) {
         discussion_id: discussionId,
         reply_id: reply.id,
         destination_url: `${discussionPath(discussion.slug)}#reply-${reply.id}`,
-        metadata: { title: discussion.title },
+        metadata: { title: discussion.title, content_type: discussion.content_type },
       },
     ]);
   }
@@ -1058,7 +1115,8 @@ export async function createCommunityReply(formData: FormData) {
     discussionId,
     user.id,
     body,
-    `${discussionPath(discussion.slug)}#reply-${reply.id}`
+    `${discussionPath(discussion.slug)}#reply-${reply.id}`,
+    discussion.content_type
   );
 
   revalidatePath(discussionPath(discussion.slug));
@@ -1350,7 +1408,7 @@ export async function setAcceptedCommunityReply(formData: FormData) {
         discussion_id: reply.discussion_id,
         reply_id: reply.id,
         destination_url: `${discussionPath(reply.discussion.slug)}#reply-${reply.id}`,
-        metadata: { title: reply.discussion.title },
+        metadata: { title: reply.discussion.title, content_type: reply.discussion.content_type },
       },
     ]);
   }
