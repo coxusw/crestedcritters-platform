@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { useMemo, useState } from "react";
 import { type CommunityCategory, type CommunityImage, type MarketplaceDetails } from "@/lib/community";
 import CommunityFormShell from "@/app/community/CommunityFormShell";
 
@@ -39,10 +42,15 @@ export default function CommunityDiscussionForm({
   initialMarketplace?: MarketplaceDetails | null;
   initialImages?: CommunityImage[];
 }) {
-  const selectedCategory =
+  const initialCategory =
     categories.find((category) => category.slug === selectedCategorySlug) ||
     categories.find((category) => category.id === initialDiscussion?.category_id) ||
     categories[0];
+  const [activeCategorySlug, setActiveCategorySlug] = useState(initialCategory?.slug || "");
+  const selectedCategory = useMemo(
+    () => categories.find((category) => category.slug === activeCategorySlug) || initialCategory,
+    [activeCategorySlug, categories, initialCategory]
+  );
   const isMarketplace = selectedCategory?.slug === "marketplace-connections";
   const imagesEnabled = selectedCategory?.images_enabled ?? true;
 
@@ -62,7 +70,8 @@ export default function CommunityDiscussionForm({
         <span className="text-sm font-black text-emerald-50/80">Category</span>
         <select
           name="category_slug"
-          defaultValue={selectedCategory?.slug || ""}
+          value={activeCategorySlug}
+          onChange={(event) => setActiveCategorySlug(event.target.value)}
           className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
           disabled={Boolean(initialDiscussion)}
         >
