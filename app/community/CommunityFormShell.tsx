@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 const COMMUNITY_IMAGE_BUCKET = "isopedia-images";
@@ -56,15 +56,25 @@ export default function CommunityFormShell({
   children: ReactNode;
 }) {
   const [error, setError] = useState("");
-  const [isSubmitting, startSubmitTransition] = useTransition();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const nativeSubmitReady = useRef(false);
   const supabase = createSupabaseBrowserClient();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (nativeSubmitReady.current) return;
+
     event.preventDefault();
 
     const form = event.currentTarget;
     setError("");
+    setIsSubmitting(true);
     setSubmitButtons(form, true);
+
+    if (!form.reportValidity()) {
+      setIsSubmitting(false);
+      setSubmitButtons(form, false);
+      return;
+    }
 
     const fileInputs = Array.from(
       form.querySelectorAll<HTMLInputElement>("input[type='file'][name='image_files']")
@@ -72,6 +82,7 @@ export default function CommunityFormShell({
     const files = fileInputs.flatMap((input) => Array.from(input.files || []));
 
     if (files.length > MAX_COMMUNITY_IMAGE_FILES) {
+      setIsSubmitting(false);
       setSubmitButtons(form, false);
       setError(`Please upload ${MAX_COMMUNITY_IMAGE_FILES} images or fewer.`);
       return;
@@ -79,12 +90,14 @@ export default function CommunityFormShell({
 
     for (const file of files) {
       if (!COMMUNITY_IMAGE_TYPES.has(file.type)) {
+        setIsSubmitting(false);
         setSubmitButtons(form, false);
         setError("Images must be JPG, PNG, WEBP, or GIF.");
         return;
       }
 
       if (file.size > MAX_COMMUNITY_IMAGE_BYTES) {
+        setIsSubmitting(false);
         setSubmitButtons(form, false);
         setError("Each image must be smaller than 10MB.");
         return;
@@ -100,6 +113,7 @@ export default function CommunityFormShell({
         } = await supabase.auth.getUser();
 
         if (!user) {
+          setIsSubmitting(false);
           setSubmitButtons(form, false);
           setError("Please sign in before uploading images.");
           return;
@@ -130,12 +144,10 @@ export default function CommunityFormShell({
       upsertUploadsInput(form, uploads);
       for (const input of fileInputs) input.value = "";
 
-      const preparedFormData = new FormData(form);
-      startSubmitTransition(async () => {
-        await action(preparedFormData);
-        setSubmitButtons(form, false);
-      });
+      nativeSubmitReady.current = true;
+      form.requestSubmit();
     } catch (uploadError) {
+      setIsSubmitting(false);
       setSubmitButtons(form, false);
       setError(uploadError instanceof Error ? uploadError.message : "Images could not be uploaded.");
     }
