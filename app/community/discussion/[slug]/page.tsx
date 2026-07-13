@@ -450,7 +450,11 @@ export default async function CommunityDiscussionPage({
                   compact
                 />
                 {user && (reply.author_id === user.id || canModerate) && (
-                  <ReplyControls reply={reply} returnPath={returnPath} />
+                  <ReplyControls
+                    reply={reply}
+                    images={imagesByReply.get(reply.id) || []}
+                    returnPath={returnPath}
+                  />
                 )}
                 {user && reply.author_id !== user.id && (
                   <ReplyReportForm replyId={reply.id} returnPath={returnPath} />
@@ -667,9 +671,11 @@ function ModerationButton({
 
 function ReplyControls({
   reply,
+  images,
   returnPath,
 }: {
   reply: CommunityReply;
+  images: CommunityImage[];
   returnPath: string;
 }) {
   return (
@@ -689,6 +695,35 @@ function ReplyControls({
             rows={5}
             className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none ring-emerald-400/30 focus:ring-4"
           />
+          {images.length > 0 && (
+            <fieldset className="grid gap-3 rounded-lg border border-white/10 bg-black/20 p-3">
+              <legend className="px-2 text-xs font-black uppercase tracking-wide text-emerald-50/60">
+                Reply Images
+              </legend>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {images.map((image) => (
+                  <label
+                    key={image.id}
+                    className="grid gap-2 rounded-lg border border-white/10 bg-[#07130c] p-2 text-xs font-bold text-emerald-50/75"
+                  >
+                    <span className="aspect-square overflow-hidden rounded-md bg-black/30">
+                      <Image
+                        src={image.image_url}
+                        alt={image.alt_text || image.caption || "Community image"}
+                        width={180}
+                        height={180}
+                        className="h-full w-full object-cover"
+                      />
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <input name="remove_image_ids" type="checkbox" value={image.id} />
+                      Remove image
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
           <button className="w-fit rounded-lg border border-sky-300/20 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-300/10">
             Save Reply
           </button>

@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getCommunityCategories, type MarketplaceDetails } from "@/lib/community";
+import { getCommunityCategories, type CommunityImage, type MarketplaceDetails } from "@/lib/community";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import CommunityDiscussionForm from "@/app/community/CommunityDiscussionForm";
 import { updateCommunityDiscussion } from "@/app/community/actions";
@@ -47,6 +47,7 @@ export default async function EditCommunityDiscussionPage({
     speciesResult,
     { data: marketplaceDetails },
     { data: linkedSpecies },
+    { data: activeImages },
   ] =
     await Promise.all([
       supabase.from("profiles").select("role").eq("id", user.id).maybeSingle<{ role: string | null }>(),
@@ -69,6 +70,14 @@ export default async function EditCommunityDiscussionPage({
         .select("species_id")
         .eq("discussion_id", discussion.id)
         .returns<Array<{ species_id: number }>>(),
+      supabase
+        .from("community_images")
+        .select("id, discussion_id, reply_id, owner_id, image_url, storage_path, alt_text, caption, position, created_at")
+        .eq("discussion_id", discussion.id)
+        .eq("status", "active")
+        .order("position", { ascending: true })
+        .order("created_at", { ascending: true })
+        .returns<CommunityImage[]>(),
     ]);
 
   const canEdit =
@@ -101,6 +110,7 @@ export default async function EditCommunityDiscussionPage({
               initialDiscussion={discussion}
               selectedSpeciesIds={(linkedSpecies || []).map((row) => String(row.species_id))}
               initialMarketplace={marketplaceDetails}
+              initialImages={activeImages || []}
               formError={pageParams.form_error || ""}
             />
           </div>

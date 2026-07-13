@@ -184,6 +184,10 @@ function validateCommunityImagePayload(files: File[], uploadedImages: UploadedCo
   return validateCommunityImageFiles(files);
 }
 
+function uniqueTextValues(values: FormDataEntryValue[]) {
+  return [...new Set(values.map((value) => String(value).trim()).filter(Boolean))];
+}
+
 async function uploadCommunityImages(
   supabase: SupabaseServerClient,
   files: File[],
@@ -779,10 +783,43 @@ export async function updateCommunityDiscussion(formData: FormData) {
     ? communityImageFiles(formData.getAll("image_files"))
     : [];
   const uploadedImages = discussion.category?.images_enabled ? communityUploadedImages(formData) : [];
+  const requestedRemoveImageIds = discussion.category?.images_enabled
+    ? uniqueTextValues(formData.getAll("remove_image_ids"))
+    : [];
+  let removeImageIds: string[] = [];
+  let remainingActiveImageCount = 0;
+
+  if (discussion.category?.images_enabled) {
+    const { data: activeImages, error: activeImagesError } = await supabase
+      .from("community_images")
+      .select("id")
+      .eq("discussion_id", discussionId)
+      .eq("status", "active")
+      .returns<Array<{ id: string }>>();
+
+    if (activeImagesError) throw new Error(activeImagesError.message);
+
+    const activeImageIds = new Set((activeImages || []).map((image) => image.id));
+    removeImageIds = requestedRemoveImageIds.filter((id) => activeImageIds.has(id));
+    remainingActiveImageCount = activeImageIds.size - removeImageIds.length;
+  }
+
   const imageValidationError = validateCommunityImagePayload(imageFiles, uploadedImages);
   if (imageValidationError) {
     redirect(
       withQueryParam(`${discussionPath(discussion.slug)}/edit`, "form_error", imageValidationError)
+    );
+  }
+  if (
+    discussion.category?.images_enabled &&
+    remainingActiveImageCount + imageFiles.length + uploadedImages.length > MAX_COMMUNITY_IMAGE_FILES
+  ) {
+    redirect(
+      withQueryParam(
+        `${discussionPath(discussion.slug)}/edit`,
+        "form_error",
+        `Please keep ${MAX_COMMUNITY_IMAGE_FILES} images or fewer on this discussion.`
+      )
     );
   }
 
@@ -805,6 +842,17 @@ export async function updateCommunityDiscussion(formData: FormData) {
     discussion.category?.species_tagging_enabled ? speciesIds : []
   );
   await syncTags(supabase, discussionId, tags);
+  if (removeImageIds.length) {
+    const imageWriteClient = canModerate ? createSupabaseAdminClient() : supabase;
+    const { error: removeImagesError } = await imageWriteClient
+      .from("community_images")
+      .update({ status: "removed" })
+      .eq("discussion_id", discussionId)
+      .in("id", removeImageIds);
+
+    if (removeImagesError) throw new Error(removeImagesError.message);
+  }
+
   let imageWarning: string | null = null;
   if (discussion.category?.images_enabled) {
     try {
@@ -971,6 +1019,7 @@ export async function updateCommunityReply(formData: FormData) {
   const replyId = textValue(formData.get("reply_id"));
   const body = textValue(formData.get("body"));
   const returnPath = textValue(formData.get("return_path")) || "/community";
+  const requestedRemoveImageIds = uniqueTextValues(formData.getAll("remove_image_ids"));
 
   if (!replyId) throw new Error("Missing reply.");
   if (body.length < 2) throw new Error("Reply is too short.");
@@ -993,6 +1042,21 @@ export async function updateCommunityReply(formData: FormData) {
     throw new Error("You cannot edit this reply.");
   }
 
+  let removeImageIds: string[] = [];
+  if (requestedRemoveImageIds.length) {
+    const { data: activeImages, error: activeImagesError } = await supabase
+      .from("community_images")
+      .select("id")
+      .eq("reply_id", replyId)
+      .eq("status", "active")
+      .returns<Array<{ id: string }>>();
+
+    if (activeImagesError) throw new Error(activeImagesError.message);
+
+    const activeImageIds = new Set((activeImages || []).map((image) => image.id));
+    removeImageIds = requestedRemoveImageIds.filter((id) => activeImageIds.has(id));
+  }
+
   const { error } = await supabase
     .from("community_replies")
     .update({
@@ -1003,6 +1067,17 @@ export async function updateCommunityReply(formData: FormData) {
     .eq("id", replyId);
 
   if (error) throw new Error(error.message);
+
+  if (removeImageIds.length) {
+    const imageWriteClient = canModerate ? createSupabaseAdminClient() : supabase;
+    const { error: removeImagesError } = await imageWriteClient
+      .from("community_images")
+      .update({ status: "removed" })
+      .eq("reply_id", replyId)
+      .in("id", removeImageIds);
+
+    if (removeImagesError) throw new Error(removeImagesError.message);
+  }
 
   const path = reply.discussion?.slug ? discussionPath(reply.discussion.slug) : returnPath;
   revalidatePath(path);

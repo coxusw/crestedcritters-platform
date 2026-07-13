@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { type CommunityCategory, type MarketplaceDetails } from "@/lib/community";
+import Image from "next/image";
+import { type CommunityCategory, type CommunityImage, type MarketplaceDetails } from "@/lib/community";
 import CommunityFormShell from "@/app/community/CommunityFormShell";
 
 type SpeciesOption = {
@@ -25,6 +26,7 @@ export default function CommunityDiscussionForm({
   selectedSpeciesIds = selectedSpeciesId ? [selectedSpeciesId] : [],
   formError = "",
   initialMarketplace = null,
+  initialImages = [],
 }: {
   action: (formData: FormData) => Promise<void>;
   categories: CommunityCategory[];
@@ -35,6 +37,7 @@ export default function CommunityDiscussionForm({
   selectedSpeciesIds?: string[];
   formError?: string;
   initialMarketplace?: MarketplaceDetails | null;
+  initialImages?: CommunityImage[];
 }) {
   const selectedCategory =
     categories.find((category) => category.slug === selectedCategorySlug) ||
@@ -140,19 +143,51 @@ export default function CommunityDiscussionForm({
       </label>
 
       {imagesEnabled && (
-        <label className="grid gap-2">
-          <span className="text-sm font-black text-emerald-50/80">Images</span>
-          <input
-            name="image_files"
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            multiple
-            className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-sm text-emerald-50/80 outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:font-black file:text-slate-950 hover:file:bg-emerald-300"
-          />
-          <span className="text-xs text-emerald-50/45">
-            Add up to 5 JPG, PNG, WEBP, or GIF images. Each image must be under 10MB.
-          </span>
-        </label>
+        <div className="grid gap-4">
+          {initialImages.length > 0 && (
+            <fieldset className="grid gap-3 rounded-lg border border-white/10 bg-[#07130c]/70 p-4">
+              <legend className="px-2 text-sm font-black text-emerald-50/80">
+                Current Images
+              </legend>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {initialImages.map((image) => (
+                  <label
+                    key={image.id}
+                    className="grid gap-2 rounded-lg border border-white/10 bg-black/20 p-2 text-xs font-bold text-emerald-50/75"
+                  >
+                    <span className="aspect-square overflow-hidden rounded-md bg-black/30">
+                      <Image
+                        src={image.image_url}
+                        alt={image.alt_text || image.caption || "Community image"}
+                        width={240}
+                        height={240}
+                        className="h-full w-full object-cover"
+                      />
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <input name="remove_image_ids" type="checkbox" value={image.id} />
+                      Remove image
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
+
+          <label className="grid gap-2">
+            <span className="text-sm font-black text-emerald-50/80">Images</span>
+            <input
+              name="image_files"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              multiple
+              className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-sm text-emerald-50/80 outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:font-black file:text-slate-950 hover:file:bg-emerald-300"
+            />
+            <span className="text-xs text-emerald-50/45">
+              Add up to 5 JPG, PNG, WEBP, or GIF images. Each image must be under 10MB.
+            </span>
+          </label>
+        </div>
       )}
 
       {isMarketplace && (
