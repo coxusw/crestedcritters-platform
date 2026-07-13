@@ -212,6 +212,7 @@ export async function getCommunityDiscussions(
     authorId?: string;
     savedBy?: string;
     followedBy?: string;
+    followingBy?: string;
     search?: string;
     sort?: string;
     limit?: number;
@@ -254,6 +255,60 @@ export async function getCommunityDiscussions(
 
     const { data: listingRows } = await marketplaceQuery.returns<Array<{ discussion_id: string }>>();
     discussionIdFilters.push(new Set((listingRows || []).map((row) => row.discussion_id)));
+  }
+
+  if (options.savedBy) {
+    const { data: saves } = await supabase
+      .from("community_saves")
+      .select("discussion_id")
+      .eq("profile_id", options.savedBy)
+      .returns<Array<{ discussion_id: string }>>();
+
+    discussionIdFilters.push(new Set((saves || []).map((save) => save.discussion_id)));
+  }
+
+  if (options.followedBy) {
+    const { data: follows } = await supabase
+      .from("community_follows")
+      .select("discussion_id")
+      .eq("profile_id", options.followedBy)
+      .returns<Array<{ discussion_id: string }>>();
+
+    discussionIdFilters.push(new Set((follows || []).map((follow) => follow.discussion_id)));
+  }
+
+  if (options.followingBy) {
+    const [discussionFollowsResult, speciesFollowsResult] = await Promise.all([
+      supabase
+        .from("community_follows")
+        .select("discussion_id")
+        .eq("profile_id", options.followingBy)
+        .returns<Array<{ discussion_id: string }>>(),
+      supabase
+        .from("species_follows")
+        .select("species_id")
+        .eq("profile_id", options.followingBy)
+        .returns<Array<{ species_id: number }>>(),
+    ]);
+
+    const followedIds = new Set(
+      (discussionFollowsResult.data || []).map((follow) => follow.discussion_id)
+    );
+    const speciesIds = (speciesFollowsResult.data || []).map((follow) => follow.species_id);
+
+    if (speciesIds.length) {
+      const { data: speciesDiscussionRows } = await supabase
+        .from("community_discussion_species")
+        .select("discussion_id")
+        .in("species_id", speciesIds)
+        .returns<Array<{ discussion_id: string }>>();
+
+      for (const row of speciesDiscussionRows || []) {
+        followedIds.add(row.discussion_id);
+      }
+    }
+
+    discussionIdFilters.push(followedIds);
   }
 
   const constrainedDiscussionIds = intersectSets(discussionIdFilters);
@@ -349,29 +404,7 @@ export async function getCommunityDiscussions(
 
   if (error) throw new Error(error.message);
 
-  let rows = data || [];
-
-  if (options.savedBy) {
-    const { data: saves } = await supabase
-      .from("community_saves")
-      .select("discussion_id")
-      .eq("profile_id", options.savedBy)
-      .returns<Array<{ discussion_id: string }>>();
-    const savedIds = new Set((saves || []).map((save) => save.discussion_id));
-    rows = rows.filter((discussion) => savedIds.has(discussion.id));
-  }
-
-  if (options.followedBy) {
-    const { data: follows } = await supabase
-      .from("community_follows")
-      .select("discussion_id")
-      .eq("profile_id", options.followedBy)
-      .returns<Array<{ discussion_id: string }>>();
-    const followedIds = new Set((follows || []).map((follow) => follow.discussion_id));
-    rows = rows.filter((discussion) => followedIds.has(discussion.id));
-  }
-
-  return rows;
+  return data || [];
 }
 
 function intersectSets(sets: Array<Set<string>>) {
