@@ -21,6 +21,7 @@ export default function CommunityDiscussionForm({
   initialDiscussion = null,
   selectedCategorySlug = "",
   selectedSpeciesId = "",
+  selectedSpeciesIds = selectedSpeciesId ? [selectedSpeciesId] : [],
   formError = "",
   initialMarketplace = null,
 }: {
@@ -30,6 +31,7 @@ export default function CommunityDiscussionForm({
   initialDiscussion?: InitialDiscussion | null;
   selectedCategorySlug?: string;
   selectedSpeciesId?: string;
+  selectedSpeciesIds?: string[];
   formError?: string;
   initialMarketplace?: MarketplaceDetails | null;
 }) {
@@ -111,7 +113,7 @@ export default function CommunityDiscussionForm({
           <select
             name="species_ids"
             multiple
-            defaultValue={selectedSpeciesId ? [selectedSpeciesId] : []}
+            defaultValue={selectedSpeciesIds}
             className="min-h-40 rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
           >
             {species.map((item) => (

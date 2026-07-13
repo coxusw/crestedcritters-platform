@@ -46,6 +46,7 @@ export default async function EditCommunityDiscussionPage({
     categories,
     speciesResult,
     { data: marketplaceDetails },
+    { data: linkedSpecies },
   ] =
     await Promise.all([
       supabase.from("profiles").select("role").eq("id", user.id).maybeSingle<{ role: string | null }>(),
@@ -63,6 +64,11 @@ export default async function EditCommunityDiscussionPage({
         )
         .eq("discussion_id", discussion.id)
         .maybeSingle<MarketplaceDetails>(),
+      supabase
+        .from("community_discussion_species")
+        .select("species_id")
+        .eq("discussion_id", discussion.id)
+        .returns<Array<{ species_id: number }>>(),
     ]);
 
   const canEdit =
@@ -93,6 +99,7 @@ export default async function EditCommunityDiscussionPage({
               categories={categories}
               species={speciesResult.data || []}
               initialDiscussion={discussion}
+              selectedSpeciesIds={(linkedSpecies || []).map((row) => String(row.species_id))}
               initialMarketplace={marketplaceDetails}
               formError={pageParams.form_error || ""}
             />

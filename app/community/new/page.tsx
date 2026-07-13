@@ -57,6 +57,7 @@ export default async function NewCommunityDiscussionPage({
               species={speciesResult.data || []}
               selectedCategorySlug={params.category || ""}
               selectedSpeciesId={params.species || ""}
+              selectedSpeciesIds={params.species ? [params.species] : []}
               formError={params.form_error || ""}
             />
           </div>

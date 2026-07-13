@@ -102,6 +102,13 @@ function withQueryParam(path: string, key: string, value: string) {
   return hash ? `${nextPath}#${hash}` : nextPath;
 }
 
+function newDiscussionErrorPath(categorySlug: string, message: string) {
+  const basePath = categorySlug
+    ? `/community/new?category=${encodeURIComponent(categorySlug)}`
+    : "/community/new";
+  return withQueryParam(basePath, "form_error", message);
+}
+
 function safeImageExtension(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
   if (extension === "jpeg") return "jpg";
@@ -497,13 +504,19 @@ export async function createCommunityDiscussion(formData: FormData) {
   const tags = textValue(formData.get("tags"));
   const speciesIds = formData.getAll("species_ids").map((value) => String(value));
 
-  if (title.length < 4) throw new Error("Please add a longer title.");
-  if (body.length < 10) throw new Error("Please add more detail before posting.");
+  if (title.length < 4) {
+    redirect(newDiscussionErrorPath(categorySlug, "Please add a longer title."));
+  }
+  if (body.length < 10) {
+    redirect(newDiscussionErrorPath(categorySlug, "Please add more detail before posting."));
+  }
 
   const category = await getCommunityCategoryBySlug(supabase, categorySlug);
-  if (!category || !category.is_active) throw new Error("Category not found.");
+  if (!category || !category.is_active) {
+    redirect(newDiscussionErrorPath(categorySlug, "Category not found."));
+  }
   if (category.staff_only_posting && !canModerate) {
-    throw new Error("Only staff can start discussions in this category.");
+    redirect(newDiscussionErrorPath(category.slug, "Only staff can start discussions in this category."));
   }
   const imageFiles = category.images_enabled ? communityImageFiles(formData.getAll("image_files")) : [];
   const imageValidationError = validateCommunityImageFiles(imageFiles);
@@ -515,7 +528,7 @@ export async function createCommunityDiscussion(formData: FormData) {
     const createdAt = new Date(profile.created_at).getTime();
     const ageDays = (Date.now() - createdAt) / 86_400_000;
     if (ageDays < category.minimum_account_age_days && !canModerate) {
-      throw new Error("Your account is too new to post in this category.");
+      redirect(newDiscussionErrorPath(category.slug, "Your account is too new to post in this category."));
     }
   }
 
@@ -547,19 +560,47 @@ export async function createCommunityDiscussion(formData: FormData) {
     moderation_status: status === "pending" ? "pending" : "clear",
   });
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Failed to create community discussion:", error.message);
+    redirect(newDiscussionErrorPath(category.slug, "Your discussion could not be saved. Please try again."));
+  }
 
-  const linkedSpeciesIds = await syncSpeciesLinks(
-    supabase,
-    id,
-    category.species_tagging_enabled ? speciesIds : []
-  );
-  await syncTags(supabase, id, tags);
+  let linkedSpeciesIds: number[] = [];
+  try {
+    linkedSpeciesIds = await syncSpeciesLinks(
+      supabase,
+      id,
+      category.species_tagging_enabled ? speciesIds : []
+    );
+  } catch (linkError) {
+    console.error(
+      "Failed to link community discussion species:",
+      linkError instanceof Error ? linkError.message : linkError
+    );
+  }
+
+  try {
+    await syncTags(supabase, id, tags);
+  } catch (tagError) {
+    console.error(
+      "Failed to sync community discussion tags:",
+      tagError instanceof Error ? tagError.message : tagError
+    );
+  }
+
   let imageWarning: string | null = null;
   if (category.images_enabled) {
-    imageWarning = await uploadCommunityImages(supabase, imageFiles, user.id, {
-      discussionId: id,
-    });
+    try {
+      imageWarning = await uploadCommunityImages(supabase, imageFiles, user.id, {
+        discussionId: id,
+      });
+    } catch (imageError) {
+      console.error(
+        "Failed to attach community discussion images:",
+        imageError instanceof Error ? imageError.message : imageError
+      );
+      imageWarning = "Images could not be attached. The post was saved.";
+    }
   }
 
   if (category.marketplace_rules) {
@@ -572,19 +613,28 @@ export async function createCommunityDiscussion(formData: FormData) {
       expiration_date: expiration.toISOString().slice(0, 10),
     });
 
-    if (listingError) throw new Error(listingError.message);
+    if (listingError) {
+      console.error("Failed to create marketplace listing details:", listingError.message);
+    }
   }
 
-  await createMentionNotifications(supabase, id, user.id, body, discussionPath(slug));
-  if (status === "published") {
-    await createSpeciesFollowNotifications({
-      discussionId: id,
-      actorId: user.id,
-      title,
-      slug,
-      speciesIds: linkedSpeciesIds,
-      contentType,
-    });
+  try {
+    await createMentionNotifications(supabase, id, user.id, body, discussionPath(slug));
+    if (status === "published") {
+      await createSpeciesFollowNotifications({
+        discussionId: id,
+        actorId: user.id,
+        title,
+        slug,
+        speciesIds: linkedSpeciesIds,
+        contentType,
+      });
+    }
+  } catch (notificationError) {
+    console.error(
+      "Failed to create community discussion notifications:",
+      notificationError instanceof Error ? notificationError.message : notificationError
+    );
   }
 
   revalidatePath("/community");
