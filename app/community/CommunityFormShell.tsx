@@ -12,6 +12,7 @@ type UploadedCommunityImage = {
   image_url: string;
   storage_path: string;
   alt_text: string | null;
+  caption: string;
   position: number;
 };
 
@@ -47,6 +48,30 @@ function upsertUploadsInput(form: HTMLFormElement, uploads: UploadedCommunityIma
     form.appendChild(input);
   }
   input.value = JSON.stringify(uploads);
+}
+
+function cleanImageCaption(value: string) {
+  return value.trim().replace(/\s+/g, " ").slice(0, 180);
+}
+
+function newImageCaptions(form: HTMLFormElement) {
+  const input = form.querySelector<HTMLTextAreaElement | HTMLInputElement>("[name='new_image_captions']");
+  const raw = input?.value || "";
+
+  return raw
+    .split(/\r?\n/)
+    .map(cleanImageCaption);
+}
+
+function validateNewImageCaptions(files: File[], captions: string[]) {
+  if (!files.length) return null;
+
+  const missingCaption = files.some((_, index) => !captions[index]);
+  if (missingCaption) {
+    return "Please add a caption for each image, one caption per line.";
+  }
+
+  return null;
 }
 
 function nextRedirectDestination(error: unknown) {
@@ -117,6 +142,15 @@ export default function CommunityFormShell({
       }
     }
 
+    const captions = newImageCaptions(form);
+    const captionError = validateNewImageCaptions(files, captions);
+    if (captionError) {
+      setIsSubmitting(false);
+      setSubmitButtons(form, false);
+      setError(captionError);
+      return;
+    }
+
     try {
       const uploads: UploadedCommunityImage[] = [];
 
@@ -151,6 +185,7 @@ export default function CommunityFormShell({
             image_url: data.publicUrl,
             storage_path: storagePath,
             alt_text: file.name || null,
+            caption: captions[index],
             position: index + 1,
           };
         }));

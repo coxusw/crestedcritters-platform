@@ -910,7 +910,7 @@ export default async function SpeciesPage({ params }: PageProps) {
             id: "primary",
             imageUrl: species.image_url,
             alt: species.common_name,
-            caption: primaryGalleryImage?.caption || null,
+            caption: primaryGalleryImage?.caption || species.common_name,
             creditName: primaryGalleryImage
               ? galleryCreditName(primaryGalleryImage)
               : primaryFallbackCredit
@@ -929,7 +929,7 @@ export default async function SpeciesPage({ params }: PageProps) {
       id: image.id,
       imageUrl: image.image_url,
       alt: image.caption || species.common_name,
-      caption: image.caption,
+      caption: image.caption || species.common_name,
       creditName: galleryCreditName(image),
       creditProfileUrl: profileCreditUrl(image.profiles),
       isPrimary: false,

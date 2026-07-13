@@ -73,6 +73,10 @@ export const metadata: Metadata = {
     follow: true,
   },
 
+  verification: {
+    google: "gm-TxKm5PItl-X750ts1H5jHTaYvYm3Oe5APEUwPEyU",
+  },
+
   alternates: {
     canonical: siteUrl,
   },

@@ -368,7 +368,7 @@ export default function CommunityDiscussionForm({
                         defaultValue={image.caption || ""}
                         maxLength={180}
                         className="rounded-md border border-white/10 bg-[#07130c] px-3 py-2 text-xs text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
-                        placeholder="Optional caption"
+                        placeholder="Required caption"
                       />
                     </span>
                   </label>
@@ -388,6 +388,21 @@ export default function CommunityDiscussionForm({
             />
             <span className="text-xs text-emerald-50/45">
               Add up to 5 JPG, PNG, WEBP, or GIF images. Each image must be under 10MB.
+            </span>
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-black text-emerald-50/80">
+              New Image Captions
+            </span>
+            <textarea
+              name="new_image_captions"
+              rows={3}
+              maxLength={900}
+              className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-sm text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
+              placeholder="Required when adding images. Add one caption per image, in the same order."
+            />
+            <span className="text-xs text-emerald-50/45">
+              Example: Panda King adult on cork bark. Use a new line for each photo.
             </span>
           </label>
         </div>

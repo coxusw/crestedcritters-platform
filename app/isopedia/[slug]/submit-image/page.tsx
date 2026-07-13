@@ -78,6 +78,11 @@ export default function SubmitSpeciesImagePage() {
       return;
     }
 
+    if (!caption.trim()) {
+      setError("Please add a caption for this image.");
+      return;
+    }
+
     if (!imageFile.type.startsWith("image/")) {
       setError("Uploaded file must be an image.");
       return;
@@ -221,16 +226,22 @@ export default function SubmitSpeciesImagePage() {
 
             <label className="grid gap-2">
               <span className="text-xs font-bold uppercase tracking-widest text-emerald-100/60">
-                Caption
+                Caption *
               </span>
 
               <textarea
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 rows={4}
-                placeholder="Optional notes about the image..."
+                required
+                minLength={2}
+                maxLength={180}
+                placeholder={`Example: ${species?.common_name || "Species name"} adult on cork bark`}
                 className="rounded-2xl border border-white/10 bg-[#0b140d] px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-emerald-400"
               />
+              <span className="text-xs text-emerald-50/45">
+                Captions help image search, accessibility, and photo context.
+              </span>
             </label>
 
             {error && (

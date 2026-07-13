@@ -32,6 +32,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing gallery image details." }, { status: 400 });
   }
 
+  if (!caption) {
+    return NextResponse.json({ error: "Please add an image caption." }, { status: 400 });
+  }
+
   const { data: image, error } = await supabase
     .from("isopedia_species_images")
     .insert({

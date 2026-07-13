@@ -97,6 +97,11 @@ export default function GuideSubmitForm() {
       return;
     }
 
+    if (images.some((image) => image.caption.trim().length < 2)) {
+      setError("Please add a caption for each guide image.");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -232,7 +237,7 @@ export default function GuideSubmitForm() {
           <h2 className="text-xl font-black text-white">Pictures</h2>
           <p className="mt-2 text-sm leading-6 text-emerald-50/55">
             Add up to {MAX_GUIDE_IMAGES} pictures. Photos should be yours or
-            shared with clear permission. Each image must be under 10MB.
+            shared with clear permission. Each image must be under 10MB and needs a caption.
           </p>
         </div>
 
@@ -268,7 +273,10 @@ export default function GuideSubmitForm() {
                         )
                       );
                     }}
-                    placeholder="Optional caption"
+                    required
+                    minLength={2}
+                    maxLength={180}
+                    placeholder="Required caption"
                     className="mt-3 rounded-xl border border-white/10 bg-[#07130c] px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/40"
                   />
                 </div>

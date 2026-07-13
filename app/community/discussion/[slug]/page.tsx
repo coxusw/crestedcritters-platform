@@ -901,7 +901,7 @@ function ReplyControls({
                           defaultValue={image.caption || ""}
                           maxLength={180}
                           className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
-                          placeholder="Optional caption"
+                          placeholder="Required caption"
                         />
                       </span>
                     </label>
@@ -910,19 +910,33 @@ function ReplyControls({
               </fieldset>
             )}
             {imagesEnabled && (
-              <label className="grid gap-2">
-                <span className="text-sm font-black text-emerald-50/80">Add Images</span>
-                <input
-                  name="image_files"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  multiple
-                  className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-emerald-50/80 outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:font-black file:text-slate-950 hover:file:bg-emerald-300"
-                />
-                <span className="text-xs text-emerald-50/45">
-                  Add up to 5 total JPG, PNG, WEBP, or GIF images. Each image must be under 10MB.
-                </span>
-              </label>
+              <div className="grid gap-3">
+                <label className="grid gap-2">
+                  <span className="text-sm font-black text-emerald-50/80">Add Images</span>
+                  <input
+                    name="image_files"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    multiple
+                    className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-emerald-50/80 outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:font-black file:text-slate-950 hover:file:bg-emerald-300"
+                  />
+                  <span className="text-xs text-emerald-50/45">
+                    Add up to 5 total JPG, PNG, WEBP, or GIF images. Each image must be under 10MB.
+                  </span>
+                </label>
+                <label className="grid gap-2">
+                  <span className="text-sm font-black text-emerald-50/80">
+                    New Image Captions
+                  </span>
+                  <textarea
+                    name="new_image_captions"
+                    rows={3}
+                    maxLength={900}
+                    className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
+                    placeholder="Required when adding images. Add one caption per image, in the same order."
+                  />
+                </label>
+              </div>
             )}
             <button className="w-fit rounded-lg border border-sky-300/20 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-300/10">
               Save Reply

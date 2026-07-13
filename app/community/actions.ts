@@ -36,6 +36,7 @@ type UploadedCommunityImage = {
   image_url: string;
   storage_path: string;
   alt_text: string | null;
+  caption: string;
   position: number;
 };
 
@@ -174,6 +175,7 @@ function communityUploadedImages(formData: FormData) {
           image_url: imageUrl,
           storage_path: storagePath,
           alt_text: typeof image.alt_text === "string" ? image.alt_text : null,
+          caption: typeof image.caption === "string" ? image.caption.trim().slice(0, 180) : "",
           position: Number(image.position) || index + 1,
         } satisfies UploadedCommunityImage;
       })
@@ -185,12 +187,41 @@ function communityUploadedImages(formData: FormData) {
   }
 }
 
-function validateCommunityImagePayload(files: File[], uploadedImages: UploadedCommunityImage[]) {
+function newCommunityImageCaptions(formData: FormData) {
+  return textValue(formData.get("new_image_captions"))
+    .split(/\r?\n/)
+    .map((caption) => caption.trim().replace(/\s+/g, " ").slice(0, 180));
+}
+
+function validateNewCommunityImageCaptions(
+  files: File[],
+  uploadedImages: UploadedCommunityImage[],
+  captions: string[]
+) {
+  if (files.some((_, index) => !captions[index])) {
+    return "Please add a caption for each image, one caption per line.";
+  }
+
+  if (uploadedImages.some((image) => !image.caption)) {
+    return "Please add a caption for each image.";
+  }
+
+  return null;
+}
+
+function validateCommunityImagePayload(
+  files: File[],
+  uploadedImages: UploadedCommunityImage[],
+  captions: string[] = []
+) {
   const totalImages = files.length + uploadedImages.length;
   if (totalImages > MAX_COMMUNITY_IMAGE_FILES) {
     return `Please upload ${MAX_COMMUNITY_IMAGE_FILES} images or fewer.`;
   }
-  return validateCommunityImageFiles(files);
+  return (
+    validateCommunityImageFiles(files) ||
+    validateNewCommunityImageCaptions(files, uploadedImages, captions)
+  );
 }
 
 function uniqueTextValues(values: FormDataEntryValue[]) {
@@ -199,7 +230,8 @@ function uniqueTextValues(values: FormDataEntryValue[]) {
 
 function communityImageCaption(formData: FormData, imageId: string) {
   const caption = textValue(formData.get(`image_caption_${imageId}`));
-  return caption ? caption.slice(0, 180) : null;
+  if (!caption) throw new Error("Please add a caption for each image.");
+  return caption.slice(0, 180);
 }
 
 async function updateCommunityImageCaptions(
@@ -229,7 +261,8 @@ async function uploadCommunityImages(
   supabase: SupabaseServerClient,
   files: File[],
   ownerId: string,
-  target: { discussionId?: string; replyId?: string }
+  target: { discussionId?: string; replyId?: string },
+  captions: string[] = []
 ) {
   if (!files.length) return null;
 
@@ -250,6 +283,7 @@ async function uploadCommunityImages(
     image_url: string;
     storage_path: string;
     alt_text: string | null;
+    caption: string;
     position: number;
   }> = [];
 
@@ -281,6 +315,7 @@ async function uploadCommunityImages(
       image_url: data.publicUrl,
       storage_path: storagePath,
       alt_text: file.name || null,
+      caption: captions[index] || file.name || "Community image",
       position: index + 1,
     });
   }
@@ -317,6 +352,7 @@ async function saveUploadedCommunityImages(
       image_url: image.image_url,
       storage_path: image.storage_path,
       alt_text: image.alt_text,
+      caption: image.caption,
       position: image.position || index + 1,
     }));
 
@@ -701,7 +737,8 @@ export async function createCommunityDiscussion(formData: FormData) {
   }
   const imageFiles = category.images_enabled ? communityImageFiles(formData.getAll("image_files")) : [];
   const uploadedImages = category.images_enabled ? communityUploadedImages(formData) : [];
-  const imageValidationError = validateCommunityImagePayload(imageFiles, uploadedImages);
+  const imageCaptions = category.images_enabled ? newCommunityImageCaptions(formData) : [];
+  const imageValidationError = validateCommunityImagePayload(imageFiles, uploadedImages, imageCaptions);
   if (imageValidationError) {
     redirect(withQueryParam(`/community/new?category=${category.slug}`, "form_error", imageValidationError));
   }
@@ -791,7 +828,7 @@ export async function createCommunityDiscussion(formData: FormData) {
           })
         : await uploadCommunityImages(supabase, imageFiles, user.id, {
             discussionId: id,
-          });
+          }, imageCaptions);
     } catch (imageError) {
       console.error(
         "Failed to attach community discussion images:",
@@ -908,6 +945,7 @@ export async function updateCommunityDiscussion(formData: FormData) {
     ? communityImageFiles(formData.getAll("image_files"))
     : [];
   const uploadedImages = discussion.category?.images_enabled ? communityUploadedImages(formData) : [];
+  const imageCaptions = discussion.category?.images_enabled ? newCommunityImageCaptions(formData) : [];
   const requestedRemoveImageIds = discussion.category?.images_enabled
     ? uniqueTextValues(formData.getAll("remove_image_ids"))
     : [];
@@ -931,7 +969,7 @@ export async function updateCommunityDiscussion(formData: FormData) {
     remainingActiveImageCount = activeImageIds.size - removeImageIds.length;
   }
 
-  const imageValidationError = validateCommunityImagePayload(imageFiles, uploadedImages);
+  const imageValidationError = validateCommunityImagePayload(imageFiles, uploadedImages, imageCaptions);
   if (imageValidationError) {
     redirect(
       withQueryParam(`${discussionPath(discussion.slug)}/edit`, "form_error", imageValidationError)
@@ -997,7 +1035,7 @@ export async function updateCommunityDiscussion(formData: FormData) {
           })
         : await uploadCommunityImages(supabase, imageFiles, user.id, {
             discussionId,
-          });
+          }, imageCaptions);
     } catch (imageError) {
       console.error(
         "Failed to attach updated community discussion images:",
@@ -1084,7 +1122,8 @@ export async function createCommunityReply(formData: FormData) {
     ? communityImageFiles(formData.getAll("image_files"))
     : [];
   const uploadedImages = discussion.category?.images_enabled ? communityUploadedImages(formData) : [];
-  const imageValidationError = validateCommunityImagePayload(imageFiles, uploadedImages);
+  const imageCaptions = discussion.category?.images_enabled ? newCommunityImageCaptions(formData) : [];
+  const imageValidationError = validateCommunityImagePayload(imageFiles, uploadedImages, imageCaptions);
   if (imageValidationError) {
     redirect(withQueryParam(discussionPath(discussion.slug), "form_error", imageValidationError));
   }
@@ -1109,7 +1148,7 @@ export async function createCommunityReply(formData: FormData) {
           })
         : await uploadCommunityImages(supabase, imageFiles, user.id, {
             replyId: reply.id,
-          });
+          }, imageCaptions);
     } catch (imageError) {
       console.error(
         "Failed to attach community reply images:",
@@ -1185,6 +1224,7 @@ export async function updateCommunityReply(formData: FormData) {
   const imagesEnabled = Boolean(reply.discussion?.category?.images_enabled);
   const imageFiles = imagesEnabled ? communityImageFiles(formData.getAll("image_files")) : [];
   const uploadedImages = imagesEnabled ? communityUploadedImages(formData) : [];
+  const imageCaptions = imagesEnabled ? newCommunityImageCaptions(formData) : [];
   let removeImageIds: string[] = [];
   let captionImageIds: string[] = [];
   let remainingActiveImageCount = 0;
@@ -1205,7 +1245,7 @@ export async function updateCommunityReply(formData: FormData) {
     remainingActiveImageCount = activeImageIds.size - removeImageIds.length;
   }
 
-  const imageValidationError = validateCommunityImagePayload(imageFiles, uploadedImages);
+  const imageValidationError = validateCommunityImagePayload(imageFiles, uploadedImages, imageCaptions);
   if (imageValidationError) {
     redirect(withQueryParam(`${returnPath}#reply-${replyId}`, "form_error", imageValidationError));
   }
@@ -1261,7 +1301,7 @@ export async function updateCommunityReply(formData: FormData) {
           })
         : await uploadCommunityImages(supabase, imageFiles, user.id, {
             replyId,
-          });
+          }, imageCaptions);
     } catch (imageError) {
       console.error(
         "Failed to attach updated community reply images:",
