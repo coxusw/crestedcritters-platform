@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useMemo, useState } from "react";
 import { type CommunityCategory, type CommunityImage, type MarketplaceDetails } from "@/lib/community";
 import CommunityFormShell from "@/app/community/CommunityFormShell";
+import LinkifiedText from "@/app/community/LinkifiedText";
 
 type SpeciesOption = {
   id: number;
@@ -47,6 +48,9 @@ export default function CommunityDiscussionForm({
     categories.find((category) => category.id === initialDiscussion?.category_id) ||
     categories[0];
   const [activeCategorySlug, setActiveCategorySlug] = useState(initialCategory?.slug || "");
+  const [title, setTitle] = useState(initialDiscussion?.title || "");
+  const [body, setBody] = useState(initialDiscussion?.body || "");
+  const [showPreview, setShowPreview] = useState(false);
   const selectedCategory = useMemo(
     () => categories.find((category) => category.slug === activeCategorySlug) || initialCategory,
     [activeCategorySlug, categories, initialCategory]
@@ -96,7 +100,8 @@ export default function CommunityDiscussionForm({
         <span className="text-sm font-black text-emerald-50/80">Title</span>
         <input
           name="title"
-          defaultValue={initialDiscussion?.title || ""}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
           required
           minLength={4}
           maxLength={140}
@@ -109,7 +114,8 @@ export default function CommunityDiscussionForm({
         <span className="text-sm font-black text-emerald-50/80">Body</span>
         <textarea
           name="body"
-          defaultValue={initialDiscussion?.body || ""}
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
           required
           minLength={10}
           rows={12}
@@ -117,6 +123,39 @@ export default function CommunityDiscussionForm({
           placeholder="Share details, context, photos you plan to add, sources, or what you have tried so far."
         />
       </label>
+
+      <section className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-sm font-black uppercase tracking-wide text-emerald-50/70">
+            Post Preview
+          </h2>
+          <button
+            type="button"
+            onClick={() => setShowPreview((value) => !value)}
+            className="rounded-lg border border-emerald-400/25 px-4 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-400/10"
+          >
+            {showPreview ? "Hide Preview" : "Show Preview"}
+          </button>
+        </div>
+
+        {showPreview && (
+          <article className="mt-4 rounded-lg border border-white/10 bg-[#07130c] p-4">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">
+              {selectedCategory?.name || "Community"}
+            </p>
+            <h3 className="mt-2 text-2xl font-black text-white">
+              {title.trim() || "Untitled discussion"}
+            </h3>
+            <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-emerald-50/80">
+              {body.trim() ? (
+                <LinkifiedText text={body.trim()} />
+              ) : (
+                "Your post body will appear here."
+              )}
+            </p>
+          </article>
+        )}
+      </section>
 
       {selectedCategory?.species_tagging_enabled && (
         <label className="grid gap-2">
