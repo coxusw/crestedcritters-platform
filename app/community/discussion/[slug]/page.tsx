@@ -24,6 +24,7 @@ import {
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { InlineBadges } from "@/app/community/CommunityCards";
 import CommunityFormShell from "@/app/community/CommunityFormShell";
+import CommunityReplyForm from "@/app/community/CommunityReplyForm";
 import LinkifiedText from "@/app/community/LinkifiedText";
 import {
   createCommunityReply,
@@ -561,40 +562,11 @@ export default async function CommunityDiscussionPage({
           </div>
 
           {user && !discussion.locked ? (
-            <CommunityFormShell action={createCommunityReply} className="mt-6 grid gap-3">
-              <input type="hidden" name="discussion_id" value={discussion.id} />
-              <label className="grid gap-2">
-                <span className="text-sm font-black text-emerald-50/80">Reply</span>
-                <textarea
-                  name="body"
-                  required
-                  minLength={2}
-                  rows={5}
-                  className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
-                />
-              </label>
-              {discussion.category?.images_enabled && (
-                <label className="grid gap-2">
-                  <span className="text-sm font-black text-emerald-50/80">Images</span>
-                  <input
-                    name="image_files"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    multiple
-                    className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-sm text-emerald-50/80 outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:font-black file:text-slate-950 hover:file:bg-emerald-300"
-                  />
-                  <span className="text-xs text-emerald-50/45">
-                    Add up to 5 JPG, PNG, WEBP, or GIF images. Each image must be under 10MB.
-                  </span>
-                </label>
-              )}
-              <button
-                data-submitting-label="Submitting..."
-                className="w-fit rounded-lg bg-emerald-400 px-5 py-3 font-black text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Post Reply
-              </button>
-            </CommunityFormShell>
+            <CommunityReplyForm
+              action={createCommunityReply}
+              discussionId={discussion.id}
+              imagesEnabled={Boolean(discussion.category?.images_enabled)}
+            />
           ) : discussion.locked ? (
             <p className="mt-6 rounded-lg border border-red-300/20 bg-red-400/10 p-4 text-sm text-red-100">
               This discussion is locked.
