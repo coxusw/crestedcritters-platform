@@ -373,7 +373,7 @@ export default async function CommunityDiscussionPage({
               </span>
             )}
             <InlineBadges badges={badgesByProfile.get(discussion.author_id || "") || []} />
-            <span>•</span>
+            <span>|</span>
             <span>{new Date(discussion.created_at).toLocaleString()}</span>
             {discussion.edited_at && <span>Edited</span>}
           </div>
@@ -515,7 +515,7 @@ export default async function CommunityDiscussionPage({
                     <span className="font-bold">{communityProfileName(reply.author)}</span>
                   )}
                   <InlineBadges badges={badgesByProfile.get(reply.author_id || "") || []} />
-                  <span>•</span>
+                  <span>|</span>
                   <span>{new Date(reply.created_at).toLocaleString()}</span>
                   {reply.is_accepted_answer && (
                     <span className="rounded-full bg-lime-300/15 px-2 py-0.5 text-xs font-black text-lime-100">

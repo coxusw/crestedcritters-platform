@@ -96,7 +96,7 @@ export function DiscussionCard({
           <span className="font-bold text-emerald-100">{authorName}</span>
         )}
         <InlineBadges badges={badges} />
-        <span>•</span>
+        <span>|</span>
         <span>{formatDate(discussion.last_activity_at)}</span>
         {marketplaceDetails?.expiration_date && (
           <>
