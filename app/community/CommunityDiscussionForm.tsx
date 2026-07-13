@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { type CommunityCategory } from "@/lib/community";
+import { type CommunityCategory, type MarketplaceDetails } from "@/lib/community";
 
 type SpeciesOption = {
   id: number;
@@ -22,6 +22,7 @@ export default function CommunityDiscussionForm({
   selectedCategorySlug = "",
   selectedSpeciesId = "",
   formError = "",
+  initialMarketplace = null,
 }: {
   action: (formData: FormData) => Promise<void>;
   categories: CommunityCategory[];
@@ -30,6 +31,7 @@ export default function CommunityDiscussionForm({
   selectedCategorySlug?: string;
   selectedSpeciesId?: string;
   formError?: string;
+  initialMarketplace?: MarketplaceDetails | null;
 }) {
   const selectedCategory =
     categories.find((category) => category.slug === selectedCategorySlug) ||
@@ -163,22 +165,65 @@ export default function CommunityDiscussionForm({
           </p>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field name="listing_type" label="Listing Type" as="select" />
-            <Field name="species_or_product" label="Species or Product" />
-            <Field name="quantity" label="Quantity" />
-            <Field name="price" label="Price or Range" />
-            <Field name="location" label="Location" />
-            <Field name="state" label="State" />
-            <Field name="expo_name" label="Expo Name" />
-            <Field name="preferred_contact_method" label="Preferred Contact" />
+            <Field
+              name="listing_type"
+              label="Listing Type"
+              as="select"
+              defaultValue={initialMarketplace?.listing_type || "available"}
+            />
+            <Field
+              name="species_or_product"
+              label="Species or Product"
+              defaultValue={initialMarketplace?.species_or_product || ""}
+            />
+            <Field
+              name="quantity"
+              label="Quantity"
+              defaultValue={initialMarketplace?.quantity || ""}
+            />
+            <Field
+              name="price"
+              label="Price or Range"
+              defaultValue={initialMarketplace?.price || ""}
+            />
+            <Field
+              name="location"
+              label="Location"
+              defaultValue={initialMarketplace?.location || ""}
+            />
+            <Field
+              name="state"
+              label="State"
+              defaultValue={initialMarketplace?.state || ""}
+            />
+            <Field
+              name="expo_name"
+              label="Expo Name"
+              defaultValue={initialMarketplace?.expo_name || ""}
+            />
+            <Field
+              name="preferred_contact_method"
+              label="Preferred Contact"
+              defaultValue={initialMarketplace?.preferred_contact_method || ""}
+            />
           </div>
 
           <label className="flex items-center gap-3 text-sm font-bold text-yellow-50/85">
-            <input name="shipping_available" type="checkbox" className="h-4 w-4" />
+            <input
+              name="shipping_available"
+              type="checkbox"
+              defaultChecked={initialMarketplace?.shipping_available || false}
+              className="h-4 w-4"
+            />
             Shipping available
           </label>
           <label className="flex items-center gap-3 text-sm font-bold text-yellow-50/85">
-            <input name="local_pickup_available" type="checkbox" className="h-4 w-4" />
+            <input
+              name="local_pickup_available"
+              type="checkbox"
+              defaultChecked={initialMarketplace?.local_pickup_available || false}
+              className="h-4 w-4"
+            />
             Local pickup available
           </label>
           <label className="grid gap-2">
@@ -187,6 +232,7 @@ export default function CommunityDiscussionForm({
             </span>
             <textarea
               name="permit_notes"
+              defaultValue={initialMarketplace?.permit_notes || ""}
               rows={3}
               className="rounded-lg border border-yellow-100/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-yellow-300/30 focus:ring-4"
             />
@@ -213,10 +259,12 @@ function Field({
   name,
   label,
   as = "input",
+  defaultValue = "",
 }: {
   name: string;
   label: string;
   as?: "input" | "select";
+  defaultValue?: string;
 }) {
   return (
     <label className="grid gap-2">
@@ -224,6 +272,7 @@ function Field({
       {as === "select" ? (
         <select
           name={name}
+          defaultValue={defaultValue}
           className="rounded-lg border border-yellow-100/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-yellow-300/30 focus:ring-4"
         >
           <option value="available">Available</option>
@@ -241,6 +290,7 @@ function Field({
       ) : (
         <input
           name={name}
+          defaultValue={defaultValue}
           className="rounded-lg border border-yellow-100/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-yellow-300/30 focus:ring-4"
         />
       )}

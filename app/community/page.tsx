@@ -5,6 +5,7 @@ import {
   getCommunityCategories,
   getCommunityDiscussions,
   getInlineBadgesForProfiles,
+  type MarketplaceDetails,
 } from "@/lib/community";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { DiscussionCard } from "@/app/community/CommunityCards";
@@ -55,6 +56,10 @@ export default async function CommunityPage({
   const badgesByProfile = await getInlineBadgesForProfiles(
     supabase,
     recent.map((discussion) => discussion.author_id || "").filter(Boolean)
+  );
+  const marketplaceDetailsByDiscussion = await getMarketplaceDetailsByDiscussion(
+    supabase,
+    marketplace.map((discussion) => discussion.id)
   );
 
   return (
@@ -184,7 +189,11 @@ export default async function CommunityPage({
                 Isopedia connects members only and does not process payments or guarantee transactions.
               </p>
               {marketplace.length ? marketplace.map((discussion) => (
-                <MiniDiscussion key={discussion.id} discussion={discussion} />
+                <MiniDiscussion
+                  key={discussion.id}
+                  discussion={discussion}
+                  marketplaceDetails={marketplaceDetailsByDiscussion.get(discussion.id) || null}
+                />
               )) : <p className="text-sm text-emerald-50/55">No marketplace posts are active.</p>}
             </Panel>
           </aside>
@@ -192,6 +201,23 @@ export default async function CommunityPage({
       </div>
     </main>
   );
+}
+
+async function getMarketplaceDetailsByDiscussion(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  discussionIds: string[]
+) {
+  if (!discussionIds.length) return new Map<string, MarketplaceDetails>();
+
+  const { data } = await supabase
+    .from("marketplace_listing_details")
+    .select(
+      "discussion_id, listing_type, listing_status, species_or_product, quantity, price, location, state, shipping_available, local_pickup_available, expo_name, expiration_date, preferred_contact_method, permit_notes"
+    )
+    .in("discussion_id", discussionIds)
+    .returns<MarketplaceDetails[]>();
+
+  return new Map((data || []).map((details) => [details.discussion_id, details]));
 }
 
 function Panel({
@@ -216,16 +242,33 @@ function Panel({
   );
 }
 
-function MiniDiscussion({ discussion }: { discussion: { slug: string; title: string; reply_count: number } }) {
+function MiniDiscussion({
+  discussion,
+  marketplaceDetails = null,
+}: {
+  discussion: { slug: string; title: string; reply_count: number };
+  marketplaceDetails?: MarketplaceDetails | null;
+}) {
   return (
     <Link
       href={`/community/discussion/${discussion.slug}`}
       className="rounded-md border border-white/10 bg-black/20 p-3 hover:bg-white/5"
     >
       <p className="line-clamp-2 text-sm font-bold text-white">{discussion.title}</p>
-      <p className="mt-1 text-xs text-emerald-50/45">{discussion.reply_count} replies</p>
+      <p className="mt-1 text-xs text-emerald-50/45">
+        {discussion.reply_count} replies
+        {marketplaceDetails ? ` | ${marketplaceLabel(marketplaceDetails.listing_status)}` : ""}
+      </p>
     </Link>
   );
+}
+
+function marketplaceLabel(value: string | null) {
+  if (!value) return "Not listed";
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function EmptyState({ text, href, action }: { text: string; href: string; action: string }) {

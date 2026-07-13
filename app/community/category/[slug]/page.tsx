@@ -5,6 +5,7 @@ import {
   getCommunityCategoryBySlug,
   getCommunityDiscussions,
   getInlineBadgesForProfiles,
+  type MarketplaceDetails,
 } from "@/lib/community";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { DiscussionCard } from "@/app/community/CommunityCards";
@@ -70,6 +71,9 @@ export default async function CommunityCategoryPage({
     supabase,
     discussions.map((discussion) => discussion.author_id || "").filter(Boolean)
   );
+  const marketplaceDetailsByDiscussion = category.marketplace_rules
+    ? await getMarketplaceDetailsByDiscussion(supabase, discussions.map((discussion) => discussion.id))
+    : new Map<string, MarketplaceDetails>();
 
   return (
     <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
@@ -194,6 +198,7 @@ export default async function CommunityCategoryPage({
                 key={discussion.id}
                 discussion={discussion}
                 badges={badgesByProfile.get(discussion.author_id || "") || []}
+                marketplaceDetails={marketplaceDetailsByDiscussion.get(discussion.id) || null}
               />
             ))
           ) : (
@@ -215,6 +220,23 @@ export default async function CommunityCategoryPage({
       </div>
     </main>
   );
+}
+
+async function getMarketplaceDetailsByDiscussion(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  discussionIds: string[]
+) {
+  if (!discussionIds.length) return new Map<string, MarketplaceDetails>();
+
+  const { data } = await supabase
+    .from("marketplace_listing_details")
+    .select(
+      "discussion_id, listing_type, listing_status, species_or_product, quantity, price, location, state, shipping_available, local_pickup_available, expo_name, expiration_date, preferred_contact_method, permit_notes"
+    )
+    .in("discussion_id", discussionIds)
+    .returns<MarketplaceDetails[]>();
+
+  return new Map((data || []).map((details) => [details.discussion_id, details]));
 }
 
 function FilterSelect({

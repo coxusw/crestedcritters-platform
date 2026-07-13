@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getCommunityCategories } from "@/lib/community";
+import { getCommunityCategories, type MarketplaceDetails } from "@/lib/community";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import CommunityDiscussionForm from "@/app/community/CommunityDiscussionForm";
 import { updateCommunityDiscussion } from "@/app/community/actions";
@@ -40,7 +40,13 @@ export default async function EditCommunityDiscussionPage({
 
   if (!discussion) notFound();
 
-  const [{ data: profile }, { data: adminProfile }, categories, speciesResult] =
+  const [
+    { data: profile },
+    { data: adminProfile },
+    categories,
+    speciesResult,
+    { data: marketplaceDetails },
+  ] =
     await Promise.all([
       supabase.from("profiles").select("role").eq("id", user.id).maybeSingle<{ role: string | null }>(),
       supabase.from("admin_profiles").select("id").eq("id", user.id).maybeSingle(),
@@ -50,6 +56,13 @@ export default async function EditCommunityDiscussionPage({
         .select("id, common_name, scientific_name")
         .order("common_name", { ascending: true })
         .returns<Array<{ id: number; common_name: string; scientific_name: string | null }>>(),
+      supabase
+        .from("marketplace_listing_details")
+        .select(
+          "discussion_id, listing_type, listing_status, species_or_product, quantity, price, location, state, shipping_available, local_pickup_available, expo_name, expiration_date, preferred_contact_method, permit_notes"
+        )
+        .eq("discussion_id", discussion.id)
+        .maybeSingle<MarketplaceDetails>(),
     ]);
 
   const canEdit =
@@ -80,6 +93,7 @@ export default async function EditCommunityDiscussionPage({
               categories={categories}
               species={speciesResult.data || []}
               initialDiscussion={discussion}
+              initialMarketplace={marketplaceDetails}
               formError={pageParams.form_error || ""}
             />
           </div>

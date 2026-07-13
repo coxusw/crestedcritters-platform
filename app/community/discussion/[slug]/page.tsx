@@ -820,6 +820,9 @@ function MarketplaceDetailsPanel({
           This listing has passed its expiration date.
         </p>
       )}
+      <p className="mt-3 text-sm font-bold text-yellow-50/70">
+        {marketplaceStatusDescription(effectiveStatus)}
+      </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <MarketplaceField label="Listing Type" value={marketplaceLabel(details.listing_type)} />
@@ -846,29 +849,99 @@ function MarketplaceDetailsPanel({
       )}
 
       {canManage && (
-        <form action={updateMarketplaceListingStatus} className="mt-4 flex flex-col gap-3 rounded-lg border border-yellow-100/10 bg-[#07130c]/70 p-3 sm:flex-row sm:items-end">
-          <input type="hidden" name="discussion_id" value={details.discussion_id} />
-          <input type="hidden" name="return_path" value={returnPath} />
-          <label className="grid flex-1 gap-2">
-            <span className="text-sm font-black text-yellow-50/85">Listing Status</span>
-            <select
-              name="listing_status"
-              defaultValue={details.listing_status}
-              className="rounded-lg border border-yellow-100/10 bg-black/20 px-4 py-3 text-white outline-none ring-yellow-300/30 focus:ring-4"
-            >
-              <option value="available">Available</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="expired">Expired</option>
-              <option value="withdrawn">Withdrawn</option>
-            </select>
-          </label>
-          <button className="rounded-lg bg-yellow-300 px-4 py-3 text-sm font-black text-slate-950 hover:bg-yellow-200">
-            Update Status
-          </button>
-        </form>
+        <div className="mt-4 rounded-lg border border-yellow-100/10 bg-[#07130c]/70 p-3">
+          <div className="flex flex-wrap gap-2">
+            <MarketplaceStatusButton
+              discussionId={details.discussion_id}
+              returnPath={returnPath}
+              status="available"
+              label={effectiveStatus === "expired" ? "Renew 30 Days" : "Mark Available"}
+              currentStatus={effectiveStatus}
+            />
+            <MarketplaceStatusButton
+              discussionId={details.discussion_id}
+              returnPath={returnPath}
+              status="pending"
+              label="Mark Pending"
+              currentStatus={effectiveStatus}
+            />
+            <MarketplaceStatusButton
+              discussionId={details.discussion_id}
+              returnPath={returnPath}
+              status="completed"
+              label="Mark Completed"
+              currentStatus={effectiveStatus}
+            />
+            <MarketplaceStatusButton
+              discussionId={details.discussion_id}
+              returnPath={returnPath}
+              status="withdrawn"
+              label="Withdraw"
+              currentStatus={effectiveStatus}
+            />
+            <MarketplaceStatusButton
+              discussionId={details.discussion_id}
+              returnPath={returnPath}
+              status="expired"
+              label="Expire"
+              currentStatus={effectiveStatus}
+            />
+          </div>
+
+          <form action={updateMarketplaceListingStatus} className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <input type="hidden" name="discussion_id" value={details.discussion_id} />
+            <input type="hidden" name="return_path" value={returnPath} />
+            <label className="grid flex-1 gap-2">
+              <span className="text-sm font-black text-yellow-50/85">Listing Status</span>
+              <select
+                name="listing_status"
+                defaultValue={details.listing_status}
+                className="rounded-lg border border-yellow-100/10 bg-black/20 px-4 py-3 text-white outline-none ring-yellow-300/30 focus:ring-4"
+              >
+                <option value="available">Available</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="expired">Expired</option>
+                <option value="withdrawn">Withdrawn</option>
+              </select>
+            </label>
+            <button className="rounded-lg bg-yellow-300 px-4 py-3 text-sm font-black text-slate-950 hover:bg-yellow-200">
+              Update Status
+            </button>
+          </form>
+        </div>
       )}
     </section>
+  );
+}
+
+function MarketplaceStatusButton({
+  discussionId,
+  returnPath,
+  status,
+  label,
+  currentStatus,
+}: {
+  discussionId: string;
+  returnPath: string;
+  status: string;
+  label: string;
+  currentStatus: string;
+}) {
+  const disabled = currentStatus === status;
+
+  return (
+    <form action={updateMarketplaceListingStatus}>
+      <input type="hidden" name="discussion_id" value={discussionId} />
+      <input type="hidden" name="return_path" value={returnPath} />
+      <input type="hidden" name="listing_status" value={status} />
+      <button
+        disabled={disabled}
+        className="rounded-lg border border-yellow-100/15 px-3 py-2 text-xs font-black text-yellow-50 hover:bg-yellow-300/10 disabled:cursor-not-allowed disabled:opacity-45"
+      >
+        {label}
+      </button>
+    </form>
   );
 }
 
@@ -916,4 +989,12 @@ function marketplaceStatusClass(status: string) {
   if (status === "completed") return "border border-sky-300/20 bg-sky-300/15 text-sky-100";
   if (status === "withdrawn") return "border border-slate-300/20 bg-slate-300/15 text-slate-100";
   return "border border-red-300/20 bg-red-300/15 text-red-100";
+}
+
+function marketplaceStatusDescription(status: string) {
+  if (status === "available") return "This listing is active and open for interested members.";
+  if (status === "pending") return "This listing is paused while the owner works through a possible match.";
+  if (status === "completed") return "This listing is complete and kept visible for community context.";
+  if (status === "withdrawn") return "This listing was withdrawn by the owner or staff.";
+  return "This listing is expired and should be renewed before members treat it as active.";
 }

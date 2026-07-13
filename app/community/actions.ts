@@ -59,6 +59,40 @@ function allowedMarketplaceStatus(value: string) {
     : null;
 }
 
+function allowedMarketplaceListingType(value: string) {
+  return [
+    "available",
+    "wanted",
+    "trade",
+    "local_pickup",
+    "expo_availability",
+    "supplies",
+    "plants",
+    "enclosures",
+    "cultures",
+    "cleanup_crew",
+    "other",
+  ].includes(value)
+    ? value
+    : "available";
+}
+
+function marketplaceDetailsPayload(formData: FormData) {
+  return {
+    listing_type: allowedMarketplaceListingType(textValue(formData.get("listing_type"))),
+    species_or_product: textValue(formData.get("species_or_product")) || null,
+    quantity: textValue(formData.get("quantity")) || null,
+    price: textValue(formData.get("price")) || null,
+    location: textValue(formData.get("location")) || null,
+    state: textValue(formData.get("state")) || null,
+    shipping_available: boolValue(formData.get("shipping_available")),
+    local_pickup_available: boolValue(formData.get("local_pickup_available")),
+    expo_name: textValue(formData.get("expo_name")) || null,
+    preferred_contact_method: textValue(formData.get("preferred_contact_method")) || null,
+    permit_notes: textValue(formData.get("permit_notes")) || null,
+  };
+}
+
 function withQueryParam(path: string, key: string, value: string) {
   const [pathWithoutHash, hash = ""] = path.split("#");
   const [base, query = ""] = pathWithoutHash.split("?");
@@ -534,18 +568,8 @@ export async function createCommunityDiscussion(formData: FormData) {
 
     const { error: listingError } = await supabase.from("marketplace_listing_details").insert({
       discussion_id: id,
-      listing_type: textValue(formData.get("listing_type")) || "available",
-      species_or_product: textValue(formData.get("species_or_product")) || null,
-      quantity: textValue(formData.get("quantity")) || null,
-      price: textValue(formData.get("price")) || null,
-      location: textValue(formData.get("location")) || null,
-      state: textValue(formData.get("state")) || null,
-      shipping_available: boolValue(formData.get("shipping_available")),
-      local_pickup_available: boolValue(formData.get("local_pickup_available")),
-      expo_name: textValue(formData.get("expo_name")) || null,
+      ...marketplaceDetailsPayload(formData),
       expiration_date: expiration.toISOString().slice(0, 10),
-      preferred_contact_method: textValue(formData.get("preferred_contact_method")) || null,
-      permit_notes: textValue(formData.get("permit_notes")) || null,
     });
 
     if (listingError) throw new Error(listingError.message);
@@ -641,6 +665,43 @@ export async function updateCommunityDiscussion(formData: FormData) {
     imageWarning = await uploadCommunityImages(supabase, imageFiles, user.id, {
       discussionId,
     });
+  }
+
+  if (discussion.category?.marketplace_rules) {
+    const writeClient = canModerate ? createSupabaseAdminClient() : supabase;
+    const { data: existingListing, error: listingReadError } = await writeClient
+      .from("marketplace_listing_details")
+      .select("discussion_id")
+      .eq("discussion_id", discussionId)
+      .maybeSingle<{ discussion_id: string }>();
+
+    if (listingReadError) throw new Error(listingReadError.message);
+
+    const listingPayload = {
+      ...marketplaceDetailsPayload(formData),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (existingListing) {
+      const { error: listingError } = await writeClient
+        .from("marketplace_listing_details")
+        .update(listingPayload)
+        .eq("discussion_id", discussionId);
+
+      if (listingError) throw new Error(listingError.message);
+    } else {
+      const expiration = new Date();
+      expiration.setDate(expiration.getDate() + 30);
+      const { error: listingError } = await writeClient
+        .from("marketplace_listing_details")
+        .insert({
+          discussion_id: discussionId,
+          ...listingPayload,
+          expiration_date: expiration.toISOString().slice(0, 10),
+        });
+
+      if (listingError) throw new Error(listingError.message);
+    }
   }
 
   revalidatePath(discussionPath(discussion.slug));
@@ -974,13 +1035,14 @@ export async function updateMarketplaceListingStatus(formData: FormData) {
 
   const { data: discussion, error: readError } = await supabase
     .from("community_discussions")
-    .select("id, slug, author_id, content_type, category:category_id(marketplace_rules)")
+    .select("id, slug, author_id, content_type, status, category:category_id(marketplace_rules)")
     .eq("id", discussionId)
     .maybeSingle<{
       id: string;
       slug: string;
       author_id: string | null;
       content_type: string;
+      status: string;
       category: { marketplace_rules: boolean } | null;
     }>();
 
@@ -993,15 +1055,35 @@ export async function updateMarketplaceListingStatus(formData: FormData) {
   }
 
   const writeClient = canModerate ? createSupabaseAdminClient() : supabase;
+  const listingUpdates: Record<string, string> = {
+    listing_status: listingStatus,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (listingStatus === "available") {
+    const expiration = new Date();
+    expiration.setDate(expiration.getDate() + 30);
+    listingUpdates.expiration_date = expiration.toISOString().slice(0, 10);
+  }
+
   const { error } = await writeClient
     .from("marketplace_listing_details")
-    .update({
-      listing_status: listingStatus,
-      updated_at: new Date().toISOString(),
-    })
+    .update(listingUpdates)
     .eq("discussion_id", discussionId);
 
   if (error) throw new Error(error.message);
+
+  if (listingStatus === "expired" || discussion.status === "expired") {
+    const { error: discussionError } = await writeClient
+      .from("community_discussions")
+      .update({
+        status: listingStatus === "expired" ? "expired" : "published",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", discussionId);
+
+    if (discussionError) throw new Error(discussionError.message);
+  }
 
   revalidatePath(returnPath);
   revalidatePath(discussionPath(discussion.slug));

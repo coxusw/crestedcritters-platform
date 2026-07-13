@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   type CommunityDiscussion,
   type InlineBadge,
+  type MarketplaceDetails,
   communityExcerpt,
   communityProfileName,
 } from "@/lib/community";
@@ -9,9 +10,11 @@ import {
 export function DiscussionCard({
   discussion,
   badges = [],
+  marketplaceDetails = null,
 }: {
   discussion: CommunityDiscussion;
   badges?: InlineBadge[];
+  marketplaceDetails?: MarketplaceDetails | null;
 }) {
   const authorName = communityProfileName(discussion.author);
   const authorHref = discussion.author?.username
@@ -43,6 +46,16 @@ export function DiscussionCard({
               <span className="rounded-md bg-lime-300/15 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-lime-100">
                 Answered
               </span>
+            )}
+            {marketplaceDetails && (
+              <>
+                <span className={`rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wide ${marketplaceStatusClass(marketplaceDetails.listing_status)}`}>
+                  {marketplaceLabel(marketplaceDetails.listing_status)}
+                </span>
+                <span className="rounded-md border border-yellow-300/20 bg-yellow-300/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-yellow-100">
+                  {marketplaceLabel(marketplaceDetails.listing_type)}
+                </span>
+              </>
             )}
           </div>
 
@@ -76,6 +89,12 @@ export function DiscussionCard({
         <InlineBadges badges={badges} />
         <span>•</span>
         <span>{formatDate(discussion.last_activity_at)}</span>
+        {marketplaceDetails?.expiration_date && (
+          <>
+            <span>|</span>
+            <span>Expires {formatShortDate(marketplaceDetails.expiration_date)}</span>
+          </>
+        )}
       </div>
     </article>
   );
@@ -118,4 +137,29 @@ function formatDate(value: string) {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
+}
+
+function formatShortDate(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
+function marketplaceLabel(value: string | null) {
+  if (!value) return "Not listed";
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function marketplaceStatusClass(status: string) {
+  if (status === "available") return "border border-lime-300/20 bg-lime-300/15 text-lime-100";
+  if (status === "pending") return "border border-amber-300/20 bg-amber-300/15 text-amber-100";
+  if (status === "completed") return "border border-sky-300/20 bg-sky-300/15 text-sky-100";
+  if (status === "withdrawn") return "border border-slate-300/20 bg-slate-300/15 text-slate-100";
+  return "border border-red-300/20 bg-red-300/15 text-red-100";
 }
