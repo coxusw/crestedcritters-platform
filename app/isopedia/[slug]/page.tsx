@@ -147,6 +147,8 @@ type LinkedCommunityDiscussion = {
   } | null;
 };
 
+type SpeciesCommunityPost = NonNullable<LinkedCommunityDiscussion["discussion"]>;
+
 function cleanRichText(html: string | null) {
   if (!html) return "";
 
@@ -339,6 +341,53 @@ function historyValue(value: string | null) {
 function historyContextValue(value: string | null) {
   const cleaned = stripHtml(value);
   return cleaned ? cleaned.slice(0, 2000) : null;
+}
+
+function SpeciesCommunityPanel({
+  title,
+  emptyText,
+  posts,
+}: {
+  title: string;
+  emptyText: string;
+  posts: SpeciesCommunityPost[];
+}) {
+  return (
+    <section className="rounded-2xl border border-white/10 bg-[#07130c]/70 p-4">
+      <h3 className="text-lg font-black text-white">{title}</h3>
+      {posts.length ? (
+        <div className="mt-3 grid gap-3">
+          {posts.map((discussion) => (
+            <Link
+              key={discussion.id}
+              href={`/community/discussion/${discussion.slug}`}
+              className="rounded-2xl border border-white/10 bg-black/20 p-4 transition hover:border-emerald-300/40"
+            >
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-md border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-100">
+                  {discussion.content_type}
+                </span>
+                {discussion.category && (
+                  <span className="rounded-md border border-white/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-50/60">
+                    {discussion.category.name}
+                  </span>
+                )}
+              </div>
+              <h4 className="mt-2 font-black text-white">{discussion.title}</h4>
+              <p className="mt-1 text-xs text-emerald-50/45">
+                {discussion.reply_count} replies / Active{" "}
+                {new Date(discussion.last_activity_at).toLocaleDateString()}
+              </p>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 rounded-xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-emerald-50/55">
+          {emptyText}
+        </p>
+      )}
+    </section>
+  );
 }
 
 async function toggleSpeciesFollow(formData: FormData) {
@@ -773,6 +822,12 @@ export default async function SpeciesPage({ params }: PageProps) {
     .filter((discussion): discussion is NonNullable<LinkedCommunityDiscussion["discussion"]> =>
       Boolean(discussion)
     );
+  const linkedCommunityGuides = communityDiscussions.filter(
+    (discussion) => discussion.content_type === "guide"
+  );
+  const linkedCommunityPosts = communityDiscussions.filter(
+    (discussion) => discussion.content_type !== "guide"
+  );
 
   let relatedQuery = supabase
     .from("isopedia_species")
@@ -1008,61 +1063,62 @@ export default async function SpeciesPage({ params }: PageProps) {
                   Discussions About {species.common_name}
                 </h2>
               </div>
-              <Link
-                href={`/community/new?species=${species.id}`}
-                className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
-              >
-                Start Discussion
-              </Link>
-              <Link
-                href={`/community?species=${species.id}`}
-                className="rounded-xl border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/10"
-              >
-                View All
-              </Link>
-              {user ? (
-                <form action={toggleSpeciesFollow}>
-                  <input type="hidden" name="species_id" value={species.id} />
-                  <input type="hidden" name="slug" value={canonicalSlug} />
-                  <button className="rounded-xl border border-emerald-400/30 px-4 py-2 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/10">
-                    {isFollowingSpecies ? "Following" : "Follow Species"}
-                  </button>
-                </form>
-              ) : (
+              <div className="flex flex-wrap gap-2">
                 <Link
-                  href={`/login?next=/${canonicalSlug}`}
+                  href={`/community/new?category=guides&species=${species.id}`}
+                  className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
+                >
+                  Write Guide
+                </Link>
+                <Link
+                  href={`/community/new?category=species-help&species=${species.id}`}
+                  className="rounded-xl border border-emerald-400/30 px-4 py-2 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/10"
+                >
+                  Ask Question
+                </Link>
+                <Link
+                  href={`/community/new?category=show-off-your-collection&species=${species.id}`}
                   className="rounded-xl border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/10"
                 >
-                  Sign In to Follow
+                  Share Photos
                 </Link>
-              )}
+                <Link
+                  href={`/community?species=${species.id}`}
+                  className="rounded-xl border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/10"
+                >
+                  View All
+                </Link>
+                {user ? (
+                  <form action={toggleSpeciesFollow}>
+                    <input type="hidden" name="species_id" value={species.id} />
+                    <input type="hidden" name="slug" value={canonicalSlug} />
+                    <button className="rounded-xl border border-emerald-400/30 px-4 py-2 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/10">
+                      {isFollowingSpecies ? "Following" : "Follow Species"}
+                    </button>
+                  </form>
+                ) : (
+                  <Link
+                    href={`/login?next=/${canonicalSlug}`}
+                    className="rounded-xl border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/10"
+                  >
+                    Sign In to Follow
+                  </Link>
+                )}
+              </div>
             </div>
 
             {communityDiscussions.length ? (
-              <div className="grid gap-3">
-                {communityDiscussions.map((discussion) => (
-                  <Link
-                    key={discussion.id}
-                    href={`/community/discussion/${discussion.slug}`}
-                    className="rounded-2xl border border-white/10 bg-[#07130c]/70 p-4 transition hover:border-emerald-300/40"
-                  >
-                    <div className="flex flex-wrap gap-2">
-                      <span className="rounded-md border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-100">
-                        {discussion.content_type}
-                      </span>
-                      {discussion.category && (
-                        <span className="rounded-md border border-white/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-50/60">
-                          {discussion.category.name}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="mt-2 font-black text-white">{discussion.title}</h3>
-                    <p className="mt-1 text-xs text-emerald-50/45">
-                      {discussion.reply_count} replies / Active{" "}
-                      {new Date(discussion.last_activity_at).toLocaleDateString()}
-                    </p>
-                  </Link>
-                ))}
+              <div className="grid gap-5 lg:grid-cols-2">
+                <SpeciesCommunityPanel
+                  title="Guides"
+                  emptyText="No guides have been linked to this species yet."
+                  posts={linkedCommunityGuides}
+                />
+                <SpeciesCommunityPanel
+                  title="Discussion and Showcases"
+                  emptyText="No other community posts have been linked to this species yet."
+                  posts={linkedCommunityPosts}
+                />
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-6 text-center">
