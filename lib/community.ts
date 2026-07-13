@@ -231,6 +231,7 @@ export async function getCommunityDiscussions(
   options: {
     categorySlug?: string;
     authorId?: string;
+    discussionIds?: string[];
     savedBy?: string;
     followedBy?: string;
     followingBy?: string;
@@ -249,6 +250,10 @@ export async function getCommunityDiscussions(
   } = {}
 ) {
   const discussionIdFilters: Array<Set<string>> = [];
+
+  if (options.discussionIds) {
+    discussionIdFilters.push(new Set(options.discussionIds.filter(Boolean)));
+  }
 
   if (options.hasImages) {
     const { data: imageRows } = await supabase

@@ -75,6 +75,7 @@ function CommunityListPage({
         <IsopediaNav active="community" />
         <div className="mb-4 flex flex-wrap gap-3 text-sm">
           <Link href="/community" className="text-emerald-300 underline">Community</Link>
+          <Link href="/community/my-replies" className="text-emerald-300 underline">My Replies</Link>
           <Link href="/community/new" className="text-emerald-300 underline">Start a Discussion</Link>
         </div>
         <h1 className="text-3xl font-black text-white">{title}</h1>

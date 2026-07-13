@@ -88,6 +88,7 @@ export default async function FollowingDiscussionsPage({
         <IsopediaNav active="community" />
         <div className="mb-4 flex flex-wrap gap-3 text-sm">
           <Link href="/community" className="text-emerald-300 underline">Community</Link>
+          <Link href="/community/my-replies" className="text-emerald-300 underline">My Replies</Link>
           <Link href="/community/saved" className="text-emerald-300 underline">Saved</Link>
         </div>
         <header className="rounded-lg border border-white/10 bg-[#102016] p-5">
