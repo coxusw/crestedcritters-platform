@@ -184,7 +184,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     supabase
       .from("community_discussions")
       .select("slug, updated_at, created_at, content_type")
-      .in("status", ["published", "expired"])
+      .eq("status", "published")
       .not("slug", "is", null)
       .returns<CommunityDiscussion[]>(),
   ]);
@@ -219,8 +219,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
       })) || [];
 
+  const communitySlugs = new Set((communityResult.data || []).map((discussion) => discussion.slug));
   const guidePages =
-    guidesResult.data?.map((guide) => ({
+    guidesResult.data?.filter((guide) => !communitySlugs.has(guide.slug)).map((guide) => ({
       url: `${baseUrl}/community/discussion/${guide.slug}`,
       lastModified: guide.updated_at
         ? new Date(guide.updated_at)
