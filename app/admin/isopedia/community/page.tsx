@@ -332,12 +332,12 @@ export default async function AdminCommunityPage({
 
         {params.saved && (
           <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-emerald-100">
-            Saved: {params.saved}
+            {adminCommunitySavedMessage(params.saved)}
           </div>
         )}
         {params.error && (
           <div className="rounded-lg border border-red-400/30 bg-red-500/10 p-4 text-red-100">
-            {decodeURIComponent(params.error)}
+            {adminCommunityErrorMessage(params.error)}
           </div>
         )}
 
@@ -479,6 +479,22 @@ export default async function AdminCommunityPage({
       </div>
     </main>
   );
+}
+
+function adminCommunitySavedMessage(value: string) {
+  if (value === "category") return "Community category saved.";
+  if (value === "report") return "Report queue item updated.";
+  if (value === "moderation") return "Moderation action applied.";
+  if (value === "prompt") return "Weekly prompt generated.";
+  if (value === "prompt-exists") return "This week's prompt already exists.";
+  return "Community settings saved.";
+}
+
+function adminCommunityErrorMessage(value: string) {
+  if (value === "category-name-required") return "Category name is required.";
+  if (value === "missing-report") return "Report could not be found.";
+  if (value === "prompt-not-found") return "Prompt could not be found.";
+  return value;
 }
 
 function AdminStat({ label, value }: { label: string; value: number }) {
