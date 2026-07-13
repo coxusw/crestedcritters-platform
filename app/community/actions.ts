@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   communityExcerpt,
@@ -36,6 +37,10 @@ function cleanTag(value: string) {
 
 function discussionPath(slug: string) {
   return `/community/discussion/${slug}`;
+}
+
+function allowedDiscussionStatus(value: string) {
+  return ["published", "hidden", "archived", "removed"].includes(value) ? value : null;
 }
 
 function safeImageExtension(file: File) {
@@ -74,8 +79,8 @@ async function uploadCommunityImages(
   if (!files.length) return;
 
   const rows: Array<{
-    discussion_id?: string;
-    reply_id?: string;
+    discussion_id: string | null;
+    reply_id: string | null;
     owner_id: string;
     image_url: string;
     storage_path: string;
@@ -101,7 +106,8 @@ async function uploadCommunityImages(
 
     const { data } = supabase.storage.from(COMMUNITY_IMAGE_BUCKET).getPublicUrl(storagePath);
     rows.push({
-      ...target,
+      discussion_id: target.discussionId || null,
+      reply_id: target.replyId || null,
       owner_id: ownerId,
       image_url: data.publicUrl,
       storage_path: storagePath,
@@ -627,6 +633,110 @@ export async function softDeleteCommunityDiscussion(formData: FormData) {
 
   revalidatePath("/community");
   redirect("/community/my-discussions");
+}
+
+export async function moderateCommunityDiscussionFromThread(formData: FormData) {
+  const { user, canModerate } = await authContext();
+  if (!canModerate) throw new Error("Only moderators and admins can moderate discussions.");
+  const supabase = createSupabaseAdminClient();
+
+  const discussionId = textValue(formData.get("discussion_id"));
+  const action = textValue(formData.get("action"));
+  const categoryId = textValue(formData.get("category_id"));
+  const status = allowedDiscussionStatus(textValue(formData.get("status")));
+  const notes = textValue(formData.get("moderator_notes")) || null;
+
+  if (!discussionId) throw new Error("Missing discussion.");
+
+  const { data: discussion, error: readError } = await supabase
+    .from("community_discussions")
+    .select("id, slug, category_id, status, locked, pinned, featured, answered, category:category_id(slug)")
+    .eq("id", discussionId)
+    .maybeSingle<{
+      id: string;
+      slug: string;
+      category_id: string;
+      status: string;
+      locked: boolean;
+      pinned: boolean;
+      featured: boolean;
+      answered: boolean;
+      category: { slug: string } | null;
+    }>();
+
+  if (readError) throw new Error(readError.message);
+  if (!discussion) throw new Error("Discussion not found.");
+
+  const updates: Record<string, string | boolean | null> = {
+    updated_at: new Date().toISOString(),
+  };
+  const historyAction = action || "moderate";
+  const metadata: Record<string, string | boolean | null> = {};
+
+  if (action === "lock") updates.locked = true;
+  if (action === "unlock") updates.locked = false;
+  if (action === "pin") updates.pinned = true;
+  if (action === "unpin") {
+    updates.pinned = false;
+    updates.pinned_until = null;
+  }
+  if (action === "feature") updates.featured = true;
+  if (action === "unfeature") updates.featured = false;
+  if (action === "answered") updates.answered = true;
+  if (action === "unanswered") {
+    updates.answered = false;
+    updates.accepted_reply_id = null;
+  }
+  if (action === "status" && status) {
+    updates.status = status;
+    updates.moderation_status =
+      status === "hidden" || status === "removed" ? "actioned" : "clear";
+    if (status === "removed") updates.deleted_at = new Date().toISOString();
+    metadata.status = status;
+  }
+  if (action === "move" && categoryId && categoryId !== discussion.category_id) {
+    const { data: category, error: categoryError } = await supabase
+      .from("community_categories")
+      .select("id, slug")
+      .eq("id", categoryId)
+      .maybeSingle<{ id: string; slug: string }>();
+
+    if (categoryError) throw new Error(categoryError.message);
+    if (!category) throw new Error("Category not found.");
+
+    updates.category_id = category.id;
+    metadata.from_category_id = discussion.category_id;
+    metadata.to_category_id = category.id;
+    metadata.to_category_slug = category.slug;
+  }
+
+  if (Object.keys(updates).length === 1) {
+    throw new Error("Choose a moderation action.");
+  }
+
+  const { error } = await supabase
+    .from("community_discussions")
+    .update(updates)
+    .eq("id", discussionId);
+
+  if (error) throw new Error(error.message);
+
+  await supabase.from("community_moderation_history").insert({
+    discussion_id: discussionId,
+    moderator_id: user.id,
+    action: historyAction,
+    notes,
+    metadata,
+  });
+
+  const path = discussionPath(discussion.slug);
+  revalidatePath(path);
+  revalidatePath("/community");
+  if (discussion.category?.slug) revalidatePath(`/community/category/${discussion.category.slug}`);
+  if (typeof metadata.to_category_slug === "string") {
+    revalidatePath(`/community/category/${metadata.to_category_slug}`);
+  }
+  redirect(path);
 }
 
 export async function toggleCommunitySave(formData: FormData) {

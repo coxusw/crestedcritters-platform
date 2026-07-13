@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
+  type CommunityCategory,
   type CommunityDiscussion,
   type CommunityImage,
   type CommunityReply,
@@ -16,6 +18,7 @@ import { InlineBadges } from "@/app/community/CommunityCards";
 import LinkifiedText from "@/app/community/LinkifiedText";
 import {
   createCommunityReply,
+  moderateCommunityDiscussionFromThread,
   reportCommunityContent,
   softDeleteCommunityReply,
   softDeleteCommunityDiscussion,
@@ -68,8 +71,9 @@ export default async function CommunityDiscussionPage({
     Boolean(viewerAdminProfile) ||
     viewerProfile?.role === "admin" ||
     viewerProfile?.role === "moderator";
+  const contentSupabase = canModerate ? createSupabaseAdminClient() : supabase;
 
-  const { data: discussion, error } = await supabase
+  const { data: discussion, error } = await contentSupabase
     .from("community_discussions")
     .select(
       `
@@ -125,7 +129,11 @@ export default async function CommunityDiscussionPage({
     .eq("slug", slug)
     .maybeSingle<CommunityDiscussion>();
 
-  if (error || !discussion || !["published", "expired"].includes(discussion.status)) {
+  if (
+    error ||
+    !discussion ||
+    (!["published", "expired"].includes(discussion.status) && !canModerate)
+  ) {
     notFound();
   }
 
@@ -134,12 +142,12 @@ export default async function CommunityDiscussionPage({
     profile_id: user?.id || null,
   });
   await supabase.rpc("community_recount_discussion_stats", {
-    target_discussion_id: discussion.id,
+      target_discussion_id: discussion.id,
   });
 
-  const [repliesResult, speciesResult, marketplaceResult, savedResult, followedResult] =
+  const [repliesResult, speciesResult, marketplaceResult, savedResult, followedResult, categoriesResult] =
     await Promise.all([
-      supabase
+      contentSupabase
         .from("community_replies")
         .select(
           `
@@ -166,7 +174,7 @@ export default async function CommunityDiscussionPage({
         .eq("status", "published")
         .order("created_at", { ascending: true })
         .returns<CommunityReply[]>(),
-      supabase
+      contentSupabase
         .from("community_discussion_species")
         .select(
           `
@@ -180,7 +188,7 @@ export default async function CommunityDiscussionPage({
         )
         .eq("discussion_id", discussion.id)
         .returns<Array<{ species: CommunitySpecies | null }>>(),
-      supabase
+      contentSupabase
         .from("marketplace_listing_details")
         .select("*")
         .eq("discussion_id", discussion.id)
@@ -201,13 +209,22 @@ export default async function CommunityDiscussionPage({
             .eq("profile_id", user.id)
             .maybeSingle<{ discussion_id: string }>()
         : Promise.resolve({ data: null }),
+      canModerate
+        ? contentSupabase
+            .from("community_categories")
+            .select(
+              "id, name, slug, description, icon, color, display_order, is_active, requires_approval, marketplace_rules, species_tagging_enabled, images_enabled, staff_only_posting, posting_guidelines, minimum_account_age_days"
+            )
+            .order("display_order", { ascending: true })
+            .returns<CommunityCategory[]>()
+        : Promise.resolve({ data: [] as CommunityCategory[] }),
     ]);
 
   const replyIds = (repliesResult.data || []).map((reply) => reply.id);
   const imageFilter = replyIds.length
     ? `discussion_id.eq.${discussion.id},reply_id.in.(${replyIds.join(",")})`
     : `discussion_id.eq.${discussion.id}`;
-  const { data: images } = await supabase
+  const { data: images } = await contentSupabase
     .from("community_images")
     .select("id, discussion_id, reply_id, owner_id, image_url, storage_path, alt_text, caption, position, created_at")
     .eq("status", "active")
@@ -257,6 +274,16 @@ export default async function CommunityDiscussionPage({
             {discussion.locked && (
               <span className="rounded-md border border-red-300/20 bg-red-400/10 px-2 py-1 text-xs font-black uppercase tracking-wide text-red-100">
                 Locked
+              </span>
+            )}
+            {discussion.pinned && (
+              <span className="rounded-md border border-amber-300/20 bg-amber-300/10 px-2 py-1 text-xs font-black uppercase tracking-wide text-amber-100">
+                Pinned
+              </span>
+            )}
+            {discussion.status !== "published" && (
+              <span className="rounded-md border border-sky-300/20 bg-sky-300/10 px-2 py-1 text-xs font-black uppercase tracking-wide text-sky-100">
+                {discussion.status}
               </span>
             )}
             {discussion.answered && (
@@ -352,6 +379,13 @@ export default async function CommunityDiscussionPage({
             )}
           </div>
         </article>
+
+        {canModerate && (
+          <StaffDiscussionControls
+            discussion={discussion}
+            categories={categoriesResult.data || []}
+          />
+        )}
 
         <section className="mt-6 rounded-lg border border-white/10 bg-white/[0.05] p-5">
           <h2 className="text-2xl font-black text-white">
@@ -470,6 +504,133 @@ export default async function CommunityDiscussionPage({
         </section>
       </div>
     </main>
+  );
+}
+
+function StaffDiscussionControls({
+  discussion,
+  categories,
+}: {
+  discussion: CommunityDiscussion;
+  categories: CommunityCategory[];
+}) {
+  return (
+    <section className="mt-6 rounded-lg border border-sky-300/20 bg-sky-300/10 p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-sky-200">
+            Staff Controls
+          </p>
+          <h2 className="mt-2 text-xl font-black text-white">Discussion Moderation</h2>
+        </div>
+        <Link href="/admin/isopedia/community" className="text-sm font-bold text-sky-200 underline">
+          Community Admin
+        </Link>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <ModerationButton
+          discussionId={discussion.id}
+          action={discussion.locked ? "unlock" : "lock"}
+          label={discussion.locked ? "Unlock" : "Lock"}
+        />
+        <ModerationButton
+          discussionId={discussion.id}
+          action={discussion.pinned ? "unpin" : "pin"}
+          label={discussion.pinned ? "Unpin" : "Pin"}
+        />
+        <ModerationButton
+          discussionId={discussion.id}
+          action={discussion.featured ? "unfeature" : "feature"}
+          label={discussion.featured ? "Unfeature" : "Feature"}
+        />
+        <ModerationButton
+          discussionId={discussion.id}
+          action={discussion.answered ? "unanswered" : "answered"}
+          label={discussion.answered ? "Mark Unanswered" : "Mark Answered"}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <form action={moderateCommunityDiscussionFromThread} className="rounded-lg border border-white/10 bg-[#07130c] p-4">
+          <input type="hidden" name="discussion_id" value={discussion.id} />
+          <input type="hidden" name="action" value="move" />
+          <label className="grid gap-2">
+            <span className="text-sm font-black text-sky-100">Move Category</span>
+            <select
+              name="category_id"
+              defaultValue={discussion.category_id}
+              className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-white outline-none ring-sky-300/30 focus:ring-4"
+            >
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <textarea
+            name="moderator_notes"
+            rows={2}
+            placeholder="Optional moderator note"
+            className="mt-3 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none ring-sky-300/30 focus:ring-4"
+          />
+          <button className="mt-3 rounded-lg bg-sky-300 px-4 py-2 text-sm font-black text-slate-950 hover:bg-sky-200">
+            Move Discussion
+          </button>
+        </form>
+
+        <form action={moderateCommunityDiscussionFromThread} className="rounded-lg border border-white/10 bg-[#07130c] p-4">
+          <input type="hidden" name="discussion_id" value={discussion.id} />
+          <input type="hidden" name="action" value="status" />
+          <label className="grid gap-2">
+            <span className="text-sm font-black text-sky-100">Visibility Status</span>
+            <select
+              name="status"
+              defaultValue={discussion.status}
+              className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-white outline-none ring-sky-300/30 focus:ring-4"
+            >
+              <option value="published">Published</option>
+              <option value="hidden">Hidden</option>
+              <option value="archived">Archived</option>
+              <option value="removed">Removed</option>
+            </select>
+          </label>
+          <textarea
+            name="moderator_notes"
+            rows={2}
+            placeholder="Optional moderator note"
+            className="mt-3 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none ring-sky-300/30 focus:ring-4"
+          />
+          <button className="mt-3 rounded-lg bg-sky-300 px-4 py-2 text-sm font-black text-slate-950 hover:bg-sky-200">
+            Update Status
+          </button>
+        </form>
+      </div>
+    </section>
+  );
+}
+
+function ModerationButton({
+  discussionId,
+  action,
+  label,
+}: {
+  discussionId: string;
+  action: string;
+  label: string;
+}) {
+  return (
+    <form action={moderateCommunityDiscussionFromThread}>
+      <input type="hidden" name="discussion_id" value={discussionId} />
+      <button
+        name="action"
+        value={action}
+        className="rounded-lg border border-sky-300/20 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-300/10"
+      >
+        {label}
+      </button>
+    </form>
   );
 }
 
