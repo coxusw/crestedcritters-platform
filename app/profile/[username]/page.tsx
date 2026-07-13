@@ -72,6 +72,16 @@ type RecentDiscussion = {
   created_at: string;
 };
 
+type RecentCommunityActivity = {
+  id: string;
+  kind: "post" | "reply";
+  title: string;
+  body: string;
+  href: string;
+  label: string;
+  created_at: string;
+};
+
 type ExpoStatus = {
   id: string;
   status: "attending" | "vending";
@@ -499,6 +509,9 @@ export default async function PublicProfilePage({
     galleryImages,
     imageEdits,
     discussionPosts,
+    communityPosts,
+    communityReplies,
+    acceptedCommunityReplies,
     badgeAssignments,
     collectionResult,
   ] = await Promise.all([
@@ -543,6 +556,22 @@ export default async function PublicProfilePage({
       .eq("user_id", profile.id)
       .eq("status", "active"),
     supabase
+      .from("community_discussions")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", profile.id)
+      .in("status", ["published", "expired"]),
+    supabase
+      .from("community_replies")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", profile.id)
+      .eq("status", "published"),
+    supabase
+      .from("community_replies")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", profile.id)
+      .eq("status", "published")
+      .eq("is_accepted_answer", true),
+    supabase
       .from("profile_badge_assignments")
       .select(
         `
@@ -580,6 +609,9 @@ export default async function PublicProfilePage({
     imageEdits.data || []
   );
   const discussionPostsCount = discussionPosts.count || 0;
+  const communityPostsCount = communityPosts.count || 0;
+  const communityRepliesCount = communityReplies.count || 0;
+  const acceptedCommunityRepliesCount = acceptedCommunityReplies.count || 0;
   const discussionLikesReceivedCount = await getDiscussionLikesReceivedCount(
     supabase,
     profile.id
@@ -611,6 +643,10 @@ export default async function PublicProfilePage({
   const recentDiscussions =
     canUseRecentDiscussions && (isOwner || visibility.recent_discussions_public)
       ? await getRecentProfileDiscussions(supabase, profile.id)
+      : [];
+  const recentCommunityActivity =
+    canUseRecentDiscussions && (isOwner || visibility.recent_discussions_public)
+      ? await getRecentCommunityActivity(supabase, profile.id)
       : [];
   const expoStatuses =
     canUseExpoStatus && (isOwner || visibility.expo_status_public)
@@ -907,16 +943,59 @@ export default async function PublicProfilePage({
             {((canUseRecentDiscussions || canUseExpoStatus) &&
               (isOwner ||
               recentDiscussions.length > 0 ||
+              recentCommunityActivity.length > 0 ||
               expoStatuses.length > 0)) && (
               <section className="grid gap-5 xl:grid-cols-2">
                 {canUseRecentDiscussions &&
-                  (isOwner || visibility.recent_discussions_public) && (
+                  (isOwner || visibility.recent_discussions_public) &&
+                  (isOwner || recentCommunityActivity.length > 0) && (
+                  <ProfileActivityCard
+                    title="Community Activity"
+                    isOwner={isOwner}
+                    section="recent_discussions"
+                    username={usernameForLinks}
+                    isPublic={visibility.recent_discussions_public}
+                    emptyText={
+                      isOwner
+                        ? "Your recent Community posts and replies will show here."
+                        : "No recent Community activity yet."
+                    }
+                  >
+                    {recentCommunityActivity.map((activity) => (
+                      <Link
+                        key={activity.id}
+                        href={activity.href}
+                        className="block rounded-xl border border-white/10 bg-[#07130c]/70 p-3 transition hover:border-emerald-400/50"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-black text-white">
+                            {activity.title}
+                          </p>
+                          <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-100">
+                            {activity.label}
+                          </span>
+                        </div>
+                        <p className="mt-2 line-clamp-2 text-xs leading-5 text-emerald-50/55">
+                          {activity.body}
+                        </p>
+                        <p className="mt-2 text-[11px] font-bold text-emerald-100/40">
+                          {new Date(activity.created_at).toLocaleDateString()}
+                        </p>
+                      </Link>
+                    ))}
+                  </ProfileActivityCard>
+                )}
+
+                {canUseRecentDiscussions &&
+                  (isOwner || visibility.recent_discussions_public) &&
+                  (isOwner || recentDiscussions.length > 0) && (
                   <ProfileActivityCard
                     title="Recent Discussions"
                     isOwner={isOwner}
                     section="recent_discussions"
                     username={usernameForLinks}
                     isPublic={visibility.recent_discussions_public}
+                    showVisibilityControl={false}
                     emptyText={
                       isOwner
                         ? "Your recent public discussion posts will show here."
@@ -1269,7 +1348,10 @@ export default async function PublicProfilePage({
                 <TinyStat label="Edits" value={suggestedEditsCount} />
                 <TinyStat label="Edits Verified" value={verifiedEditsCount} />
                 <TinyStat label="Images" value={imageEditsCount} />
-                <TinyStat label="Discussions" value={discussionPostsCount} />
+                <TinyStat label="Species Comments" value={discussionPostsCount} />
+                <TinyStat label="Community Posts" value={communityPostsCount} />
+                <TinyStat label="Community Replies" value={communityRepliesCount} />
+                <TinyStat label="Accepted Answers" value={acceptedCommunityRepliesCount} />
                 <TinyStat label="Likes Earned" value={discussionLikesReceivedCount} />
                 <TinyStat label="Spent" value={spentIsoTokens} />
               </div>
@@ -1447,6 +1529,99 @@ async function getRecentProfileDiscussions(
       href: target?.href || "/",
     };
   });
+}
+
+async function getRecentCommunityActivity(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  profileId: string
+): Promise<RecentCommunityActivity[]> {
+  const [postsResult, repliesResult] = await Promise.all([
+    supabase
+      .from("community_discussions")
+      .select("id, slug, title, body, excerpt, content_type, created_at")
+      .eq("author_id", profileId)
+      .in("status", ["published", "expired"])
+      .order("created_at", { ascending: false })
+      .limit(4)
+      .returns<
+        Array<{
+          id: string;
+          slug: string;
+          title: string;
+          body: string;
+          excerpt: string | null;
+          content_type: string;
+          created_at: string;
+        }>
+      >(),
+    supabase
+      .from("community_replies")
+      .select(
+        `
+        id,
+        body,
+        is_accepted_answer,
+        created_at,
+        discussion:discussion_id (
+          slug,
+          title,
+          status
+        )
+      `
+      )
+      .eq("author_id", profileId)
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .limit(4)
+      .returns<
+        Array<{
+          id: string;
+          body: string;
+          is_accepted_answer: boolean;
+          created_at: string;
+          discussion: {
+            slug: string | null;
+            title: string | null;
+            status: string | null;
+          } | null;
+        }>
+      >(),
+  ]);
+
+  const posts: RecentCommunityActivity[] = (postsResult.data || []).map((post) => ({
+    id: `post-${post.id}`,
+    kind: "post",
+    title: post.title,
+    body: post.excerpt || profileSnippet(post.body),
+    href: `/community/discussion/${post.slug}`,
+    label: post.content_type,
+    created_at: post.created_at,
+  }));
+
+  const replies: RecentCommunityActivity[] = (repliesResult.data || [])
+    .filter((reply) => ["published", "expired"].includes(reply.discussion?.status || ""))
+    .flatMap((reply) => {
+      if (!reply.discussion?.slug) return [];
+
+      return [
+        {
+          id: `reply-${reply.id}`,
+          kind: "reply" as const,
+          title: reply.discussion.title || "Community discussion",
+          body: profileSnippet(reply.body),
+          href: `/community/discussion/${reply.discussion.slug}#reply-${reply.id}`,
+          label: reply.is_accepted_answer ? "accepted reply" : "reply",
+          created_at: reply.created_at,
+        },
+      ];
+    });
+
+  return [...posts, ...replies]
+    .sort(
+      (left, right) =>
+        new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+    )
+    .slice(0, 4);
 }
 
 async function getProfileExpoStatuses(
@@ -1675,6 +1850,20 @@ function threadUnreadCount(thread: MessageThread, profileId: string) {
   ).length;
 }
 
+function profileSnippet(value: string | null) {
+  if (!value) return "";
+
+  const cleaned = value
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<\/p>/gi, " ")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return cleaned.length > 180 ? `${cleaned.slice(0, 180).trim()}...` : cleaned;
+}
+
 function threadParticipantLabel(participants: ThreadParticipant[]) {
   if (!participants.length) return "Isopedia Admin";
   return participants
@@ -1787,6 +1976,7 @@ function ProfileActivityCard({
   section,
   username,
   isPublic,
+  showVisibilityControl = true,
   emptyText,
   children,
 }: {
@@ -1795,6 +1985,7 @@ function ProfileActivityCard({
   section: "recent_discussions" | "expo_status";
   username: string;
   isPublic: boolean;
+  showVisibilityControl?: boolean;
   emptyText: string;
   children: ReactNode;
 }) {
@@ -1807,14 +1998,14 @@ function ProfileActivityCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-black text-white">{title}</h2>
-          {isOwner && (
+          {isOwner && showVisibilityControl && (
             <p className="mt-1 text-xs text-emerald-50/45">
               Currently {isPublic ? "public" : "private"} on your profile.
             </p>
           )}
         </div>
 
-        {isOwner && (
+        {isOwner && showVisibilityControl && (
           <form action={updateProfileActivityVisibility}>
             <input type="hidden" name="username" value={username} />
             <input type="hidden" name="section" value={section} />
