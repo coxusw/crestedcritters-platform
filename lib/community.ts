@@ -437,6 +437,9 @@ export async function getCommunityDiscussions(
   }
 
   const sort = options.sort || "active";
+  const limit = options.limit || 30;
+  const queryLimit = sort === "trending" ? Math.min(limit * 4, 120) : limit;
+
   if (sort === "newest") {
     query = query.order("created_at", { ascending: false });
   } else if (sort === "replies") {
@@ -445,17 +448,44 @@ export async function getCommunityDiscussions(
     query = query.order("view_count", { ascending: false }).order("last_activity_at", { ascending: false });
   } else if (sort === "saved") {
     query = query.order("save_count", { ascending: false }).order("last_activity_at", { ascending: false });
+  } else if (sort === "trending") {
+    query = query.order("last_activity_at", { ascending: false });
   } else {
     query = query.order("pinned", { ascending: false }).order("last_activity_at", { ascending: false });
   }
 
   const { data, error } = await query
-    .limit(options.limit || 30)
+    .limit(queryLimit)
     .returns<CommunityDiscussion[]>();
 
   if (error) throw new Error(error.message);
 
+  if (sort === "trending") {
+    return (data || [])
+      .sort((left, right) => communityTrendingScore(right) - communityTrendingScore(left))
+      .slice(0, limit);
+  }
+
   return data || [];
+}
+
+function communityTrendingScore(discussion: CommunityDiscussion) {
+  const lastActivity = new Date(discussion.last_activity_at).getTime();
+  const ageHours = Number.isFinite(lastActivity)
+    ? Math.max(0, (Date.now() - lastActivity) / 36e5)
+    : 168;
+  const recencyBoost = Math.max(0, 30 - ageHours / 8);
+
+  // Simple and tunable: replies and saves matter most, views help, old activity decays.
+  return (
+    discussion.reply_count * 4 +
+    discussion.save_count * 3 +
+    discussion.follow_count * 2 +
+    discussion.view_count * 0.25 +
+    (discussion.featured ? 12 : 0) +
+    (discussion.pinned ? 8 : 0) +
+    recencyBoost
+  );
 }
 
 export async function getMarketplaceDetailsByDiscussionIds(

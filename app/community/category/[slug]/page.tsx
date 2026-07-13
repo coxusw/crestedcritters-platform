@@ -121,6 +121,7 @@ export default async function CommunityCategoryPage({
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <FilterSelect label="Sort" name="sort" value={query.sort || "active"}>
               <option value="active">Recently active</option>
+              <option value="trending">Trending</option>
               <option value="newest">Newest</option>
               <option value="replies">Most replies</option>
               <option value="views">Most viewed</option>

@@ -126,6 +126,7 @@ export default async function CommunityPage({
               className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
             >
               <option value="active">Recently active</option>
+              <option value="trending">Trending</option>
               <option value="newest">Newest</option>
               <option value="replies">Most replies</option>
               <option value="views">Most viewed</option>
