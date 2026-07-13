@@ -16,12 +16,6 @@ type Expo = {
   updated_at: string | null;
 };
 
-type Guide = {
-  slug: string;
-  updated_at: string | null;
-  created_at: string | null;
-};
-
 type CommunityDiscussion = {
   slug: string;
   updated_at: string | null;
@@ -151,7 +145,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [
     speciesResult,
     exposResult,
-    guidesResult,
     profilesResult,
     communityResult,
   ] = await Promise.all([
@@ -167,13 +160,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .eq("status", "approved")
       .not("slug", "is", null)
       .returns<Expo[]>(),
-
-    supabase
-      .from("isopedia_guides")
-      .select("slug, updated_at, created_at")
-      .eq("status", "published")
-      .not("slug", "is", null)
-      .returns<Guide[]>(),
 
     supabase
       .from("profiles")
@@ -219,19 +205,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
       })) || [];
 
-  const communitySlugs = new Set((communityResult.data || []).map((discussion) => discussion.slug));
-  const guidePages =
-    guidesResult.data?.filter((guide) => !communitySlugs.has(guide.slug)).map((guide) => ({
-      url: `${baseUrl}/community/discussion/${guide.slug}`,
-      lastModified: guide.updated_at
-        ? new Date(guide.updated_at)
-        : guide.created_at
-          ? new Date(guide.created_at)
-          : new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.7,
-    })) || [];
-
   const communityPages =
     communityResult.data?.map((discussion) => ({
       url: `${baseUrl}/community/discussion/${discussion.slug}`,
@@ -248,7 +221,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...defaultPages,
     ...speciesPages,
     ...expoPages,
-    ...guidePages,
     ...communityPages,
     ...profilePages,
   ];
