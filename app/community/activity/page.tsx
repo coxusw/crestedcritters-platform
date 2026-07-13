@@ -11,7 +11,12 @@ type ActivityItem = {
   createdAt: string | null;
 };
 
-export default async function CommunityActivityPage() {
+export default async function CommunityActivityPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createSupabaseServerClient();
 
   const [discussions, species, expos] = await Promise.all([
@@ -59,6 +64,10 @@ export default async function CommunityActivityPage() {
   ].sort((left, right) => {
     return new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime();
   });
+  const activeType = allowedActivityType(params.type);
+  const filteredItems = activeType
+    ? items.filter((item) => item.type === activeType)
+    : items;
 
   return (
     <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
@@ -78,16 +87,25 @@ export default async function CommunityActivityPage() {
             Recent public activity across Isopedia discussions, species, and expos.
           </p>
         </header>
+        <nav className="mt-5 flex flex-wrap gap-2" aria-label="Activity filters">
+          <FilterLink href="/community/activity" active={!activeType} label="All" />
+          <FilterLink href="/community/activity?type=discussion" active={activeType === "discussion"} label="Discussions" />
+          <FilterLink href="/community/activity?type=guide" active={activeType === "guide"} label="Guides" />
+          <FilterLink href="/community/activity?type=journal" active={activeType === "journal"} label="Journals" />
+          <FilterLink href="/community/activity?type=marketplace" active={activeType === "marketplace"} label="Marketplace" />
+          <FilterLink href="/community/activity?type=species" active={activeType === "species"} label="Species" />
+          <FilterLink href="/community/activity?type=expo" active={activeType === "expo"} label="Expos" />
+        </nav>
         <section className="mt-6 grid gap-3">
-          {items.length ? (
-            items.map((item) => (
+          {filteredItems.length ? (
+            filteredItems.map((item) => (
               <Link
                 key={`${item.type}:${item.href}`}
                 href={item.href}
                 className="rounded-lg border border-white/10 bg-white/[0.05] p-4 hover:border-emerald-300/40"
               >
                 <div className="text-xs font-black uppercase tracking-wide text-emerald-300">
-                  {item.type}
+                  {activityLabel(item.type)}
                 </div>
                 <div className="mt-1 font-black text-white">{item.title}</div>
                 <div className="mt-1 text-xs text-emerald-50/45">
@@ -122,4 +140,41 @@ export default async function CommunityActivityPage() {
       </div>
     </main>
   );
+}
+
+function FilterLink({
+  href,
+  active,
+  label,
+}: {
+  href: string;
+  active: boolean;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`rounded-lg border px-4 py-2 text-sm font-black ${
+        active
+          ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100"
+          : "border-white/10 bg-[#07130c] text-white hover:bg-white/10"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
+function allowedActivityType(value?: string) {
+  return ["discussion", "guide", "journal", "marketplace", "species", "expo"].includes(value || "")
+    ? value
+    : null;
+}
+
+function activityLabel(value: string) {
+  if (value === "expo") return "Expo";
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
