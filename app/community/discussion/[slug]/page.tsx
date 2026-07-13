@@ -17,6 +17,7 @@ import {
   communityExcerpt,
   communityProfileName,
   getInlineBadgesForProfiles,
+  isCommunityPinned,
   isMarketplaceExpiredByDate,
   marketplaceEffectiveStatus,
 } from "@/lib/community";
@@ -308,6 +309,7 @@ export default async function CommunityDiscussionPage({
   const badgesByProfile = await getInlineBadgesForProfiles(supabase, allProfileIds);
   const canEdit = Boolean(user && user.id === discussion.author_id);
   const returnPath = `/community/discussion/${discussion.slug}`;
+  const discussionIsPinned = isCommunityPinned(discussion);
 
   return (
     <main className="min-h-screen bg-[#07130c] px-3 py-4 text-white sm:px-4 sm:py-8 lg:py-10">
@@ -337,7 +339,7 @@ export default async function CommunityDiscussionPage({
                 Locked
               </span>
             )}
-            {discussion.pinned && (
+            {discussionIsPinned && (
               <span className="rounded-md border border-amber-300/20 bg-amber-300/10 px-2 py-1 text-xs font-black uppercase tracking-wide text-amber-100">
                 Pinned
               </span>

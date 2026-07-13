@@ -127,6 +127,17 @@ export function isMarketplaceExpiredByDate(expirationDate: string | null) {
   return Number.isFinite(expiration.getTime()) && expiration.getTime() < Date.now();
 }
 
+export function isCommunityPinned(discussion: {
+  pinned: boolean;
+  pinned_until: string | null;
+}) {
+  if (!discussion.pinned) return false;
+  if (!discussion.pinned_until) return true;
+
+  const pinnedUntil = new Date(discussion.pinned_until).getTime();
+  return Number.isFinite(pinnedUntil) && pinnedUntil > Date.now();
+}
+
 export type InlineBadge = {
   id: string;
   label: string;
@@ -445,7 +456,8 @@ export async function getCommunityDiscussions(
 
   const sort = options.sort || "active";
   const limit = options.limit || 30;
-  const queryLimit = sort === "trending" ? Math.min(limit * 4, 120) : limit;
+  const queryLimit =
+    sort === "trending" || options.pinnedOnly ? Math.min(limit * 4, 120) : limit;
 
   if (sort === "newest") {
     query = query.order("created_at", { ascending: false });
@@ -467,13 +479,31 @@ export async function getCommunityDiscussions(
 
   if (error) throw new Error(error.message);
 
+  const discussions = (data || []).map((discussion) =>
+    isCommunityPinned(discussion) ? discussion : { ...discussion, pinned: false }
+  );
+
+  if (options.pinnedOnly) {
+    return discussions.filter(isCommunityPinned).slice(0, limit);
+  }
+
   if (sort === "trending") {
-    return (data || [])
+    return discussions
       .sort((left, right) => communityTrendingScore(right) - communityTrendingScore(left))
       .slice(0, limit);
   }
 
-  return data || [];
+  if (!["newest", "replies", "views", "saved"].includes(sort)) {
+    return discussions
+      .sort(
+        (left, right) =>
+          Number(isCommunityPinned(right)) - Number(isCommunityPinned(left)) ||
+          new Date(right.last_activity_at).getTime() - new Date(left.last_activity_at).getTime()
+      )
+      .slice(0, limit);
+  }
+
+  return discussions;
 }
 
 function communityTrendingScore(discussion: CommunityDiscussion) {
@@ -490,7 +520,7 @@ function communityTrendingScore(discussion: CommunityDiscussion) {
     discussion.follow_count * 2 +
     discussion.view_count * 0.25 +
     (discussion.featured ? 12 : 0) +
-    (discussion.pinned ? 8 : 0) +
+    (isCommunityPinned(discussion) ? 8 : 0) +
     recencyBoost
   );
 }
