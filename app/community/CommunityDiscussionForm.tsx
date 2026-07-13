@@ -34,9 +34,10 @@ export default function CommunityDiscussionForm({
     categories.find((category) => category.id === initialDiscussion?.category_id) ||
     categories[0];
   const isMarketplace = selectedCategory?.slug === "marketplace-connections";
+  const imagesEnabled = selectedCategory?.images_enabled ?? true;
 
   return (
-    <form action={action} className="grid gap-5">
+    <form action={action} className="grid gap-5" encType="multipart/form-data">
       {initialDiscussion && (
         <input type="hidden" name="discussion_id" value={initialDiscussion.id} />
       )}
@@ -124,6 +125,22 @@ export default function CommunityDiscussionForm({
           placeholder="substrate, breeding, duckies"
         />
       </label>
+
+      {imagesEnabled && (
+        <label className="grid gap-2">
+          <span className="text-sm font-black text-emerald-50/80">Images</span>
+          <input
+            name="image_files"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-sm text-emerald-50/80 outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:font-black file:text-slate-950 hover:file:bg-emerald-300"
+          />
+          <span className="text-xs text-emerald-50/45">
+            Add up to 4 JPG, PNG, WEBP, or GIF images. Each image must be under 5MB.
+          </span>
+        </label>
+      )}
 
       {isMarketplace && (
         <fieldset className="grid gap-4 rounded-lg border border-yellow-300/20 bg-yellow-300/10 p-4">

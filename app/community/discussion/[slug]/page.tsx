@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   type CommunityDiscussion,
+  type CommunityImage,
   type CommunityReply,
   type CommunitySpecies,
   type MarketplaceDetails,
@@ -185,6 +187,26 @@ export default async function CommunityDiscussionPage({
         : Promise.resolve({ data: null }),
     ]);
 
+  const replyIds = (repliesResult.data || []).map((reply) => reply.id);
+  const imageFilter = replyIds.length
+    ? `discussion_id.eq.${discussion.id},reply_id.in.(${replyIds.join(",")})`
+    : `discussion_id.eq.${discussion.id}`;
+  const { data: images } = await supabase
+    .from("community_images")
+    .select("id, discussion_id, reply_id, owner_id, image_url, storage_path, alt_text, caption, position, created_at")
+    .eq("status", "active")
+    .or(imageFilter)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true })
+    .returns<CommunityImage[]>();
+
+  const discussionImages = (images || []).filter((image) => image.discussion_id === discussion.id);
+  const imagesByReply = new Map<string, CommunityImage[]>();
+  for (const image of images || []) {
+    if (!image.reply_id) continue;
+    imagesByReply.set(image.reply_id, [...(imagesByReply.get(image.reply_id) || []), image]);
+  }
+
   const allProfileIds = [
     discussion.author_id,
     ...(repliesResult.data || []).map((reply) => reply.author_id),
@@ -255,6 +277,8 @@ export default async function CommunityDiscussionPage({
           <div className="mt-6 whitespace-pre-wrap text-base leading-8 text-emerald-50/85">
             <LinkifiedText text={discussion.body} />
           </div>
+
+          <CommunityImageGrid images={discussionImages} className="mt-6" />
 
           {speciesResult.data && speciesResult.data.length > 0 && (
             <div className="mt-6 flex flex-wrap gap-2">
@@ -345,12 +369,17 @@ export default async function CommunityDiscussionPage({
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-emerald-50/80">
                   <LinkifiedText text={reply.body} />
                 </p>
+                <CommunityImageGrid
+                  images={imagesByReply.get(reply.id) || []}
+                  className="mt-4"
+                  compact
+                />
               </article>
             ))}
           </div>
 
           {user && !discussion.locked ? (
-            <form action={createCommunityReply} className="mt-6 grid gap-3">
+            <form action={createCommunityReply} className="mt-6 grid gap-3" encType="multipart/form-data">
               <input type="hidden" name="discussion_id" value={discussion.id} />
               <label className="grid gap-2">
                 <span className="text-sm font-black text-emerald-50/80">Reply</span>
@@ -362,6 +391,21 @@ export default async function CommunityDiscussionPage({
                   className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
                 />
               </label>
+              {discussion.category?.images_enabled && (
+                <label className="grid gap-2">
+                  <span className="text-sm font-black text-emerald-50/80">Images</span>
+                  <input
+                    name="image_files"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    multiple
+                    className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-sm text-emerald-50/80 outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:font-black file:text-slate-950 hover:file:bg-emerald-300"
+                  />
+                  <span className="text-xs text-emerald-50/45">
+                    Add up to 4 JPG, PNG, WEBP, or GIF images. Each image must be under 5MB.
+                  </span>
+                </label>
+              )}
               <button className="w-fit rounded-lg bg-emerald-400 px-5 py-3 font-black text-slate-950 hover:bg-emerald-300">
                 Post Reply
               </button>
@@ -407,6 +451,44 @@ export default async function CommunityDiscussionPage({
         </section>
       </div>
     </main>
+  );
+}
+
+function CommunityImageGrid({
+  images,
+  className = "",
+  compact = false,
+}: {
+  images: CommunityImage[];
+  className?: string;
+  compact?: boolean;
+}) {
+  if (!images.length) return null;
+
+  return (
+    <div className={`${className} grid gap-3 ${compact ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+      {images.map((image) => (
+        <figure
+          key={image.id}
+          className="overflow-hidden rounded-lg border border-white/10 bg-black/20"
+        >
+          <a href={image.image_url} target="_blank" rel="noopener noreferrer">
+            <Image
+              src={image.image_url}
+              alt={image.alt_text || image.caption || "Community image"}
+              width={1200}
+              height={900}
+              className={`${compact ? "max-h-56" : "max-h-96"} w-full object-cover`}
+            />
+          </a>
+          {image.caption && (
+            <figcaption className="px-3 py-2 text-xs leading-5 text-emerald-50/60">
+              {image.caption}
+            </figcaption>
+          )}
+        </figure>
+      ))}
+    </div>
   );
 }
 

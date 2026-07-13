@@ -69,6 +69,19 @@ export type CommunityReply = {
   author: CommunityProfile | null;
 };
 
+export type CommunityImage = {
+  id: string;
+  discussion_id: string | null;
+  reply_id: string | null;
+  owner_id: string | null;
+  image_url: string;
+  storage_path: string | null;
+  alt_text: string | null;
+  caption: string | null;
+  position: number;
+  created_at: string;
+};
+
 export type CommunitySpecies = {
   id: number;
   common_name: string;

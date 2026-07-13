@@ -10,6 +10,13 @@ import {
 } from "@/lib/community";
 import { isUnderRestrictedAge } from "@/lib/isopedia-age";
 
+type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+const COMMUNITY_IMAGE_BUCKET = "isopedia-images";
+const MAX_COMMUNITY_IMAGE_FILES = 4;
+const MAX_COMMUNITY_IMAGE_BYTES = 5 * 1024 * 1024;
+const COMMUNITY_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+
 function textValue(value: FormDataEntryValue | null) {
   return String(value || "").trim();
 }
@@ -29,6 +36,82 @@ function cleanTag(value: string) {
 
 function discussionPath(slug: string) {
   return `/community/discussion/${slug}`;
+}
+
+function safeImageExtension(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase() || "";
+  if (extension === "jpeg") return "jpg";
+  if (["jpg", "png", "webp", "gif"].includes(extension)) return extension;
+  return "jpg";
+}
+
+function communityImageFiles(entries: FormDataEntryValue[]) {
+  return entries.filter((entry): entry is File => entry instanceof File && entry.size > 0);
+}
+
+function validateCommunityImageFiles(files: File[]) {
+  if (files.length > MAX_COMMUNITY_IMAGE_FILES) {
+    throw new Error(`Please upload ${MAX_COMMUNITY_IMAGE_FILES} images or fewer.`);
+  }
+
+  for (const file of files) {
+    if (!COMMUNITY_IMAGE_TYPES.has(file.type)) {
+      throw new Error("Images must be JPG, PNG, WEBP, or GIF.");
+    }
+
+    if (file.size > MAX_COMMUNITY_IMAGE_BYTES) {
+      throw new Error("Each image must be smaller than 5MB.");
+    }
+  }
+}
+
+async function uploadCommunityImages(
+  supabase: SupabaseServerClient,
+  files: File[],
+  ownerId: string,
+  target: { discussionId?: string; replyId?: string }
+) {
+  if (!files.length) return;
+
+  const rows: Array<{
+    discussion_id?: string;
+    reply_id?: string;
+    owner_id: string;
+    image_url: string;
+    storage_path: string;
+    alt_text: string | null;
+    position: number;
+  }> = [];
+
+  for (const [index, file] of files.entries()) {
+    const targetId = target.replyId || target.discussionId;
+    if (!targetId) throw new Error("Missing image target.");
+
+    const extension = safeImageExtension(file);
+    const storagePath = `community/${ownerId}/${targetId}/${crypto.randomUUID()}.${extension}`;
+    const { error: uploadError } = await supabase.storage
+      .from(COMMUNITY_IMAGE_BUCKET)
+      .upload(storagePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type || "image/jpeg",
+      });
+
+    if (uploadError) throw new Error(uploadError.message);
+
+    const { data } = supabase.storage.from(COMMUNITY_IMAGE_BUCKET).getPublicUrl(storagePath);
+    rows.push({
+      ...target,
+      owner_id: ownerId,
+      image_url: data.publicUrl,
+      storage_path: storagePath,
+      alt_text: file.name || null,
+      position: index + 1,
+    });
+  }
+
+  const { error } = await supabase.from("community_images").insert(rows);
+  if (error) throw new Error(error.message);
 }
 
 async function authContext() {
@@ -65,7 +148,7 @@ async function authContext() {
 }
 
 async function ensureNotDiscussionBanned(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  supabase: SupabaseServerClient,
   userId: string
 ) {
   const { data } = await supabase
@@ -86,7 +169,7 @@ async function ensureNotDiscussionBanned(
 }
 
 async function syncSpeciesLinks(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  supabase: SupabaseServerClient,
   discussionId: string,
   speciesIds: string[]
 ) {
@@ -109,7 +192,7 @@ async function syncSpeciesLinks(
 }
 
 async function syncTags(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  supabase: SupabaseServerClient,
   discussionId: string,
   rawTags: string
 ) {
@@ -142,7 +225,7 @@ async function syncTags(
 }
 
 async function createMentionNotifications(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  supabase: SupabaseServerClient,
   discussionId: string,
   actorId: string,
   body: string,
@@ -198,6 +281,8 @@ export async function createCommunityDiscussion(formData: FormData) {
   if (category.staff_only_posting && !canModerate) {
     throw new Error("Only staff can start discussions in this category.");
   }
+  const imageFiles = category.images_enabled ? communityImageFiles(formData.getAll("image_files")) : [];
+  validateCommunityImageFiles(imageFiles);
 
   if (category.minimum_account_age_days > 0 && profile?.created_at) {
     const createdAt = new Date(profile.created_at).getTime();
@@ -239,6 +324,11 @@ export async function createCommunityDiscussion(formData: FormData) {
 
   await syncSpeciesLinks(supabase, id, category.species_tagging_enabled ? speciesIds : []);
   await syncTags(supabase, id, tags);
+  if (category.images_enabled) {
+    await uploadCommunityImages(supabase, imageFiles, user.id, {
+      discussionId: id,
+    });
+  }
 
   if (category.marketplace_rules) {
     const expiration = new Date();
@@ -286,14 +376,19 @@ export async function updateCommunityDiscussion(formData: FormData) {
 
   const { data: discussion, error: readError } = await supabase
     .from("community_discussions")
-    .select("id, slug, author_id, category_id, category:category_id(slug, species_tagging_enabled, marketplace_rules)")
+    .select("id, slug, author_id, category_id, category:category_id(slug, species_tagging_enabled, marketplace_rules, images_enabled)")
     .eq("id", discussionId)
     .maybeSingle<{
       id: string;
       slug: string;
       author_id: string | null;
       category_id: string;
-      category: { slug: string; species_tagging_enabled: boolean; marketplace_rules: boolean } | null;
+      category: {
+        slug: string;
+        species_tagging_enabled: boolean;
+        marketplace_rules: boolean;
+        images_enabled: boolean;
+      } | null;
     }>();
 
   if (readError) throw new Error(readError.message);
@@ -301,6 +396,10 @@ export async function updateCommunityDiscussion(formData: FormData) {
   if (discussion.author_id !== user.id && !canModerate) {
     throw new Error("You cannot edit this discussion.");
   }
+  const imageFiles = discussion.category?.images_enabled
+    ? communityImageFiles(formData.getAll("image_files"))
+    : [];
+  validateCommunityImageFiles(imageFiles);
 
   const { error } = await supabase
     .from("community_discussions")
@@ -321,6 +420,11 @@ export async function updateCommunityDiscussion(formData: FormData) {
     discussion.category?.species_tagging_enabled ? speciesIds : []
   );
   await syncTags(supabase, discussionId, tags);
+  if (discussion.category?.images_enabled) {
+    await uploadCommunityImages(supabase, imageFiles, user.id, {
+      discussionId,
+    });
+  }
 
   revalidatePath(discussionPath(discussion.slug));
   revalidatePath(`/community/category/${discussion.category?.slug || ""}`);
@@ -339,7 +443,7 @@ export async function createCommunityReply(formData: FormData) {
 
   const { data: discussion, error: discussionError } = await supabase
     .from("community_discussions")
-    .select("id, slug, title, author_id, status, locked")
+    .select("id, slug, title, author_id, status, locked, category:category_id(images_enabled)")
     .eq("id", discussionId)
     .maybeSingle<{
       id: string;
@@ -348,11 +452,16 @@ export async function createCommunityReply(formData: FormData) {
       author_id: string | null;
       status: string;
       locked: boolean;
+      category: { images_enabled: boolean } | null;
     }>();
 
   if (discussionError) throw new Error(discussionError.message);
   if (!discussion || discussion.status !== "published") throw new Error("Discussion not found.");
   if (discussion.locked) throw new Error("This discussion is locked.");
+  const imageFiles = discussion.category?.images_enabled
+    ? communityImageFiles(formData.getAll("image_files"))
+    : [];
+  validateCommunityImageFiles(imageFiles);
 
   const { data: reply, error } = await supabase
     .from("community_replies")
@@ -365,6 +474,11 @@ export async function createCommunityReply(formData: FormData) {
     .single<{ id: string }>();
 
   if (error) throw new Error(error.message);
+  if (discussion.category?.images_enabled) {
+    await uploadCommunityImages(supabase, imageFiles, user.id, {
+      replyId: reply.id,
+    });
+  }
 
   if (discussion.author_id && discussion.author_id !== user.id) {
     await supabase.from("notifications").insert({
