@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
 import HomepageStructuredData from "@/app/components/isopedia/HomepageStructuredData";
@@ -166,6 +167,32 @@ export async function IsopediaLandingPage() {
                 <SmallStatCard label="Pending Reviews" value={pendingReviews} />
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="mx-auto mt-5 grid max-w-5xl gap-4 rounded-2xl border border-emerald-400/25 bg-[linear-gradient(135deg,rgba(16,185,129,0.12),rgba(7,19,12,0.72))] p-5 shadow-xl shadow-black/20 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">
+              New To Isopods?
+            </p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/72">
+              Learn the basics, then jump into verified species profiles,
+              member guides, and community discussions.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 sm:justify-end">
+            <Link
+              href="/isopods"
+              className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-white transition hover:bg-white/10"
+            >
+              What Are Isopods?
+            </Link>
+            <Link
+              href="/isopod-care"
+              className="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
+            >
+              Isopod Care Guide
+            </Link>
           </div>
         </section>
 
