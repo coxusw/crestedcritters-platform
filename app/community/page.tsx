@@ -32,6 +32,7 @@ export default async function CommunityPage({
     categories,
     speciesResult,
     recent,
+    pinned,
     trending,
     unanswered,
     guides,
@@ -50,6 +51,10 @@ export default async function CommunityPage({
       sort: params.sort,
       speciesId: params.species,
       limit: 12,
+    }),
+    getCommunityDiscussions(supabase, {
+      pinnedOnly: true,
+      limit: 4,
     }),
     getCommunityDiscussions(supabase, {
       sort: "trending",
@@ -200,6 +205,13 @@ export default async function CommunityPage({
           </section>
 
           <aside className="space-y-4">
+            {pinned.length > 0 && (
+              <Panel title="Pinned Announcements" href="/community">
+                {pinned.map((discussion) => (
+                  <MiniDiscussion key={discussion.id} discussion={discussion} />
+                ))}
+              </Panel>
+            )}
             <Panel title="Trending Discussions" href="/community?sort=trending">
               {trending.length ? trending.map((discussion) => (
                 <MiniDiscussion key={discussion.id} discussion={discussion} />

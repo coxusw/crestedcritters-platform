@@ -240,6 +240,7 @@ export async function getCommunityDiscussions(
     statuses?: string[];
     limit?: number;
     contentType?: string;
+    pinnedOnly?: boolean;
     unansweredOnly?: boolean;
     answeredOnly?: boolean;
     hasImages?: boolean;
@@ -421,6 +422,7 @@ export async function getCommunityDiscussions(
 
   if (options.authorId) query = query.eq("author_id", options.authorId);
   if (options.contentType) query = query.eq("content_type", options.contentType);
+  if (options.pinnedOnly) query = query.eq("pinned", true);
   if (options.unansweredOnly) query = query.eq("answered", false).eq("content_type", "question");
   if (options.answeredOnly) query = query.eq("answered", true).eq("content_type", "question");
   if (constrainedDiscussionIds) query = query.in("id", constrainedDiscussionIds);
