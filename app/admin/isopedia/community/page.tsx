@@ -186,6 +186,8 @@ export default async function AdminCommunityPage({
     discussionQuery = discussionQuery.gt("report_count", 0);
   } else if (discussionFilter === "hidden") {
     discussionQuery = discussionQuery.in("status", ["hidden", "removed"]);
+  } else if (discussionFilter === "archived") {
+    discussionQuery = discussionQuery.eq("status", "archived");
   } else if (discussionFilter === "locked") {
     discussionQuery = discussionQuery.eq("locked", true);
   } else if (discussionFilter === "marketplace") {
@@ -410,6 +412,7 @@ export default async function AdminCommunityPage({
               <FilterLink href="/admin/isopedia/community?discussions=pending" active={discussionFilter === "pending"} label="Pending" />
               <FilterLink href="/admin/isopedia/community?discussions=reported" active={discussionFilter === "reported"} label="Reported" />
               <FilterLink href="/admin/isopedia/community?discussions=hidden" active={discussionFilter === "hidden"} label="Hidden" />
+              <FilterLink href="/admin/isopedia/community?discussions=archived" active={discussionFilter === "archived"} label="Archived" />
               <FilterLink href="/admin/isopedia/community?discussions=locked" active={discussionFilter === "locked"} label="Locked" />
               <FilterLink href="/admin/isopedia/community?discussions=marketplace" active={discussionFilter === "marketplace"} label="Marketplace" />
               <FilterLink href="/admin/isopedia/community?discussions=all" active={discussionFilter === "all"} label="All" />
@@ -440,12 +443,14 @@ export default async function AdminCommunityPage({
                   </div>
                   <form action={moderateCommunityDiscussion} className="flex flex-wrap gap-2">
                     <input type="hidden" name="discussion_id" value={discussion.id} />
+                    <input type="hidden" name="discussion_slug" value={discussion.slug} />
                     {discussion.status === "pending" && <ModButton action="approve" label="Approve" />}
                     <ModButton action={discussion.locked ? "unlock" : "lock"} label={discussion.locked ? "Unlock" : "Lock"} />
                     <ModButton action={discussion.pinned ? "unpin" : "pin"} label={discussion.pinned ? "Unpin" : "Pin"} />
                     <ModButton action={discussion.featured ? "unfeature" : "feature"} label={discussion.featured ? "Unfeature" : "Feature"} />
                     <ModButton action={discussion.moderation_status === "flagged" ? "clear" : "flag"} label={discussion.moderation_status === "flagged" ? "Clear" : "Flag"} />
-                    <ModButton action={discussion.status === "hidden" ? "restore" : "hide"} label={discussion.status === "hidden" ? "Restore" : "Hide"} />
+                    <ModButton action={["hidden", "removed", "archived"].includes(discussion.status) ? "restore" : "hide"} label={["hidden", "removed", "archived"].includes(discussion.status) ? "Restore" : "Hide"} />
+                    {discussion.status !== "archived" && discussion.status !== "removed" && <ModButton action="archive" label="Archive" />}
                     {discussion.status !== "removed" && <ModButton action="remove" label="Remove" />}
                   </form>
                 </div>

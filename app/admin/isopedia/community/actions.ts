@@ -182,6 +182,7 @@ export async function resolveCommunityReport(formData: FormData) {
 export async function moderateCommunityDiscussion(formData: FormData) {
   const { user, supabase } = await requireAdmin();
   const discussionId = textValue(formData.get("discussion_id"));
+  const discussionSlug = textValue(formData.get("discussion_slug"));
   const action = textValue(formData.get("action"));
 
   const updates: Record<string, string | boolean | null> = {
@@ -221,6 +222,7 @@ export async function moderateCommunityDiscussion(formData: FormData) {
 
   revalidatePath("/admin/isopedia/community");
   revalidatePath("/community");
+  if (discussionSlug) revalidatePath(`/community/discussion/${discussionSlug}`);
   redirect("/admin/isopedia/community?saved=moderation");
 }
 
