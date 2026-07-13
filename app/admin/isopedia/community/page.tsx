@@ -7,6 +7,7 @@ import {
   moderateCommunityDiscussion,
   resolveCommunityReport,
   saveCommunityCategory,
+  saveRecurringPrompt,
 } from "@/app/admin/isopedia/community/actions";
 
 type Category = {
@@ -112,7 +113,22 @@ type Prompt = {
   description: string | null;
   weekday: number;
   enabled: boolean;
+  category_id: string | null;
+  pin_for_days: number;
 };
+
+const inputClass =
+  "rounded-md border border-white/10 bg-[#07130c] p-2 text-sm text-white";
+
+const weekdayOptions = [
+  { value: 0, label: "Sunday" },
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+];
 
 async function requireAdmin() {
   const supabase = await createSupabaseServerClient();
@@ -258,7 +274,7 @@ export default async function AdminCommunityPage({
     reportQuery.returns<Report[]>(),
     supabase
       .from("community_recurring_prompts")
-      .select("id, title, description, weekday, enabled")
+      .select("id, title, description, weekday, enabled, category_id, pin_for_days")
       .order("weekday", { ascending: true })
       .returns<Prompt[]>(),
     supabase
@@ -384,15 +400,63 @@ export default async function AdminCommunityPage({
               <h2 className="text-xl font-black">Weekly Prompts</h2>
               <div className="mt-4 grid gap-3">
                 {(prompts.data || []).map((prompt) => (
-                  <form key={prompt.id} action={generateWeeklyPrompt} className="rounded-lg border border-white/10 bg-black/20 p-4">
-                    <input type="hidden" name="prompt_id" value={prompt.id} />
-                    <div className="font-black text-white">{prompt.title}</div>
-                    <p className="mt-1 text-sm text-slate-400">{prompt.description}</p>
-                    <p className="mt-1 text-xs text-emerald-300">Weekday: {weekday(prompt.weekday)}</p>
-                    <button className="mt-3 rounded-md bg-emerald-400 px-3 py-2 text-sm font-black text-slate-950">
-                      Generate This Week
-                    </button>
-                  </form>
+                  <div key={prompt.id} className="rounded-lg border border-white/10 bg-black/20 p-4">
+                    <form action={saveRecurringPrompt} className="grid gap-3">
+                      <input type="hidden" name="prompt_id" value={prompt.id} />
+                      <label className="grid gap-1 text-sm">
+                        <span className="font-bold text-slate-300">Title</span>
+                        <input name="title" defaultValue={prompt.title} className={inputClass} />
+                      </label>
+                      <label className="grid gap-1 text-sm">
+                        <span className="font-bold text-slate-300">Description</span>
+                        <textarea name="description" defaultValue={prompt.description || ""} rows={3} className={inputClass} />
+                      </label>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <label className="grid gap-1 text-sm">
+                          <span className="font-bold text-slate-300">Weekday</span>
+                          <select name="weekday" defaultValue={prompt.weekday} className={inputClass}>
+                            {weekdayOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="grid gap-1 text-sm">
+                          <span className="font-bold text-slate-300">Category</span>
+                          <select name="category_id" defaultValue={prompt.category_id || ""} className={inputClass}>
+                            {(categories.data || []).map((category) => (
+                              <option key={category.id} value={category.id}>
+                                {category.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="grid gap-1 text-sm">
+                          <span className="font-bold text-slate-300">Pin Days</span>
+                          <input name="pin_for_days" type="number" min={0} defaultValue={prompt.pin_for_days} className={inputClass} />
+                        </label>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <label className="flex items-center gap-2 text-sm font-bold text-slate-300">
+                          <input name="enabled" type="checkbox" defaultChecked={prompt.enabled} className="h-4 w-4 accent-emerald-400" />
+                          Enabled
+                        </label>
+                        <button className="rounded-md border border-emerald-400/25 px-3 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-400/10">
+                          Save Prompt
+                        </button>
+                      </div>
+                    </form>
+                    <form action={generateWeeklyPrompt} className="mt-3">
+                      <input type="hidden" name="prompt_id" value={prompt.id} />
+                      <button
+                        disabled={!prompt.enabled}
+                        className="rounded-md bg-emerald-400 px-3 py-2 text-sm font-black text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+                      >
+                        Generate This Week
+                      </button>
+                    </form>
+                  </div>
                 ))}
               </div>
             </section>
@@ -491,6 +555,7 @@ function adminCommunitySavedMessage(value: string) {
   if (value === "report") return "Report queue item updated.";
   if (value === "moderation") return "Moderation action applied.";
   if (value === "prompt") return "Weekly prompt generated.";
+  if (value === "prompt-settings") return "Weekly prompt settings saved.";
   if (value === "prompt-exists") return "This week's prompt already exists.";
   return "Community settings saved.";
 }
@@ -499,6 +564,7 @@ function adminCommunityErrorMessage(value: string) {
   if (value === "category-name-required") return "Category name is required.";
   if (value === "missing-report") return "Report could not be found.";
   if (value === "prompt-not-found") return "Prompt could not be found.";
+  if (value === "prompt-disabled") return "Enable this weekly prompt before generating it.";
   return value;
 }
 
@@ -782,8 +848,4 @@ function ModButton({ action, label }: { action: string; label: string }) {
       {label}
     </button>
   );
-}
-
-function weekday(value: number) {
-  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][value] || "Unknown";
 }

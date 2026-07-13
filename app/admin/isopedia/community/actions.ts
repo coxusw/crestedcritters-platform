@@ -226,13 +226,45 @@ export async function moderateCommunityDiscussion(formData: FormData) {
   redirect("/admin/isopedia/community?saved=moderation");
 }
 
+export async function saveRecurringPrompt(formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const promptId = textValue(formData.get("prompt_id"));
+  const title = textValue(formData.get("title"));
+  const categoryId = textValue(formData.get("category_id"));
+
+  if (!promptId || !title || !categoryId) {
+    redirect("/admin/isopedia/community?error=prompt-not-found");
+  }
+
+  const { error } = await supabase
+    .from("community_recurring_prompts")
+    .update({
+      title,
+      description: textValue(formData.get("description")) || null,
+      weekday: Math.max(0, Math.min(6, Number(formData.get("weekday") || 0))),
+      category_id: categoryId,
+      enabled: boolValue(formData.get("enabled")),
+      pin_for_days: Math.max(0, Number(formData.get("pin_for_days") || 0)),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", promptId);
+
+  if (error) {
+    redirect(`/admin/isopedia/community?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/admin/isopedia/community");
+  revalidatePath("/community");
+  redirect("/admin/isopedia/community?saved=prompt-settings");
+}
+
 export async function generateWeeklyPrompt(formData: FormData) {
   const { user, supabase } = await requireAdmin();
   const promptId = textValue(formData.get("prompt_id"));
 
   const { data: prompt, error: promptError } = await supabase
     .from("community_recurring_prompts")
-    .select("id, title, slug, description, category_id, pin_for_days")
+    .select("id, title, slug, description, category_id, pin_for_days, enabled")
     .eq("id", promptId)
     .maybeSingle<{
       id: string;
@@ -241,10 +273,14 @@ export async function generateWeeklyPrompt(formData: FormData) {
       description: string | null;
       category_id: string | null;
       pin_for_days: number;
+      enabled: boolean;
     }>();
 
   if (promptError || !prompt?.category_id) {
     redirect("/admin/isopedia/community?error=prompt-not-found");
+  }
+  if (!prompt.enabled) {
+    redirect("/admin/isopedia/community?error=prompt-disabled");
   }
 
   const today = new Date();
