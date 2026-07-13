@@ -46,13 +46,14 @@ function upsertUploadsInput(form: HTMLFormElement, uploads: UploadedCommunityIma
   input.value = JSON.stringify(uploads);
 }
 
-function isNextRedirectError(error: unknown) {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "digest" in error &&
-    String((error as { digest?: unknown }).digest).startsWith("NEXT_REDIRECT")
-  );
+function nextRedirectDestination(error: unknown) {
+  if (typeof error !== "object" || error === null || !("digest" in error)) return null;
+
+  const digest = String((error as { digest?: unknown }).digest);
+  if (!digest.startsWith("NEXT_REDIRECT")) return null;
+
+  const [, , destination] = digest.split(";");
+  return destination || null;
 }
 
 export default function CommunityFormShell({
@@ -157,9 +158,11 @@ export default function CommunityFormShell({
       setIsSubmitting(false);
       setSubmitButtons(form, false);
     } catch (submitError) {
-      if (isNextRedirectError(submitError)) {
+      const redirectDestination = nextRedirectDestination(submitError);
+      if (redirectDestination) {
         if (draftStorageKey) window.localStorage.removeItem(draftStorageKey);
-        throw submitError;
+        window.location.assign(redirectDestination);
+        return;
       }
       setIsSubmitting(false);
       setSubmitButtons(form, false);
