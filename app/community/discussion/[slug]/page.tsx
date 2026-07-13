@@ -15,6 +15,7 @@ import {
 } from "@/lib/community";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { InlineBadges } from "@/app/community/CommunityCards";
+import CommunityFormShell from "@/app/community/CommunityFormShell";
 import LinkifiedText from "@/app/community/LinkifiedText";
 import {
   createCommunityReply,
@@ -459,7 +460,7 @@ export default async function CommunityDiscussionPage({
           </div>
 
           {user && !discussion.locked ? (
-            <form action={createCommunityReply} className="mt-6 grid gap-3" encType="multipart/form-data">
+            <CommunityFormShell action={createCommunityReply} className="mt-6 grid gap-3">
               <input type="hidden" name="discussion_id" value={discussion.id} />
               <label className="grid gap-2">
                 <span className="text-sm font-black text-emerald-50/80">Reply</span>
@@ -486,10 +487,13 @@ export default async function CommunityDiscussionPage({
                   </span>
                 </label>
               )}
-              <button className="w-fit rounded-lg bg-emerald-400 px-5 py-3 font-black text-slate-950 hover:bg-emerald-300">
+              <button
+                data-submitting-label="Submitting..."
+                className="w-fit rounded-lg bg-emerald-400 px-5 py-3 font-black text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
                 Post Reply
               </button>
-            </form>
+            </CommunityFormShell>
           ) : discussion.locked ? (
             <p className="mt-6 rounded-lg border border-red-300/20 bg-red-400/10 p-4 text-sm text-red-100">
               This discussion is locked.

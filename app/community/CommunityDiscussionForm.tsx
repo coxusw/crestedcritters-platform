@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { type CommunityCategory, type MarketplaceDetails } from "@/lib/community";
+import CommunityFormShell from "@/app/community/CommunityFormShell";
 
 type SpeciesOption = {
   id: number;
@@ -43,7 +44,7 @@ export default function CommunityDiscussionForm({
   const imagesEnabled = selectedCategory?.images_enabled ?? true;
 
   return (
-    <form action={action} className="grid gap-5" encType="multipart/form-data">
+    <CommunityFormShell action={action} className="grid gap-5">
       {initialDiscussion && (
         <input type="hidden" name="discussion_id" value={initialDiscussion.id} />
       )}
@@ -243,7 +244,10 @@ export default function CommunityDiscussionForm({
       )}
 
       <div className="flex flex-wrap gap-3">
-        <button className="rounded-lg bg-emerald-400 px-5 py-3 font-black text-slate-950 hover:bg-emerald-300">
+        <button
+          data-submitting-label={initialDiscussion ? "Saving..." : "Submitting..."}
+          className="rounded-lg bg-emerald-400 px-5 py-3 font-black text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+        >
           {initialDiscussion ? "Save Changes" : "Publish"}
         </button>
         <Link
@@ -253,7 +257,7 @@ export default function CommunityDiscussionForm({
           Cancel
         </Link>
       </div>
-    </form>
+    </CommunityFormShell>
   );
 }
 

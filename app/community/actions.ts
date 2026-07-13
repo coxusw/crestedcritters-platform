@@ -23,6 +23,13 @@ type NotificationInsert = {
   metadata: Record<string, unknown>;
 };
 
+type UploadedCommunityImage = {
+  image_url: string;
+  storage_path: string;
+  alt_text: string | null;
+  position: number;
+};
+
 const COMMUNITY_IMAGE_BUCKET = "isopedia-images";
 const MAX_COMMUNITY_IMAGE_FILES = 5;
 const MAX_COMMUNITY_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -138,6 +145,45 @@ function validateCommunityImageFiles(files: File[]) {
   return null;
 }
 
+function communityUploadedImages(formData: FormData) {
+  const raw = textValue(formData.get("community_image_uploads"));
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((item, index) => {
+        if (!item || typeof item !== "object") return null;
+        const image = item as Record<string, unknown>;
+        const imageUrl = typeof image.image_url === "string" ? image.image_url : "";
+        const storagePath = typeof image.storage_path === "string" ? image.storage_path : "";
+        if (!imageUrl || !storagePath) return null;
+
+        return {
+          image_url: imageUrl,
+          storage_path: storagePath,
+          alt_text: typeof image.alt_text === "string" ? image.alt_text : null,
+          position: Number(image.position) || index + 1,
+        } satisfies UploadedCommunityImage;
+      })
+      .filter((item): item is UploadedCommunityImage => Boolean(item))
+      .slice(0, MAX_COMMUNITY_IMAGE_FILES);
+  } catch (error) {
+    console.error("Failed to parse uploaded community images:", error);
+    return [];
+  }
+}
+
+function validateCommunityImagePayload(files: File[], uploadedImages: UploadedCommunityImage[]) {
+  const totalImages = files.length + uploadedImages.length;
+  if (totalImages > MAX_COMMUNITY_IMAGE_FILES) {
+    return `Please upload ${MAX_COMMUNITY_IMAGE_FILES} images or fewer.`;
+  }
+  return validateCommunityImageFiles(files);
+}
+
 async function uploadCommunityImages(
   supabase: SupabaseServerClient,
   files: File[],
@@ -209,6 +255,49 @@ async function uploadCommunityImages(
   }
 
   return warning;
+}
+
+async function saveUploadedCommunityImages(
+  supabase: SupabaseServerClient,
+  uploadedImages: UploadedCommunityImage[],
+  ownerId: string,
+  target: { discussionId?: string; replyId?: string }
+) {
+  const targetId = target.replyId || target.discussionId;
+  if (!uploadedImages.length) return null;
+  if (!targetId) return "Images could not be attached. The post was saved.";
+
+  const rows = uploadedImages
+    .filter((image) => image.storage_path.startsWith(`community/${ownerId}/`))
+    .map((image, index) => ({
+      discussion_id: target.discussionId || null,
+      reply_id: target.replyId || null,
+      owner_id: ownerId,
+      image_url: image.image_url,
+      storage_path: image.storage_path,
+      alt_text: image.alt_text,
+      position: image.position || index + 1,
+    }));
+
+  if (!rows.length) return "Images could not be attached. The post was saved.";
+
+  let writeClient: SupabaseServerClient = supabase;
+  try {
+    writeClient = createSupabaseAdminClient() as unknown as SupabaseServerClient;
+  } catch (error) {
+    console.error(
+      "Community uploaded image rows are using user client fallback:",
+      error instanceof Error ? error.message : error
+    );
+  }
+
+  const { error } = await writeClient.from("community_images").insert(rows);
+  if (error) {
+    console.error("Failed to save uploaded community image rows:", error.message);
+    return "Images uploaded but could not be attached to the post.";
+  }
+
+  return null;
 }
 
 async function insertNotificationsSkippingExisting(
@@ -519,7 +608,8 @@ export async function createCommunityDiscussion(formData: FormData) {
     redirect(newDiscussionErrorPath(category.slug, "Only staff can start discussions in this category."));
   }
   const imageFiles = category.images_enabled ? communityImageFiles(formData.getAll("image_files")) : [];
-  const imageValidationError = validateCommunityImageFiles(imageFiles);
+  const uploadedImages = category.images_enabled ? communityUploadedImages(formData) : [];
+  const imageValidationError = validateCommunityImagePayload(imageFiles, uploadedImages);
   if (imageValidationError) {
     redirect(withQueryParam(`/community/new?category=${category.slug}`, "form_error", imageValidationError));
   }
@@ -591,9 +681,13 @@ export async function createCommunityDiscussion(formData: FormData) {
   let imageWarning: string | null = null;
   if (category.images_enabled) {
     try {
-      imageWarning = await uploadCommunityImages(supabase, imageFiles, user.id, {
-        discussionId: id,
-      });
+      imageWarning = uploadedImages.length
+        ? await saveUploadedCommunityImages(supabase, uploadedImages, user.id, {
+            discussionId: id,
+          })
+        : await uploadCommunityImages(supabase, imageFiles, user.id, {
+            discussionId: id,
+          });
     } catch (imageError) {
       console.error(
         "Failed to attach community discussion images:",
@@ -684,7 +778,8 @@ export async function updateCommunityDiscussion(formData: FormData) {
   const imageFiles = discussion.category?.images_enabled
     ? communityImageFiles(formData.getAll("image_files"))
     : [];
-  const imageValidationError = validateCommunityImageFiles(imageFiles);
+  const uploadedImages = discussion.category?.images_enabled ? communityUploadedImages(formData) : [];
+  const imageValidationError = validateCommunityImagePayload(imageFiles, uploadedImages);
   if (imageValidationError) {
     redirect(
       withQueryParam(`${discussionPath(discussion.slug)}/edit`, "form_error", imageValidationError)
@@ -712,9 +807,21 @@ export async function updateCommunityDiscussion(formData: FormData) {
   await syncTags(supabase, discussionId, tags);
   let imageWarning: string | null = null;
   if (discussion.category?.images_enabled) {
-    imageWarning = await uploadCommunityImages(supabase, imageFiles, user.id, {
-      discussionId,
-    });
+    try {
+      imageWarning = uploadedImages.length
+        ? await saveUploadedCommunityImages(supabase, uploadedImages, user.id, {
+            discussionId,
+          })
+        : await uploadCommunityImages(supabase, imageFiles, user.id, {
+            discussionId,
+          });
+    } catch (imageError) {
+      console.error(
+        "Failed to attach updated community discussion images:",
+        imageError instanceof Error ? imageError.message : imageError
+      );
+      imageWarning = "Images could not be attached. The post was saved.";
+    }
   }
 
   if (discussion.category?.marketplace_rules) {
@@ -792,7 +899,8 @@ export async function createCommunityReply(formData: FormData) {
   const imageFiles = discussion.category?.images_enabled
     ? communityImageFiles(formData.getAll("image_files"))
     : [];
-  const imageValidationError = validateCommunityImageFiles(imageFiles);
+  const uploadedImages = discussion.category?.images_enabled ? communityUploadedImages(formData) : [];
+  const imageValidationError = validateCommunityImagePayload(imageFiles, uploadedImages);
   if (imageValidationError) {
     redirect(withQueryParam(discussionPath(discussion.slug), "form_error", imageValidationError));
   }
@@ -810,9 +918,21 @@ export async function createCommunityReply(formData: FormData) {
   if (error) throw new Error(error.message);
   let imageWarning: string | null = null;
   if (discussion.category?.images_enabled) {
-    imageWarning = await uploadCommunityImages(supabase, imageFiles, user.id, {
-      replyId: reply.id,
-    });
+    try {
+      imageWarning = uploadedImages.length
+        ? await saveUploadedCommunityImages(supabase, uploadedImages, user.id, {
+            replyId: reply.id,
+          })
+        : await uploadCommunityImages(supabase, imageFiles, user.id, {
+            replyId: reply.id,
+          });
+    } catch (imageError) {
+      console.error(
+        "Failed to attach community reply images:",
+        imageError instanceof Error ? imageError.message : imageError
+      );
+      imageWarning = "Images could not be attached. The reply was saved.";
+    }
   }
 
   if (discussion.author_id && discussion.author_id !== user.id) {
