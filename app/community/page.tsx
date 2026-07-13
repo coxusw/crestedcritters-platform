@@ -28,7 +28,7 @@ export default async function CommunityPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [categories, speciesResult, recent, unanswered, guides, marketplace] = await Promise.all([
+  const [categories, speciesResult, recent, trending, unanswered, guides, marketplace] = await Promise.all([
     getCommunityCategories(supabase),
     supabase
       .from("isopedia_species")
@@ -40,6 +40,10 @@ export default async function CommunityPage({
       sort: params.sort,
       speciesId: params.species,
       limit: 12,
+    }),
+    getCommunityDiscussions(supabase, {
+      sort: "trending",
+      limit: 4,
     }),
     getCommunityDiscussions(supabase, {
       unansweredOnly: true,
@@ -178,6 +182,11 @@ export default async function CommunityPage({
           </section>
 
           <aside className="space-y-4">
+            <Panel title="Trending Discussions" href="/community?sort=trending">
+              {trending.length ? trending.map((discussion) => (
+                <MiniDiscussion key={discussion.id} discussion={discussion} />
+              )) : <p className="text-sm text-emerald-50/55">No trending discussions yet.</p>}
+            </Panel>
             <Panel title="Unanswered Questions" href="/community/category/help-questions?filter=unanswered">
               {unanswered.length ? unanswered.map((discussion) => (
                 <MiniDiscussion key={discussion.id} discussion={discussion} />
