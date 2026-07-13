@@ -19,6 +19,16 @@ async function requireUser() {
   return { supabase, user };
 }
 
+function notificationNoticePath(key: string, message?: string) {
+  const params = new URLSearchParams();
+  if (key === "error") {
+    params.set("error", message || "Notification action failed.");
+  } else {
+    params.set("saved", key);
+  }
+  return `/notifications?${params.toString()}`;
+}
+
 export async function markNotificationRead(formData: FormData) {
   const { supabase, user } = await requireUser();
   const notificationId = textValue(formData.get("notification_id"));
@@ -32,11 +42,11 @@ export async function markNotificationRead(formData: FormData) {
     .eq("id", notificationId)
     .eq("recipient_id", user.id);
 
-  if (error) throw new Error(error.message);
+  if (error) redirect(notificationNoticePath("error", error.message));
 
   revalidatePath("/notifications");
   if (destinationUrl) redirect(destinationUrl);
-  redirect("/notifications");
+  redirect(notificationNoticePath("read"));
 }
 
 export async function markAllNotificationsRead() {
@@ -48,10 +58,10 @@ export async function markAllNotificationsRead() {
     .eq("recipient_id", user.id)
     .is("read_at", null);
 
-  if (error) throw new Error(error.message);
+  if (error) redirect(notificationNoticePath("error", error.message));
 
   revalidatePath("/notifications");
-  redirect("/notifications");
+  redirect(notificationNoticePath("all-read"));
 }
 
 export async function deleteNotification(formData: FormData) {
@@ -67,10 +77,10 @@ export async function deleteNotification(formData: FormData) {
     .eq("id", notificationId)
     .eq("recipient_id", user.id);
 
-  if (error) throw new Error(error.message);
+  if (error) redirect(notificationNoticePath("error", error.message));
 
   revalidatePath("/notifications");
-  redirect("/notifications");
+  redirect(notificationNoticePath("deleted"));
 }
 
 export async function clearReadNotifications() {
@@ -83,8 +93,8 @@ export async function clearReadNotifications() {
     .eq("recipient_id", user.id)
     .not("read_at", "is", null);
 
-  if (error) throw new Error(error.message);
+  if (error) redirect(notificationNoticePath("error", error.message));
 
   revalidatePath("/notifications");
-  redirect("/notifications");
+  redirect(notificationNoticePath("cleared"));
 }

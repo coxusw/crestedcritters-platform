@@ -36,7 +36,7 @@ export const metadata = {
 export default async function NotificationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; saved?: string; error?: string }>;
 }) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
@@ -131,6 +131,13 @@ export default async function NotificationsPage({
           />
         </div>
 
+        {params.saved && (
+          <Notice tone="success">{notificationNotice(params.saved)}</Notice>
+        )}
+        {params.error && (
+          <Notice tone="error">{params.error}</Notice>
+        )}
+
         <section className="mt-5 grid gap-3">
           {notifications.length ? (
             notifications.map((notification) => (
@@ -155,6 +162,33 @@ export default async function NotificationsPage({
       </div>
     </main>
   );
+}
+
+function Notice({
+  tone,
+  children,
+}: {
+  tone: "success" | "error";
+  children: string;
+}) {
+  const classes =
+    tone === "success"
+      ? "border-emerald-300/25 bg-emerald-400/10 text-emerald-50"
+      : "border-red-300/25 bg-red-400/10 text-red-50";
+
+  return (
+    <div className={`mt-5 rounded-lg border p-4 text-sm font-bold leading-6 ${classes}`}>
+      {children}
+    </div>
+  );
+}
+
+function notificationNotice(value: string) {
+  if (value === "read") return "Notification marked read.";
+  if (value === "all-read") return "All notifications marked read.";
+  if (value === "deleted") return "Notification deleted.";
+  if (value === "cleared") return "Read notifications cleared.";
+  return "Notifications updated.";
 }
 
 function NotificationCard({ notification }: { notification: NotificationRow }) {
