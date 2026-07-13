@@ -97,6 +97,16 @@ function appendCreditToCaption(
   return `${cleanCaption}\n\n${credit}`;
 }
 
+function appendSpeciesLinkToCaption(caption: string, speciesUrl: string) {
+  const cleanCaption = caption.trim();
+  const cleanUrl = speciesUrl.trim();
+  if (!cleanUrl) return cleanCaption;
+
+  if (cleanCaption.includes(cleanUrl)) return cleanCaption;
+
+  return `${cleanCaption}\n\nView the full Isopedia entry: ${cleanUrl}`;
+}
+
 async function safeCount(
   table: string,
   build?: (query: CountQuery) => CountQuery
@@ -358,6 +368,7 @@ export async function createLatestSpeciesAnnouncement() {
     submitterName,
     verifierName
   );
+  const captionWithLink = appendSpeciesLinkToCaption(captionWithCredit, speciesUrl);
 
   const post = await insertGeneratedPost({
     pageKey: "isopedia",
@@ -365,7 +376,7 @@ export async function createLatestSpeciesAnnouncement() {
     postType: slot.postType,
     topicId: null,
     topic: generated.topic || topic.topic,
-    caption: captionWithCredit,
+    caption: captionWithLink,
     hashtags: generated.hashtags || page.default_hashtags || "",
     imagePrompt: generated.imagePrompt || "",
     status: "Draft",
@@ -514,6 +525,7 @@ export async function createSpeciesAnnouncementForSubmission(submissionId: strin
     submitterName,
     verifierName
   );
+  const captionWithLink = appendSpeciesLinkToCaption(captionWithCredit, speciesUrl);
 
   const post = await insertGeneratedPost({
     pageKey: "isopedia",
@@ -521,7 +533,7 @@ export async function createSpeciesAnnouncementForSubmission(submissionId: strin
     postType: slot.postType,
     topicId: null,
     topic: generated.topic || topic.topic,
-    caption: captionWithCredit,
+    caption: captionWithLink,
     hashtags: generated.hashtags || page.default_hashtags || "",
     imagePrompt: generated.imagePrompt || "",
     status: "Approved",
