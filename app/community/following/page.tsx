@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { type ReactNode } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getCommunityDiscussions, getInlineBadgesForProfiles } from "@/lib/community";
 import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
@@ -25,7 +26,12 @@ type FollowedSpeciesRow = {
   } | null;
 };
 
-export default async function FollowingDiscussionsPage() {
+export default async function FollowingDiscussionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ saved?: string; error?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -96,6 +102,22 @@ export default async function FollowingDiscussionsPage() {
           )}
         </header>
 
+        {params.saved === "saved" && (
+          <Notice tone="success">
+            Species notification settings saved.
+          </Notice>
+        )}
+        {params.saved === "unfollowed" && (
+          <Notice tone="success">
+            Species unfollowed.
+          </Notice>
+        )}
+        {params.error && (
+          <Notice tone="error">
+            {params.error}
+          </Notice>
+        )}
+
         {speciesFollows.length > 0 && (
           <section className="mt-6 rounded-lg border border-white/10 bg-[#102016] p-5">
             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -138,6 +160,25 @@ export default async function FollowingDiscussionsPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function Notice({
+  tone,
+  children,
+}: {
+  tone: "success" | "error";
+  children: ReactNode;
+}) {
+  const classes =
+    tone === "success"
+      ? "border-emerald-300/25 bg-emerald-400/10 text-emerald-50"
+      : "border-red-300/25 bg-red-400/10 text-red-50";
+
+  return (
+    <div className={`mt-5 rounded-lg border p-4 text-sm font-bold leading-6 ${classes}`}>
+      {children}
+    </div>
   );
 }
 

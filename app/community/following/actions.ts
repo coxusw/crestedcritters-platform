@@ -21,6 +21,16 @@ function revalidateFollowingPages() {
   revalidatePath("/isopedia/community/following");
 }
 
+function followingNoticePath(key: "saved" | "unfollowed" | "error", message?: string) {
+  const params = new URLSearchParams();
+  if (key === "error") {
+    params.set("error", message || "Could not update species follow settings.");
+  } else {
+    params.set("saved", key);
+  }
+  return `/community/following?${params.toString()}`;
+}
+
 export async function updateSpeciesFollowPreferences(formData: FormData) {
   const speciesId = speciesIdValue(formData);
   const supabase = await createSupabaseServerClient();
@@ -41,9 +51,10 @@ export async function updateSpeciesFollowPreferences(formData: FormData) {
     .eq("species_id", speciesId)
     .eq("profile_id", user.id);
 
-  if (error) throw new Error(error.message);
+  if (error) redirect(followingNoticePath("error", error.message));
 
   revalidateFollowingPages();
+  redirect(followingNoticePath("saved"));
 }
 
 export async function unfollowSpeciesFromCommunity(formData: FormData) {
@@ -61,7 +72,8 @@ export async function unfollowSpeciesFromCommunity(formData: FormData) {
     .eq("species_id", speciesId)
     .eq("profile_id", user.id);
 
-  if (error) throw new Error(error.message);
+  if (error) redirect(followingNoticePath("error", error.message));
 
   revalidateFollowingPages();
+  redirect(followingNoticePath("unfollowed"));
 }
