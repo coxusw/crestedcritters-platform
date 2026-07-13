@@ -110,26 +110,36 @@ export default async function CommunityCategoryPage({
       <div className="mx-auto max-w-6xl">
         <IsopediaNav active="community" />
 
-        <div className="mb-4 flex flex-wrap gap-3 text-sm">
-          <Link href="/community" className="text-emerald-300 underline">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+          <Link href="/community" className="font-bold text-emerald-300 underline">
             Back to Community
           </Link>
           <Link
             href={`/community/new?category=${category.slug}`}
-            className="text-emerald-300 underline"
+            className="rounded-lg bg-emerald-400 px-4 py-2 font-black text-slate-950 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-300"
           >
-            Start in {category.name}
+            Start New Discussion
           </Link>
         </div>
 
         <header className="rounded-lg border border-white/10 bg-[#102016] p-5 sm:p-7">
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-emerald-300">
-            {category.icon || "Community Category"}
-          </p>
-          <h1 className="mt-3 text-4xl font-black text-white">{category.name}</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-50/70">
-            {category.description}
-          </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.3em] text-emerald-300">
+                {category.icon || "Community Category"}
+              </p>
+              <h1 className="mt-3 text-4xl font-black text-white">{category.name}</h1>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-50/70">
+                {category.description}
+              </p>
+            </div>
+            <Link
+              href={`/community/new?category=${category.slug}`}
+              className="w-fit shrink-0 rounded-lg bg-emerald-400 px-5 py-3 font-black text-slate-950 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-300"
+            >
+              Start New Discussion
+            </Link>
+          </div>
           {category.marketplace_rules && (
             <p className="mt-4 rounded-lg border border-yellow-300/20 bg-yellow-300/10 p-4 text-sm leading-6 text-yellow-50/80">
               Isopedia only provides a space for community members to connect.
@@ -223,6 +233,15 @@ export default async function CommunityCategoryPage({
         </form>
 
         <section className="mt-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-black text-white">Discussions</h2>
+            <Link
+              href={`/community/new?category=${category.slug}`}
+              className="rounded-lg border border-emerald-400/30 px-4 py-2 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/10"
+            >
+              Start New Discussion
+            </Link>
+          </div>
           {discussions.length ? (
             discussions.map((discussion) => (
               <DiscussionCard

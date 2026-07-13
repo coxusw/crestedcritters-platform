@@ -22,14 +22,17 @@ function safeImageExtension(file: File) {
   return "jpg";
 }
 
-function setSubmitButtons(form: HTMLFormElement, disabled: boolean) {
+function setSubmitButtons(form: HTMLFormElement, disabled: boolean, label?: string) {
   const buttons = Array.from(form.querySelectorAll<HTMLButtonElement>("button[type='submit'], button:not([type])"));
   for (const button of buttons) {
     if (disabled) {
-      button.dataset.originalText = button.textContent || "";
-      button.textContent = button.dataset.submittingLabel || "Submitting...";
+      if (!button.dataset.originalText) {
+        button.dataset.originalText = button.textContent || "";
+      }
+      button.textContent = label || button.dataset.submittingLabel || "Submitting...";
     } else if (button.dataset.originalText) {
       button.textContent = button.dataset.originalText;
+      delete button.dataset.originalText;
     }
     button.disabled = disabled;
   }
@@ -118,6 +121,8 @@ export default function CommunityFormShell({
       const uploads: UploadedCommunityImage[] = [];
 
       if (files.length) {
+        setSubmitButtons(form, true, "Uploading...");
+
         const {
           data: { user },
         } = await supabase.auth.getUser();
@@ -129,7 +134,7 @@ export default function CommunityFormShell({
           return;
         }
 
-        for (const [index, file] of files.entries()) {
+        const uploadedImages = await Promise.all(files.map(async (file, index) => {
           const storagePath = `community/${user.id}/pending/${crypto.randomUUID()}.${safeImageExtension(file)}`;
           const { error: uploadError } = await supabase.storage
             .from(COMMUNITY_IMAGE_BUCKET)
@@ -142,15 +147,18 @@ export default function CommunityFormShell({
           if (uploadError) throw new Error(uploadError.message);
 
           const { data } = supabase.storage.from(COMMUNITY_IMAGE_BUCKET).getPublicUrl(storagePath);
-          uploads.push({
+          return {
             image_url: data.publicUrl,
             storage_path: storagePath,
             alt_text: file.name || null,
             position: index + 1,
-          });
-        }
+          };
+        }));
+
+        uploads.push(...uploadedImages);
       }
 
+      setSubmitButtons(form, true, "Saving...");
       upsertUploadsInput(form, uploads);
       for (const input of fileInputs) input.value = "";
 

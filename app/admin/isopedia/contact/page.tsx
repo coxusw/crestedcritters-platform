@@ -655,10 +655,10 @@ export default async function AdminIsopediaContactPage({
             your profile inbox.
           </p>
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-[320px_1fr]">
+          <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
             {adminMessageThreads.length > 0 ? (
               <>
-                <div className="grid content-start gap-3">
+                <div className="grid min-w-0 content-start gap-3">
                   {adminMessageThreads.map((thread) => {
                     const unreadCount = threadUnreadCount(thread, user.id);
                     const isSelected = thread.id === selectedAdminThread?.id;
@@ -666,7 +666,7 @@ export default async function AdminIsopediaContactPage({
                     return (
                       <article
                         key={thread.id}
-                        className={`rounded-lg border p-4 ${
+                        className={`min-w-0 rounded-lg border p-4 ${
                           isSelected
                             ? "border-emerald-300/50 bg-emerald-300/[0.08]"
                             : unreadCount > 0
@@ -674,7 +674,7 @@ export default async function AdminIsopediaContactPage({
                               : "border-white/10 bg-black/20"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-black text-white">
                               {thread.subject || "Isopedia message"}
@@ -711,15 +711,15 @@ export default async function AdminIsopediaContactPage({
                   })}
                 </div>
 
-                <article className="rounded-lg border border-lime-300/20 bg-lime-300/[0.04] p-4">
+                <article className="min-w-0 rounded-lg border border-lime-300/20 bg-lime-300/[0.04] p-4">
                   {selectedAdminThread ? (
                     <>
                       <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
+                        <div className="min-w-0">
                           <p className="text-sm font-black text-white">
                             {selectedAdminThread.subject || "Isopedia message"}
                           </p>
-                          <p className="mt-1 text-xs text-slate-400">
+                          <p className="mt-1 break-words text-xs text-slate-400">
                             With {threadParticipantNames(selectedAdminThread.participants)}
                           </p>
                           <p className="mt-1 text-xs text-slate-500">
@@ -808,7 +808,7 @@ export default async function AdminIsopediaContactPage({
                       </form>
                     </>
                   ) : (
-                    <div className="rounded-md border border-white/10 bg-black/20 p-5 text-sm text-slate-300">
+                    <div className="flex min-h-48 items-center rounded-md border border-white/10 bg-black/20 p-5 text-sm text-slate-300">
                       Select a conversation from the inbox list to read and reply.
                     </div>
                   )}
