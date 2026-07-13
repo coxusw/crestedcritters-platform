@@ -5,6 +5,7 @@ import {
   getCommunityCategories,
   getCommunityDiscussions,
   getInlineBadgesForProfiles,
+  getMarketplaceDetailsByDiscussionIds,
   marketplaceEffectiveStatus,
   type MarketplaceDetails,
 } from "@/lib/community";
@@ -58,7 +59,7 @@ export default async function CommunityPage({
     supabase,
     recent.map((discussion) => discussion.author_id || "").filter(Boolean)
   );
-  const marketplaceDetailsByDiscussion = await getMarketplaceDetailsByDiscussion(
+  const marketplaceDetailsByDiscussion = await getMarketplaceDetailsByDiscussionIds(
     supabase,
     marketplace.map((discussion) => discussion.id)
   );
@@ -202,23 +203,6 @@ export default async function CommunityPage({
       </div>
     </main>
   );
-}
-
-async function getMarketplaceDetailsByDiscussion(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  discussionIds: string[]
-) {
-  if (!discussionIds.length) return new Map<string, MarketplaceDetails>();
-
-  const { data } = await supabase
-    .from("marketplace_listing_details")
-    .select(
-      "discussion_id, listing_type, listing_status, species_or_product, quantity, price, location, state, shipping_available, local_pickup_available, expo_name, expiration_date, preferred_contact_method, permit_notes"
-    )
-    .in("discussion_id", discussionIds)
-    .returns<MarketplaceDetails[]>();
-
-  return new Map((data || []).map((details) => [details.discussion_id, details]));
 }
 
 function Panel({

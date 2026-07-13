@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getCommunityDiscussions, getInlineBadgesForProfiles } from "@/lib/community";
+import {
+  getCommunityDiscussions,
+  getInlineBadgesForProfiles,
+  getMarketplaceDetailsByDiscussionIds,
+  type MarketplaceDetails,
+} from "@/lib/community";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { DiscussionCard } from "@/app/community/CommunityCards";
 
@@ -24,7 +29,15 @@ export default async function MyDiscussionsPage({
     statuses: ["published", "pending", "hidden", "archived", "expired", "rejected"],
     limit: 50,
   });
-  const badges = await getInlineBadgesForProfiles(supabase, [user.id]);
+  const [badges, marketplaceDetailsByDiscussion] = await Promise.all([
+    getInlineBadgesForProfiles(supabase, [user.id]),
+    getMarketplaceDetailsByDiscussionIds(
+      supabase,
+      discussions
+        .filter((discussion) => discussion.content_type === "marketplace")
+        .map((discussion) => discussion.id)
+    ),
+  ]);
 
   return (
     <CommunityListPage
@@ -32,6 +45,7 @@ export default async function MyDiscussionsPage({
       empty="You have not started any discussions yet."
       discussions={discussions}
       badgesByProfile={badges}
+      marketplaceDetailsByDiscussion={marketplaceDetailsByDiscussion}
       submitted={params.submitted}
       imageError={params.image_error}
     />
@@ -43,6 +57,7 @@ function CommunityListPage({
   empty,
   discussions,
   badgesByProfile,
+  marketplaceDetailsByDiscussion,
   submitted,
   imageError,
 }: {
@@ -50,6 +65,7 @@ function CommunityListPage({
   empty: string;
   discussions: Awaited<ReturnType<typeof getCommunityDiscussions>>;
   badgesByProfile: Awaited<ReturnType<typeof getInlineBadgesForProfiles>>;
+  marketplaceDetailsByDiscussion: Map<string, MarketplaceDetails>;
   submitted?: string;
   imageError?: string;
 }) {
@@ -81,6 +97,7 @@ function CommunityListPage({
                 key={discussion.id}
                 discussion={discussion}
                 badges={badgesByProfile.get(discussion.author_id || "") || []}
+                marketplaceDetails={marketplaceDetailsByDiscussion.get(discussion.id) || null}
               />
             ))
           ) : (

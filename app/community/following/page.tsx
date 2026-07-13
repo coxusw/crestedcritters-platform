@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { type ReactNode } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getCommunityDiscussions, getInlineBadgesForProfiles } from "@/lib/community";
+import {
+  getCommunityDiscussions,
+  getInlineBadgesForProfiles,
+  getMarketplaceDetailsByDiscussionIds,
+} from "@/lib/community";
 import { publicSpeciesSlug } from "@/lib/isopedia-slugs";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
 import { DiscussionCard } from "@/app/community/CommunityCards";
@@ -64,10 +68,18 @@ export default async function FollowingDiscussionsPage({
       limit: 80,
     }),
   ]);
-  const badges = await getInlineBadgesForProfiles(
-    supabase,
-    discussions.map((discussion) => discussion.author_id || "").filter(Boolean)
-  );
+  const [badges, marketplaceDetailsByDiscussion] = await Promise.all([
+    getInlineBadgesForProfiles(
+      supabase,
+      discussions.map((discussion) => discussion.author_id || "").filter(Boolean)
+    ),
+    getMarketplaceDetailsByDiscussionIds(
+      supabase,
+      discussions
+        .filter((discussion) => discussion.content_type === "marketplace")
+        .map((discussion) => discussion.id)
+    ),
+  ]);
   const speciesFollows = (followedSpecies || []).filter((row) => row.species);
 
   return (
@@ -152,6 +164,7 @@ export default async function FollowingDiscussionsPage({
                 key={discussion.id}
                 discussion={discussion}
                 badges={badges.get(discussion.author_id || "") || []}
+                marketplaceDetails={marketplaceDetailsByDiscussion.get(discussion.id) || null}
               />
             ))
           ) : (

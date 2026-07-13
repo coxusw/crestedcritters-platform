@@ -458,6 +458,24 @@ export async function getCommunityDiscussions(
   return data || [];
 }
 
+export async function getMarketplaceDetailsByDiscussionIds(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  discussionIds: string[]
+) {
+  const uniqueIds = [...new Set(discussionIds.filter(Boolean))];
+  if (!uniqueIds.length) return new Map<string, MarketplaceDetails>();
+
+  const { data } = await supabase
+    .from("marketplace_listing_details")
+    .select(
+      "discussion_id, listing_type, listing_status, species_or_product, quantity, price, location, state, shipping_available, local_pickup_available, expo_name, expiration_date, preferred_contact_method, permit_notes"
+    )
+    .in("discussion_id", uniqueIds)
+    .returns<MarketplaceDetails[]>();
+
+  return new Map((data || []).map((details) => [details.discussion_id, details]));
+}
+
 async function getCommunitySearchDiscussionIds(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   term: string
