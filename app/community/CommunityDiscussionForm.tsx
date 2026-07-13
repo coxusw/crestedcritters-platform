@@ -51,10 +51,27 @@ export default function CommunityDiscussionForm({
   const [title, setTitle] = useState(initialDiscussion?.title || "");
   const [body, setBody] = useState(initialDiscussion?.body || "");
   const [showPreview, setShowPreview] = useState(false);
+  const [speciesFilter, setSpeciesFilter] = useState("");
+  const [selectedSpeciesValues, setSelectedSpeciesValues] = useState(
+    [...new Set(selectedSpeciesIds.map((id) => String(id)).filter(Boolean))]
+  );
   const selectedCategory = useMemo(
     () => categories.find((category) => category.slug === activeCategorySlug) || initialCategory,
     [activeCategorySlug, categories, initialCategory]
   );
+  const filteredSpecies = useMemo(() => {
+    const query = speciesFilter.trim().toLowerCase();
+    const selected = new Set(selectedSpeciesValues);
+
+    return species.filter((item) => {
+      if (selected.has(String(item.id))) return true;
+      if (!query) return true;
+
+      return [item.common_name, item.scientific_name]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+  }, [species, speciesFilter, selectedSpeciesValues]);
   const isMarketplace = selectedCategory?.slug === "marketplace-connections";
   const imagesEnabled = selectedCategory?.images_enabled ?? true;
 
@@ -162,13 +179,25 @@ export default function CommunityDiscussionForm({
           <span className="text-sm font-black text-emerald-50/80">
             Related Species
           </span>
+          <input
+            type="search"
+            value={speciesFilter}
+            onChange={(event) => setSpeciesFilter(event.target.value)}
+            className="rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
+            placeholder="Search species by common or scientific name"
+          />
           <select
             name="species_ids"
             multiple
-            defaultValue={selectedSpeciesIds}
+            value={selectedSpeciesValues}
+            onChange={(event) =>
+              setSelectedSpeciesValues(
+                Array.from(event.currentTarget.selectedOptions, (option) => option.value)
+              )
+            }
             className="min-h-40 rounded-lg border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
           >
-            {species.map((item) => (
+            {filteredSpecies.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.common_name}
                 {item.scientific_name ? ` - ${item.scientific_name}` : ""}
@@ -176,7 +205,7 @@ export default function CommunityDiscussionForm({
             ))}
           </select>
           <span className="text-xs text-emerald-50/45">
-            Hold Ctrl or Cmd to select multiple species.
+            Hold Ctrl or Cmd to select multiple species. Selected species stay visible while filtering.
           </span>
         </label>
       )}
