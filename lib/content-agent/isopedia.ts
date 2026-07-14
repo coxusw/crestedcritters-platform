@@ -611,12 +611,11 @@ export async function createCommunityDiscussionAnnouncement({
     : actorName || "Isopedia";
   const discussionUrl = `${siteUrl()}/community/discussion/${slug}`;
   const categoryLabel = categoryName || communityPostTypeLabel(contentType);
-  const excerpt = body.trim().replace(/\s+/g, " ").slice(0, 220);
   const caption = [
-    `New Isopedia Community discussion: ${title}`,
-    `Posted by ${authorName} in ${categoryLabel}.`,
-    excerpt ? `"${excerpt}${body.trim().length > 220 ? "..." : ""}"` : "",
-    `Join the discussion here: ${discussionUrl}`,
+    "New Isopedia Community discussion:",
+    title,
+    `Posted by ${authorName} in ${categoryLabel}`,
+    `Join Discussion here: ${discussionUrl}`,
   ]
     .filter(Boolean)
     .join("\n\n");
