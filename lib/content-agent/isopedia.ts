@@ -600,7 +600,10 @@ export async function createCommunityDiscussionAnnouncement({
     .maybeSingle();
 
   if (existing.error) throw new Error(existing.error.message);
-  if (existing.data) return `Community discussion already has a content post: ${title}.`;
+  if (existing.data) {
+    const publishResult = await publishSingleContentPost(existing.data.id);
+    return `Community discussion announcement already existed for ${title}. ${publishResult}`;
+  }
 
   const profilesById = await getProfilesByIds([authorId]);
   const authorName = authorId
@@ -659,12 +662,14 @@ export async function createCommunityDiscussionAnnouncement({
   await logContentAgent(
     "isopedia_community_discussion",
     "OK",
-    `Queued community discussion post for ${title}`,
+    `Created community discussion post for ${title}`,
     "post",
     post.id
   );
 
-  return `Queued community discussion announcement for ${title}.`;
+  const publishResult = await publishSingleContentPost(post.id);
+
+  return `Created and published community discussion announcement for ${title}. ${publishResult}`;
 }
 
 function communityPostTypeLabel(contentType: string) {

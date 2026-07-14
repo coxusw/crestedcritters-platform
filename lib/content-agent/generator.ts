@@ -96,7 +96,9 @@ export async function postApprovedDueContent() {
           status: "Posted",
           posted_at: new Date().toISOString(),
           facebook_post_id: result.post_id || result.id || null,
-          facebook_post_url: result.post_id ? `https://www.facebook.com/${result.post_id}` : null,
+          facebook_post_url:
+            result.post_url ||
+            (result.post_id ? `https://www.facebook.com/${result.post_id}` : null),
           error: null,
           updated_at: new Date().toISOString(),
         })
@@ -168,7 +170,9 @@ export async function publishSingleContentPost(postId: string) {
         status: "Posted",
         posted_at: new Date().toISOString(),
         facebook_post_id: facebookPostId,
-        facebook_post_url: facebookPostId ? `https://www.facebook.com/${facebookPostId}` : null,
+        facebook_post_url:
+          result.post_url ||
+          (facebookPostId ? `https://www.facebook.com/${facebookPostId}` : null),
         error: null,
         updated_at: new Date().toISOString(),
       })
