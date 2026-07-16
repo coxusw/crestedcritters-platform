@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useState } from "react";
 
 type ContributorProfile = {
@@ -49,11 +50,13 @@ export default function SpeciesHistoryTabs({
   speciesSubmitterCredits,
   fieldSuggestedCredits,
   changes,
+  suggestEditHref,
 }: {
   species: SpeciesInfo;
   speciesSubmitterCredits: ContributorCredit[];
   fieldSuggestedCredits: Record<string, ContributorCredit[]>;
   changes: SpeciesChangeHistoryItem[];
+  suggestEditHref?: string;
 }) {
   const [showHistory, setShowHistory] = useState(false);
 
@@ -73,6 +76,21 @@ export default function SpeciesHistoryTabs({
             <p className="mt-3 text-lg italic text-emerald-50/70">
               {species.scientific_name}
             </p>
+          )}
+
+          {suggestEditHref && (
+            <div className="mt-3 flex flex-wrap gap-3">
+              <SuggestFieldLink
+                href={suggestFieldHref(suggestEditHref, "common_name")}
+              >
+                Suggest name update
+              </SuggestFieldLink>
+              <SuggestFieldLink
+                href={suggestFieldHref(suggestEditHref, "scientific_name")}
+              >
+                Suggest scientific name
+              </SuggestFieldLink>
+            </div>
           )}
 
           {speciesSubmitterCredits.length > 0 && (
@@ -101,6 +119,7 @@ export default function SpeciesHistoryTabs({
         <SpeciesInfoCards
           species={species}
           fieldSuggestedCredits={fieldSuggestedCredits}
+          suggestEditHref={suggestEditHref}
         />
       )}
     </div>
@@ -110,9 +129,11 @@ export default function SpeciesHistoryTabs({
 function SpeciesInfoCards({
   species,
   fieldSuggestedCredits,
+  suggestEditHref,
 }: {
   species: SpeciesInfo;
   fieldSuggestedCredits: Record<string, ContributorCredit[]>;
+  suggestEditHref?: string;
 }) {
   return (
     <>
@@ -122,28 +143,38 @@ function SpeciesInfoCards({
         <div className="grid gap-4 sm:grid-cols-2">
           <InfoCard
             label="Type"
+            fieldName="organism_type"
             value={species.organism_type}
             suggestedBy={fieldSuggestedCredits.organism_type}
+            suggestEditHref={suggestEditHref}
           />
           <InfoCard
             label="Genus"
+            fieldName="genus"
             value={species.genus}
             suggestedBy={fieldSuggestedCredits.genus}
+            suggestEditHref={suggestEditHref}
           />
           <InfoCard
             label="Species"
+            fieldName="species"
             value={species.species}
             suggestedBy={fieldSuggestedCredits.species}
+            suggestEditHref={suggestEditHref}
           />
           <InfoCard
             label="Morph"
+            fieldName="morph"
             value={species.morph}
             suggestedBy={fieldSuggestedCredits.morph}
+            suggestEditHref={suggestEditHref}
           />
           <InfoCard
             label="Trade Names"
+            fieldName="trade_names"
             value={species.trade_names}
             suggestedBy={fieldSuggestedCredits.trade_names}
+            suggestEditHref={suggestEditHref}
             className="sm:col-span-2 sm:mx-auto sm:w-[calc(50%-0.5rem)]"
           />
         </div>
@@ -152,33 +183,45 @@ function SpeciesInfoCards({
       <div className="grid gap-4 sm:grid-cols-2">
         <InfoCard
           label="Difficulty"
+          fieldName="difficulty"
           value={species.difficulty}
           suggestedBy={fieldSuggestedCredits.difficulty}
+          suggestEditHref={suggestEditHref}
         />
         <InfoCard
           label="Origin"
+          fieldName="origin"
           value={species.origin}
           suggestedBy={fieldSuggestedCredits.origin}
+          suggestEditHref={suggestEditHref}
         />
         <InfoCard
           label="Temperature"
+          fieldName="temperature"
           value={species.temperature}
           suggestedBy={fieldSuggestedCredits.temperature}
+          suggestEditHref={suggestEditHref}
         />
         <InfoCard
           label="Humidity"
+          fieldName="humidity"
           value={species.humidity}
           suggestedBy={fieldSuggestedCredits.humidity}
+          suggestEditHref={suggestEditHref}
         />
         <InfoCard
           label="Diet"
+          fieldName="diet"
           value={species.diet}
           suggestedBy={fieldSuggestedCredits.diet}
+          suggestEditHref={suggestEditHref}
         />
         <InfoCard
           label="Substrate"
+          fieldName="substrate"
           value={species.substrate}
           suggestedBy={fieldSuggestedCredits.substrate}
+          suggestEditHref={suggestEditHref}
         />
       </div>
     </>
@@ -308,20 +351,32 @@ function ChangeContext({
 
 function InfoCard({
   label,
+  fieldName,
   value,
   suggestedBy = [],
+  suggestEditHref,
   className = "",
 }: {
   label: string;
+  fieldName: string;
   value: string | null;
   suggestedBy?: ContributorCredit[];
+  suggestEditHref?: string;
   className?: string;
 }) {
   return (
     <div className={`rounded-2xl border border-white/10 bg-[#07130c]/70 p-4 ${className}`}>
-      <p className="text-xs font-black uppercase tracking-widest text-emerald-100/40">
-        {label}
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <p className="text-xs font-black uppercase tracking-widest text-emerald-100/40">
+          {label}
+        </p>
+
+        {suggestEditHref && (
+          <SuggestFieldLink href={suggestFieldHref(suggestEditHref, fieldName)}>
+            Suggest edit
+          </SuggestFieldLink>
+        )}
+      </div>
 
       <p className="mt-2 whitespace-pre-wrap text-base text-emerald-50/85">
         {value || "Not listed"}
@@ -334,6 +389,27 @@ function InfoCard({
       )}
     </div>
   );
+}
+
+function SuggestFieldLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="text-[11px] font-black uppercase tracking-[0.12em] text-emerald-300/80 hover:text-emerald-200"
+    >
+      {children}
+    </Link>
+  );
+}
+
+function suggestFieldHref(suggestEditHref: string, fieldName: string) {
+  return `${suggestEditHref}?field=${fieldName}#edit-${fieldName}`;
 }
 
 function ContributorLinks({

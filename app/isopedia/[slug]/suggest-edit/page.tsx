@@ -11,6 +11,7 @@ type PageProps = {
   }>;
   searchParams: Promise<{
     submitted?: string;
+    count?: string;
     error?: string;
   }>;
 };
@@ -25,6 +26,11 @@ type Species = {
   common_name: string;
   scientific_name: string | null;
   slug: string;
+  organism_type: string | null;
+  genus: string | null;
+  species: string | null;
+  morph: string | null;
+  trade_names: string | null;
   difficulty: string | null;
   origin: string | null;
   temperature: string | null;
@@ -35,6 +41,46 @@ type Species = {
   source_info: string | null;
   image_url: string | null;
 };
+
+type EditableFieldName =
+  | "common_name"
+  | "scientific_name"
+  | "organism_type"
+  | "genus"
+  | "species"
+  | "morph"
+  | "trade_names"
+  | "difficulty"
+  | "origin"
+  | "temperature"
+  | "humidity"
+  | "diet"
+  | "substrate"
+  | "notes"
+  | "source_info"
+  | "image_url";
+
+const EDITABLE_FIELDS: Array<{
+  name: EditableFieldName;
+  type: "plain" | "rich" | "image";
+}> = [
+  { name: "common_name", type: "plain" },
+  { name: "scientific_name", type: "plain" },
+  { name: "organism_type", type: "plain" },
+  { name: "genus", type: "plain" },
+  { name: "species", type: "plain" },
+  { name: "morph", type: "plain" },
+  { name: "trade_names", type: "plain" },
+  { name: "difficulty", type: "plain" },
+  { name: "origin", type: "plain" },
+  { name: "temperature", type: "plain" },
+  { name: "humidity", type: "plain" },
+  { name: "diet", type: "plain" },
+  { name: "substrate", type: "plain" },
+  { name: "notes", type: "rich" },
+  { name: "source_info", type: "plain" },
+  { name: "image_url", type: "image" },
+];
 
 function cleanText(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
@@ -67,19 +113,28 @@ function isBlankRichText(value: string) {
   return !cleaned;
 }
 
-function getCurrentValue(species: Species, fieldName: string) {
-  if (fieldName === "common_name") return species.common_name;
-  if (fieldName === "scientific_name") return species.scientific_name || "";
-  if (fieldName === "difficulty") return species.difficulty || "";
-  if (fieldName === "origin") return species.origin || "";
-  if (fieldName === "temperature") return species.temperature || "";
-  if (fieldName === "humidity") return species.humidity || "";
-  if (fieldName === "diet") return species.diet || "";
-  if (fieldName === "substrate") return species.substrate || "";
-  if (fieldName === "notes") return species.notes || "";
-  if (fieldName === "source_info") return species.source_info || "";
-  if (fieldName === "image_url") return species.image_url || "";
-  return "";
+function getCurrentValue(species: Species, fieldName: EditableFieldName) {
+  return species[fieldName] || "";
+}
+
+function valuesMatch(currentValue: string, proposedValue: string, type: "plain" | "rich" | "image") {
+  if (type === "rich") {
+    return stripHtml(currentValue) === stripHtml(proposedValue);
+  }
+
+  return currentValue.trim() === proposedValue.trim();
+}
+
+function proposedValueForField(
+  formData: FormData,
+  field: (typeof EDITABLE_FIELDS)[number]
+) {
+  const proposedValue = cleanText(formData.get(`field_${field.name}`));
+
+  if (!proposedValue) return "";
+  if (field.type === "rich" && isBlankRichText(proposedValue)) return "";
+
+  return proposedValue;
 }
 
 async function submitSuggestedEdit(formData: FormData) {
@@ -108,40 +163,11 @@ async function submitSuggestedEdit(formData: FormData) {
   const species_id = Number(formData.get("species_id"));
   const species_slug = cleanText(formData.get("species_slug"));
   const public_species_slug = publicSpeciesSlug(species_slug);
-  const field_name = cleanText(formData.get("field_name"));
-  const proposed_value = cleanText(formData.get("proposed_value"));
   const edit_reason = cleanOptionalContext(formData.get("edit_reason"));
   const source_info = cleanOptionalContext(formData.get("source_info"));
 
-  const allowedFields = [
-    "common_name",
-    "scientific_name",
-    "organism_type",
-    "genus",
-    "species",
-    "morph",
-    "trade_names",
-    "difficulty",
-    "origin",
-    "temperature",
-    "humidity",
-    "diet",
-    "substrate",
-    "notes",
-    "source_info",
-    "image_url",
-  ];
-
   if (!species_id || !species_slug) {
     redirect("/?error=missing-species");
-  }
-
-  if (!allowedFields.includes(field_name)) {
-    redirect(`/${public_species_slug}/suggest-edit?error=invalid-field`);
-  }
-
-  if (!proposed_value || isBlankRichText(proposed_value)) {
-    redirect(`/${public_species_slug}/suggest-edit?error=value-required`);
   }
 
   const { data: species } = await supabase
@@ -152,6 +178,11 @@ async function submitSuggestedEdit(formData: FormData) {
       common_name,
       scientific_name,
       slug,
+      organism_type,
+      genus,
+      species,
+      morph,
+      trade_names,
       difficulty,
       origin,
       temperature,
@@ -170,58 +201,81 @@ async function submitSuggestedEdit(formData: FormData) {
     redirect("/?error=missing-species");
   }
 
-  const current_value = getCurrentValue(species, field_name);
+  const updated_at = new Date().toISOString();
+  const editRows = EDITABLE_FIELDS.flatMap((field) => {
+    const proposed_value = proposedValueForField(formData, field);
+    if (!proposed_value) return [];
+
+    const current_value = getCurrentValue(species, field.name);
+    if (valuesMatch(current_value, proposed_value, field.type)) return [];
+
+    return [
+      {
+        species_id,
+        suggested_by: user.id,
+        field_name: field.name,
+        current_value,
+        proposed_value,
+        edit_reason,
+        source_info,
+        status: "unverified",
+        updated_at,
+      },
+    ];
+  });
+
+  if (!editRows.length) {
+    redirect(`/${public_species_slug}/suggest-edit?error=value-required`);
+  }
 
   let insertResult = await supabase
     .from("isopedia_suggested_edits")
-    .insert({
-      species_id,
-      suggested_by: user.id,
-      field_name,
-      current_value,
-      proposed_value,
-      edit_reason,
-      source_info,
-      status: "unverified",
-      updated_at: new Date().toISOString(),
-    })
+    .insert(editRows)
     .select("id")
-    .single<{ id: string }>();
+    .returns<Array<{ id: string }>>();
 
   if (insertResult.error && isSuggestedEditContextSchemaError(insertResult.error)) {
+    const fallbackRows = editRows.map((row) => ({
+      species_id: row.species_id,
+      suggested_by: row.suggested_by,
+      field_name: row.field_name,
+      current_value: row.current_value,
+      proposed_value: row.proposed_value,
+      status: row.status,
+      updated_at: row.updated_at,
+    }));
+
     insertResult = await supabase
       .from("isopedia_suggested_edits")
-      .insert({
-        species_id,
-        suggested_by: user.id,
-        field_name,
-        current_value,
-        proposed_value,
-        status: "unverified",
-        updated_at: new Date().toISOString(),
-      })
+      .insert(fallbackRows)
       .select("id")
-      .single<{ id: string }>();
+      .returns<Array<{ id: string }>>();
   }
 
-  const edit = insertResult.data;
   const error = insertResult.error;
+  const edits = insertResult.data || [];
 
-  if (error || !edit) {
+  if (error || !edits.length) {
     redirect(`/${public_species_slug}/suggest-edit?error=save-failed`);
   }
 
-  await awardIsoTokens(supabase, {
-    profileId: user.id,
-    amount: 3,
-    reason: "suggested_edit_submission",
-    reasonKey: `suggested_edit_submission:${edit.id}`,
-    description: "Submitted a suggested edit for review.",
-    entityType: "suggested_edit",
-    entityId: edit.id,
-  });
+  await Promise.all(
+    edits.map((edit) =>
+      awardIsoTokens(supabase, {
+        profileId: user.id,
+        amount: 3,
+        reason: "suggested_edit_submission",
+        reasonKey: `suggested_edit_submission:${edit.id}`,
+        description: "Submitted a suggested edit for review.",
+        entityType: "suggested_edit",
+        entityId: edit.id,
+      })
+    )
+  );
 
-  redirect(`/${public_species_slug}/suggest-edit?submitted=true`);
+  redirect(
+    `/${public_species_slug}/suggest-edit?submitted=true&count=${edits.length}`
+  );
 }
 
 export default async function SuggestEditPage({
@@ -260,6 +314,11 @@ export default async function SuggestEditPage({
       common_name,
       scientific_name,
       slug,
+      organism_type,
+      genus,
+      species,
+      morph,
+      trade_names,
       difficulty,
       origin,
       temperature,
@@ -279,6 +338,9 @@ export default async function SuggestEditPage({
   }
 
   const publicSlug = publicSpeciesSlug(species.slug);
+  const submittedCount = Number(query.count || 0);
+  const submittedLabel =
+    submittedCount === 1 ? "Suggested edit" : "Suggested edits";
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
@@ -311,8 +373,9 @@ export default async function SuggestEditPage({
 
         {query.submitted === "true" && (
           <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-200">
-            Suggested edit submitted. It is now waiting for another contributor
-            to verify it.
+            {submittedLabel} submitted.{" "}
+            {submittedCount > 1 ? "They are" : "It is"} now waiting for
+            another contributor to verify.
           </div>
         )}
 
@@ -324,7 +387,7 @@ export default async function SuggestEditPage({
 
         {query.error === "value-required" && (
           <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">
-            Please enter a suggested replacement before submitting.
+            Please enter at least one suggested change before submitting.
           </div>
         )}
 
@@ -341,31 +404,7 @@ export default async function SuggestEditPage({
           <input type="hidden" name="species_id" value={species.id} />
           <input type="hidden" name="species_slug" value={species.slug} />
 
-          <div className="grid gap-6">
-            <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-5">
-              <h2 className="text-lg font-bold text-white">
-                Current Species Information
-              </h2>
-
-              <div className="mt-4 grid gap-3 text-sm text-slate-300">
-                <CurrentValue label="Common Name" value={species.common_name} />
-                <CurrentValue
-                  label="Scientific Name"
-                  value={species.scientific_name}
-                />
-                <CurrentValue label="Difficulty" value={species.difficulty} />
-                <CurrentValue label="Origin" value={species.origin} />
-                <CurrentValue label="Temperature" value={species.temperature} />
-                <CurrentValue label="Humidity" value={species.humidity} />
-                <CurrentValue label="Diet" value={species.diet} />
-                <CurrentValue label="Substrate" value={species.substrate} />
-                <CurrentValue label="Footnotes / Sources" value={species.source_info} />
-                <CurrentValue label="Image URL" value={species.image_url} />
-              </div>
-            </div>
-
-            <SuggestedEditInput />
-          </div>
+          <SuggestedEditInput species={species} />
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-400">
@@ -388,24 +427,5 @@ export default async function SuggestEditPage({
         </form>
       </div>
     </main>
-  );
-}
-
-function CurrentValue({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null;
-}) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-slate-900 p-3">
-      <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-        {label}
-      </p>
-      <p className="mt-1 whitespace-pre-wrap break-words text-slate-200">
-        {value || "Not listed"}
-      </p>
-    </div>
   );
 }

@@ -1039,6 +1039,15 @@ export default async function SpeciesPage({ params }: PageProps) {
                   canReplaceImages={canReplaceImages}
                 />
 
+                <div className="mt-3 flex justify-end">
+                  <Link
+                    href={`/${canonicalSlug}/suggest-edit?field=image_url#edit-image_url`}
+                    className="text-[11px] font-black uppercase tracking-[0.12em] text-emerald-300/80 hover:text-emerald-200"
+                  >
+                    Suggest image update
+                  </Link>
+                </div>
+
                 <div className="mt-4">
                   <CollectionButtons
                     speciesId={species.id}
@@ -1054,6 +1063,7 @@ export default async function SpeciesPage({ params }: PageProps) {
                 speciesSubmitterCredits={speciesSubmitterCredits}
                 fieldSuggestedCredits={fieldSuggestedCredits}
                 changes={changeHistory}
+                suggestEditHref={`/${canonicalSlug}/suggest-edit`}
               />
             </div>
           </div>
@@ -1063,8 +1073,8 @@ export default async function SpeciesPage({ params }: PageProps) {
               <h2 className="text-2xl font-black text-white">Care Notes</h2>
 
               <Link
-                href={`/${canonicalSlug}/suggest-edit`}
-                className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
+                href={`/${canonicalSlug}/suggest-edit?field=notes#edit-notes`}
+                className="text-[11px] font-black uppercase tracking-[0.12em] text-emerald-300/80 hover:text-emerald-200"
               >
                 Suggest an improvement
               </Link>
@@ -1089,8 +1099,8 @@ export default async function SpeciesPage({ params }: PageProps) {
               </h2>
 
               <Link
-                href={`/${canonicalSlug}/suggest-edit`}
-                className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
+                href={`/${canonicalSlug}/suggest-edit?field=source_info#edit-source_info`}
+                className="text-[11px] font-black uppercase tracking-[0.12em] text-emerald-300/80 hover:text-emerald-200"
               >
                 Suggest a source update
               </Link>
