@@ -22,6 +22,7 @@ type Species = {
   diet?: string | null;
   substrate?: string | null;
   notes?: string | null;
+  source_info?: string | null;
   image_url?: string | null;
 };
 
@@ -122,6 +123,27 @@ export default function SpeciesForm({
             />
           </Field>
         </div>
+      </section>
+
+      <section className="rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-xl shadow-black/20">
+        <div className="mb-5">
+          <p className="text-sm font-semibold uppercase tracking-widest text-emerald-300">
+            References
+          </p>
+
+          <h2 className="mt-2 text-2xl font-black text-white">
+            Footnotes / Sources
+          </h2>
+        </div>
+
+        <textarea
+          name="source_info"
+          defaultValue={species?.source_info || ""}
+          rows={5}
+          maxLength={4000}
+          placeholder="Source links, citations, keeper observations, or reference notes."
+          className={inputClass}
+        />
       </section>
 
       <section className="rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-xl shadow-black/20">

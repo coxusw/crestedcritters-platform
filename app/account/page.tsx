@@ -48,6 +48,7 @@ type PendingSubmission = {
   diet: string | null;
   substrate: string | null;
   notes: string | null;
+  source_info: string | null;
   image_url: string | null;
   created_at: string | null;
 };
@@ -237,6 +238,7 @@ async function updatePendingSubmission(formData: FormData) {
         diet: cleanText(formData.get("diet")) || null,
         substrate: cleanText(formData.get("substrate")) || null,
         notes: cleanText(formData.get("notes")) || null,
+        source_info: cleanText(formData.get("source_info")).slice(0, 4000) || null,
         image_url: cleanText(formData.get("image_url")) || null,
       },
       { count: "exact" }
@@ -335,6 +337,7 @@ export default async function AccountPage({
       diet,
       substrate,
       notes,
+      source_info,
       image_url,
       created_at
     `
@@ -775,6 +778,20 @@ function PendingSubmissionForm({
             defaultValue={submission.notes || ""}
             rows={6}
             className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+          />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-medium text-slate-200">
+            Footnotes / Sources
+          </span>
+          <textarea
+            name="source_info"
+            defaultValue={submission.source_info || ""}
+            rows={4}
+            maxLength={4000}
+            placeholder="Source links, citations, keeper observations, or reference notes."
+            className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 placeholder:text-slate-500 focus:ring-4"
           />
         </label>
 

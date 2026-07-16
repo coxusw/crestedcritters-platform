@@ -187,6 +187,7 @@ export default function SubmitSpeciesForm({ userId }: { userId: string }) {
           diet: cleanText(formData.get("diet")),
           substrate: cleanText(formData.get("substrate")),
           notes: cleanText(formData.get("notes")),
+          sourceInfo: cleanText(formData.get("source_info")).slice(0, 4000),
           imageUrl,
         }),
       });
@@ -340,6 +341,24 @@ export default function SubmitSpeciesForm({ userId }: { userId: string }) {
             placeholder="Care notes, breeding notes, behavior, warnings, keeper observations..."
             className="rounded-2xl border border-white/10 bg-[#102016] px-4 py-3 text-white outline-none transition placeholder:text-emerald-50/30 focus:border-emerald-400/40"
           />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-xs font-black uppercase tracking-widest text-emerald-100/50">
+            Footnotes / Sources Optional
+          </span>
+
+          <textarea
+            name="source_info"
+            rows={5}
+            maxLength={4000}
+            placeholder="Add source links, citations, keeper observations, or notes about where the information came from."
+            className="rounded-2xl border border-white/10 bg-[#102016] px-4 py-3 text-white outline-none transition placeholder:text-emerald-50/30 focus:border-emerald-400/40"
+          />
+
+          <span className="text-xs text-emerald-50/45">
+            Optional. Helpful for references, links, and source notes reviewers can check.
+          </span>
         </label>
       </section>
 

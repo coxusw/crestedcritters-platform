@@ -32,6 +32,7 @@ type Species = {
   diet: string | null;
   substrate: string | null;
   notes: string | null;
+  source_info: string | null;
   image_url: string | null;
 };
 
@@ -76,6 +77,7 @@ function getCurrentValue(species: Species, fieldName: string) {
   if (fieldName === "diet") return species.diet || "";
   if (fieldName === "substrate") return species.substrate || "";
   if (fieldName === "notes") return species.notes || "";
+  if (fieldName === "source_info") return species.source_info || "";
   if (fieldName === "image_url") return species.image_url || "";
   return "";
 }
@@ -126,6 +128,7 @@ async function submitSuggestedEdit(formData: FormData) {
     "diet",
     "substrate",
     "notes",
+    "source_info",
     "image_url",
   ];
 
@@ -156,6 +159,7 @@ async function submitSuggestedEdit(formData: FormData) {
       diet,
       substrate,
       notes,
+      source_info,
       image_url
     `
     )
@@ -263,6 +267,7 @@ export default async function SuggestEditPage({
       diet,
       substrate,
       notes,
+      source_info,
       image_url
     `
     )
@@ -354,6 +359,7 @@ export default async function SuggestEditPage({
                 <CurrentValue label="Humidity" value={species.humidity} />
                 <CurrentValue label="Diet" value={species.diet} />
                 <CurrentValue label="Substrate" value={species.substrate} />
+                <CurrentValue label="Footnotes / Sources" value={species.source_info} />
                 <CurrentValue label="Image URL" value={species.image_url} />
               </div>
             </div>

@@ -19,6 +19,7 @@ const FIELD_OPTIONS = [
   { value: "diet", label: "Diet", type: "plain" },
   { value: "substrate", label: "Substrate", type: "plain" },
   { value: "notes", label: "Care Notes", type: "rich" },
+  { value: "source_info", label: "Footnotes / Sources", type: "plain" },
   { value: "image_url", label: "Image", type: "image" },
 ];
 
@@ -210,14 +211,14 @@ export default function SuggestedEditInput() {
 
           <label className="grid gap-2">
             <span className="text-sm font-medium text-slate-200">
-              Source information <span className="text-slate-500">(optional)</span>
+              Source information for this edit <span className="text-slate-500">(optional)</span>
             </span>
 
             <textarea
               name="source_info"
               rows={3}
               maxLength={2000}
-              placeholder="Add a source, link, observation note, or reference."
+              placeholder="Add a source, link, observation note, or reference for reviewers."
               className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none ring-emerald-400/30 placeholder:text-slate-500 focus:ring-4"
             />
           </label>

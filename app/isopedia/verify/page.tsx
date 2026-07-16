@@ -33,6 +33,7 @@ type Submission = {
   diet: string | null;
   substrate: string | null;
   notes: string | null;
+  source_info: string | null;
   image_url: string | null;
   submitted_by: string | null;
   created_at: string | null;
@@ -80,6 +81,14 @@ async function verifySubmission(formData: FormData) {
         error.message || "verify-failed"
       )}`
     );
+  }
+
+  try {
+    await supabase.rpc("sync_isopedia_submission_source_info", {
+      submission_id: submissionId,
+    });
+  } catch (sourceSyncError) {
+    console.error("Failed to sync submission source info:", sourceSyncError);
   }
 
   const { error: creditError } = await supabase
@@ -228,6 +237,7 @@ export default async function VerifySubmissionsPage({
       diet,
       substrate,
       notes,
+      source_info,
       image_url,
       submitted_by,
       created_at,
@@ -383,6 +393,17 @@ export default async function VerifySubmissionsPage({
                         </h3>
                         <p className="mt-2 whitespace-pre-wrap text-sm text-slate-300">
                           {submission.notes}
+                        </p>
+                      </div>
+                    )}
+
+                    {submission.source_info && (
+                      <div className="rounded-2xl bg-slate-900/80 p-4">
+                        <h3 className="font-semibold text-emerald-200">
+                          Footnotes / Sources
+                        </h3>
+                        <p className="mt-2 whitespace-pre-wrap break-words text-sm text-slate-300">
+                          {submission.source_info}
                         </p>
                       </div>
                     )}

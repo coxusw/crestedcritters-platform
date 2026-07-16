@@ -45,6 +45,7 @@ type Species = {
   diet: string | null;
   substrate: string | null;
   notes: string | null;
+  source_info: string | null;
   image_url: string | null;
   updated_at: string | null;
 };
@@ -322,6 +323,7 @@ function fieldLabel(fieldName: string) {
     diet: "Diet",
     substrate: "Substrate",
     notes: "Care Notes",
+    source_info: "Footnotes / Sources",
     image_url: "Image",
     organism_type: "Type",
     genus: "Genus",
@@ -387,6 +389,32 @@ function SpeciesCommunityPanel({
         </p>
       )}
     </section>
+  );
+}
+
+function SourceInfoText({ value }: { value: string }) {
+  const pieces = value.split(/(https?:\/\/[^\s]+)/g);
+
+  return (
+    <p className="whitespace-pre-wrap break-words text-sm leading-7 text-emerald-50/75">
+      {pieces.map((piece, index) => {
+        if (/^https?:\/\//i.test(piece)) {
+          return (
+            <a
+              key={`${piece}-${index}`}
+              href={piece}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-emerald-300 underline"
+            >
+              {piece}
+            </a>
+          );
+        }
+
+        return piece;
+      })}
+    </p>
   );
 }
 
@@ -547,6 +575,7 @@ export default async function SpeciesPage({ params }: PageProps) {
       diet,
       substrate,
       notes,
+      source_info,
       image_url,
       updated_at
     `
@@ -1052,6 +1081,25 @@ export default async function SpeciesPage({ params }: PageProps) {
               </p>
             )}
           </section>
+
+          {species.source_info && (
+            <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-8">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-2xl font-black text-white">
+                  Footnotes / Sources
+                </h2>
+
+                <Link
+                  href={`/${canonicalSlug}/suggest-edit`}
+                  className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
+                >
+                  Suggest a source update
+                </Link>
+              </div>
+
+              <SourceInfoText value={species.source_info} />
+            </section>
+          )}
 
           <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-8">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">

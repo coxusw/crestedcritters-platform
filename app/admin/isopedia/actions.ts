@@ -115,6 +115,7 @@ function buildPayload(formData: FormData, imageUrl: string | null, slug: string)
     diet: cleanText(formData.get("diet")),
     substrate: cleanText(formData.get("substrate")),
     notes: cleanText(formData.get("notes")),
+    source_info: cleanText(formData.get("source_info"))?.slice(0, 4000) || null,
     image_url: imageUrl,
     updated_at: new Date().toISOString(),
   };

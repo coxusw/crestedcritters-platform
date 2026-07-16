@@ -158,13 +158,18 @@ async function verifySuggestedEdit(formData: FormData) {
 
   const { data: editForReward } = await supabase
     .from("isopedia_suggested_edits")
-    .select("id, suggested_by")
+    .select("id, suggested_by, field_name")
     .eq("id", editId)
-    .maybeSingle<{ id: string; suggested_by: string | null }>();
+    .maybeSingle<{ id: string; suggested_by: string | null; field_name: string | null }>();
 
-  const { error } = await supabase.rpc("verify_isopedia_suggested_edit", {
-    edit_id: editId,
-  });
+  const { error } =
+    editForReward?.field_name === "source_info"
+      ? await supabase.rpc("verify_isopedia_source_info_suggested_edit", {
+          edit_id: editId,
+        })
+      : await supabase.rpc("verify_isopedia_suggested_edit", {
+          edit_id: editId,
+        });
 
   if (error) {
     redirect(

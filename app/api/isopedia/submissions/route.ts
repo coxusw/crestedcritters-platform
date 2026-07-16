@@ -9,6 +9,11 @@ function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function cleanOptionalLongText(value: unknown) {
+  const cleaned = cleanText(value);
+  return cleaned ? cleaned.slice(0, 4000) : null;
+}
+
 function cleanImageUrl(value: unknown) {
   const imageUrl = cleanText(value);
 
@@ -54,6 +59,7 @@ export async function POST(request: Request) {
   const diet = cleanText(body.diet);
   const substrate = cleanText(body.substrate);
   const notes = cleanText(body.notes);
+  const sourceInfo = cleanOptionalLongText(body.sourceInfo);
   const imageUrl = cleanImageUrl(body.imageUrl);
 
   if (!commonName) {
@@ -87,6 +93,7 @@ export async function POST(request: Request) {
     diet: diet || null,
     substrate: substrate || null,
     notes: notes || null,
+    source_info: sourceInfo,
     image_url: imageUrl,
     submitted_by: user.id,
     status: "unverified",

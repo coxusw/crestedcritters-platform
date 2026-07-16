@@ -27,6 +27,7 @@ type Submission = {
   scientific_name: string | null;
   difficulty: string | null;
   origin: string | null;
+  source_info: string | null;
   image_url: string | null;
   submitted_by: string | null;
   verified_by: string | null;
@@ -116,6 +117,14 @@ async function verifyAdminSubmission(formData: FormData) {
         error.message || "verify-failed"
       )}`
     );
+  }
+
+  try {
+    await supabase.rpc("sync_isopedia_submission_source_info", {
+      submission_id: submissionId,
+    });
+  } catch (sourceSyncError) {
+    console.error("Failed to sync submission source info:", sourceSyncError);
   }
 
   const { error: creditError } = await supabase
@@ -343,6 +352,7 @@ export default async function AdminVerifySubmissionsPage({
       scientific_name,
       difficulty,
       origin,
+      source_info,
       image_url,
       submitted_by,
       verified_by,
@@ -495,6 +505,7 @@ function SubmissionCard({ submission }: { submission: Submission }) {
           />
           <InfoCard label="Difficulty" value={submission.difficulty} />
           <InfoCard label="Origin" value={submission.origin} />
+          <InfoCard label="Footnotes / Sources" value={submission.source_info} />
           <InfoCard label="Submitted By" value={submitterName} />
           <InfoCard label="Verified By" value={verifierName} />
         </div>
