@@ -1082,24 +1082,28 @@ export default async function SpeciesPage({ params }: PageProps) {
             )}
           </section>
 
-          {species.source_info && (
-            <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-8">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-2xl font-black text-white">
-                  Footnotes / Sources
-                </h2>
+          <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-8">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-2xl font-black text-white">
+                Footnotes / Sources
+              </h2>
 
-                <Link
-                  href={`/${canonicalSlug}/suggest-edit`}
-                  className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
-                >
-                  Suggest a source update
-                </Link>
-              </div>
+              <Link
+                href={`/${canonicalSlug}/suggest-edit`}
+                className="text-sm font-bold text-emerald-300 hover:text-emerald-200"
+              >
+                Suggest a source update
+              </Link>
+            </div>
 
+            {species.source_info ? (
               <SourceInfoText value={species.source_info} />
-            </section>
-          )}
+            ) : (
+              <p className="text-emerald-50/55">
+                No footnotes or sources have been added yet.
+              </p>
+            )}
+          </section>
 
           <section className="mt-8 rounded-3xl border border-white/10 bg-[#102016] p-5 shadow-xl shadow-black/20 sm:p-8">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
