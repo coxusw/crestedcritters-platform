@@ -8,6 +8,7 @@ import { shopUnsubscribeUrl } from "@/lib/shop-unsubscribe";
 import {
   formatOrderItemName,
   formatShopMoney,
+  isPackInventoryProduct,
   parseDollarToCents,
   slugifyProductName,
   type ShopOrderItem,
@@ -305,10 +306,17 @@ function productPayload(formData: FormData, imageUrls: string[]) {
   if (!name) throw new Error("Product name is required.");
   if (!slug) throw new Error("Product slug is required.");
 
+  const category = String(formData.get("category") || "Isopods").trim() || "Isopods";
+  const packInventoryProduct = isPackInventoryProduct({
+    category,
+    live_category: null,
+    is_live: null,
+  });
+
   return {
     name,
     slug,
-    category: String(formData.get("category") || "Isopods").trim() || "Isopods",
+    category,
     description: cardDescription || null,
     card_description: cardDescription || null,
     full_description: fullDescription || null,
@@ -320,7 +328,7 @@ function productPayload(formData: FormData, imageUrls: string[]) {
     shipping_mode: String(formData.get("shipping_mode") || "shipping"),
     shipping_cents: parseDollarToCents(formData.get("shipping")),
     option_name: String(formData.get("option_name") || "").trim() || null,
-    options: parseProductOptions(formData.get("options")),
+    options: parseProductOptions(formData.get("options"), packInventoryProduct),
     sold_out: formData.get("sold_out") === "on",
     featured: formData.get("featured") === "on",
     active: formData.get("active") === "on",
@@ -415,7 +423,7 @@ function getFileExtension(fileName: string) {
   return extension.replace(/[^a-z0-9]/g, "") || "jpg";
 }
 
-function parseProductOptions(value: FormDataEntryValue | null) {
+function parseProductOptions(value: FormDataEntryValue | null, ignoreInventory = false) {
   const seen = new Map<string, number>();
 
   return String(value || "")
@@ -436,7 +444,7 @@ function parseProductOptions(value: FormDataEntryValue | null) {
         id,
         label,
         price_cents: priceText ? parseDollarToCents(priceText) : null,
-        inventory: inventoryText ? Math.max(0, Math.floor(Number(inventoryText))) : null,
+        inventory: !ignoreInventory && inventoryText ? Math.max(0, Math.floor(Number(inventoryText))) : null,
         active: true,
       };
     })

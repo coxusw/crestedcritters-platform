@@ -127,16 +127,40 @@ export function productUnitPrice(
   return typeof option?.price_cents === "number" ? option.price_cents : product.price_cents;
 }
 
-export function productAvailableQuantity(
-  product: Pick<ShopProduct, "inventory">,
-  option?: Pick<ShopProductOption, "inventory"> | null
+export function isPackInventoryProduct(
+  product: Pick<ShopProduct, "category" | "live_category" | "is_live">
 ) {
+  const category = String(product.category || "").toLowerCase();
+  return (
+    product.live_category === "isopod" ||
+    product.live_category === "springtail" ||
+    category.includes("isopod") ||
+    category.includes("springtail")
+  );
+}
+
+export function productOptionUnitCount(option?: Pick<ShopProductOption, "label"> | null) {
+  const match = String(option?.label || "").match(/^\s*(\d+)\s*(?:count|ct)\b/i);
+  const count = match ? Number(match[1]) : 1;
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 1;
+}
+
+export function productAvailableQuantity(
+  product: Pick<ShopProduct, "inventory" | "category" | "live_category" | "is_live">,
+  option?: Pick<ShopProductOption, "inventory" | "label"> | null
+) {
+  if (isPackInventoryProduct(product)) {
+    return Math.floor(product.inventory / productOptionUnitCount(option));
+  }
+
   return typeof option?.inventory === "number" ? option.inventory : product.inventory;
 }
 
 export function productTotalAvailableQuantity(
-  product: Pick<ShopProduct, "inventory" | "options">
+  product: Pick<ShopProduct, "inventory" | "options" | "category" | "live_category" | "is_live">
 ) {
+  if (isPackInventoryProduct(product)) return product.inventory;
+
   const options = normalizeProductOptions(product);
   if (options.length === 0) return product.inventory;
 

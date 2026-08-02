@@ -2,7 +2,9 @@ import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
   formatOrderItemName,
   formatShopMoney,
+  isPackInventoryProduct,
   normalizeProductOptions,
+  productOptionUnitCount,
   productTotalAvailableQuantity,
   squareApiBase,
   type ShopOrderItem,
@@ -282,11 +284,20 @@ async function decrementShopInventory(
 
     const productOptions = normalizeProductOptions(product);
     const hasOptions = productOptions.length > 0;
-    const nextInventory = hasOptions
-      ? Number(product.inventory || 0)
-      : Math.max(0, Number(product.inventory || 0) - quantity);
+    const selectedOption = item.optionId
+      ? productOptions.find((option) => option.id === item.optionId)
+      : null;
+    const soldUnits = isPackInventoryProduct(product)
+      ? productOptionUnitCount(selectedOption) * quantity
+      : quantity;
+    const nextInventory = isPackInventoryProduct(product)
+      ? Math.max(0, Number(product.inventory || 0) - soldUnits)
+      : hasOptions
+        ? Number(product.inventory || 0)
+        : Math.max(0, Number(product.inventory || 0) - quantity);
     const nextOptions =
       item.optionId &&
+      !isPackInventoryProduct(product) &&
       productOptions.some(
         (option) => option.id === item.optionId && typeof option.inventory === "number"
       )

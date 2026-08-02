@@ -10,6 +10,7 @@ import {
   normalizeProductOptions,
   normalizeShopProductImages,
   productTotalAvailableQuantity,
+  isPackInventoryProduct,
   type ShopOrderItem,
   type ShopShippingAddress,
   type ShopProduct,
@@ -941,8 +942,9 @@ function ProductForm({
             className={`${inputClass} min-h-28`}
           />
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            One option per line. Use <span className="font-black text-slate-300">Label | Price | Inventory</span>.
-            Leave price blank when the option uses the product price.
+            For isopods and springtails, use <span className="font-black text-slate-300">Label | Price</span>
+            {" "}and put total animals in the Inventory field above. Example: 10 Count | 15.00.
+            For merch variants, use <span className="font-black text-slate-300">Label | Price | Inventory</span>.
           </p>
         </Field>
       </div>
@@ -1022,11 +1024,12 @@ function formatZoneRates(values: number[]) {
 
 function formatProductOptionsInput(product?: ShopProduct) {
   if (!product) return "";
+  const packInventoryProduct = isPackInventoryProduct(product);
 
   return normalizeProductOptions(product)
     .map((option) => {
       const price = typeof option.price_cents === "number" ? (option.price_cents / 100).toFixed(2) : "";
-      const inventory = typeof option.inventory === "number" ? String(option.inventory) : "";
+      const inventory = !packInventoryProduct && typeof option.inventory === "number" ? String(option.inventory) : "";
       return [option.label, price, inventory].join(" | ").replace(/( \| )+$/g, "");
     })
     .join("\n");
