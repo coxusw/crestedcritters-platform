@@ -214,6 +214,12 @@ const SHOP_PRODUCT_ISOPEDIA_URLS: Record<string, string> = {
   "rubber-ducky": "https://isopedia.crestedcritters.com/rubber-ducky",
   "temporate-springtails":
     "https://isopedia.crestedcritters.com/folsomia-candida-temperate-springtails",
+  "black-panda":
+    "https://isopedia.crestedcritters.com/cubaris-sp-black-panda-black-panda-black-panda-king",
+  "cherry-blossoms":
+    "https://isopedia.crestedcritters.com/cubaris-sp-cherry-blossom-cherry-blossom",
+  citrus: "https://isopedia.crestedcritters.com/cubaris-sp-citrus-citrus",
+  "panda-kings": "https://isopedia.crestedcritters.com/sp-panda-king-panda-king",
 };
 
 export function shopProductIsopediaUrl(product: Pick<ShopProduct, "slug">) {
