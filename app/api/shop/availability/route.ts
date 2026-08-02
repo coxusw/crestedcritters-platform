@@ -17,12 +17,15 @@ export async function POST(request: Request) {
   const productIds = Array.from(
     new Set((body.productIds || []).map((id) => String(id || "")).filter(Boolean))
   ).slice(0, 100);
+  const numericProductIds = productIds
+    .map((id) => Number(id))
+    .filter((id) => Number.isSafeInteger(id) && id > 0);
 
   if (!stateCode) {
     return NextResponse.json({ error: "Select a destination state." }, { status: 400 });
   }
 
-  if (productIds.length === 0) {
+  if (numericProductIds.length === 0) {
     return NextResponse.json({ stateCode, overall: "cleared", items: [] });
   }
 
@@ -31,7 +34,7 @@ export async function POST(request: Request) {
     .from("shop_products")
     .select("*")
     .eq("active", true)
-    .in("id", productIds);
+    .in("id", numericProductIds);
 
   if (error) {
     return NextResponse.json({ error: "Could not check product availability." }, { status: 500 });

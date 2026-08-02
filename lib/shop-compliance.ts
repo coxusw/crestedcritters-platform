@@ -87,7 +87,7 @@ export async function getProductAvailability({
 
   if (!isLive) {
     return {
-      productId: product.id,
+      productId: String(product.id),
       isLive: false,
       taxonMappingStatus: mappingStatus,
       canonicalScientificName: null,
@@ -132,7 +132,7 @@ export async function getProductAvailability({
 
   if (!activeDecision) {
     return {
-      productId: product.id,
+      productId: String(product.id),
       isLive: true,
       taxonMappingStatus: "verified",
       canonicalScientificName,
@@ -144,7 +144,7 @@ export async function getProductAvailability({
 
   const application = activeDecision.regulatory_applications;
   const base = {
-    productId: product.id,
+    productId: String(product.id),
     isLive: true,
     taxonMappingStatus: "verified" as const,
     canonicalScientificName,
@@ -245,7 +245,7 @@ function blocked(
   publicMessage: string
 ): ProductAvailability {
   return {
-    productId: product.id,
+    productId: String(product.id),
     isLive: true,
     taxonMappingStatus,
     canonicalScientificName: null,
@@ -262,7 +262,7 @@ async function findVerifiedMapping(
   const { data } = await supabase
     .from("product_taxon_mappings")
     .select("regulated_taxon_id,mapping_status,regulated_taxa(canonical_scientific_name)")
-    .eq("product_id", product.id)
+    .eq("product_id", Number(product.id))
     .eq("active", true)
     .maybeSingle<MappingRow>();
 

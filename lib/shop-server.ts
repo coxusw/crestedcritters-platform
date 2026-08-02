@@ -44,9 +44,13 @@ export async function fetchCartProducts(
     return { data: [] as ShopProduct[], error: null as string | null };
   }
 
+  const normalizedProductIds = productIds
+    .map((id) => Number(id))
+    .filter((id) => Number.isSafeInteger(id) && id > 0);
+
   const results = await Promise.all([
-    productIds.length > 0
-      ? supabase.from("shop_products").select("*").eq("active", true).in("id", productIds)
+    normalizedProductIds.length > 0
+      ? supabase.from("shop_products").select("*").eq("active", true).in("id", normalizedProductIds)
       : Promise.resolve({ data: [] as ShopProduct[] | null, error: null }),
     slugs.length > 0
       ? supabase.from("shop_products").select("*").eq("active", true).in("slug", slugs)
@@ -59,7 +63,7 @@ export async function fetchCartProducts(
   const merged = new Map<string, ShopProduct>();
   for (const result of results) {
     for (const product of (result.data || []) as ShopProduct[]) {
-      merged.set(product.id, product);
+      merged.set(String(product.id), product);
     }
   }
 
@@ -67,11 +71,11 @@ export async function fetchCartProducts(
 }
 
 export function matchCartProducts(products: ShopProduct[], cleanItems: CleanCartItem[]) {
-  const productById = new Map(products.map((product) => [product.id, product]));
+  const productById = new Map(products.map((product) => [String(product.id), product]));
   const productBySlug = new Map(products.map((product) => [product.slug, product]));
 
   return cleanItems.map((item) => ({
     item,
-    product: productById.get(item.productId) || productBySlug.get(item.slug) || null,
+    product: productById.get(String(item.productId)) || productBySlug.get(item.slug) || null,
   }));
 }

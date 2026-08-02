@@ -380,7 +380,7 @@ async function createLiveOrderRecord({
 
   type LiveOrderItemInsert = {
     live_order_record_id: string;
-    product_id: string;
+    product_id: number;
     product_name_snapshot: string;
     morph_name_snapshot: string | null;
     scientific_name_snapshot: string | null;
@@ -395,12 +395,12 @@ async function createLiveOrderRecord({
   const liveItems = orderItems
     .map<LiveOrderItemInsert | null>((item) => {
       const itemCompliance = compliance.items.find(
-        (result) => result.productId === item.productId
+        (result) => String(result.productId) === String(item.productId)
       );
       if (!itemCompliance?.isLive) return null;
       return {
         live_order_record_id: record.id,
-        product_id: item.productId,
+        product_id: Number(item.productId),
         product_name_snapshot: formatOrderItemName(item),
         morph_name_snapshot: item.optionLabel || null,
         scientific_name_snapshot: itemCompliance.canonicalScientificName,
