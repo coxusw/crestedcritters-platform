@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ShopProduct } from "@/lib/shop";
 import {
   formatProductPrice,
@@ -20,6 +20,19 @@ type CartLine = {
   quantity: number;
 };
 
+type AvailabilityItem = {
+  productId: string;
+  isLive: boolean;
+  availability: "available" | "unavailable" | "conditional" | "review_required";
+  publicReasonCode: string;
+  publicMessage: string;
+};
+
+type AvailabilityPayload = {
+  items?: AvailabilityItem[];
+  error?: string;
+};
+
 function isUnavailable(product: ShopProduct) {
   return product.sold_out || productTotalAvailableQuantity(product) <= 0;
 }
@@ -33,14 +46,51 @@ export default function ProductDetailClient({ product }: { product: ShopProduct 
   const [selectedOptionId, setSelectedOptionId] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [notice, setNotice] = useState("");
+  const [selectedState] = useState(() =>
+    typeof window === "undefined"
+      ? ""
+      : window.localStorage.getItem("crested-shop-state") || ""
+  );
+  const [availability, setAvailability] = useState<AvailabilityItem | null>(null);
   const selectedOption = productOptions.find((option) => option.id === selectedOptionId) || null;
   const requiresOption = productOptions.length > 0;
   const availableQuantity = productAvailableQuantity(product, selectedOption);
   const totalAvailableQuantity = productTotalAvailableQuantity(product);
   const unavailable = isUnavailable(product) || (requiresOption && selectedOption ? availableQuantity <= 0 : false);
-  const canAdd = !unavailable && (!requiresOption || Boolean(selectedOption));
+  const complianceBlocked = Boolean(
+    availability?.isLive && availability.availability !== "available"
+  );
+  const canAdd = !unavailable && !complianceBlocked && (!requiresOption || Boolean(selectedOption));
   const unitPrice = productUnitPrice(product, selectedOption);
   const safeQuantity = Math.max(1, Math.min(quantity, Math.max(1, availableQuantity)));
+
+  useEffect(() => {
+    if (!selectedState) return;
+
+    let cancelled = false;
+    async function loadAvailability() {
+      try {
+        const response = await fetch("/api/shop/availability", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            stateCode: selectedState,
+            productIds: [product.id],
+          }),
+        });
+        const payload = (await response.json()) as AvailabilityPayload;
+        if (!response.ok || payload.error) throw new Error(payload.error || "Could not check availability.");
+        if (!cancelled) setAvailability(payload.items?.[0] || null);
+      } catch {
+        if (!cancelled) setAvailability(null);
+      }
+    }
+
+    loadAvailability();
+    return () => {
+      cancelled = true;
+    };
+  }, [product.id, selectedState]);
 
   function addToCart() {
     if (!canAdd) return;
@@ -144,14 +194,31 @@ export default function ProductDetailClient({ product }: { product: ShopProduct 
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={addToCart}
-          disabled={!canAdd}
-          className="inline-flex w-full items-center justify-center rounded-md bg-[#7fb069] px-4 py-3 text-sm font-black text-[#0b0d0b] transition hover:bg-[#92c37d] disabled:cursor-not-allowed disabled:border disabled:border-white/[0.08] disabled:bg-transparent disabled:text-[#a8b0b8]"
-        >
-          {unavailable ? "Sold Out" : requiresOption && !selectedOption ? `Choose ${product.option_name || "Option"}` : "Add to Cart"}
-        </button>
+        {complianceBlocked && (
+          <div className="rounded-md border border-amber-300/25 bg-amber-300/10 p-3 text-sm font-bold leading-6 text-amber-50">
+            {selectedState
+              ? `Unavailable for shipping to ${selectedState}. Contact for possible local pickup.`
+              : "Contact for possible local pickup."}
+          </div>
+        )}
+
+        {complianceBlocked ? (
+          <a
+            href="https://crestedcritters.com/contact/"
+            className="inline-flex w-full items-center justify-center rounded-md bg-[#d6c06f] px-4 py-3 text-sm font-black text-[#0b0d0b] transition hover:bg-[#e4d181]"
+          >
+            Contact for Local Pickup
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={addToCart}
+            disabled={!canAdd}
+            className="inline-flex w-full items-center justify-center rounded-md bg-[#7fb069] px-4 py-3 text-sm font-black text-[#0b0d0b] transition hover:bg-[#92c37d] disabled:cursor-not-allowed disabled:border disabled:border-white/[0.08] disabled:bg-transparent disabled:text-[#a8b0b8]"
+          >
+            {unavailable ? "Sold Out" : requiresOption && !selectedOption ? `Choose ${product.option_name || "Option"}` : "Add to Cart"}
+          </button>
+        )}
 
         <a
           href="/cart"

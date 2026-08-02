@@ -138,7 +138,7 @@ export async function getProductAvailability({
       product,
       mappingStatus,
       "simple_state_not_allowed",
-      `This live item is not currently available for shipment to ${normalizedState}.`
+      "Contact for possible local pickup."
     );
   }
 
@@ -149,7 +149,7 @@ export async function getProductAvailability({
       product,
       mapping?.mapping_status || mappingStatus,
       "taxon_mapping_unverified",
-      "Shipping eligibility is currently being reviewed."
+      "Contact for possible local pickup."
     );
   }
 
@@ -169,7 +169,7 @@ export async function getProductAvailability({
       canonicalScientificName,
       availability: "unavailable",
       publicReasonCode: "no_verified_authorization",
-      publicMessage: `This live species is not currently available for shipment to ${normalizedState} under our current regulatory authorization.`,
+      publicMessage: "Contact for possible local pickup.",
     };
   }
 
@@ -216,7 +216,7 @@ export async function getProductAvailability({
     ...base,
     availability: "unavailable",
     publicReasonCode: `decision_${activeDecision.decision}`,
-    publicMessage: `This live species is not currently available for shipment to ${normalizedState} under our current regulatory authorization.`,
+    publicMessage: "Contact for possible local pickup.",
   };
 }
 

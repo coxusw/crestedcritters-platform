@@ -698,7 +698,7 @@ function ProductCard({
         </p>
         {complianceBlocked && (
           <p className="mt-3 rounded-md border border-amber-300/25 bg-amber-300/10 p-3 text-sm leading-6 text-amber-50">
-            {availability?.publicMessage}
+            Contact for possible local pickup.
           </p>
         )}
 
@@ -741,20 +741,27 @@ function ProductCard({
           >
             View Details
           </a>
-          <button
-            type="button"
-            onClick={() => addToCart(product, selectedOption)}
-            disabled={!canAdd}
-            className="inline-flex w-full items-center justify-center rounded-md bg-[#7fb069] px-4 py-3 text-sm font-black text-[#0b0d0b] transition hover:bg-[#92c37d] disabled:cursor-not-allowed disabled:border disabled:border-white/[0.08] disabled:bg-transparent disabled:text-[#a8b0b8]"
-          >
-            {complianceBlocked
-              ? "Unavailable for Shipping"
-              : unavailable
+          {complianceBlocked ? (
+            <a
+              href="https://crestedcritters.com/contact/"
+              className="inline-flex w-full items-center justify-center rounded-md bg-[#d6c06f] px-4 py-3 text-sm font-black text-[#0b0d0b] transition hover:bg-[#e4d181]"
+            >
+              Contact for Local Pickup
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => addToCart(product, selectedOption)}
+              disabled={!canAdd}
+              className="inline-flex w-full items-center justify-center rounded-md bg-[#7fb069] px-4 py-3 text-sm font-black text-[#0b0d0b] transition hover:bg-[#92c37d] disabled:cursor-not-allowed disabled:border disabled:border-white/[0.08] disabled:bg-transparent disabled:text-[#a8b0b8]"
+            >
+              {unavailable
                 ? "Sold Out"
                 : requiresOption && !selectedOption
                   ? `Choose ${product.option_name || "Option"}`
                   : "Add to Cart"}
-          </button>
+            </button>
+          )}
         </div>
       </div>
     </article>
