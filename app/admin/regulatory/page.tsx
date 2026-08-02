@@ -11,6 +11,7 @@ import {
   createRegulatoryDestinationAction,
   uploadRegulatoryDocumentAction,
 } from "./actions";
+import { QuickAllowedStatesForm } from "./quick-allowed-states-form";
 
 export const dynamic = "force-dynamic";
 
@@ -55,12 +56,14 @@ type Product = {
   name: string;
   category: string;
   is_live: boolean | null;
+  regulated_taxon_id: string | null;
   taxon_mapping_status: string | null;
 };
 
 type Mapping = {
   id: string;
   product_id: number;
+  regulated_taxon_id: string | null;
   mapping_status: string;
   morph_or_trade_name: string | null;
   customer_display_name: string;
@@ -79,6 +82,8 @@ type DocumentRow = {
 
 type Decision = {
   id: string;
+  application_id: string;
+  regulated_taxon_id: string;
   decision: string;
   manually_verified: boolean | null;
   condition_satisfied: boolean | null;
@@ -176,10 +181,10 @@ export default async function RegulatoryDashboardPage({
           </p>
           <h1 className="mt-2 text-3xl font-black">Regulatory Data Entry</h1>
           <p className="mt-3 max-w-4xl text-sm leading-6 text-emerald-50/80">
-            Work from top to bottom: create the application, add covered states,
-            upload documents, map products to exact taxa, then create manually
-            verified decisions. The shop stays fail-closed until the decision is
-            verified here.
+            For regular updates, use the simple card first: choose a live shop
+            item, check the states it is allowed to ship to, and save. The
+            detailed recordkeeping forms are still below for permits, documents,
+            and taxon mapping.
           </p>
         </header>
 
@@ -203,6 +208,7 @@ export default async function RegulatoryDashboardPage({
 
         <nav className="flex gap-2 overflow-x-auto rounded-lg border border-white/10 bg-white/[0.04] p-2">
           {[
+            ["#quick", "Quick allow states"],
             ["#application", "Application"],
             ["#states", "States"],
             ["#documents", "Documents"],
@@ -219,6 +225,13 @@ export default async function RegulatoryDashboardPage({
             </a>
           ))}
         </nav>
+
+        <Panel id="quick" title="Quick Allow States">
+          <QuickAllowedStatesForm
+            products={buildQuickProducts(data)}
+            states={US_STATES.map(([code, name]) => ({ code, name }))}
+          />
+        </Panel>
 
         <section className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
           <Panel id="application" title="1. Add or Update Application">
@@ -617,6 +630,35 @@ function DecisionsTable({ decisions }: { decisions: Decision[] }) {
   return <SimpleList rows={decisions.map((decision) => `${decision.regulatory_destinations?.state_code || "State"} / ${decision.regulated_taxa?.canonical_scientific_name || "taxon"}: ${decision.decision}${decision.manually_verified ? " verified" : " not verified"}`)} />;
 }
 
+function buildQuickProducts(data: Awaited<ReturnType<typeof getRegulatoryData>>) {
+  return data.products
+    .filter((product) => product.is_live)
+    .map((product) => {
+      const mapping = data.mappings.find(
+        (item) => String(item.product_id) === String(product.id)
+      );
+      const regulatedTaxonId = mapping?.regulated_taxon_id || product.regulated_taxon_id;
+      const mappingStatus = mapping?.mapping_status || product.taxon_mapping_status;
+      const allowedStates = data.decisions
+        .filter(
+          (decision) =>
+            decision.manually_verified &&
+            decision.regulated_taxon_id === regulatedTaxonId &&
+            (decision.decision === "authorized" ||
+              (decision.decision === "conditional" && decision.condition_satisfied))
+        )
+        .map((decision) => decision.regulatory_destinations?.state_code)
+        .filter((state): state is string => Boolean(state));
+
+      return {
+        id: String(product.id),
+        label: `${product.name} (${product.category})`,
+        mappingStatus,
+        allowedStates: Array.from(new Set(allowedStates)).sort(),
+      };
+    });
+}
+
 function SimpleList({ rows }: { rows: string[] }) {
   return (
     <div className="space-y-2">
@@ -820,7 +862,7 @@ async function getRegulatoryData() {
     safeRows<Product>(
       supabase
         .from("shop_products")
-        .select("id,slug,name,category,is_live,taxon_mapping_status")
+        .select("id,slug,name,category,is_live,regulated_taxon_id,taxon_mapping_status")
         .eq("active", true)
         .order("category")
         .order("name")
@@ -828,7 +870,7 @@ async function getRegulatoryData() {
     safeRows<Mapping>(
       supabase
         .from("product_taxon_mappings")
-        .select("id,product_id,mapping_status,morph_or_trade_name,customer_display_name,regulated_taxa(canonical_scientific_name),shop_products(name,slug)")
+        .select("id,product_id,regulated_taxon_id,mapping_status,morph_or_trade_name,customer_display_name,regulated_taxa(canonical_scientific_name),shop_products(name,slug)")
         .eq("active", true)
         .order("created_at", { ascending: false })
     ),
@@ -842,7 +884,7 @@ async function getRegulatoryData() {
     safeRows<Decision>(
       supabase
         .from("regulatory_decisions")
-        .select("id,decision,manually_verified,condition_satisfied,expires_at,regulatory_destinations(state_code),regulated_taxa(canonical_scientific_name),regulatory_applications(application_number,permit_number)")
+        .select("id,application_id,regulated_taxon_id,decision,manually_verified,condition_satisfied,expires_at,regulatory_destinations(state_code),regulated_taxa(canonical_scientific_name),regulatory_applications(application_number,permit_number)")
         .order("updated_at", { ascending: false })
         .limit(100)
     ),

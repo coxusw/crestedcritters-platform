@@ -4,10 +4,198 @@ import { createHash, randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
+import { US_STATES } from "@/lib/shop-shipping";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const REGULATORY_PATH = "/admin/regulatory";
 const DOCUMENT_BUCKET = "regulatory-documents";
+
+export async function saveQuickAllowedStatesAction(formData: FormData) {
+  const userId = await requireAdminUserId();
+  const supabase = createSupabaseAdminClient();
+  const productId = Number(clean(formData.get("product_id"), 40));
+  const selectedStates: Set<string> = new Set(
+    formData
+      .getAll("allowed_states")
+      .map((value) => clean(value, 2).toUpperCase())
+      .filter(Boolean)
+  );
+
+  if (!productId) redirectWithError("Choose a live shop item.");
+
+  const { data: product } = await supabase
+    .from("shop_products")
+    .select("id,name,regulated_taxon_id,taxon_mapping_status")
+    .eq("id", productId)
+    .maybeSingle<{
+      id: number;
+      name: string;
+      regulated_taxon_id: string | null;
+      taxon_mapping_status: string | null;
+    }>();
+
+  if (!product) redirectWithError("That shop item could not be found.");
+
+  const { data: mapping } = await supabase
+    .from("product_taxon_mappings")
+    .select("regulated_taxon_id,mapping_status")
+    .eq("product_id", productId)
+    .eq("active", true)
+    .maybeSingle<{ regulated_taxon_id: string | null; mapping_status: string | null }>();
+
+  const regulatedTaxonId =
+    mapping?.regulated_taxon_id || product.regulated_taxon_id || null;
+  const mappingStatus = mapping?.mapping_status || product.taxon_mapping_status;
+
+  if (!regulatedTaxonId || mappingStatus !== "verified") {
+    redirectWithError("This item needs a verified taxon mapping before states can be allowed.");
+  }
+
+  const { data: application } = await supabase
+    .from("regulatory_applications")
+    .select("id,application_number")
+    .in("overall_status", ["approved", "partial_approval"])
+    .eq("unresolved_conflict", false)
+    .order("issued_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string; application_number: string }>();
+
+  if (!application) {
+    redirectWithError("Add one approved regulatory application first, then this quick form can handle the states.");
+  }
+
+  const stateNames = new Map<string, string>(US_STATES.map(([code, name]) => [code, name]));
+  const selectedDestinations = Array.from(selectedStates).map((stateCode) => ({
+    application_id: application.id,
+    state_code: stateCode,
+    state_name: stateNames.get(stateCode) || stateCode,
+    included: true,
+    destination_status: "included",
+    updated_at: new Date().toISOString(),
+  }));
+
+  if (selectedDestinations.length > 0) {
+    const { error: destinationError } = await supabase
+      .from("regulatory_destinations")
+      .upsert(selectedDestinations, { onConflict: "application_id,state_code" });
+
+    if (destinationError) redirectWithError(destinationError.message);
+  }
+
+  const { data: destinations, error: destinationReadError } = await supabase
+    .from("regulatory_destinations")
+    .select("id,state_code")
+    .eq("application_id", application.id);
+
+  if (destinationReadError) redirectWithError(destinationReadError.message);
+
+  const now = new Date().toISOString();
+  const today = now.slice(0, 10);
+  const selectedDecisionRows = (destinations || [])
+    .filter((destination) => selectedStates.has(destination.state_code))
+    .map((destination) => ({
+      application_id: application.id,
+      destination_id: destination.id,
+      regulated_taxon_id: regulatedTaxonId,
+      decision: "authorized",
+      effective_at: today,
+      summarized_reason: `${product.name} is allowed for shipment to ${destination.state_code}.`,
+      condition_satisfied: false,
+      manually_verified: true,
+      verified_by: userId,
+      verified_at: now,
+      notes: "Saved from the simple allowed-states form.",
+      updated_at: now,
+    }));
+
+  if (selectedDecisionRows.length > 0) {
+    const { error: selectedDecisionError } = await supabase
+      .from("regulatory_decisions")
+      .upsert(selectedDecisionRows, { onConflict: "application_id,destination_id,regulated_taxon_id" });
+
+    if (selectedDecisionError) redirectWithError(selectedDecisionError.message);
+  }
+
+  const { data: existingDecisions, error: existingDecisionError } = await supabase
+    .from("regulatory_decisions")
+    .select("id,regulatory_destinations(state_code)")
+    .eq("regulated_taxon_id", regulatedTaxonId);
+
+  if (existingDecisionError) redirectWithError(existingDecisionError.message);
+
+  const existingDecisionRows = (existingDecisions || []) as Array<{
+    id: string;
+    regulatory_destinations:
+      | { state_code: string | null }
+      | Array<{ state_code: string | null }>
+      | null;
+  }>;
+  const existingDecisionUpdates = existingDecisionRows.map((decision) => {
+    const stateCode = Array.isArray(decision.regulatory_destinations)
+      ? decision.regulatory_destinations[0]?.state_code
+      : decision.regulatory_destinations?.state_code;
+    return {
+      id: decision.id,
+      decision: selectedStates.has(stateCode || "") ? "authorized" : "not_requested",
+      effective_at: selectedStates.has(stateCode || "") ? today : null,
+      summarized_reason: selectedStates.has(stateCode || "")
+        ? `${product.name} is allowed for shipment to ${stateCode}.`
+        : `${product.name} is not currently selected as allowed for ${stateCode || "this state"}.`,
+      condition_satisfied: false,
+      manually_verified: true,
+      verified_by: userId,
+      verified_at: now,
+      notes: "Saved from the simple allowed-states form.",
+      updated_at: now,
+    };
+  });
+
+  if (existingDecisionUpdates.length > 0) {
+    const { error: existingUpdateError } = await supabase
+      .from("regulatory_decisions")
+      .upsert(existingDecisionUpdates);
+
+    if (existingUpdateError) redirectWithError(existingUpdateError.message);
+  }
+
+  const refreshedSelectedRows = (destinations || [])
+    .filter((destination) => selectedStates.has(destination.state_code))
+    .map((destination) => ({
+    application_id: application.id,
+    destination_id: destination.id,
+    regulated_taxon_id: regulatedTaxonId,
+    decision: "authorized",
+    effective_at: today,
+    summarized_reason: `${product.name} is allowed for shipment to ${destination.state_code}.`,
+    condition_satisfied: false,
+    manually_verified: true,
+    verified_by: userId,
+    verified_at: now,
+    notes: "Saved from the simple allowed-states form.",
+    updated_at: now,
+  }));
+
+  if (refreshedSelectedRows.length > 0) {
+    const { error: decisionError } = await supabase
+      .from("regulatory_decisions")
+      .upsert(refreshedSelectedRows, { onConflict: "application_id,destination_id,regulated_taxon_id" });
+
+    if (decisionError) redirectWithError(decisionError.message);
+  }
+
+  await audit(userId, "quick_allowed_states", "regulatory_decisions", null, {
+    product_id: productId,
+    product_name: product.name,
+    application_id: application.id,
+    application_number: application.application_number,
+    allowed_states: Array.from(selectedStates).sort(),
+  });
+
+  revalidateRegulatory();
+  revalidatePath("/shop");
+  redirectWithNotice(`Allowed states saved for ${product.name}.`);
+}
 
 export async function createRegulatoryApplicationAction(formData: FormData) {
   const userId = await requireAdminUserId();
