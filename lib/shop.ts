@@ -195,6 +195,31 @@ export function shopProductFullDescription(
   return product.full_description || product.description || product.card_description || "";
 }
 
+const SHOP_PRODUCT_ISOPEDIA_URLS: Record<string, string> = {
+  "dairy-cows": "https://isopedia.crestedcritters.com/dairy-cow-isopod",
+  "powder-orange":
+    "https://isopedia.crestedcritters.com/porcellionides-pruinosus-powder-orange-powder-powder-orange",
+  gestroi: "https://isopedia.crestedcritters.com/gestroi-gold-spot-isopod",
+  "yellow-zebra":
+    "https://isopedia.crestedcritters.com/armadillidium-maculatum-yellow-zebra-yellow-zebra",
+  "orange-cream":
+    "https://isopedia.crestedcritters.com/porcellionides-pruinosus-orange-cream-orange-cream",
+  "oreo-crumble":
+    "https://isopedia.crestedcritters.com/porcellionides-pruinosus-oreo-crumble-oreo-crumble",
+  "pineapple-spikey":
+    "https://isopedia.crestedcritters.com/cristarmadillidium-muricatum-pineapple-spikey",
+  "high-white-zebra":
+    "https://isopedia.crestedcritters.com/armadillidium-maculatum-high-white-white-zebra",
+  "red-panda": "https://isopedia.crestedcritters.com/red-panda-isopod",
+  "rubber-ducky": "https://isopedia.crestedcritters.com/rubber-ducky",
+  "temporate-springtails":
+    "https://isopedia.crestedcritters.com/folsomia-candida-temperate-springtails",
+};
+
+export function shopProductIsopediaUrl(product: Pick<ShopProduct, "slug">) {
+  return SHOP_PRODUCT_ISOPEDIA_URLS[product.slug] || "";
+}
+
 export function normalizeShopProductImages(
   product: Pick<ShopProduct, "image_url" | "image_urls">
 ) {

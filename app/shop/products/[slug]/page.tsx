@@ -8,6 +8,7 @@ import {
   normalizeShopProductImages,
   shopProductCardDescription,
   shopProductFullDescription,
+  shopProductIsopediaUrl,
 } from "@/lib/shop";
 import { truncateMetaDescription } from "@/lib/seo";
 import ProductImageCarousel from "../../ProductImageCarousel";
@@ -77,6 +78,7 @@ export default async function ProductPage({
   if (!product) notFound();
 
   const fullDescription = shopProductFullDescription(product);
+  const isopediaUrl = shopProductIsopediaUrl(product);
 
   return (
     <ShopShell>
@@ -122,6 +124,14 @@ export default async function ProductPage({
             <div className="mt-4 whitespace-pre-line text-sm leading-7 text-[#c4c8cc]">
               {fullDescription || "Full product details are coming soon."}
             </div>
+            {isopediaUrl && (
+              <a
+                href={isopediaUrl}
+                className="mt-5 inline-flex items-center justify-center rounded-md bg-[#7fb069] px-4 py-3 text-sm font-black text-[#0b0d0b] transition hover:bg-[#92c37d]"
+              >
+                View Care Info on Isopedia
+              </a>
+            )}
           </article>
 
           <aside className="rounded-lg border border-white/[0.08] bg-[#141618] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.35)]">
