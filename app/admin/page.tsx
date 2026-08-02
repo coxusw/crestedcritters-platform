@@ -70,7 +70,8 @@ export default async function AdminDashboard() {
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
               A private control center for Isopedia, Facebook content,
-              Randomizer, bookkeeping, the shop, and Isopedia tools.
+              Randomizer, bookkeeping, the shop, regulatory compliance, and
+              Isopedia tools.
             </p>
           </div>
 
@@ -215,6 +216,10 @@ async function getAdminSnapshots() {
     shopActive,
     shopPendingOrders,
     shopPaidOrders,
+    regulatoryApplications,
+    regulatoryStates,
+    regulatoryDecisions,
+    regulatoryDocuments,
     permitSpecies,
     permitIssued,
     bookkeepingRows,
@@ -236,6 +241,10 @@ async function getAdminSnapshots() {
     safeCount(supabase.from("shop_products").select("id", { count: "exact", head: true }).eq("active", true)),
     safeCount(supabase.from("shop_orders").select("id", { count: "exact", head: true }).eq("status", "pending")),
     safeCount(supabase.from("shop_orders").select("id", { count: "exact", head: true }).eq("status", "paid")),
+    safeCount(supabase.from("regulatory_applications").select("id", { count: "exact", head: true })),
+    safeCount(supabase.from("regulatory_destinations").select("id", { count: "exact", head: true })),
+    safeCount(supabase.from("regulatory_decisions").select("id", { count: "exact", head: true })),
+    safeCount(supabase.from("regulatory_documents").select("id", { count: "exact", head: true })),
     safeCount(supabase.from("permit_species").select("id", { count: "exact", head: true }).eq("active", true)),
     safeCount(supabase.from("permit_state_records").select("id", { count: "exact", head: true }).eq("status", "issued")),
     safeRows<BookkeepingRow>(
@@ -273,6 +282,12 @@ async function getAdminSnapshots() {
       active: shopActive,
       pendingOrders: shopPendingOrders,
       paidOrders: shopPaidOrders,
+    },
+    regulatory: {
+      applications: regulatoryApplications,
+      states: regulatoryStates,
+      decisions: regulatoryDecisions,
+      documents: regulatoryDocuments,
     },
     permits: {
       species: permitSpecies,
@@ -360,17 +375,18 @@ function buildTools(snapshots: Awaited<ReturnType<typeof getAdminSnapshots>>): A
       links: [{ href: "https://shop.crestedcritters.com", label: "Open Shop" }],
     },
     {
-      title: "Regulatory",
+      title: "Regulatory Compliance",
       href: "/admin/regulatory",
-      status: "Foundation",
+      status: "Live",
       stats: [
-        { label: "Active Permits", value: snapshots.permits.issued },
-        { label: "Species", value: snapshots.permits.species },
-        { label: "Fail Closed", value: "On" },
-        { label: "Private Docs", value: "RLS" },
+        { label: "Applications", value: snapshots.regulatory.applications },
+        { label: "States", value: snapshots.regulatory.states },
+        { label: "Decisions", value: snapshots.regulatory.decisions },
+        { label: "Documents", value: snapshots.regulatory.documents },
       ],
       links: [
-        { href: "/admin/regulatory", label: "Dashboard" },
+        { href: "/admin/regulatory#application", label: "Add Permit" },
+        { href: "/admin/regulatory#decisions", label: "Decisions" },
         { href: "/admin/shop", label: "Shop" },
       ],
     },
