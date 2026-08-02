@@ -360,6 +360,21 @@ function buildTools(snapshots: Awaited<ReturnType<typeof getAdminSnapshots>>): A
       links: [{ href: "https://shop.crestedcritters.com", label: "Open Shop" }],
     },
     {
+      title: "Regulatory",
+      href: "/admin/regulatory",
+      status: "Foundation",
+      stats: [
+        { label: "Active Permits", value: snapshots.permits.issued },
+        { label: "Species", value: snapshots.permits.species },
+        { label: "Fail Closed", value: "On" },
+        { label: "Private Docs", value: "RLS" },
+      ],
+      links: [
+        { href: "/admin/regulatory", label: "Dashboard" },
+        { href: "/admin/shop", label: "Shop" },
+      ],
+    },
+    {
       title: "Rank & File Admin",
       href: "https://admin.rankandfile6787.com",
       status: "External",

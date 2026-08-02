@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
 import {
-  getBlockedLiveStates,
   getLiveShippingSeason,
   getShippingOptions,
   hasLiveProducts,
@@ -9,6 +8,7 @@ import {
   normalizeZip,
 } from "@/lib/shop-shipping";
 import { cleanCartItems, fetchCartProducts, matchCartProducts } from "@/lib/shop-server";
+import { getCartCompliance } from "@/lib/shop-compliance";
 
 export async function POST(request: Request) {
   let body: { items?: unknown; shippingState?: string; shippingPostalCode?: string };
@@ -70,11 +70,22 @@ export async function POST(request: Request) {
       });
     }
 
-    if ((await getBlockedLiveStates()).includes(shippingState)) {
+    const compliance = await getCartCompliance({
+      products: cartProducts,
+      stateCode: shippingState,
+    });
+
+    if (compliance.overall !== "cleared") {
+      const blockedItem = compliance.items.find(
+        (item) => item.isLive && item.availability !== "available"
+      );
       return NextResponse.json({
         hasLiveItems,
         blocked: true,
-        blockedReason: `Crested Critters cannot ship live isopods or springtails to ${shippingState} at this time.`,
+        blockedReason:
+          blockedItem?.publicMessage ||
+          "One or more live items cannot be shipped to the selected state yet.",
+        compliance,
         liveWarning: "",
         options: [],
       });

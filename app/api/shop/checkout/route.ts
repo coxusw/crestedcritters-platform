@@ -14,7 +14,6 @@ import {
   type ShopShippingAddress,
 } from "@/lib/shop";
 import {
-  getBlockedLiveStates,
   getLiveShippingSeason,
   getShippingOptions,
   hasLiveProducts,
@@ -22,6 +21,11 @@ import {
   normalizeZip,
 } from "@/lib/shop-shipping";
 import { cleanCartItems, fetchCartProducts, matchCartProducts } from "@/lib/shop-server";
+import {
+  getCartCompliance,
+  type CartComplianceResult,
+  type ProductAvailability,
+} from "@/lib/shop-compliance";
 
 type CheckoutRequest = {
   customerEmail?: string;
@@ -148,6 +152,7 @@ export async function POST(request: Request) {
     0
   );
   const hasLiveItems = hasLiveProducts(matchedProducts.map((match) => match.product!).filter(Boolean));
+  let compliance: CartComplianceResult | null = null;
 
   if (hasLiveItems) {
     const season = await getLiveShippingSeason();
@@ -156,10 +161,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: season.message }, { status: 400 });
     }
 
-    if ((await getBlockedLiveStates()).includes(shippingState)) {
+    compliance = await getCartCompliance({
+      products: matchedProducts.map((match) => match.product!).filter(Boolean),
+      stateCode: shippingState,
+      includeInternal: true,
+    });
+
+    if (compliance.overall !== "cleared") {
+      const blockedItem = compliance.items.find(
+        (item) => item.isLive && item.availability !== "available"
+      );
       return NextResponse.json(
         {
-          error: `Crested Critters cannot ship live isopods or springtails to ${shippingState} at this time.`,
+          error:
+            blockedItem?.publicMessage ||
+            "One or more live items cannot be shipped to the selected state yet.",
+          compliance,
         },
         { status: 400 }
       );
@@ -212,6 +229,17 @@ export async function POST(request: Request) {
       { error: orderError?.message || "Could not create order." },
       { status: 500 }
     );
+  }
+
+  if (hasLiveItems && compliance) {
+    await createLiveOrderRecord({
+      supabase,
+      orderId: order.id,
+      shippingAddress,
+      customerEmail,
+      orderItems,
+      compliance,
+    });
   }
 
   await saveCheckoutLead({
@@ -296,6 +324,100 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ checkoutUrl: paymentLink.url });
+}
+
+async function createLiveOrderRecord({
+  supabase,
+  orderId,
+  shippingAddress,
+  customerEmail,
+  orderItems,
+  compliance,
+}: {
+  supabase: ReturnType<typeof createSupabaseAdminClient>;
+  orderId: string;
+  shippingAddress: ShopShippingAddress;
+  customerEmail: string | null;
+  orderItems: ShopOrderItem[];
+  compliance: CartComplianceResult;
+}) {
+  const now = new Date().toISOString();
+  const snapshot = {
+    orderId,
+    checkedAt: now,
+    destinationState: shippingAddress.state,
+    compliance,
+    items: orderItems,
+    shippingAddress,
+  };
+  const firstPermit = compliance.items.find((item) => item.permitNumber);
+  const { data: record, error } = await supabase
+    .from("live_order_records")
+    .insert({
+      order_id: orderId,
+      is_live_order: true,
+      destination_name: shippingAddress.name,
+      destination_address_line_1: shippingAddress.address1,
+      destination_address_line_2: shippingAddress.address2 || null,
+      destination_city: shippingAddress.city,
+      destination_state: shippingAddress.state,
+      destination_postal_code: shippingAddress.postalCode,
+      destination_country: shippingAddress.country || "US",
+      customer_email: customerEmail || shippingAddress.email || null,
+      customer_phone: shippingAddress.phone || null,
+      permit_number_snapshot: firstPermit?.permitNumber || null,
+      compliance_checked_at: now,
+      compliance_result: "cleared",
+      immutable_snapshot: snapshot,
+      updated_at: now,
+    })
+    .select("id")
+    .single<{ id: string }>();
+
+  if (error || !record) {
+    throw new Error(error?.message || "Could not create live shipment record.");
+  }
+
+  type LiveOrderItemInsert = {
+    live_order_record_id: string;
+    product_id: string;
+    product_name_snapshot: string;
+    morph_name_snapshot: string | null;
+    scientific_name_snapshot: string | null;
+    regulated_taxon_id: null;
+    quantity: number;
+    compliance_decision_id: string | null;
+    decision_snapshot: ProductAvailability;
+    permit_number_snapshot: string | null;
+    destination_state_snapshot: string;
+  };
+
+  const liveItems = orderItems
+    .map<LiveOrderItemInsert | null>((item) => {
+      const itemCompliance = compliance.items.find(
+        (result) => result.productId === item.productId
+      );
+      if (!itemCompliance?.isLive) return null;
+      return {
+        live_order_record_id: record.id,
+        product_id: item.productId,
+        product_name_snapshot: formatOrderItemName(item),
+        morph_name_snapshot: item.optionLabel || null,
+        scientific_name_snapshot: itemCompliance.canonicalScientificName,
+        regulated_taxon_id: null,
+        quantity: item.quantity,
+        compliance_decision_id: itemCompliance.internalDecisionId || null,
+        decision_snapshot: itemCompliance,
+        permit_number_snapshot: itemCompliance.permitNumber || null,
+        destination_state_snapshot: shippingAddress.state,
+      };
+    })
+    .filter((item): item is LiveOrderItemInsert => Boolean(item));
+
+  if (liveItems.length > 0) {
+    const { error: itemsError } = await supabase.from("live_order_items").insert(liveItems);
+    if (itemsError) throw new Error(itemsError.message);
+  }
 }
 
 function normalizeEmail(value: unknown) {

@@ -18,6 +18,14 @@ export type ShopProduct = {
   option_name?: string | null;
   options?: ShopProductOption[] | null;
   active: boolean;
+  is_live?: boolean | null;
+  live_category?: "isopod" | "springtail" | "gecko" | "plant" | "other" | null;
+  regulated_taxon_id?: string | null;
+  taxon_mapping_status?: "verified" | "provisional" | "unmapped" | "disputed" | null;
+  local_pickup_possible?: boolean | null;
+  requires_live_shipping_method?: boolean | null;
+  compliance_exempt?: boolean | null;
+  compliance_exempt_reason?: string | null;
   created_at?: string;
   updated_at?: string;
 };

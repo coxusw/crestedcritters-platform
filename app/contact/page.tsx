@@ -17,7 +17,7 @@ function cleanText(value: FormDataEntryValue | null, maxLength = 2000) {
 }
 
 function validCategory(value: string) {
-  return ["issue", "suggestion", "question", "other"].includes(value)
+  return ["issue", "suggestion", "question", "local_availability", "other"].includes(value)
     ? value
     : "issue";
 }
@@ -136,6 +136,11 @@ async function submitContactMessage(formData: FormData) {
   const email = cleanText(formData.get("email"), 180).toLowerCase();
   const category = validCategory(cleanText(formData.get("category"), 40));
   const subject = cleanText(formData.get("subject"), 180) || null;
+  const phone = cleanText(formData.get("phone"), 80);
+  const customerState = cleanText(formData.get("customer_state"), 40).toUpperCase();
+  const product = cleanText(formData.get("product"), 200);
+  const productUrl = cleanText(formData.get("product_url"), 500);
+  const preferredContact = cleanText(formData.get("preferred_contact"), 80);
   const message = cleanText(formData.get("message"), 4000);
 
   if (!name || !email || !message) {
@@ -155,8 +160,24 @@ async function submitContactMessage(formData: FormData) {
       name,
       email,
       category,
-      subject,
-      message,
+      subject: category === "local_availability"
+        ? subject || "In-Person Availability Inquiry"
+        : subject,
+      message: [
+        category === "local_availability"
+          ? "Inquiry type: In-Person or Local Availability"
+          : "",
+        phone ? `Telephone: ${phone}` : "",
+        customerState ? `Customer state: ${customerState}` : "",
+        product ? `Product: ${product}` : "",
+        productUrl ? `Product URL: ${productUrl}` : "",
+        preferredContact ? `Preferred contact method: ${preferredContact}` : "",
+        category === "local_availability"
+          ? "Disclaimer shown: Submitting an inquiry does not guarantee product availability or legal eligibility for sale or transfer."
+          : "",
+        "",
+        message,
+      ].filter(Boolean).join("\n"),
       status: "open",
       updated_at: new Date().toISOString(),
     })
@@ -174,8 +195,24 @@ async function submitContactMessage(formData: FormData) {
       name,
       email,
       category,
-      subject,
-      message,
+      subject: category === "local_availability"
+        ? subject || "In-Person Availability Inquiry"
+        : subject,
+      message: [
+        category === "local_availability"
+          ? "Inquiry type: In-Person or Local Availability"
+          : "",
+        phone ? `Telephone: ${phone}` : "",
+        customerState ? `Customer state: ${customerState}` : "",
+        product ? `Product: ${product}` : "",
+        productUrl ? `Product URL: ${productUrl}` : "",
+        preferredContact ? `Preferred contact method: ${preferredContact}` : "",
+        category === "local_availability"
+          ? "Disclaimer shown: Submitting an inquiry does not guarantee product availability or legal eligibility for sale or transfer."
+          : "",
+        "",
+        message,
+      ].filter(Boolean).join("\n"),
     });
   } catch {
     redirect("/contact?error=save-failed");
@@ -187,7 +224,15 @@ async function submitContactMessage(formData: FormData) {
 export default async function ContactPage({
   searchParams,
 }: {
-  searchParams: Promise<{ submitted?: string; error?: string }>;
+  searchParams: Promise<{
+    submitted?: string;
+    error?: string;
+    type?: string;
+    product?: string;
+    productUrl?: string;
+    state?: string;
+    subject?: string;
+  }>;
 }) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
@@ -212,6 +257,7 @@ export default async function ContactPage({
     profile?.business_name ||
     profile?.username ||
     "";
+  const localAvailabilityInquiry = params.type === "local_availability";
 
   return (
     <main className="min-h-screen bg-[#07130c] px-4 py-6 text-slate-100 sm:py-10">
@@ -306,12 +352,13 @@ export default async function ContactPage({
                   </span>
                   <select
                     name="category"
-                    defaultValue="issue"
+                    defaultValue={localAvailabilityInquiry ? "local_availability" : "issue"}
                     className="rounded-xl border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
                   >
                     <option value="issue">Issue</option>
                     <option value="suggestion">Suggestion</option>
                     <option value="question">Question</option>
+                    <option value="local_availability">In-Person or Local Availability</option>
                     <option value="other">Other</option>
                   </select>
                 </label>
@@ -322,12 +369,81 @@ export default async function ContactPage({
                   </span>
                   <input
                     name="subject"
+                    defaultValue={params.subject || (localAvailabilityInquiry ? "In-Person Availability Inquiry" : "")}
                     maxLength={180}
                     placeholder="Short summary"
                     className="rounded-xl border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
                   />
                 </label>
               </div>
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <label className="grid gap-2">
+                  <span className="text-sm font-bold text-emerald-50">
+                    Telephone <span className="text-emerald-50/40">(optional)</span>
+                  </span>
+                  <input
+                    name="phone"
+                    type="tel"
+                    maxLength={80}
+                    className="rounded-xl border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
+                  />
+                </label>
+
+                <label className="grid gap-2">
+                  <span className="text-sm font-bold text-emerald-50">
+                    Customer state <span className="text-emerald-50/40">(optional)</span>
+                  </span>
+                  <input
+                    name="customer_state"
+                    defaultValue={params.state || ""}
+                    maxLength={40}
+                    placeholder="IN"
+                    className="rounded-xl border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <label className="grid gap-2">
+                  <span className="text-sm font-bold text-emerald-50">
+                    Product <span className="text-emerald-50/40">(optional)</span>
+                  </span>
+                  <input
+                    name="product"
+                    defaultValue={params.product || ""}
+                    maxLength={200}
+                    className="rounded-xl border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
+                  />
+                </label>
+
+                <label className="grid gap-2">
+                  <span className="text-sm font-bold text-emerald-50">
+                    Product URL <span className="text-emerald-50/40">(optional)</span>
+                  </span>
+                  <input
+                    name="product_url"
+                    defaultValue={params.productUrl || ""}
+                    maxLength={500}
+                    className="rounded-xl border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
+                  />
+                </label>
+              </div>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-bold text-emerald-50">
+                  Preferred contact method <span className="text-emerald-50/40">(optional)</span>
+                </span>
+                <select
+                  name="preferred_contact"
+                  defaultValue="email"
+                  className="rounded-xl border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 focus:ring-4"
+                >
+                  <option value="email">Email</option>
+                  <option value="phone">Phone</option>
+                  <option value="either">Either</option>
+                </select>
+              </label>
 
               <label className="grid gap-2">
                 <span className="text-sm font-bold text-emerald-50">
@@ -342,6 +458,11 @@ export default async function ContactPage({
                   className="rounded-xl border border-white/10 bg-[#07130c] px-4 py-3 text-white outline-none ring-emerald-400/30 placeholder:text-emerald-50/30 focus:ring-4"
                 />
               </label>
+
+              <div className="rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm font-bold leading-6 text-amber-50">
+                Submitting an inquiry does not guarantee product availability or
+                legal eligibility for sale or transfer.
+              </div>
             </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3">

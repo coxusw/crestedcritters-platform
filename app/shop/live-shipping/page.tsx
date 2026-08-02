@@ -18,12 +18,13 @@ export const metadata = {
   },
 };
 
-const restrictedStates = ["Alaska", "Hawaii", "Florida", "California", "Oregon"];
-
 const sections = [
   {
     title: "Live shipping basics",
     body: [
+      "Crested Critters is now accepting eligible live orders for approved destinations within the contiguous United States.",
+      "Live availability depends on destination state and exact species. Customers must select their state before ordering, and the checkout address controls the final eligibility check.",
+      "Some products may remain visible but greyed out when they are not currently available for shipment to the selected state.",
       "Live products are isopods and springtails. If a cart contains any live product, checkout will only show UPS Next Day Air and UPS 2nd Day Air.",
       "Crested Critters begins live shipping the last week of March and ships live orders through November when weather allows.",
       "Live orders are not available from December through the last week of March. If your cart contains isopods or springtails during that window, checkout will not continue with the live order.",
@@ -47,8 +48,8 @@ const sections = [
   {
     title: "Restricted states",
     body: [
-      `Live isopods and springtails cannot currently ship to ${restrictedStates.join(", ")}.`,
-      "These states are restricted because of permitting, live-animal movement rules, or state-level compliance concerns.",
+      "Crested Critters does not currently offer live-animal shipping to Alaska or Hawaii.",
+      "Other live-product availability depends on the exact species and destination-state authorization in the shop.",
       "Non-live products can still be ordered to those states as long as the cart does not contain isopods or springtails.",
     ],
   },
@@ -83,8 +84,10 @@ const sections = [
     title: "Before placing a live order",
     body: [
       "Review your shipping address, local weather, and delivery schedule before checkout.",
+      "An accepted order does not necessarily mean immediate shipment. Live shipment timing may account for weather, carrier delays, holidays, and animal welfare.",
       "Live orders should ship to an address where someone can receive the package on the first delivery attempt.",
       "If your cart has live items, checkout will ask you to confirm that you reviewed this page before payment.",
+      "Local or in-person inquiries may be submitted through the contact form, but availability and legal eligibility are not guaranteed.",
     ],
   },
   {
@@ -104,8 +107,9 @@ export default function LiveShippingPage() {
         <div className="mb-5 rounded-md border border-[#d6c06f]/25 bg-[#d6c06f]/10 p-5">
           <h2 className="text-2xl font-black text-white">Live Shipping</h2>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-[#e6dcad]">
-            Live isopods and springtails need faster shipping, safe weather windows, and state compliance review.
-            Please read this page before placing a live order.
+            Live isopods and springtails need destination-state eligibility checks,
+            faster shipping, safe weather windows, and careful packaging. Please
+            read this page before placing a live order.
           </p>
         </div>
 

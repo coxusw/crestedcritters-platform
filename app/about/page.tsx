@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 const questions = [
   {
     title: "Do you ship isopods or springtails?",
-    body: "Currently, Crested Critters does not ship live isopods or springtails. At this time, all isopods and springtails are available for in-person purchase only within the Northwest Indiana region. We do have plans to offer shipping in the future once we are confident we can maintain the same high standards of animal health and safe delivery.",
+    body: "Yes. Crested Critters now accepts eligible live-animal orders for shipping to approved destinations within the contiguous United States. Availability depends on the exact species, destination state, weather, and safe shipping schedule.",
   },
   {
     title: "Do you ship other items?",
@@ -33,7 +33,7 @@ const questions = [
   },
   {
     title: "What is your live arrival / DOA policy?",
-    body: "Because live isopods and springtails are currently sold in person only, live arrival issues related to shipping do not apply at this time. When live shipping becomes available in the future, Crested Critters will implement a clear and fair live arrival guarantee to ensure customer confidence and animal welfare.",
+    body: "Live arrival terms apply to eligible live orders shipped with the required UPS air service and delivered on the first delivery attempt. If there is a problem with a live shipment, contact Crested Critters on the delivery day with your order number, clear photos of the unopened containers, and photos of the shipping box and packing materials.",
   },
   {
     title: "What is your return policy?",
@@ -102,6 +102,21 @@ export default function AboutPage() {
             </article>
           ))}
         </div>
+
+        <section className="mt-6 rounded-md border border-[#7fb069]/25 bg-[#111315] p-5">
+          <h2 className="text-xl font-black text-white">
+            Now Shipping Eligible Live Cultures
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-[#a8b0b8]">
+            Crested Critters now accepts eligible live-animal orders for shipping
+            to approved destinations across the contiguous United States. Because
+            live-animal requirements vary by state and species, our shop uses
+            destination-based availability controls to help customers see which
+            cultures are currently eligible for shipment. We remain committed to
+            responsible husbandry, thoughtful packaging, accurate records, and
+            regulatory compliance.
+          </p>
+        </section>
       </section>
     </MainSiteShell>
   );

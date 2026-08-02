@@ -20,6 +20,48 @@ export const metadata = {
 
 const sections = [
   {
+    title: "Does Crested Critters ship live isopods and other live cultures?",
+    body: [
+      "Yes. Crested Critters now accepts eligible live-animal orders for shipping to approved destinations within the contiguous United States. Availability varies by species and destination state, so the shop will ask you to select your state and will identify which live products are currently eligible for shipment.",
+    ],
+  },
+  {
+    title: "Why are some live products greyed out?",
+    body: [
+      "Live-animal movement rules and permit coverage differ by state and species. Products shown in grey are not currently available for shipment to your selected state. They remain visible so customers can learn about our available cultures and contact us regarding possible local or in-person availability.",
+    ],
+  },
+  {
+    title: "Can I order a restricted product for local pickup or an in-person sale?",
+    body: [
+      "Local or in-person availability may be possible depending on applicable laws, permit conditions, inventory, and scheduling. Use our contact form to ask about a specific product. Contacting us does not guarantee that a sale or transfer will be available.",
+    ],
+  },
+  {
+    title: "Why do I need to select my state?",
+    body: [
+      "Your state helps us apply the correct live-shipping eligibility rules before you add live products to your cart. Your checkout shipping address will be used for the final compliance check.",
+    ],
+  },
+  {
+    title: "Can I change my selected state?",
+    body: [
+      "Yes. Use the Shipping to selector in the shop. If your checkout address is in a different state, product eligibility will be recalculated automatically.",
+    ],
+  },
+  {
+    title: "Do restrictions affect dry goods and supplies?",
+    body: [
+      "No. State-based live-animal restrictions apply only to affected live products. Dry goods, habitat supplies, decor, and other non-live products remain available unless otherwise stated.",
+    ],
+  },
+  {
+    title: "Do you ship to Alaska or Hawaii?",
+    body: [
+      "Crested Critters does not currently offer live-animal shipping to Alaska or Hawaii.",
+    ],
+  },
+  {
     title: "How checkout works",
     body: [
       "Add the items you want to your cart, enter your shipping address, choose an available shipping option, then complete payment through Square.",
@@ -75,7 +117,7 @@ const sections = [
   {
     title: "Live products",
     body: [
-      "Live isopods and springtails have separate shipping rules because weather, transit time, and state restrictions matter.",
+      "Live isopods and springtails have separate shipping rules because weather, transit time, exact species, and destination-state restrictions matter.",
       "Please review the Live Shipping page before placing a live order.",
     ],
     href: "/live-shipping",

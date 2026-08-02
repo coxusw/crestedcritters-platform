@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ShopProduct, ShopProductOption } from "@/lib/shop";
 import {
@@ -55,6 +56,19 @@ type ShippingOptionsPayload = {
   blockedReason?: string;
   liveWarning?: string;
   hasLiveItems?: boolean;
+  error?: string;
+};
+
+type AvailabilityItem = {
+  productId: string;
+  isLive: boolean;
+  availability: "available" | "unavailable" | "conditional" | "review_required";
+  publicReasonCode: string;
+  publicMessage: string;
+};
+
+type AvailabilityPayload = {
+  items?: AvailabilityItem[];
   error?: string;
 };
 
@@ -122,6 +136,21 @@ const US_STATES = [
   "WY",
 ];
 
+function initialCartState() {
+  if (typeof window === "undefined") return [] as CartLine[];
+  try {
+    const saved = window.localStorage.getItem("crested-shop-cart");
+    return saved ? (JSON.parse(saved) as CartLine[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function initialSelectedState() {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem("crested-shop-state") || "";
+}
+
 function isUnavailable(product: ShopProduct) {
   return product.sold_out || productTotalAvailableQuantity(product) <= 0;
 }
@@ -155,7 +184,7 @@ export default function ShopClient({
     [products]
   );
   const [category, setCategory] = useState("All");
-  const [cart, setCart] = useState<CartLine[]>([]);
+  const [cart, setCart] = useState<CartLine[]>(initialCartState);
   const [contact, setContact] = useState<CheckoutContact>({
     name: "",
     email: "",
@@ -172,17 +201,13 @@ export default function ShopClient({
   const [shippingBusy, setShippingBusy] = useState(false);
   const [liveWarning, setLiveWarning] = useState("");
   const [reviewedLiveShipping, setReviewedLiveShipping] = useState(false);
+  const [selectedState, setSelectedState] = useState(initialSelectedState);
+  const [showStatePrompt, setShowStatePrompt] = useState(
+    () => typeof window !== "undefined" && view === "shop" && !initialSelectedState()
+  );
+  const [availabilityByProduct, setAvailabilityByProduct] = useState<Record<string, AvailabilityItem>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem("crested-shop-cart");
-      if (saved) setCart(JSON.parse(saved) as CartLine[]);
-    } catch {
-      setCart([]);
-    }
-  }, []);
 
   useEffect(() => {
     function applyHashCategory() {
@@ -201,6 +226,37 @@ export default function ShopClient({
   useEffect(() => {
     window.localStorage.setItem("crested-shop-cart", JSON.stringify(cart));
   }, [cart]);
+
+  useEffect(() => {
+    if (!selectedState || products.length === 0) return;
+
+    let cancelled = false;
+    async function loadAvailability() {
+      try {
+        const response = await fetch("/api/shop/availability", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            stateCode: selectedState,
+            productIds: products.map((product) => product.id),
+          }),
+        });
+        const payload = (await response.json()) as AvailabilityPayload;
+        if (!response.ok || payload.error) throw new Error(payload.error || "Could not check availability.");
+        if (cancelled) return;
+        setAvailabilityByProduct(
+          Object.fromEntries((payload.items || []).map((item) => [item.productId, item]))
+        );
+      } catch {
+        if (!cancelled) setAvailabilityByProduct({});
+      }
+    }
+
+    loadAvailability();
+    return () => {
+      cancelled = true;
+    };
+  }, [products, selectedState]);
 
   const visibleProducts = useMemo(() => {
     return products.filter((product) => category === "All" || product.category === category);
@@ -251,13 +307,22 @@ export default function ShopClient({
     contact.postalCode.trim().length === 5;
 
   useEffect(() => {
-    setShippingOptions([]);
-    setSelectedShippingKey("");
-    setLiveWarning("");
+    const timer = window.setTimeout(() => {
+      setShippingOptions([]);
+      setSelectedShippingKey("");
+      setLiveWarning("");
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [contact.state, contact.postalCode, cartProducts.length]);
 
   function addToCart(product: ShopProduct, option?: ShopProductOption | null) {
     setError("");
+    const availability = availabilityByProduct[product.id];
+    if (availability?.isLive && availability.availability !== "available") {
+      setError(availability.publicMessage);
+      return;
+    }
     setCart((current) => {
       const key = cartLineKey(product.id, option?.id);
       const availableQuantity = productAvailableQuantity(product, option);
@@ -301,6 +366,13 @@ export default function ShopClient({
           : line
       );
     });
+  }
+
+  function saveSelectedState(state: string) {
+    const nextState = state.toUpperCase().slice(0, 2);
+    setSelectedState(nextState);
+    window.localStorage.setItem("crested-shop-state", nextState);
+    setShowStatePrompt(false);
   }
 
   async function checkout() {
@@ -404,7 +476,6 @@ export default function ShopClient({
         cartProducts={cartProducts}
         contact={contact}
         setContact={setContact}
-        contactComplete={Boolean(contactComplete)}
         busy={busy}
         error={error}
         subtotalCents={subtotalCents}
@@ -438,6 +509,21 @@ export default function ShopClient({
           <p className="mt-1 text-sm text-[#a8b0b8]">
             Total so far: <span className="font-black text-[#d6c06f]">{formatShopMoney(subtotalCents + shippingCents)}</span>
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-bold text-[#a8b0b8]">
+              Shipping to: {selectedState || "Select state"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowStatePrompt(true)}
+              className="rounded-md border border-[#7fb069]/35 px-3 py-1 font-black text-[#d7ead0] hover:bg-[#7fb069]/10"
+            >
+              Change
+            </button>
+            <a href="/faq" className="font-bold text-[#d6c06f] underline underline-offset-2">
+              Shipping FAQ
+            </a>
+          </div>
         </div>
         <a
           href="/cart"
@@ -472,11 +558,73 @@ export default function ShopClient({
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {visibleProducts.map((product) => (
-              <ProductCard key={product.id} product={product} addToCart={addToCart} />
+              <ProductCard
+                key={product.id}
+                product={product}
+                addToCart={addToCart}
+                selectedState={selectedState}
+                availability={availabilityByProduct[product.id]}
+              />
             ))}
           </div>
         )}
       </section>
+
+      {showStatePrompt && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="state-selector-title"
+          className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-4"
+        >
+          <div className="w-full max-w-md rounded-lg border border-white/[0.1] bg-[#141618] p-5 shadow-2xl">
+            <h2 id="state-selector-title" className="text-2xl font-black text-white">
+              Select Your State
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-[#a8b0b8]">
+              Live-animal shipping availability varies by state. Select your
+              destination state so we can show which live species are currently
+              eligible for shipment. Dry goods, supplies, and other non-live
+              products are not affected.
+            </p>
+            <label className="mt-4 block text-sm font-bold text-[#a8b0b8]">
+              Destination state
+              <select
+                value={selectedState}
+                onChange={(event) => setSelectedState(event.target.value)}
+                className="mt-1 w-full rounded-md border border-white/[0.12] bg-[#101214] px-3 py-2 text-[#e9ecef] [color-scheme:dark]"
+              >
+                <option value="" className="bg-[#101214] text-[#e9ecef]">Select a state</option>
+                {US_STATES.map((state) => (
+                  <option key={state} value={state} className="bg-[#101214] text-[#e9ecef]">
+                    {state}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => selectedState && saveSelectedState(selectedState)}
+                disabled={!selectedState}
+                className="rounded-md bg-[#7fb069] px-4 py-3 text-sm font-black text-[#0b0d0b] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Continue to Shop
+              </button>
+              <a
+                href="/faq"
+                className="rounded-md border border-white/[0.1] px-4 py-3 text-sm font-black text-[#e9ecef] hover:bg-white/[0.04]"
+              >
+                Shipping FAQ
+              </a>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-[#a8b0b8]">
+              You can change your state later. Your checkout shipping address
+              is used for the final compliance check.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -484,9 +632,13 @@ export default function ShopClient({
 function ProductCard({
   product,
   addToCart,
+  selectedState,
+  availability,
 }: {
   product: ShopProduct;
   addToCart: (product: ShopProduct, option?: ShopProductOption | null) => void;
+  selectedState: string;
+  availability?: AvailabilityItem;
 }) {
   const productOptions = normalizeProductOptions(product);
   const [selectedOptionId, setSelectedOptionId] = useState("");
@@ -495,10 +647,17 @@ function ProductCard({
   const availableQuantity = productAvailableQuantity(product, selectedOption);
   const totalAvailableQuantity = productTotalAvailableQuantity(product);
   const unavailable = isUnavailable(product) || (requiresOption && selectedOption ? availableQuantity <= 0 : false);
-  const canAdd = !unavailable && (!requiresOption || Boolean(selectedOption));
+  const complianceBlocked = Boolean(
+    availability?.isLive && availability.availability !== "available"
+  );
+  const canAdd = !unavailable && !complianceBlocked && (!requiresOption || Boolean(selectedOption));
 
   return (
-    <article className="flex min-h-[430px] flex-col overflow-hidden rounded-lg border border-white/[0.08] bg-[#141618] shadow-[0_10px_40px_rgba(0,0,0,0.35)] transition hover:-translate-y-1 hover:border-[#d6c06f]/30">
+    <article className={`flex min-h-[430px] flex-col overflow-hidden rounded-lg border shadow-[0_10px_40px_rgba(0,0,0,0.35)] transition hover:-translate-y-1 hover:border-[#d6c06f]/30 ${
+      complianceBlocked
+        ? "border-amber-300/25 bg-[#1a1812]"
+        : "border-white/[0.08] bg-[#141618]"
+    }`}>
       <div className="relative aspect-[4/3] bg-[#101214]">
         <ProductImageCarousel
           images={normalizeShopProductImages(product)}
@@ -518,6 +677,11 @@ function ProductCard({
             {totalAvailableQuantity} in stock
           </span>
         )}
+        {complianceBlocked && (
+          <span className="absolute left-3 top-3 rounded-full border border-amber-200/40 bg-amber-300/20 px-3 py-1 text-xs font-black text-amber-50 backdrop-blur">
+            {selectedState ? `Unavailable for shipping to ${selectedState}` : "Shipping review required"}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col p-4">
@@ -532,6 +696,11 @@ function ProductCard({
         <p className="mt-3 flex-1 text-sm leading-6 text-[#a8b0b8]">
           {shopProductCardDescription(product) || "Product details coming soon."}
         </p>
+        {complianceBlocked && (
+          <p className="mt-3 rounded-md border border-amber-300/25 bg-amber-300/10 p-3 text-sm leading-6 text-amber-50">
+            {availability?.publicMessage}
+          </p>
+        )}
 
         <div className="mt-4 space-y-3">
           {productOptions.length > 0 && (
@@ -578,7 +747,13 @@ function ProductCard({
             disabled={!canAdd}
             className="inline-flex w-full items-center justify-center rounded-md bg-[#7fb069] px-4 py-3 text-sm font-black text-[#0b0d0b] transition hover:bg-[#92c37d] disabled:cursor-not-allowed disabled:border disabled:border-white/[0.08] disabled:bg-transparent disabled:text-[#a8b0b8]"
           >
-            {unavailable ? "Sold Out" : requiresOption && !selectedOption ? `Choose ${product.option_name || "Option"}` : "Add to Cart"}
+            {complianceBlocked
+              ? "Unavailable for Shipping"
+              : unavailable
+                ? "Sold Out"
+                : requiresOption && !selectedOption
+                  ? `Choose ${product.option_name || "Option"}`
+                  : "Add to Cart"}
           </button>
         </div>
       </div>
@@ -590,7 +765,6 @@ function CartPage({
   cartProducts,
   contact,
   setContact,
-  contactComplete,
   busy,
   error,
   subtotalCents,
@@ -614,7 +788,6 @@ function CartPage({
   cartProducts: CartProductLine[];
   contact: CheckoutContact;
   setContact: (value: CheckoutContact) => void;
-  contactComplete: boolean;
   busy: boolean;
   error: string;
   subtotalCents: number;
@@ -657,12 +830,12 @@ function CartPage({
             <h2 className="mt-1 text-2xl font-black">Review Your Cart</h2>
           </div>
           <div className="flex gap-2">
-            <a
+            <Link
               href="/"
               className="rounded-md border border-white/[0.08] px-4 py-2 text-sm font-bold text-[#a8b0b8] hover:border-white/20 hover:text-[#e9ecef]"
             >
               Continue Shopping
-            </a>
+            </Link>
             {cartProducts.length > 0 && (
               <button
                 type="button"
