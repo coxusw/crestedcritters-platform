@@ -27,6 +27,7 @@ import { InlineBadges } from "@/app/community/CommunityCards";
 import CommunityFormShell from "@/app/community/CommunityFormShell";
 import CommunityImageUploadFields from "@/app/community/CommunityImageUploadFields";
 import CommunityReplyForm from "@/app/community/CommunityReplyForm";
+import CommunityShareButton from "@/app/community/CommunityShareButton";
 import LinkifiedText from "@/app/community/LinkifiedText";
 import {
   createCommunityReply,
@@ -429,6 +430,8 @@ export default async function CommunityDiscussionPage({
           )}
 
           <div className="mt-6 flex flex-wrap gap-3">
+            <CommunityShareButton path={`/community/discussion/${discussion.slug}`} />
+
             {user ? (
               <>
                 <form action={toggleCommunitySave}>
