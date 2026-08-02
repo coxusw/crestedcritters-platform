@@ -199,7 +199,7 @@ function validateNewCommunityImageCaptions(
   captions: string[]
 ) {
   if (files.some((_, index) => !captions[index])) {
-    return "Please add a caption for each image, one caption per line.";
+    return "Please add a caption for each selected image.";
   }
 
   if (uploadedImages.some((image) => !image.caption)) {

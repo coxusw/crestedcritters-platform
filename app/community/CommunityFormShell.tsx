@@ -68,7 +68,7 @@ function validateNewImageCaptions(files: File[], captions: string[]) {
 
   const missingCaption = files.some((_, index) => !captions[index]);
   if (missingCaption) {
-    return "Please add a caption for each image, one caption per line.";
+    return "Please add a caption for each selected image.";
   }
 
   return null;
