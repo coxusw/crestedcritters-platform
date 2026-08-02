@@ -92,9 +92,25 @@ export async function POST(request: Request) {
     payment?.id &&
     (payment.status === "COMPLETED" || payment.status === "APPROVED")
   ) {
-    await grantRandomizerOrder(payment.order_id, payment.id);
-    await markShopOrderPaid(payment.order_id, payment.id);
-    await markRaffleDonationPaid(payment.order_id, payment.id);
+    const processors = [
+      ["randomizer", grantRandomizerOrder],
+      ["shop", markShopOrderPaid],
+      ["raffle", markRaffleDonationPaid],
+    ] as const;
+
+    const results = await Promise.allSettled(
+      processors.map(([, processor]) => processor(payment.order_id, payment.id))
+    );
+
+    results.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.error(`Square webhook ${processors[index][0]} processor failed`, {
+          squareOrderId: payment.order_id,
+          squarePaymentId: payment.id,
+          error: result.reason,
+        });
+      }
+    });
   }
 
   return NextResponse.json({ ok: true });
