@@ -6,7 +6,6 @@ import { saveQuickAllowedStatesAction } from "./actions";
 type ProductOption = {
   id: string;
   label: string;
-  mappingStatus: string | null;
   allowedStates: string[];
 };
 
@@ -64,12 +63,6 @@ export function QuickAllowedStatesForm({
           ))}
         </select>
       </label>
-
-      {selectedProduct?.mappingStatus !== "verified" && (
-        <div className="rounded-md border border-amber-300/30 bg-amber-300/10 p-3 text-sm font-bold text-amber-100">
-          This item needs a verified taxon mapping before the quick state list can make it shippable.
-        </div>
-      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-black text-slate-100">

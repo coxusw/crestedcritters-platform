@@ -63,6 +63,11 @@ type DecisionRow = {
   } | null;
 };
 
+type SimpleAllowedStateRow = {
+  state_code: string | null;
+  allowed: boolean | null;
+};
+
 const NON_SHIPPING_STATES = new Set(["AK", "HI"]);
 
 export function productRequiresCompliance(product: Pick<ShopProduct, "is_live" | "category" | "compliance_exempt">) {
@@ -111,6 +116,32 @@ export async function getProductAvailability({
   }
 
   const supabase = createSupabaseAdminClient();
+  const simpleAllowedState = await findSimpleAllowedState(supabase, {
+    productId: Number(product.id),
+    stateCode: normalizedState,
+  });
+
+  if (simpleAllowedState.configured && simpleAllowedState.allowed) {
+    return {
+      productId: String(product.id),
+      isLive: true,
+      taxonMappingStatus: mappingStatus,
+      canonicalScientificName: null,
+      availability: "available",
+      publicReasonCode: "simple_state_allowed",
+      publicMessage: `Eligible for shipping to ${normalizedState}.`,
+    };
+  }
+
+  if (simpleAllowedState.configured) {
+    return blocked(
+      product,
+      mappingStatus,
+      "simple_state_not_allowed",
+      `This live item is not currently available for shipment to ${normalizedState}.`
+    );
+  }
+
   const mapping = await findVerifiedMapping(supabase, product);
 
   if (!mapping?.regulated_taxon_id || mapping.mapping_status !== "verified") {
@@ -252,6 +283,23 @@ function blocked(
     availability: "unavailable",
     publicReasonCode,
     publicMessage,
+  };
+}
+
+async function findSimpleAllowedState(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  input: { productId: number; stateCode: string }
+) {
+  const { data } = await supabase
+    .from("live_product_allowed_states")
+    .select("state_code,allowed")
+    .eq("product_id", input.productId)
+    .returns<SimpleAllowedStateRow[]>();
+
+  const rows = data || [];
+  return {
+    configured: rows.length > 0,
+    allowed: rows.some((row) => row.state_code === input.stateCode && row.allowed),
   };
 }
 

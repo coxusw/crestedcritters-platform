@@ -1,6 +1,5 @@
 "use server";
 
-import { createHash, randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/content-agent/supabase-admin";
@@ -8,7 +7,6 @@ import { US_STATES } from "@/lib/shop-shipping";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const REGULATORY_PATH = "/admin/regulatory";
-const DOCUMENT_BUCKET = "regulatory-documents";
 
 export async function saveQuickAllowedStatesAction(formData: FormData) {
   const userId = await requireAdminUserId();
@@ -25,170 +23,43 @@ export async function saveQuickAllowedStatesAction(formData: FormData) {
 
   const { data: product } = await supabase
     .from("shop_products")
-    .select("id,name,regulated_taxon_id,taxon_mapping_status")
+    .select("id,name")
     .eq("id", productId)
     .maybeSingle<{
       id: number;
       name: string;
-      regulated_taxon_id: string | null;
-      taxon_mapping_status: string | null;
     }>();
 
   if (!product) redirectWithError("That shop item could not be found.");
 
-  const { data: mapping } = await supabase
-    .from("product_taxon_mappings")
-    .select("regulated_taxon_id,mapping_status")
-    .eq("product_id", productId)
-    .eq("active", true)
-    .maybeSingle<{ regulated_taxon_id: string | null; mapping_status: string | null }>();
+  const validStates: Set<string> = new Set(US_STATES.map(([code]) => code));
+  const invalidState = Array.from(selectedStates).find((stateCode) => !validStates.has(stateCode));
+  if (invalidState) redirectWithError(`${invalidState} is not a valid state.`);
 
-  const regulatedTaxonId =
-    mapping?.regulated_taxon_id || product.regulated_taxon_id || null;
-  const mappingStatus = mapping?.mapping_status || product.taxon_mapping_status;
+  const { error: deleteError } = await supabase
+    .from("live_product_allowed_states")
+    .delete()
+    .eq("product_id", productId);
 
-  if (!regulatedTaxonId || mappingStatus !== "verified") {
-    redirectWithError("This item needs a verified taxon mapping before states can be allowed.");
-  }
+  if (deleteError) redirectWithError(deleteError.message);
 
-  const { data: application } = await supabase
-    .from("regulatory_applications")
-    .select("id,application_number")
-    .in("overall_status", ["approved", "partial_approval"])
-    .eq("unresolved_conflict", false)
-    .order("issued_at", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ id: string; application_number: string }>();
-
-  if (!application) {
-    redirectWithError("Add one approved regulatory application first, then this quick form can handle the states.");
-  }
-
-  const stateNames = new Map<string, string>(US_STATES.map(([code, name]) => [code, name]));
-  const selectedDestinations = Array.from(selectedStates).map((stateCode) => ({
-    application_id: application.id,
+  const rows = US_STATES.map(([stateCode]) => ({
+    product_id: productId,
     state_code: stateCode,
-    state_name: stateNames.get(stateCode) || stateCode,
-    included: true,
-    destination_status: "included",
+    allowed: selectedStates.has(stateCode),
+    updated_by: userId,
     updated_at: new Date().toISOString(),
   }));
 
-  if (selectedDestinations.length > 0) {
-    const { error: destinationError } = await supabase
-      .from("regulatory_destinations")
-      .upsert(selectedDestinations, { onConflict: "application_id,state_code" });
+  const { error: insertError } = await supabase
+    .from("live_product_allowed_states")
+    .insert(rows);
 
-    if (destinationError) redirectWithError(destinationError.message);
-  }
+  if (insertError) redirectWithError(insertError.message);
 
-  const { data: destinations, error: destinationReadError } = await supabase
-    .from("regulatory_destinations")
-    .select("id,state_code")
-    .eq("application_id", application.id);
-
-  if (destinationReadError) redirectWithError(destinationReadError.message);
-
-  const now = new Date().toISOString();
-  const today = now.slice(0, 10);
-  const selectedDecisionRows = (destinations || [])
-    .filter((destination) => selectedStates.has(destination.state_code))
-    .map((destination) => ({
-      application_id: application.id,
-      destination_id: destination.id,
-      regulated_taxon_id: regulatedTaxonId,
-      decision: "authorized",
-      effective_at: today,
-      summarized_reason: `${product.name} is allowed for shipment to ${destination.state_code}.`,
-      condition_satisfied: false,
-      manually_verified: true,
-      verified_by: userId,
-      verified_at: now,
-      notes: "Saved from the simple allowed-states form.",
-      updated_at: now,
-    }));
-
-  if (selectedDecisionRows.length > 0) {
-    const { error: selectedDecisionError } = await supabase
-      .from("regulatory_decisions")
-      .upsert(selectedDecisionRows, { onConflict: "application_id,destination_id,regulated_taxon_id" });
-
-    if (selectedDecisionError) redirectWithError(selectedDecisionError.message);
-  }
-
-  const { data: existingDecisions, error: existingDecisionError } = await supabase
-    .from("regulatory_decisions")
-    .select("id,regulatory_destinations(state_code)")
-    .eq("regulated_taxon_id", regulatedTaxonId);
-
-  if (existingDecisionError) redirectWithError(existingDecisionError.message);
-
-  const existingDecisionRows = (existingDecisions || []) as Array<{
-    id: string;
-    regulatory_destinations:
-      | { state_code: string | null }
-      | Array<{ state_code: string | null }>
-      | null;
-  }>;
-  const existingDecisionUpdates = existingDecisionRows.map((decision) => {
-    const stateCode = Array.isArray(decision.regulatory_destinations)
-      ? decision.regulatory_destinations[0]?.state_code
-      : decision.regulatory_destinations?.state_code;
-    return {
-      id: decision.id,
-      decision: selectedStates.has(stateCode || "") ? "authorized" : "not_requested",
-      effective_at: selectedStates.has(stateCode || "") ? today : null,
-      summarized_reason: selectedStates.has(stateCode || "")
-        ? `${product.name} is allowed for shipment to ${stateCode}.`
-        : `${product.name} is not currently selected as allowed for ${stateCode || "this state"}.`,
-      condition_satisfied: false,
-      manually_verified: true,
-      verified_by: userId,
-      verified_at: now,
-      notes: "Saved from the simple allowed-states form.",
-      updated_at: now,
-    };
-  });
-
-  if (existingDecisionUpdates.length > 0) {
-    const { error: existingUpdateError } = await supabase
-      .from("regulatory_decisions")
-      .upsert(existingDecisionUpdates);
-
-    if (existingUpdateError) redirectWithError(existingUpdateError.message);
-  }
-
-  const refreshedSelectedRows = (destinations || [])
-    .filter((destination) => selectedStates.has(destination.state_code))
-    .map((destination) => ({
-    application_id: application.id,
-    destination_id: destination.id,
-    regulated_taxon_id: regulatedTaxonId,
-    decision: "authorized",
-    effective_at: today,
-    summarized_reason: `${product.name} is allowed for shipment to ${destination.state_code}.`,
-    condition_satisfied: false,
-    manually_verified: true,
-    verified_by: userId,
-    verified_at: now,
-    notes: "Saved from the simple allowed-states form.",
-    updated_at: now,
-  }));
-
-  if (refreshedSelectedRows.length > 0) {
-    const { error: decisionError } = await supabase
-      .from("regulatory_decisions")
-      .upsert(refreshedSelectedRows, { onConflict: "application_id,destination_id,regulated_taxon_id" });
-
-    if (decisionError) redirectWithError(decisionError.message);
-  }
-
-  await audit(userId, "quick_allowed_states", "regulatory_decisions", null, {
+  await audit(userId, "set_allowed_states", "live_product_allowed_states", null, {
     product_id: productId,
     product_name: product.name,
-    application_id: application.id,
-    application_number: application.application_number,
     allowed_states: Array.from(selectedStates).sort(),
   });
 
@@ -357,60 +228,10 @@ export async function createRegulatoryDecisionAction(formData: FormData) {
 }
 
 export async function uploadRegulatoryDocumentAction(formData: FormData) {
+  void formData;
   const userId = await requireAdminUserId();
-  const supabase = createSupabaseAdminClient();
-  const file = formData.get("document_file");
-
-  if (!(file instanceof File) || file.size === 0) {
-    redirectWithError("Choose a document file.");
-  }
-
-  const applicationId = clean(formData.get("application_id"), 80) || null;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const checksum = createHash("sha256").update(buffer).digest("hex");
-  const extension = file.name.includes(".") ? file.name.split(".").pop() : "pdf";
-  const storagePath = `${applicationId || "unassigned"}/${Date.now()}-${randomUUID()}.${extension}`;
-
-  const { data: duplicate } = await supabase
-    .from("regulatory_documents")
-    .select("id, original_filename, title")
-    .eq("checksum", checksum)
-    .maybeSingle<{ id: string; original_filename: string | null; title: string | null }>();
-
-  if (duplicate) {
-    redirectWithError(`Duplicate document detected: ${duplicate.original_filename || duplicate.title || duplicate.id}`);
-  }
-
-  const { error: uploadError } = await supabase.storage
-    .from(DOCUMENT_BUCKET)
-    .upload(storagePath, buffer, {
-      contentType: file.type || "application/octet-stream",
-      upsert: false,
-    });
-
-  if (uploadError) redirectWithError(uploadError.message);
-
-  const payload = {
-    application_id: applicationId,
-    document_type: clean(formData.get("document_type"), 80) || "other",
-    title: clean(formData.get("title"), 180) || file.name,
-    storage_path: storagePath,
-    original_filename: file.name,
-    mime_type: file.type || null,
-    issued_at: dateOrNull(formData.get("issued_at")),
-    effective_at: dateOrNull(formData.get("effective_at")),
-    expires_at: dateOrNull(formData.get("expires_at")),
-    checksum,
-    uploaded_by: userId,
-    private: true,
-    notes: clean(formData.get("notes"), 3000) || null,
-  };
-
-  const { error } = await supabase.from("regulatory_documents").insert(payload);
-  if (error) redirectWithError(error.message);
-  await audit(userId, "upload", "regulatory_documents", null, { ...payload, checksum: "sha256" });
-  revalidateRegulatory();
-  redirectWithNotice("Private document uploaded.");
+  await audit(userId, "legacy_document_upload_disabled", "regulatory_documents", null, null);
+  redirectWithError("Document uploads were removed from this simplified screen.");
 }
 
 async function requireAdminUserId() {
