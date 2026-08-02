@@ -11,6 +11,7 @@ import {
   type MarketplaceDetails,
 } from "@/lib/community";
 import IsopediaNav from "@/app/components/isopedia/IsopediaNav";
+import CommunityCategoryDropdown from "@/app/community/CommunityCategoryDropdown";
 import { DiscussionCard } from "@/app/community/CommunityCards";
 
 export const metadata: Metadata = {
@@ -190,23 +191,7 @@ export default async function CommunityPage({
           </form>
         </section>
 
-        <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              href={`/community/category/${category.slug}`}
-              className="rounded-lg border border-white/10 bg-white/[0.05] p-4 transition hover:-translate-y-0.5 hover:border-emerald-300/50"
-            >
-              <div className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">
-                {category.icon || "Community"}
-              </div>
-              <h2 className="mt-2 text-lg font-black text-white">{category.name}</h2>
-              <p className="mt-2 line-clamp-3 text-sm leading-5 text-emerald-50/60">
-                {category.description}
-              </p>
-            </Link>
-          ))}
-        </section>
+        <CommunityCategoryDropdown categories={categories} />
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
           <section className="space-y-4">
