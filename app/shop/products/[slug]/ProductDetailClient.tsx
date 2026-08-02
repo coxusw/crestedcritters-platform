@@ -106,7 +106,7 @@ export default function ProductDetailClient({ product }: { product: ShopProduct 
                 return (
                   <option key={option.id} value={option.id} className="bg-[#101214] text-[#e9ecef]">
                     {option.label}
-                    {optionPrice !== product.price_cents ? ` - ${formatShopMoney(optionPrice)}` : ""}
+                    {` - ${formatShopMoney(optionPrice)}`}
                     {optionInventory <= 0 ? " - Sold out" : ""}
                   </option>
                 );
