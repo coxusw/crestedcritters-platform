@@ -728,13 +728,6 @@ function ProductCard({
               </select>
             </label>
           )}
-          <p className="text-xs font-bold uppercase tracking-wide text-[#a8b0b8]">
-            {product.shipping_mode === "contact"
-              ? "Contact us for shipping"
-              : product.shipping_cents > 0
-                ? `${formatShopMoney(product.shipping_cents)} shipping`
-                : "Shipping calculated at checkout"}
-          </p>
           <a
             href={`/products/${product.slug}`}
             className="inline-flex w-full items-center justify-center rounded-md border border-white/[0.1] px-4 py-3 text-sm font-black text-[#e9ecef] transition hover:border-[#d6c06f]/35 hover:bg-white/[0.04]"
