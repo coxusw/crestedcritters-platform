@@ -139,6 +139,13 @@ export function isPackInventoryProduct(
   );
 }
 
+export function inferLiveCategoryFromCategory(categoryValue: string) {
+  const category = categoryValue.toLowerCase();
+  if (category.includes("springtail") || category.includes("spring tail")) return "springtail";
+  if (category.includes("isopod")) return "isopod";
+  return null;
+}
+
 export function productOptionUnitCount(option?: Pick<ShopProductOption, "label"> | null) {
   const match = String(option?.label || "").match(/^\s*(\d+)\s*(?:count|ct)\b/i);
   const count = match ? Number(match[1]) : 1;

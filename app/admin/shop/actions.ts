@@ -8,6 +8,7 @@ import { shopUnsubscribeUrl } from "@/lib/shop-unsubscribe";
 import {
   formatOrderItemName,
   formatShopMoney,
+  inferLiveCategoryFromCategory,
   isPackInventoryProduct,
   parseDollarToCents,
   slugifyProductName,
@@ -307,10 +308,11 @@ function productPayload(formData: FormData, imageUrls: string[]) {
   if (!slug) throw new Error("Product slug is required.");
 
   const category = String(formData.get("category") || "Isopods").trim() || "Isopods";
+  const liveCategory = inferLiveCategoryFromCategory(category);
   const packInventoryProduct = isPackInventoryProduct({
     category,
-    live_category: null,
-    is_live: null,
+    live_category: liveCategory,
+    is_live: Boolean(liveCategory),
   });
 
   return {
@@ -332,6 +334,12 @@ function productPayload(formData: FormData, imageUrls: string[]) {
     sold_out: formData.get("sold_out") === "on",
     featured: formData.get("featured") === "on",
     active: formData.get("active") === "on",
+    is_live: Boolean(liveCategory),
+    live_category: liveCategory,
+    requires_live_shipping_method: Boolean(liveCategory),
+    local_pickup_possible: Boolean(liveCategory),
+    compliance_exempt: !liveCategory,
+    compliance_exempt_reason: liveCategory ? null : "Non-live shop product.",
   };
 }
 

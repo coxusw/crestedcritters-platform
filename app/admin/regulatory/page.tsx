@@ -248,7 +248,6 @@ async function getRegulatoryData() {
       supabase
         .from("shop_products")
         .select("id,name,category,is_live,active")
-        .eq("active", true)
         .order("category")
         .order("name")
     ),
@@ -269,7 +268,7 @@ function buildProductOptions(products: Product[], allowedStates: AllowedState[])
     .filter((product) => product.is_live)
     .map((product) => ({
       id: String(product.id),
-      label: `${product.name} (${product.category})`,
+      label: `${product.name} (${product.category}${product.active === false ? ", inactive" : ""})`,
       allowedStates: allowedStates
         .filter((row) => String(row.product_id) === String(product.id) && row.allowed)
         .map((row) => row.state_code)
