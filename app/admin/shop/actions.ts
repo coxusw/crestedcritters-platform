@@ -350,7 +350,10 @@ async function productImageUrlsFromFormData(
   const name = String(formData.get("name") || "").trim();
   const slugInput = String(formData.get("slug") || "").trim();
   const slug = slugifyProductName(slugInput || name || "product");
-  const existingImageUrls = parseProductImageUrls(formData.get("existing_image_urls"));
+  const removedImageUrls = new Set(uniqueImageUrls(formData.getAll("remove_image_urls")));
+  const existingImageUrls = parseProductImageUrls(formData.get("existing_image_urls")).filter(
+    (imageUrl) => !removedImageUrls.has(imageUrl)
+  );
   const uploadedImageUrls = await uploadShopProductImages(supabase, formData.getAll("image_files"), slug);
   return uniqueImageUrls([...existingImageUrls, ...uploadedImageUrls]);
 }

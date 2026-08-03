@@ -917,9 +917,23 @@ function ProductForm({
                     alt={`${product.name} image ${index + 1}`}
                     className="aspect-square w-full object-contain"
                   />
+                  <label className="mt-1 flex items-center justify-center gap-1 rounded bg-red-500/10 px-1 py-1 text-[11px] font-black text-red-100">
+                    <input
+                      name="remove_image_urls"
+                      type="checkbox"
+                      value={imageUrl}
+                      className="h-3 w-3"
+                    />
+                    Remove
+                  </label>
                 </div>
               ))}
             </div>
+          )}
+          {product && normalizeShopProductImages(product).length > 0 && (
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              Check Remove under any image you want deleted from this product, then save the product.
+            </p>
           )}
         </Field>
       </div>
