@@ -21,7 +21,8 @@ const earnRules = [
   ["Submit a species gallery photo", "2 IsoTokens"],
   ["Submitted gallery photo is verified", "Additional 3 IsoTokens"],
   ["Verify a gallery photo", "5 IsoTokens"],
-  ["Post in a discussion", "1 IsoToken"],
+  ["Create a community discussion", "5 IsoTokens"],
+  ["Reply to a community discussion", "2 IsoTokens"],
   ["Your discussion post receives a like", "1 IsoToken per like"],
 ];
 
@@ -152,7 +153,7 @@ function FAQ({ isLoggedIn }: { isLoggedIn: boolean }) {
           <h2 className="text-xl font-black text-white">What Counts</h2>
           <p className="mt-3">
             IsoTokens are meant to reward useful contributions, not volume for
-            volume's sake. Good species data, original photos, clear guides, and
+            volume&apos;s sake. Good species data, original photos, clear guides, and
             helpful discussion posts are the goal.
           </p>
           {!isLoggedIn && (

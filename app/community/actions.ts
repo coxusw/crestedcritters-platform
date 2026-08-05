@@ -94,6 +94,20 @@ function allowedMarketplaceListingType(value: string) {
     : "available";
 }
 
+function communityDiscussionReward(contentType: string) {
+  if (contentType === "guide") {
+    return {
+      reason: "guide_submission",
+      description: "Published a community guide.",
+    };
+  }
+
+  return {
+    reason: "community_discussion_created",
+    description: "Created a community discussion.",
+  };
+}
+
 function marketplaceDetailsPayload(formData: FormData) {
   return {
     listing_type: allowedMarketplaceListingType(textValue(formData.get("listing_type"))),
@@ -784,17 +798,16 @@ export async function createCommunityDiscussion(formData: FormData) {
     redirect(newDiscussionErrorPath(category.slug, "Your discussion could not be saved. Please try again."));
   }
 
-  if (status === "published" && contentType === "guide") {
-    await awardIsoTokens(supabase, {
-      profileId: user.id,
-      amount: 5,
-      reason: "guide_submission",
-      reasonKey: `guide_submission:${id}`,
-      description: "Published a community guide.",
-      entityType: "community_discussion",
-      entityId: id,
-    });
-  }
+  const discussionReward = communityDiscussionReward(contentType);
+  await awardIsoTokens(supabase, {
+    profileId: user.id,
+    amount: 5,
+    reason: discussionReward.reason,
+    reasonKey: `${discussionReward.reason}:${id}`,
+    description: discussionReward.description,
+    entityType: "community_discussion",
+    entityId: id,
+  });
 
   let linkedSpeciesIds: number[] = [];
   try {
@@ -1139,6 +1152,17 @@ export async function createCommunityReply(formData: FormData) {
     .single<{ id: string }>();
 
   if (error) throw new Error(error.message);
+
+  await awardIsoTokens(supabase, {
+    profileId: user.id,
+    amount: 2,
+    reason: "community_reply_created",
+    reasonKey: `community_reply_created:${reply.id}`,
+    description: "Created a community reply.",
+    entityType: "community_reply",
+    entityId: reply.id,
+  });
+
   let imageWarning: string | null = null;
   if (discussion.category?.images_enabled) {
     try {
@@ -1724,6 +1748,73 @@ export async function toggleCommunitySave(formData: FormData) {
   });
   revalidatePath(returnPath);
   redirect(withQueryParam(returnPath, "saved", existing ? "removed" : "added"));
+}
+
+export async function toggleCommunityReplyLike(formData: FormData) {
+  const { supabase, user } = await authContext();
+  const replyId = textValue(formData.get("reply_id"));
+  const returnPath = textValue(formData.get("return_path")) || "/community";
+
+  if (!replyId) redirect(withQueryParam(returnPath, "form_error", "Missing reply."));
+
+  const { data: reply, error: replyError } = await supabase
+    .from("community_replies")
+    .select(
+      `
+      id,
+      author_id,
+      discussion:discussion_id (
+        slug,
+        status
+      )
+    `
+    )
+    .eq("id", replyId)
+    .eq("status", "published")
+    .maybeSingle<{
+      id: string;
+      author_id: string | null;
+      discussion: { slug: string; status: string } | null;
+    }>();
+
+  if (replyError) redirect(withQueryParam(returnPath, "form_error", replyError.message));
+  if (!reply?.discussion || reply.discussion.status !== "published") {
+    redirect(withQueryParam(returnPath, "form_error", "Reply not found."));
+  }
+
+  const discussionUrl = discussionPath(reply.discussion.slug);
+  const destination = `${discussionUrl}#reply-${reply.id}`;
+
+  if (reply.author_id === user.id) {
+    redirect(destination);
+  }
+
+  const { data: existing } = await supabase
+    .from("community_reply_likes")
+    .select("reply_id")
+    .eq("reply_id", reply.id)
+    .eq("profile_id", user.id)
+    .maybeSingle<{ reply_id: string }>();
+
+  if (existing) {
+    const { error } = await supabase
+      .from("community_reply_likes")
+      .delete()
+      .eq("reply_id", reply.id)
+      .eq("profile_id", user.id);
+
+    if (error) redirect(withQueryParam(returnPath, "form_error", error.message));
+  } else {
+    const { error } = await supabase.from("community_reply_likes").insert({
+      reply_id: reply.id,
+      profile_id: user.id,
+    });
+
+    if (error) redirect(withQueryParam(returnPath, "form_error", error.message));
+  }
+
+  revalidatePath(discussionUrl);
+  redirect(destination);
 }
 
 export async function toggleCommunityFollow(formData: FormData) {

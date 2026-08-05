@@ -36,12 +36,18 @@ import {
   softDeleteCommunityReply,
   softDeleteCommunityDiscussion,
   setAcceptedCommunityReply,
+  toggleCommunityReplyLike,
   toggleCommunityFollow,
   toggleCommunitySave,
   updateMarketplaceListingStatus,
   updateCommunityReply,
 } from "@/app/community/actions";
 import CommunityDiscussionStructuredData from "@/app/components/isopedia/CommunityDiscussionStructuredData";
+
+type CommunityReplyLikeRow = {
+  reply_id: string;
+  profile_id: string | null;
+};
 
 export async function generateMetadata({
   params,
@@ -290,6 +296,49 @@ export default async function CommunityDiscussionPage({
     ]);
 
   const replyIds = (repliesResult.data || []).map((reply) => reply.id);
+  let replyLikeRows: CommunityReplyLikeRow[] = [];
+  let replyLikesLoaded = false;
+  if (replyIds.length) {
+    const { data: likes, error: likesError } = await contentSupabase
+      .from("community_reply_likes")
+      .select("reply_id, profile_id")
+      .in("reply_id", replyIds)
+      .returns<CommunityReplyLikeRow[]>();
+
+    if (likesError) {
+      console.error("Community reply likes could not be loaded:", likesError.message);
+    } else {
+      replyLikeRows = likes || [];
+      replyLikesLoaded = true;
+    }
+  }
+
+  const replyLikeCounts = new Map<string, number>(
+    (repliesResult.data || []).map((reply) => [
+      reply.id,
+      Number(reply.helpful_count || 0),
+    ])
+  );
+  const likedReplyIds = new Set<string>();
+
+  if (replyLikesLoaded) {
+    replyLikeCounts.clear();
+    for (const reply of repliesResult.data || []) {
+      replyLikeCounts.set(reply.id, 0);
+    }
+
+    for (const like of replyLikeRows) {
+      replyLikeCounts.set(
+        like.reply_id,
+        (replyLikeCounts.get(like.reply_id) || 0) + 1
+      );
+
+      if (user?.id && like.profile_id === user.id) {
+        likedReplyIds.add(like.reply_id);
+      }
+    }
+  }
+
   const imageFilter = replyIds.length
     ? `discussion_id.eq.${discussion.id},reply_id.in.(${replyIds.join(",")})`
     : `discussion_id.eq.${discussion.id}`;
@@ -553,6 +602,14 @@ export default async function CommunityDiscussionPage({
                   images={imagesByReply.get(reply.id) || []}
                   className="mt-4"
                   compact
+                />
+                <ReplyLikeControl
+                  replyId={reply.id}
+                  replyAuthorId={reply.author_id}
+                  currentUserId={user?.id || null}
+                  likedByCurrentUser={likedReplyIds.has(reply.id)}
+                  likeCount={replyLikeCounts.get(reply.id) || 0}
+                  returnPath={returnPath}
                 />
                 {user &&
                   (reply.author_id === user.id ||
@@ -821,6 +878,66 @@ function ModerationButton({
         className="rounded-lg border border-sky-300/20 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-300/10"
       >
         {label}
+      </button>
+    </form>
+  );
+}
+
+function ReplyLikeControl({
+  replyId,
+  replyAuthorId,
+  currentUserId,
+  likedByCurrentUser,
+  likeCount,
+  returnPath,
+}: {
+  replyId: string;
+  replyAuthorId: string | null;
+  currentUserId: string | null;
+  likedByCurrentUser: boolean;
+  likeCount: number;
+  returnPath: string;
+}) {
+  const likeLabel = `${likeCount} like${likeCount === 1 ? "" : "s"}`;
+
+  if (!currentUserId) {
+    return (
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <span className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-emerald-50/55">
+          {likeLabel}
+        </span>
+        <Link
+          href={`/login?next=${encodeURIComponent(returnPath)}`}
+          className="rounded-lg border border-emerald-400/20 px-3 py-2 text-xs font-black text-emerald-100 hover:bg-emerald-400/10"
+        >
+          Sign in to like
+        </Link>
+      </div>
+    );
+  }
+
+  if (replyAuthorId === currentUserId) {
+    return (
+      <div className="mt-4">
+        <span className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-emerald-50/55">
+          {likeLabel}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <form action={toggleCommunityReplyLike} className="mt-4">
+      <input type="hidden" name="reply_id" value={replyId} />
+      <input type="hidden" name="return_path" value={returnPath} />
+      <button
+        className={
+          likedByCurrentUser
+            ? "rounded-lg border border-emerald-300/35 bg-emerald-400/15 px-3 py-2 text-xs font-black text-emerald-100 hover:bg-emerald-400/20"
+            : "rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-emerald-50/75 hover:bg-white/10"
+        }
+      >
+        {likedByCurrentUser ? "Liked" : "Like"} - {likeLabel}
       </button>
     </form>
   );
