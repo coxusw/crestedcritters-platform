@@ -13,23 +13,6 @@ type DailyPromptDefinition = {
 const CENTRAL_TIME_ZONE = "America/Chicago";
 const DAILY_PROMPTS: DailyPromptDefinition[] = [
   {
-    weekday: 2,
-    title: "Tank Tuesday",
-    slug: "tank-tuesday",
-    body: [
-      "It is Tank Tuesday.",
-      "",
-      "Show us a tank, bin, terrarium, enclosure, plant setup, hardscape, ventilation tweak, or cleanup crew setup you are working with this week.",
-      "",
-      "A few easy ideas:",
-      "- Full setup photos",
-      "- Before and after changes",
-      "- Moisture or ventilation tweaks",
-      "- Plants, bark, moss, leaves, or hides that are working well",
-      "- Anything you want feedback on",
-    ].join("\n"),
-  },
-  {
     weekday: 5,
     title: "Bin Check Friday",
     slug: "bin-check-friday",
