@@ -210,7 +210,7 @@ export default async function CommunityDiscussionPage({
   }
 
   const canViewDiscussion =
-    ["published", "expired"].includes(discussion.status) ||
+    ["published", "expired", "archived"].includes(discussion.status) ||
     canModerate ||
     discussion.author_id === user?.id;
 

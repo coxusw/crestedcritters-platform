@@ -8,31 +8,16 @@ type DailyPromptDefinition = {
   title: string;
   slug: string;
   body: string;
+  categorySlug: string;
 };
 
 const CENTRAL_TIME_ZONE = "America/Chicago";
 const DAILY_PROMPTS: DailyPromptDefinition[] = [
   {
-    weekday: 5,
-    title: "Bin Check Friday",
-    slug: "bin-check-friday",
-    body: [
-      "It is Bin Check Friday.",
-      "",
-      "Share what you noticed during this week's bin checks.",
-      "",
-      "A few easy ideas:",
-      "- New mancae, molts, or breeding activity",
-      "- Foods that got a strong response",
-      "- Moisture, ventilation, or substrate observations",
-      "- Anything concerning you want another set of eyes on",
-      "- A simple stable-bin update",
-    ].join("\n"),
-  },
-  {
     weekday: 6,
     title: "Show Off Saturday",
     slug: "show-off-saturday",
+    categorySlug: "show-off-your-collection",
     body: [
       "It is Show Off Saturday.",
       "",
@@ -92,11 +77,20 @@ export async function generateTodaysCommunityPrompt(now = new Date()) {
   const { data: category, error: categoryError } = await supabase
     .from("community_categories")
     .select("id, name, slug")
-    .eq("slug", "general-discussion")
+    .eq("slug", prompt.categorySlug)
     .maybeSingle<{ id: string; name: string; slug: string }>();
 
   if (categoryError) throw new Error(categoryError.message);
-  if (!category) throw new Error("General Discussion category was not found.");
+  if (!category) throw new Error("Community prompt category was not found.");
+
+  const { data: archiveCategory, error: archiveCategoryError } = await supabase
+    .from("community_categories")
+    .select("id, slug")
+    .eq("slug", "archive")
+    .maybeSingle<{ id: string; slug: string }>();
+
+  if (archiveCategoryError) throw new Error(archiveCategoryError.message);
+  if (!archiveCategory) throw new Error("Community Archive category was not found.");
 
   const title = datedTitle(prompt, dateParts);
   const slug = datedSlug(prompt, dateParts);
@@ -116,6 +110,24 @@ export async function generateTodaysCommunityPrompt(now = new Date()) {
       slug: existing.slug,
     };
   }
+
+  const { error: archiveError } = await supabase
+    .from("community_discussions")
+    .update({
+      category_id: archiveCategory.id,
+      status: "archived",
+      pinned: false,
+      pinned_until: null,
+      locked: true,
+      updated_at: new Date().toISOString(),
+    })
+    .is("author_id", null)
+    .eq("content_type", "prompt")
+    .like("slug", `${prompt.slug}-%`)
+    .in("status", ["published", "expired"])
+    .is("deleted_at", null);
+
+  if (archiveError) throw new Error(archiveError.message);
 
   const discussionId = crypto.randomUUID();
   const pinnedUntil = new Date(now);
@@ -151,6 +163,7 @@ export async function generateTodaysCommunityPrompt(now = new Date()) {
 
   revalidatePath("/community");
   revalidatePath(`/community/category/${category.slug}`);
+  revalidatePath("/community/category/archive");
   revalidatePath(`/community/discussion/${slug}`);
 
   return {

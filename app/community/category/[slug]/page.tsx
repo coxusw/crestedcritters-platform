@@ -75,6 +75,7 @@ export default async function CommunityCategoryPage({
   const supabase = await createSupabaseServerClient();
   const category = await getCommunityCategoryBySlug(supabase, slug);
   if (!category) notFound();
+  const isArchive = category.slug === "archive";
   const supportsAnsweredFilter =
     category.slug === "help-questions" ||
     category.slug === "species-help" ||
@@ -88,6 +89,7 @@ export default async function CommunityCategoryPage({
       .returns<Array<{ id: number; common_name: string; scientific_name: string | null }>>(),
     getCommunityDiscussions(supabase, {
       categorySlug: category.slug,
+      statuses: isArchive ? ["archived"] : undefined,
       search: query.q,
       sort: query.sort,
       speciesId: query.species,
@@ -123,12 +125,14 @@ export default async function CommunityCategoryPage({
           <Link href="/community" className="font-bold text-emerald-300 underline">
             Back to Community
           </Link>
-          <Link
-            href={`/community/new?category=${category.slug}`}
-            className="rounded-lg bg-emerald-400 px-4 py-2 font-black text-slate-950 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-300"
-          >
-            Start New Discussion
-          </Link>
+          {!isArchive && (
+            <Link
+              href={`/community/new?category=${category.slug}`}
+              className="rounded-lg bg-emerald-400 px-4 py-2 font-black text-slate-950 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-300"
+            >
+              Start New Discussion
+            </Link>
+          )}
         </div>
 
         <header className="rounded-lg border border-white/10 bg-[#102016] p-5 sm:p-7">
@@ -142,12 +146,14 @@ export default async function CommunityCategoryPage({
                 {category.description}
               </p>
             </div>
-            <Link
-              href={`/community/new?category=${category.slug}`}
-              className="w-fit shrink-0 rounded-lg bg-emerald-400 px-5 py-3 font-black text-slate-950 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-300"
-            >
-              Start New Discussion
-            </Link>
+            {!isArchive && (
+              <Link
+                href={`/community/new?category=${category.slug}`}
+                className="w-fit shrink-0 rounded-lg bg-emerald-400 px-5 py-3 font-black text-slate-950 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-300"
+              >
+                Start New Discussion
+              </Link>
+            )}
           </div>
           {category.marketplace_rules && (
             <p className="mt-4 rounded-lg border border-yellow-300/20 bg-yellow-300/10 p-4 text-sm leading-6 text-yellow-50/80">
