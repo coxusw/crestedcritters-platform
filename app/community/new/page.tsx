@@ -65,7 +65,7 @@ export default async function NewCommunityDiscussionPage({
             <div className="mt-6">
               <CommunityDiscussionForm
                 action={createCommunityDiscussion}
-                categories={categories}
+                categories={categories.filter((category) => !category.staff_only_posting)}
                 species={speciesResult.data || []}
                 selectedCategorySlug={params.category || ""}
                 selectedSpeciesId={params.species || ""}
