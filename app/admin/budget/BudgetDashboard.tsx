@@ -1064,6 +1064,11 @@ export default function BudgetDashboard() {
                       <ActualExpenseRow
                         key={item.id}
                         item={item}
+                        bucketName={
+                          futureExpenses.find(
+                            (bucket) => bucket.id === item.future_expense_id
+                          )?.event_fund || undefined
+                        }
                         onEdit={() => setEditor({ type: "actual", item })}
                       />
                     ))
@@ -1713,9 +1718,29 @@ function FutureGoalEditor({
   const [target, setTarget] = useState(0);
   const [dueDate, setDueDate] = useState("");
   const [startDate, setStartDate] = useState(currentPaycheck);
+  const [fundingDeadline, setFundingDeadline] = useState(currentPaycheck);
+
+  useEffect(() => {
+    if (!dueDate) return;
+    const latestEligible =
+      paycheckDates.filter(
+        (date) => date >= startDate && date <= dueDate
+      ).slice(-1)[0] || startDate;
+
+    if (
+      !fundingDeadline ||
+      fundingDeadline < startDate ||
+      fundingDeadline > dueDate
+    ) {
+      setFundingDeadline(latestEligible);
+    }
+  }, [dueDate, startDate, paycheckDates, fundingDeadline]);
 
   const eligiblePaychecks = paycheckDates.filter(
-    (date) => date >= startDate && (!dueDate || date <= dueDate)
+    (date) =>
+      date >= startDate &&
+      date <= fundingDeadline &&
+      (!dueDate || date <= dueDate)
   );
   const estimatedContribution =
     target > 0 && dueDate && eligiblePaychecks.length
@@ -1763,22 +1788,44 @@ function FutureGoalEditor({
           </Field>
         </div>
 
-        <Field label="Start saving from">
-          <select
-            name="funding_start_paycheck"
-            value={startDate}
-            onChange={(event) => setStartDate(event.target.value)}
-            className="budget-input"
-          >
-            {paycheckDates
-              .filter((date) => date >= currentPaycheck)
-              .map((date) => (
-                <option key={date} value={date}>
-                  {dateLabel(date)}
-                </option>
-              ))}
-          </select>
-        </Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Start saving from">
+            <select
+              name="funding_start_paycheck"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+              className="budget-input"
+            >
+              {paycheckDates
+                .filter((date) => date >= currentPaycheck)
+                .map((date) => (
+                  <option key={date} value={date}>
+                    {dateLabel(date)}
+                  </option>
+                ))}
+            </select>
+          </Field>
+
+          <Field label="Fully funded by">
+            <select
+              name="funding_deadline"
+              value={fundingDeadline}
+              onChange={(event) => setFundingDeadline(event.target.value)}
+              className="budget-input"
+            >
+              {paycheckDates
+                .filter(
+                  (date) =>
+                    date >= startDate && (!dueDate || date <= dueDate)
+                )
+                .map((date) => (
+                  <option key={date} value={date}>
+                    {dateLabel(date)}
+                  </option>
+                ))}
+            </select>
+          </Field>
+        </div>
 
         {target > 0 && dueDate && (
           <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-950">
@@ -1790,9 +1837,10 @@ function FutureGoalEditor({
                 </p>
                 <p className="mt-1 text-xs leading-5 text-blue-800">
                   Spread across {eligiblePaychecks.length} paycheck
-                  {eligiblePaychecks.length === 1 ? "" : "s"}. The final
-                  contribution is adjusted by pennies if needed so the total
-                  matches the target exactly.
+                  {eligiblePaychecks.length === 1 ? "" : "s"}, ending with the{" "}
+                  {dateLabel(fundingDeadline)} paycheck. The final contribution
+                  is adjusted by pennies if needed so the total matches the
+                  target exactly.
                 </p>
               </>
             ) : (
@@ -1829,6 +1877,8 @@ function ActualExpenseEditor({
   paycheckDates,
   categories,
   comparisons,
+  futureExpenses,
+  bucketContributions,
   saving,
   onClose,
   onSave,
@@ -1839,6 +1889,8 @@ function ActualExpenseEditor({
   paycheckDates: string[];
   categories: string[];
   comparisons: Array<{ category: string; planned: number; actual: number }>;
+  futureExpenses: FutureExpense[];
+  bucketContributions: BucketContribution[];
   saving: boolean;
   onClose: () => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
@@ -1848,6 +1900,9 @@ function ActualExpenseEditor({
     item?.category || categories[0] || "Other"
   );
   const [enteredAmount, setEnteredAmount] = useState(num(item?.amount));
+  const [selectedBucketId, setSelectedBucketId] = useState(
+    item?.future_expense_id || ""
+  );
 
   const summary = comparisons.find(
     (row) => row.category === selectedCategory
@@ -1859,6 +1914,33 @@ function ActualExpenseEditor({
   const remainingBefore = plannedForCategory - alreadyUsed;
   const remainingAfter = remainingBefore - enteredAmount;
   const overAfter = remainingAfter < 0;
+
+  const selectedBucket = futureExpenses.find(
+    (bucket) => bucket.id === selectedBucketId
+  );
+  const bucketFunded = selectedBucket
+    ? bucketContributions
+        .filter(
+          (row) =>
+            row.future_expense_id === selectedBucket.id &&
+            !!row.assigned_paycheck &&
+            row.assigned_paycheck <=
+              (item?.assigned_paycheck || currentPaycheck) &&
+            row.status !== "Cancelled" &&
+            row.status !== "Deferred"
+        )
+        .reduce((sum, row) => sum + num(row.planned_amount), 0)
+    : 0;
+  const currentBucketItemAmount =
+    item?.future_expense_id === selectedBucketId ? num(item?.amount) : 0;
+  const bucketSpentBefore = selectedBucket
+    ? Math.max(0, num(selectedBucket.actual_funding_spend)) -
+      currentBucketItemAmount
+    : 0;
+  const bucketAvailableBefore = bucketFunded - bucketSpentBefore;
+  const bucketAvailableAfter = bucketAvailableBefore - enteredAmount;
+  const bucketOverAfter =
+    !!selectedBucket && enteredAmount > 0 && bucketAvailableAfter < 0;
 
   return (
     <Modal title={item ? "Edit spending" : "Log spending"} onClose={onClose}>
@@ -1880,20 +1962,44 @@ function ActualExpenseEditor({
         </Field>
 
         <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-3">
-          <BudgetMeter
-            label="Planned"
-            value={plannedForCategory}
-          />
-          <BudgetMeter
-            label="Already used"
-            value={alreadyUsed}
-          />
+          <BudgetMeter label="Planned" value={plannedForCategory} />
+          <BudgetMeter label="Already used" value={alreadyUsed} />
           <BudgetMeter
             label="Remaining"
             value={remainingBefore}
             danger={remainingBefore < 0}
           />
         </div>
+
+        <Field label="Use sinking fund / bucket (optional)">
+          <select
+            name="future_expense_id"
+            value={selectedBucketId}
+            onChange={(event) => setSelectedBucketId(event.target.value)}
+            className="budget-input"
+          >
+            <option value="">No bucket</option>
+            {futureExpenses
+              .filter((bucket) => bucket.status !== "Completed")
+              .map((bucket) => (
+                <option key={bucket.id} value={bucket.id}>
+                  {bucket.event_fund || "Future expense"}
+                </option>
+              ))}
+          </select>
+        </Field>
+
+        {selectedBucket && (
+          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-blue-200 bg-blue-50 p-3">
+            <BudgetMeter label="Accumulated" value={bucketFunded} />
+            <BudgetMeter label="Spent" value={bucketSpentBefore} />
+            <BudgetMeter
+              label="Available"
+              value={bucketAvailableBefore}
+              danger={bucketAvailableBefore < 0}
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           <Field label="Amount">
@@ -1948,7 +2054,7 @@ function ActualExpenseEditor({
             }`}
           >
             <strong>
-              After this expense:{" "}
+              Category after this expense:{" "}
               {overAfter
                 ? `${money(Math.abs(remainingAfter))} over budget`
                 : `${money(remainingAfter)} remaining`}
@@ -1957,6 +2063,29 @@ function ActualExpenseEditor({
               <span className="mt-1 block text-xs leading-5">
                 You can still save it. You will be asked to confirm because it
                 exceeds the category budget for this pay period.
+              </span>
+            )}
+          </div>
+        )}
+
+        {selectedBucket && enteredAmount > 0 && (
+          <div
+            className={`rounded-xl border p-3 text-sm ${
+              bucketOverAfter
+                ? "border-amber-300 bg-amber-50 text-amber-950"
+                : "border-blue-200 bg-blue-50 text-blue-950"
+            }`}
+          >
+            <strong>
+              {selectedBucket.event_fund || "Bucket"} after this expense:{" "}
+              {bucketOverAfter
+                ? `${money(Math.abs(bucketAvailableAfter))} negative`
+                : `${money(bucketAvailableAfter)} available`}
+            </strong>
+            {bucketOverAfter && (
+              <span className="mt-1 block text-xs leading-5">
+                The bucket can go negative, but you will be asked to confirm
+                before the expense is saved.
               </span>
             )}
           </div>
@@ -2451,9 +2580,11 @@ function ExpenseRow({
 
 function ActualExpenseRow({
   item,
+  bucketName,
   onEdit,
 }: {
   item: ActualExpense;
+  bucketName?: string;
   onEdit: () => void;
 }) {
   return (
@@ -2462,6 +2593,7 @@ function ActualExpenseRow({
         <p className="truncate text-sm font-black">{item.description}</p>
         <p className="mt-0.5 text-[11px] text-slate-500">
           {dateLabel(item.spent_date)} · {item.category}
+          {bucketName ? ` · Bucket: ${bucketName}` : ""}
           {item.note ? ` · ${item.note}` : ""}
         </p>
       </div>
