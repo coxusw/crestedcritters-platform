@@ -55,10 +55,21 @@ type RecurringBill = {
   notes: string | null;
 };
 
+type ActualExpense = {
+  id: string;
+  spent_date: string;
+  assigned_paycheck: string;
+  category: string;
+  description: string;
+  amount: number | string;
+  note: string | null;
+};
+
 type View = "home" | "plan" | "reviews" | "more";
 type Editor =
   | { type: "expense"; item?: Expense }
   | { type: "recurring"; item?: RecurringBill }
+  | { type: "actual"; item?: ActualExpense }
   | null;
 
 const money = (value: number) =>
@@ -137,6 +148,8 @@ export default function BudgetDashboard() {
   const [people, setPeople] = useState<Person[]>([]);
   const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([]);
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
+  const [actualExpenses, setActualExpenses] = useState<ActualExpense[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [chrisApproved, setChrisApproved] = useState(false);
   const [jenApproved, setJenApproved] = useState(false);
 
@@ -193,8 +206,14 @@ export default function BudgetDashboard() {
       return;
     }
 
-    const [expenseResult, peopleResult, futureResult, recurringResult] =
-      await Promise.all([
+    const [
+      expenseResult,
+      peopleResult,
+      futureResult,
+      recurringResult,
+      actualResult,
+      categoryResult,
+    ] = await Promise.all([
         supabase
           .from("budget_expenses")
           .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund")
@@ -215,13 +234,26 @@ export default function BudgetDashboard() {
           .eq("active", true)
           .order("category", { ascending: true })
           .order("item", { ascending: true }),
+        supabase
+          .from("budget_actual_expenses")
+          .select("id,spent_date,assigned_paycheck,category,description,amount,note,created_at")
+          .eq("assigned_paycheck", selected.paycheck_date)
+          .order("spent_date", { ascending: false })
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("budget_categories")
+          .select("name")
+          .eq("active", true)
+          .order("name", { ascending: true }),
       ]);
 
     const firstError =
       expenseResult.error ||
       peopleResult.error ||
       futureResult.error ||
-      recurringResult.error;
+      recurringResult.error ||
+      actualResult.error ||
+      categoryResult.error;
 
     if (firstError) {
       setError(firstError.message);
@@ -235,12 +267,88 @@ export default function BudgetDashboard() {
     setPeople((peopleResult.data || []) as Person[]);
     setFutureExpenses((futureResult.data || []) as FutureExpense[]);
     setRecurringBills((recurringResult.data || []) as RecurringBill[]);
+    setActualExpenses((actualResult.data || []) as ActualExpense[]);
+    setCategories(
+      (categoryResult.data || [])
+        .map((row: { name: string }) => row.name)
+        .filter(Boolean)
+    );
     setLoading(false);
   }
 
   useEffect(() => {
     void loadData(true);
   }, []);
+
+  async function saveActualExpense(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!paycheck || editor?.type !== "actual") return;
+
+    setSaving(true);
+    setNotice("");
+    setError("");
+
+    const data = new FormData(event.currentTarget);
+    const category = String(data.get("category") || "Other").trim() || "Other";
+    const payload = {
+      spent_date: String(data.get("spent_date") || todayIso()),
+      assigned_paycheck: String(
+        data.get("assigned_paycheck") || paycheck.paycheck_date
+      ),
+      category,
+      description: String(data.get("description") || "").trim(),
+      amount: Number(data.get("amount") || 0),
+      note: String(data.get("note") || "").trim() || null,
+    };
+
+    if (!payload.description || payload.amount <= 0) {
+      setError("Enter what you paid for and an amount greater than $0.");
+      setSaving(false);
+      return;
+    }
+
+    await supabase
+      .from("budget_categories")
+      .upsert({ name: category, active: true }, { onConflict: "name" });
+
+    const result = editor.item
+      ? await supabase
+          .from("budget_actual_expenses")
+          .update(payload)
+          .eq("id", editor.item.id)
+      : await supabase.from("budget_actual_expenses").insert(payload);
+
+    if (result.error) {
+      setError(result.error.message);
+      setSaving(false);
+      return;
+    }
+
+    setEditor(null);
+    setNotice(editor.item ? "Spending entry updated." : "Spending logged.");
+    await loadData();
+    setSaving(false);
+  }
+
+  async function deleteActualExpense(item: ActualExpense) {
+    if (!window.confirm(`Delete "${item.description}" for ${money(num(item.amount))}?`)) return;
+
+    setSaving(true);
+    setError("");
+
+    const { error: deleteError } = await supabase
+      .from("budget_actual_expenses")
+      .delete()
+      .eq("id", item.id);
+
+    if (deleteError) setError(deleteError.message);
+    else {
+      setEditor(null);
+      setNotice("Spending entry deleted.");
+      await loadData();
+    }
+    setSaving(false);
+  }
 
   async function saveExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -270,6 +378,10 @@ export default function BudgetDashboard() {
       setSaving(false);
       return;
     }
+
+    await supabase
+      .from("budget_categories")
+      .upsert({ name: payload.category, active: true }, { onConflict: "name" });
 
     const result = editor.item
       ? await supabase
@@ -371,6 +483,10 @@ export default function BudgetDashboard() {
       notes,
     };
 
+    await supabase
+      .from("budget_categories")
+      .upsert({ name: category, active: true }, { onConflict: "name" });
+
     const oldName = editor.item?.item || item;
 
     const result = editor.item
@@ -449,6 +565,36 @@ export default function BudgetDashboard() {
   const income = num(paycheck?.actual_check) || num(paycheck?.projected_check);
   const planned = num(paycheck?.planned_spending);
   const availableExtra = income - planned;
+  const actualSpent = actualExpenses.reduce(
+    (sum, item) => sum + num(item.amount),
+    0
+  );
+
+  const categoryComparison = useMemo(() => {
+    const map = new Map<
+      string,
+      { category: string; planned: number; actual: number }
+    >();
+
+    for (const expense of expenses) {
+      if (expense.status === "Cancelled" || expense.status === "Deferred") continue;
+      const category = expense.category || "Other";
+      const row = map.get(category) || { category, planned: 0, actual: 0 };
+      row.planned += num(expense.planned_amount);
+      map.set(category, row);
+    }
+
+    for (const item of actualExpenses) {
+      const category = item.category || "Other";
+      const row = map.get(category) || { category, planned: 0, actual: 0 };
+      row.actual += num(item.amount);
+      map.set(category, row);
+    }
+
+    return Array.from(map.values()).sort((a, b) =>
+      a.category.localeCompare(b.category)
+    );
+  }, [expenses, actualExpenses]);
 
   const discretionaryRows = expenses.filter((expense) =>
     (expense.line_item || "").toLowerCase().includes("discretionary spending")
@@ -561,10 +707,10 @@ export default function BudgetDashboard() {
               <h1 className="mt-2 text-2xl font-black">Household Budget</h1>
             </div>
             <button
-              onClick={() => setEditor({ type: "expense" })}
-              className="rounded-xl bg-white px-3 py-2 text-sm font-black text-slate-950"
+              onClick={() => setEditor({ type: "actual" })}
+              className="rounded-xl bg-emerald-300 px-3 py-2 text-sm font-black text-emerald-950"
             >
-              + Expense
+              + Spend
             </button>
           </div>
         </header>
@@ -591,9 +737,10 @@ export default function BudgetDashboard() {
                   </h2>
                 </div>
 
-                <div className="mt-5 grid grid-cols-3 gap-2">
+                <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <Stat label="Income" value={money(income)} />
                   <Stat label="Planned" value={money(planned)} />
+                  <Stat label="Spent so far" value={money(actualSpent)} />
                   <Stat
                     label="Available extra"
                     value={money(availableExtra)}
@@ -650,6 +797,38 @@ export default function BudgetDashboard() {
               <section>
                 <div className="mb-2 flex items-end justify-between px-1">
                   <div>
+                    <h2 className="text-lg font-black">Recent spending</h2>
+                    <p className="text-xs text-slate-500">
+                      Actual purchases and payments logged this pay period.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setEditor({ type: "actual" })}
+                    className="text-sm font-black text-emerald-700"
+                  >
+                    + Spend
+                  </button>
+                </div>
+                <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+                  {actualExpenses.length ? (
+                    actualExpenses.slice(0, 5).map((item) => (
+                      <ActualExpenseRow
+                        key={item.id}
+                        item={item}
+                        onEdit={() => setEditor({ type: "actual", item })}
+                      />
+                    ))
+                  ) : (
+                    <p className="p-4 text-sm text-slate-500">
+                      Nothing logged yet for this pay period.
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <div className="mb-2 flex items-end justify-between px-1">
+                  <div>
                     <h2 className="text-lg font-black">Coming up</h2>
                     <p className="text-xs text-slate-500">
                       Expenses assigned to this paycheck.
@@ -688,7 +867,7 @@ export default function BudgetDashboard() {
                   onClick={() => setEditor({ type: "expense" })}
                   className="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-sm font-black text-white"
                 >
-                  + Expense
+                  + Planned
                 </button>
               </div>
 
@@ -718,10 +897,11 @@ export default function BudgetDashboard() {
               />
 
               <article className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <ReviewStat label="Paycheck" value={money(income)} />
                   <ReviewStat label="Planned" value={money(planned)} />
-                  <ReviewStat label="Extra" value={money(availableExtra)} />
+                  <ReviewStat label="Spent" value={money(actualSpent)} />
+                  <ReviewStat label="Plan extra" value={money(availableExtra)} />
                 </div>
 
                 <div className="mt-4 flex gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -737,6 +917,48 @@ export default function BudgetDashboard() {
                 </div>
 
                 <div className="mt-5 border-t border-slate-200 pt-5">
+                  <div className="mb-5">
+                    <div className="flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-black">Budget vs actual</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Actual spending logged during this paycheck period.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setEditor({ type: "actual" })}
+                        className="text-xs font-black text-emerald-700"
+                      >
+                        + Spend
+                      </button>
+                    </div>
+                    <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200">
+                      <div className="grid grid-cols-[1fr_auto_auto] gap-2 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                        <span>Category</span>
+                        <span>Planned</span>
+                        <span>Spent</span>
+                      </div>
+                      {categoryComparison.map((row) => (
+                        <div
+                          key={row.category}
+                          className="grid grid-cols-[1fr_auto_auto] gap-2 border-t border-slate-100 px-3 py-2.5 text-xs"
+                        >
+                          <span className="font-bold">{row.category}</span>
+                          <span>{money(row.planned)}</span>
+                          <span
+                            className={
+                              row.actual > row.planned && row.planned > 0
+                                ? "font-black text-rose-600"
+                                : "font-black text-slate-900"
+                            }
+                          >
+                            {money(row.actual)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="flex items-end justify-between gap-4">
                     <div>
                       <p className="text-xs font-bold text-slate-500">
@@ -893,6 +1115,21 @@ export default function BudgetDashboard() {
         ))}
       </nav>
 
+      {editor?.type === "actual" && (
+        <ActualExpenseEditor
+          item={editor.item}
+          currentPaycheck={paycheck.paycheck_date}
+          paycheckDates={paycheckDates}
+          categories={categories}
+          saving={saving}
+          onClose={() => setEditor(null)}
+          onSave={saveActualExpense}
+          onDelete={
+            editor.item ? () => deleteActualExpense(editor.item!) : undefined
+          }
+        />
+      )}
+
       {editor?.type === "expense" && (
         <ExpenseEditor
           item={editor.item}
@@ -914,6 +1151,125 @@ export default function BudgetDashboard() {
         />
       )}
     </main>
+  );
+}
+
+function ActualExpenseEditor({
+  item,
+  currentPaycheck,
+  paycheckDates,
+  categories,
+  saving,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  item?: ActualExpense;
+  currentPaycheck: string;
+  paycheckDates: string[];
+  categories: string[];
+  saving: boolean;
+  onClose: () => void;
+  onSave: (event: FormEvent<HTMLFormElement>) => void;
+  onDelete?: () => void;
+}) {
+  return (
+    <Modal title={item ? "Edit spending" : "Log spending"} onClose={onClose}>
+      <form onSubmit={onSave} className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Amount">
+            <input
+              name="amount"
+              required
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0.01"
+              defaultValue={num(item?.amount) || ""}
+              className="budget-input"
+              placeholder="0.00"
+            />
+          </Field>
+          <Field label="Date paid">
+            <input
+              name="spent_date"
+              required
+              type="date"
+              defaultValue={item?.spent_date || todayIso()}
+              className="budget-input"
+            />
+          </Field>
+        </div>
+
+        <Field label="What did you pay for?">
+          <input
+            name="description"
+            required
+            defaultValue={item?.description || ""}
+            className="budget-input"
+            placeholder="Gas, groceries, mortgage…"
+          />
+        </Field>
+
+        <Field label="Category">
+          <input
+            name="category"
+            list="budget-category-options"
+            required
+            defaultValue={item?.category || ""}
+            className="budget-input"
+            placeholder="Fuel, Groceries, Utilities…"
+          />
+          <datalist id="budget-category-options">
+            {categories.map((category) => (
+              <option key={category} value={category} />
+            ))}
+          </datalist>
+        </Field>
+
+        <Field label="Paycheck period">
+          <select
+            name="assigned_paycheck"
+            defaultValue={item?.assigned_paycheck || currentPaycheck}
+            className="budget-input"
+          >
+            {paycheckDates.map((date) => (
+              <option key={date} value={date}>
+                {dateLabel(date)}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Note (optional)">
+          <textarea
+            name="note"
+            defaultValue={item?.note || ""}
+            className="budget-input min-h-20"
+            placeholder="Optional details"
+          />
+        </Field>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+        >
+          {saving ? "Saving…" : item ? "Save spending" : "Log spending"}
+        </button>
+
+        {item && onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={saving}
+            className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700 disabled:opacity-50"
+          >
+            Delete spending entry
+          </button>
+        )}
+      </form>
+    </Modal>
   );
 }
 
@@ -1332,6 +1688,35 @@ function ExpenseRow({
         <strong className="block text-sm">
           {money(num(expense.actual_amount) || num(expense.planned_amount))}
         </strong>
+        <button
+          onClick={onEdit}
+          className="mt-1 text-xs font-black text-blue-600"
+        >
+          Edit
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ActualExpenseRow({
+  item,
+  onEdit,
+}: {
+  item: ActualExpense;
+  onEdit: () => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-3.5 last:border-0">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-black">{item.description}</p>
+        <p className="mt-0.5 text-[11px] text-slate-500">
+          {dateLabel(item.spent_date)} · {item.category}
+          {item.note ? ` · ${item.note}` : ""}
+        </p>
+      </div>
+      <div className="shrink-0 text-right">
+        <strong className="block text-sm">{money(num(item.amount))}</strong>
         <button
           onClick={onEdit}
           className="mt-1 text-xs font-black text-blue-600"
