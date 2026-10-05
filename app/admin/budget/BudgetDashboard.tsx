@@ -2023,6 +2023,20 @@ export default function BudgetDashboard() {
         />
       )}
 
+      {editor?.type === "income" && (
+        <IncomeEditor
+          item={editor.item}
+          currentPaycheck={paycheck.paycheck_date}
+          paycheckDates={paycheckDates}
+          saving={saving}
+          onClose={() => setEditor(null)}
+          onSave={saveIncomeEntry}
+          onDelete={
+            editor.item ? () => deleteIncomeEntry(editor.item!) : undefined
+          }
+        />
+      )}
+
       {editor?.type === "actual" && (
         <ActualExpenseEditor
           item={editor.item}
@@ -2296,6 +2310,117 @@ function FutureGoalEditor({
         >
           {saving ? "Creating bucket…" : "Create sinking-fund plan"}
         </button>
+      </form>
+    </Modal>
+  );
+}
+
+function IncomeEditor({
+  item,
+  currentPaycheck,
+  paycheckDates,
+  saving,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  item?: IncomeEntry;
+  currentPaycheck: string;
+  paycheckDates: string[];
+  saving: boolean;
+  onClose: () => void;
+  onSave: (event: FormEvent<HTMLFormElement>) => void;
+  onDelete?: () => void;
+}) {
+  return (
+    <Modal
+      title={item ? "Edit additional income" : "Add additional income"}
+      onClose={onClose}
+    >
+      <form onSubmit={onSave} className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Amount">
+            <input
+              name="amount"
+              required
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0.01"
+              defaultValue={num(item?.amount) || ""}
+              className="budget-input"
+              placeholder="0.00"
+            />
+          </Field>
+
+          <Field label="Date received">
+            <input
+              name="received_date"
+              required
+              type="date"
+              defaultValue={item?.received_date || todayIso()}
+              className="budget-input"
+            />
+          </Field>
+        </div>
+
+        <Field label="Income source">
+          <input
+            name="source"
+            required
+            defaultValue={item?.source || ""}
+            className="budget-input"
+            placeholder="Bonus, reimbursement, side income…"
+          />
+        </Field>
+
+        <Field label="Budget period">
+          <select
+            name="assigned_paycheck"
+            defaultValue={item?.assigned_paycheck || currentPaycheck}
+            className="budget-input"
+          >
+            {paycheckDates.map((date) => (
+              <option key={date} value={date}>
+                {dateLabel(date)}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Note (optional)">
+          <textarea
+            name="note"
+            defaultValue={item?.note || ""}
+            className="budget-input min-h-20"
+            placeholder="Optional details"
+          />
+        </Field>
+
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-900">
+          Saving additional income immediately triggers a budget review for the
+          selected pay period. The review will look ahead for shortfalls,
+          early-payment opportunities, debt, and sinking funds.
+        </div>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+        >
+          {saving ? "Saving…" : item ? "Save income" : "Add income & review"}
+        </button>
+
+        {item && onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={saving}
+            className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700 disabled:opacity-50"
+          >
+            Delete income entry
+          </button>
+        )}
       </form>
     </Modal>
   );
