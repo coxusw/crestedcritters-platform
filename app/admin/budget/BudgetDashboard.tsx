@@ -13,6 +13,9 @@ type Paycheck = {
   actual_spending: number | string | null;
   reserve_change: number | string | null;
   running_cash_goal_pool: number | string | null;
+  review_required: boolean | null;
+  review_reason: string | null;
+  review_triggered_at: string | null;
 };
 
 type Expense = {
@@ -83,11 +86,22 @@ type ActualExpense = {
   future_expense_id: string | null;
 };
 
+type IncomeEntry = {
+  id: string;
+  received_date: string;
+  assigned_paycheck: string;
+  source: string;
+  amount: number | string;
+  note: string | null;
+  income_type: string | null;
+};
+
 type View = "home" | "plan" | "forecast" | "reviews" | "more";
 type Editor =
   | { type: "expense"; item?: Expense; paycheckDate?: string }
   | { type: "recurring"; item?: RecurringBill }
   | { type: "actual"; item?: ActualExpense }
+  | { type: "income"; item?: IncomeEntry }
   | { type: "future" }
   | null;
 
@@ -173,6 +187,8 @@ export default function BudgetDashboard() {
   const [bucketContributions, setBucketContributions] = useState<BucketContribution[]>([]);
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
   const [actualExpenses, setActualExpenses] = useState<ActualExpense[]>([]);
+  const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>([]);
+  const [futurePlanExpenses, setFuturePlanExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [chrisApproved, setChrisApproved] = useState(false);
   const [jenApproved, setJenApproved] = useState(false);
@@ -209,7 +225,7 @@ export default function BudgetDashboard() {
 
     const { data: allPaychecks, error: paychecksError } = await supabase
       .from("budget_paychecks")
-      .select("paycheck_date,projected_check,actual_check,period_status,planned_spending,actual_spending,reserve_change,running_cash_goal_pool")
+      .select("paycheck_date,projected_check,actual_check,period_status,planned_spending,actual_spending,reserve_change,running_cash_goal_pool,review_required,review_reason,review_triggered_at")
       .order("paycheck_date", { ascending: true });
 
     if (paychecksError) {
@@ -238,6 +254,8 @@ export default function BudgetDashboard() {
       actualResult,
       categoryResult,
       bucketContributionResult,
+      incomeResult,
+      futurePlanResult,
     ] = await Promise.all([
         supabase
           .from("budget_expenses")
@@ -276,6 +294,19 @@ export default function BudgetDashboard() {
           .select("future_expense_id,assigned_paycheck,planned_amount,status")
           .not("future_expense_id", "is", null)
           .order("assigned_paycheck", { ascending: true }),
+        supabase
+          .from("budget_income_entries")
+          .select("id,received_date,assigned_paycheck,source,amount,note,income_type")
+          .eq("assigned_paycheck", selected.paycheck_date)
+          .order("received_date", { ascending: false }),
+        supabase
+          .from("budget_expenses")
+          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund")
+          .gte("assigned_paycheck", selected.paycheck_date)
+          .neq("status", "Cancelled")
+          .order("assigned_paycheck", { ascending: true })
+          .order("due_date", { ascending: true, nullsFirst: false })
+          .order("planned_amount", { ascending: false, nullsFirst: false }),
       ]);
 
     const firstError =
@@ -285,7 +316,9 @@ export default function BudgetDashboard() {
       recurringResult.error ||
       actualResult.error ||
       categoryResult.error ||
-      bucketContributionResult.error;
+      bucketContributionResult.error ||
+      incomeResult.error ||
+      futurePlanResult.error;
 
     if (firstError) {
       setError(firstError.message);
@@ -302,6 +335,8 @@ export default function BudgetDashboard() {
     setBucketContributions((bucketContributionResult.data || []) as BucketContribution[]);
     setRecurringBills((recurringResult.data || []) as RecurringBill[]);
     setActualExpenses((actualResult.data || []) as ActualExpense[]);
+    setIncomeEntries((incomeResult.data || []) as IncomeEntry[]);
+    setFuturePlanExpenses((futurePlanResult.data || []) as Expense[]);
     setCategories(
       (categoryResult.data || [])
         .map((row: { name: string }) => row.name)
@@ -444,6 +479,104 @@ export default function BudgetDashboard() {
       `${eventFund} added. ${money(targetBudget)} is now spread across ${fundingDates.length} paycheck${fundingDates.length === 1 ? "" : "s"}.`
     );
     await loadData();
+    setSaving(false);
+  }
+
+  async function saveIncomeEntry(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!paycheck || editor?.type !== "income") return;
+
+    setSaving(true);
+    setNotice("");
+    setError("");
+
+    const data = new FormData(event.currentTarget);
+    const payload = {
+      received_date: String(data.get("received_date") || todayIso()),
+      assigned_paycheck: String(
+        data.get("assigned_paycheck") || paycheck.paycheck_date
+      ),
+      source: String(data.get("source") || "").trim(),
+      amount: Number(data.get("amount") || 0),
+      note: String(data.get("note") || "").trim() || null,
+      income_type: "Additional",
+    };
+
+    if (!payload.source || payload.amount <= 0) {
+      setError("Enter an income source and an amount greater than $0.");
+      setSaving(false);
+      return;
+    }
+
+    const result = editor.item
+      ? await supabase
+          .from("budget_income_entries")
+          .update(payload)
+          .eq("id", editor.item.id)
+      : await supabase.from("budget_income_entries").insert(payload);
+
+    if (result.error) {
+      setError(result.error.message);
+      setSaving(false);
+      return;
+    }
+
+    setEditor(null);
+    setView("reviews");
+    setNotice(
+      editor.item
+        ? "Additional income updated. Budget review refreshed."
+        : "Additional income logged. Budget review triggered."
+    );
+    await loadData();
+    setSaving(false);
+  }
+
+  async function deleteIncomeEntry(item: IncomeEntry) {
+    if (!window.confirm(`Delete ${item.source} income of ${money(num(item.amount))}?`)) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    const { error: deleteError } = await supabase
+      .from("budget_income_entries")
+      .delete()
+      .eq("id", item.id);
+
+    if (deleteError) {
+      setError(deleteError.message);
+    } else {
+      setEditor(null);
+      setView("reviews");
+      setNotice("Additional income removed. Budget review refreshed.");
+      await loadData();
+    }
+    setSaving(false);
+  }
+
+  async function markReviewComplete() {
+    if (!paycheck) return;
+
+    setSaving(true);
+    setError("");
+
+    const { error: reviewError } = await supabase
+      .from("budget_paychecks")
+      .update({
+        review_required: false,
+        review_reason: null,
+        review_triggered_at: null,
+      })
+      .eq("paycheck_date", paycheck.paycheck_date);
+
+    if (reviewError) {
+      setError(reviewError.message);
+    } else {
+      setNotice("Budget review marked complete.");
+      await loadData();
+    }
     setSaving(false);
   }
 
