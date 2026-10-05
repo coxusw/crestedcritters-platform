@@ -41,12 +41,23 @@ type FutureExpense = {
   due_date: string | null;
   target_budget: number | string | null;
   planned_funding: number | string | null;
+  actual_funding_spend: number | string | null;
   remaining_to_plan: number | string | null;
   remaining_actual: number | string | null;
   status: string | null;
   notes: string | null;
   funding_start_paycheck: string | null;
+  funding_deadline: string | null;
   auto_fund: boolean | null;
+  repeat_annually: boolean | null;
+  funding_deadline_rule: string | null;
+};
+
+type BucketContribution = {
+  future_expense_id: string | null;
+  assigned_paycheck: string | null;
+  planned_amount: number | string | null;
+  status: string | null;
 };
 
 type RecurringBill = {
@@ -69,6 +80,7 @@ type ActualExpense = {
   description: string;
   amount: number | string;
   note: string | null;
+  future_expense_id: string | null;
 };
 
 type View = "home" | "plan" | "forecast" | "reviews" | "more";
@@ -158,6 +170,7 @@ export default function BudgetDashboard() {
   const [forecastLoading, setForecastLoading] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
   const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([]);
+  const [bucketContributions, setBucketContributions] = useState<BucketContribution[]>([]);
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
   const [actualExpenses, setActualExpenses] = useState<ActualExpense[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -224,6 +237,7 @@ export default function BudgetDashboard() {
       recurringResult,
       actualResult,
       categoryResult,
+      bucketContributionResult,
     ] = await Promise.all([
         supabase
           .from("budget_expenses")
@@ -238,7 +252,7 @@ export default function BudgetDashboard() {
           .order("name", { ascending: true }),
         supabase
           .from("budget_future_expenses")
-          .select("id,event_fund,due_date,target_budget,planned_funding,remaining_to_plan,remaining_actual,status,notes,funding_start_paycheck,auto_fund")
+          .select("id,event_fund,due_date,target_budget,planned_funding,actual_funding_spend,remaining_to_plan,remaining_actual,status,notes,funding_start_paycheck,funding_deadline,auto_fund,repeat_annually,funding_deadline_rule")
           .order("due_date", { ascending: true, nullsFirst: false }),
         supabase
           .from("budget_recurring_bills")
@@ -248,7 +262,7 @@ export default function BudgetDashboard() {
           .order("item", { ascending: true }),
         supabase
           .from("budget_actual_expenses")
-          .select("id,spent_date,assigned_paycheck,category,description,amount,note,created_at")
+          .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,created_at")
           .eq("assigned_paycheck", selected.paycheck_date)
           .order("spent_date", { ascending: false })
           .order("created_at", { ascending: false }),
@@ -257,6 +271,11 @@ export default function BudgetDashboard() {
           .select("name")
           .eq("active", true)
           .order("name", { ascending: true }),
+        supabase
+          .from("budget_expenses")
+          .select("future_expense_id,assigned_paycheck,planned_amount,status")
+          .not("future_expense_id", "is", null)
+          .order("assigned_paycheck", { ascending: true }),
       ]);
 
     const firstError =
@@ -265,7 +284,8 @@ export default function BudgetDashboard() {
       futureResult.error ||
       recurringResult.error ||
       actualResult.error ||
-      categoryResult.error;
+      categoryResult.error ||
+      bucketContributionResult.error;
 
     if (firstError) {
       setError(firstError.message);
@@ -279,6 +299,7 @@ export default function BudgetDashboard() {
     setExpenses((expenseResult.data || []) as Expense[]);
     setPeople((peopleResult.data || []) as Person[]);
     setFutureExpenses((futureResult.data || []) as FutureExpense[]);
+    setBucketContributions((bucketContributionResult.data || []) as BucketContribution[]);
     setRecurringBills((recurringResult.data || []) as RecurringBill[]);
     setActualExpenses((actualResult.data || []) as ActualExpense[]);
     setCategories(
