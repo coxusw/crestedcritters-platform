@@ -44,8 +44,10 @@ type FutureExpense = {
 };
 
 type RecurringBill = {
+  category: string | null;
   item: string | null;
   amount: number | string | null;
+  frequency: string | null;
   due_timing: string | null;
   active: boolean | null;
 };
@@ -158,7 +160,7 @@ export default function BudgetDashboard() {
           .order("due_date", { ascending: true, nullsFirst: false }),
         supabase
           .from("budget_recurring_bills")
-          .select("item,amount,due_timing,active")
+          .select("category,item,amount,frequency,due_timing,active")
           .eq("active", true)
           .order("item", { ascending: true }),
       ]);
@@ -535,7 +537,7 @@ export default function BudgetDashboard() {
               <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
                 <h3 className="font-black">Recurring bills</h3>
                 <div className="mt-3 space-y-3">
-                  {recurringBills.slice(0, 10).map((bill) => (
+                  {recurringBills.map((bill) => (
                     <div
                       key={bill.item || Math.random()}
                       className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3 last:border-0 last:pb-0"
@@ -543,7 +545,7 @@ export default function BudgetDashboard() {
                       <div>
                         <p className="text-sm font-black">{bill.item}</p>
                         <p className="mt-0.5 text-[11px] text-slate-500">
-                          {bill.due_timing || "Timing TBD"}
+                          {bill.category || "Other"} · {bill.frequency || "Recurring"} · {bill.due_timing || "Timing TBD"}
                         </p>
                       </div>
                       <strong className="text-sm">{money(num(bill.amount))}</strong>
