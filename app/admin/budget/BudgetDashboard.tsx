@@ -932,7 +932,15 @@ export default function BudgetDashboard() {
     setSaving(false);
   }
 
-  const income = num(paycheck?.actual_check) || num(paycheck?.projected_check);
+  const expectedPaycheck = num(paycheck?.projected_check);
+  const basePaycheckIncome =
+    num(paycheck?.actual_check) || expectedPaycheck;
+  const additionalIncome = incomeEntries.reduce(
+    (sum, item) => sum + num(item.amount),
+    0
+  );
+  const income = basePaycheckIncome + additionalIncome;
+  const extraAboveBaseline = Math.max(0, income - expectedPaycheck);
   const planned = num(paycheck?.planned_spending);
   const availableExtra = income - planned;
   const actualSpent = actualExpenses.reduce(
@@ -977,6 +985,168 @@ export default function BudgetDashboard() {
           row.status !== "Deferred"
       )
       .reduce((sum, row) => sum + num(row.planned_amount), 0);
+
+  const allocationSuggestions = useMemo(() => {
+    if (!paycheck) return [];
+
+    const suggestions: Array<{
+      kind: "shortfall" | "debt" | "bucket" | "future";
+      title: string;
+      detail: string;
+      amount: number;
+    }> = [];
+
+    let remaining = Math.max(0, availableExtra);
+    if (remaining <= 0) return suggestions;
+
+    const futureChecks = paychecks.filter(
+      (row) => row.paycheck_date > paycheck.paycheck_date
+    );
+
+    for (const row of futureChecks) {
+      if (remaining <= 0) break;
+      const projected = num(row.projected_check);
+      const futurePlanned = num(row.planned_spending);
+      const shortfall = Math.max(0, futurePlanned - projected);
+      if (shortfall <= 0) continue;
+
+      const amount = Math.min(remaining, shortfall);
+      suggestions.push({
+        kind: "shortfall",
+        title: `Protect the ${dateLabel(row.paycheck_date)} paycheck`,
+        detail: `That paycheck is currently projected ${money(
+          shortfall
+        )} short. Holding this amount now keeps the future plan from going negative.`,
+        amount,
+      });
+      remaining -= amount;
+    }
+
+    const futureDebt = futurePlanExpenses
+      .filter((item) => {
+        if (!item.assigned_paycheck || item.assigned_paycheck <= paycheck.paycheck_date) {
+          return false;
+        }
+        if (item.status === "Cancelled" || item.status === "Deferred") {
+          return false;
+        }
+        if (num(item.planned_amount) <= 0) return false;
+
+        const category = (item.category || "").toLowerCase();
+        const type = (item.expense_type || "").toLowerCase();
+        const name = (item.line_item || "").toLowerCase();
+
+        return (
+          category.includes("debt") ||
+          category.includes("collection") ||
+          type.includes("catch-up") ||
+          name.includes("loan") ||
+          name.includes("collection")
+        );
+      })
+      .sort((a, b) => {
+        const dateCompare = (a.assigned_paycheck || "").localeCompare(
+          b.assigned_paycheck || ""
+        );
+        if (dateCompare !== 0) return dateCompare;
+        return num(b.planned_amount) - num(a.planned_amount);
+      });
+
+    for (const item of futureDebt.slice(0, 4)) {
+      if (remaining <= 0) break;
+      const plannedAmount = num(item.planned_amount);
+      const amount = Math.min(remaining, plannedAmount);
+      suggestions.push({
+        kind: "debt",
+        title: `Pay toward ${item.line_item || "future debt"} early`,
+        detail: `Currently planned for ${dateLabel(
+          item.assigned_paycheck
+        )}. Paying some or all early would free that future paycheck.`,
+        amount,
+      });
+      remaining -= amount;
+    }
+
+    const bucketsByDeadline = [...futureExpenses]
+      .filter((item) => item.status !== "Completed")
+      .sort((a, b) =>
+        (a.funding_deadline || a.due_date || "9999-12-31").localeCompare(
+          b.funding_deadline || b.due_date || "9999-12-31"
+        )
+      );
+
+    for (const bucket of bucketsByDeadline) {
+      if (remaining <= 0) break;
+
+      const funded = bucketContributions
+        .filter(
+          (row) =>
+            row.future_expense_id === bucket.id &&
+            !!row.assigned_paycheck &&
+            row.assigned_paycheck <= paycheck.paycheck_date &&
+            row.status !== "Cancelled" &&
+            row.status !== "Deferred"
+        )
+        .reduce((sum, row) => sum + num(row.planned_amount), 0);
+
+      const needed = Math.max(0, num(bucket.target_budget) - funded);
+      if (needed <= 0) continue;
+
+      const amount = Math.min(remaining, needed);
+      suggestions.push({
+        kind: "bucket",
+        title: `Add more to ${bucket.event_fund || "sinking fund"}`,
+        detail: `Currently accumulated ${money(funded)} of ${money(
+          num(bucket.target_budget)
+        )}. Extra funding now reduces what later paychecks need to contribute.`,
+        amount,
+      });
+      remaining -= amount;
+    }
+
+    const futureRequired = futurePlanExpenses
+      .filter((item) => {
+        if (!item.assigned_paycheck || item.assigned_paycheck <= paycheck.paycheck_date) {
+          return false;
+        }
+        if (item.status === "Cancelled" || item.status === "Deferred") {
+          return false;
+        }
+        if (num(item.planned_amount) <= 0) return false;
+        const type = (item.expense_type || "").toLowerCase();
+        return !type.includes("sinking") && !type.includes("optional");
+      })
+      .sort((a, b) => {
+        const dateCompare = (a.assigned_paycheck || "").localeCompare(
+          b.assigned_paycheck || ""
+        );
+        if (dateCompare !== 0) return dateCompare;
+        return num(b.planned_amount) - num(a.planned_amount);
+      });
+
+    for (const item of futureRequired.slice(0, 4)) {
+      if (remaining <= 0) break;
+      const amount = Math.min(remaining, num(item.planned_amount));
+      suggestions.push({
+        kind: "future",
+        title: `Prepay or set aside for ${item.line_item || "future expense"}`,
+        detail: `This is currently planned for ${dateLabel(
+          item.assigned_paycheck
+        )} at ${money(num(item.planned_amount))}.`,
+        amount,
+      });
+      remaining -= amount;
+    }
+
+    return suggestions;
+  }, [
+    paycheck,
+    availableExtra,
+    paychecks,
+    futurePlanExpenses,
+    futureExpenses,
+    bucketContributions,
+  ]);
 
   const discretionaryRows = expenses.filter((expense) =>
     (expense.line_item || "").toLowerCase().includes("discretionary spending")
@@ -1088,12 +1258,20 @@ export default function BudgetDashboard() {
               </Link>
               <h1 className="mt-2 text-2xl font-black">Household Budget</h1>
             </div>
-            <button
-              onClick={() => setEditor({ type: "actual" })}
-              className="rounded-xl bg-emerald-300 px-3 py-2 text-sm font-black text-emerald-950"
-            >
-              + Spend
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEditor({ type: "income" })}
+                className="rounded-xl bg-blue-300 px-3 py-2 text-sm font-black text-blue-950"
+              >
+                + Income
+              </button>
+              <button
+                onClick={() => setEditor({ type: "actual" })}
+                className="rounded-xl bg-emerald-300 px-3 py-2 text-sm font-black text-emerald-950"
+              >
+                + Spend
+              </button>
+            </div>
           </div>
         </header>
 
@@ -1120,7 +1298,7 @@ export default function BudgetDashboard() {
                 </div>
 
                 <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <Stat label="Income" value={money(income)} />
+                  <Stat label="Total income" value={money(income)} />
                   <Stat label="Planned" value={money(planned)} />
                   <Stat label="Spent so far" value={money(actualSpent)} />
                   <Stat
@@ -1133,7 +1311,10 @@ export default function BudgetDashboard() {
 
                 <div className="mt-4 flex items-center justify-between gap-3 text-[11px] text-slate-300">
                   <span>
-                    Includes {money(currentEach)} each for Chris + Jen
+                    Base {money(basePaycheckIncome)}
+                    {additionalIncome > 0
+                      ? ` + ${money(additionalIncome)} additional income`
+                      : ""} · Includes {money(currentEach)} each for Chris + Jen
                   </span>
                   <strong
                     className={
@@ -1284,12 +1465,118 @@ export default function BudgetDashboard() {
               />
 
               <article className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <ReviewStat label="Paycheck" value={money(income)} />
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <ReviewStat label="Normal check" value={money(expectedPaycheck)} />
+                  <ReviewStat label="Actual/base check" value={money(basePaycheckIncome)} />
+                  <ReviewStat label="Additional income" value={money(additionalIncome)} />
+                  <ReviewStat label="Total income" value={money(income)} />
                   <ReviewStat label="Planned" value={money(planned)} />
-                  <ReviewStat label="Spent" value={money(actualSpent)} />
-                  <ReviewStat label="Plan extra" value={money(availableExtra)} />
+                  <ReviewStat label="Available" value={money(availableExtra)} />
                 </div>
+
+                {paycheck.review_required && (
+                  <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-black text-blue-950">
+                          Review triggered
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-blue-800">
+                          {paycheck.review_reason || "Income changed for this pay period."}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-blue-600 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white">
+                        New
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {additionalIncome > 0 && (
+                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <div className="flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-black text-emerald-950">
+                          Additional income this period
+                        </p>
+                        <p className="mt-1 text-xs text-emerald-800">
+                          {money(extraAboveBaseline)} above the normal projected paycheck.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setEditor({ type: "income" })}
+                        className="text-xs font-black text-emerald-800"
+                      >
+                        + Income
+                      </button>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {incomeEntries.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => setEditor({ type: "income", item })}
+                          className="flex w-full items-center justify-between gap-3 rounded-xl bg-white p-3 text-left ring-1 ring-emerald-100"
+                        >
+                          <span>
+                            <strong className="block text-sm">{item.source}</strong>
+                            <span className="text-[11px] text-slate-500">
+                              {dateLabel(item.received_date)}
+                              {item.note ? ` · ${item.note}` : ""}
+                            </span>
+                          </span>
+                          <strong className="text-sm">{money(num(item.amount))}</strong>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {availableExtra > 0 && (
+                  <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                    <div className="flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-black text-violet-950">
+                          What could the extra money do?
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-violet-800">
+                          These are suggestions only. Nothing is moved until you change the plan.
+                        </p>
+                      </div>
+                      <strong className="text-lg text-violet-950">
+                        {money(availableExtra)}
+                      </strong>
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      {allocationSuggestions.length ? (
+                        allocationSuggestions.map((suggestion, index) => (
+                          <div
+                            key={`${suggestion.kind}-${index}-${suggestion.title}`}
+                            className="rounded-xl bg-white p-3 ring-1 ring-violet-100"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-black text-slate-950">
+                                  {suggestion.title}
+                                </p>
+                                <p className="mt-1 text-xs leading-5 text-slate-500">
+                                  {suggestion.detail}
+                                </p>
+                              </div>
+                              <strong className="shrink-0 text-sm text-violet-700">
+                                {money(suggestion.amount)}
+                              </strong>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="rounded-xl bg-white p-3 text-sm text-slate-500">
+                          No specific future obligation needs the surplus right now. Keeping it as cushion/reserve is reasonable.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-4 flex gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-slate-900 font-black text-white">
@@ -1418,6 +1705,16 @@ export default function BudgetDashboard() {
                         ? `Ready to apply ${money(suggestedEach)} each`
                         : "Waiting for both approvals"}
                   </button>
+
+                  {paycheck.review_required && (
+                    <button
+                      onClick={() => void markReviewComplete()}
+                      disabled={saving}
+                      className="mt-3 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 disabled:opacity-50"
+                    >
+                      {saving ? "Saving…" : "Mark budget review complete"}
+                    </button>
+                  )}
                 </div>
               </article>
             </>
