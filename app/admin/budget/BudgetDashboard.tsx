@@ -229,7 +229,8 @@ export default function BudgetDashboard() {
           .from("budget_expenses")
           .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund")
           .eq("assigned_paycheck", selected.paycheck_date)
-          .order("due_date", { ascending: true, nullsFirst: false }),
+          .order("due_date", { ascending: true, nullsFirst: false })
+          .order("planned_amount", { ascending: false, nullsFirst: false }),
         supabase
           .from("budget_people")
           .select("name,default_discretionary")
@@ -302,7 +303,8 @@ export default function BudgetDashboard() {
       .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund")
       .eq("assigned_paycheck", date)
       .neq("status", "Cancelled")
-      .order("due_date", { ascending: true, nullsFirst: false });
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .order("planned_amount", { ascending: false, nullsFirst: false });
 
     if (forecastError) {
       setError(forecastError.message);
