@@ -284,7 +284,6 @@ export default function BudgetDashboard() {
     event.preventDefault();
     if (!paycheck || editor?.type !== "actual") return;
 
-    setSaving(true);
     setNotice("");
     setError("");
 
@@ -303,13 +302,36 @@ export default function BudgetDashboard() {
 
     if (!payload.description || payload.amount <= 0) {
       setError("Enter what you paid for and an amount greater than $0.");
-      setSaving(false);
       return;
     }
 
-    await supabase
-      .from("budget_categories")
-      .upsert({ name: category, active: true }, { onConflict: "name" });
+    const categoryBudget = categoryComparison.find(
+      (row) => row.category === category
+    );
+    const plannedForCategory = categoryBudget?.planned || 0;
+    const currentItemAmount =
+      editor.item && editor.item.category === category
+        ? num(editor.item.amount)
+        : 0;
+    const usedBefore =
+      Math.max(0, categoryBudget?.actual || 0) - currentItemAmount;
+    const remainingBefore = plannedForCategory - usedBefore;
+    const wouldExceed = payload.amount > remainingBefore;
+
+    if (wouldExceed) {
+      const afterTotal = usedBefore + payload.amount;
+      const overBy = Math.max(0, afterTotal - plannedForCategory);
+      const message =
+        plannedForCategory > 0
+          ? `This ${money(payload.amount)} expense will put ${category} ${money(overBy)} over its ${money(plannedForCategory)} budget for this pay period.\n\nProceed anyway?`
+          : `${category} has no planned budget for this pay period. This ${money(payload.amount)} expense will be over budget.\n\nProceed anyway?`;
+
+      if (!window.confirm(message)) {
+        return;
+      }
+    }
+
+    setSaving(true);
 
     const result = editor.item
       ? await supabase
@@ -933,15 +955,16 @@ export default function BudgetDashboard() {
                       </button>
                     </div>
                     <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200">
-                      <div className="grid grid-cols-[1fr_auto_auto] gap-2 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
                         <span>Category</span>
-                        <span>Planned</span>
+                        <span>Plan</span>
                         <span>Spent</span>
+                        <span>Left</span>
                       </div>
                       {categoryComparison.map((row) => (
                         <div
                           key={row.category}
-                          className="grid grid-cols-[1fr_auto_auto] gap-2 border-t border-slate-100 px-3 py-2.5 text-xs"
+                          className="grid grid-cols-[1fr_auto_auto_auto] gap-2 border-t border-slate-100 px-3 py-2.5 text-xs"
                         >
                           <span className="font-bold">{row.category}</span>
                           <span>{money(row.planned)}</span>
@@ -953,6 +976,17 @@ export default function BudgetDashboard() {
                             }
                           >
                             {money(row.actual)}
+                          </span>
+                          <span
+                            className={
+                              row.planned - row.actual < 0
+                                ? "font-black text-rose-600"
+                                : "font-black text-emerald-700"
+                            }
+                          >
+                            {row.planned - row.actual < 0
+                              ? `-${money(Math.abs(row.planned - row.actual))}`
+                              : money(row.planned - row.actual)}
                           </span>
                         </div>
                       ))}
@@ -1121,6 +1155,7 @@ export default function BudgetDashboard() {
           currentPaycheck={paycheck.paycheck_date}
           paycheckDates={paycheckDates}
           categories={categories}
+          comparisons={categoryComparison}
           saving={saving}
           onClose={() => setEditor(null)}
           onSave={saveActualExpense}
@@ -1159,6 +1194,7 @@ function ActualExpenseEditor({
   currentPaycheck,
   paycheckDates,
   categories,
+  comparisons,
   saving,
   onClose,
   onSave,
@@ -1168,14 +1204,63 @@ function ActualExpenseEditor({
   currentPaycheck: string;
   paycheckDates: string[];
   categories: string[];
+  comparisons: Array<{ category: string; planned: number; actual: number }>;
   saving: boolean;
   onClose: () => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
   onDelete?: () => void;
 }) {
+  const [selectedCategory, setSelectedCategory] = useState(
+    item?.category || categories[0] || "Other"
+  );
+  const [enteredAmount, setEnteredAmount] = useState(num(item?.amount));
+
+  const summary = comparisons.find(
+    (row) => row.category === selectedCategory
+  );
+  const plannedForCategory = summary?.planned || 0;
+  const currentItemAmount =
+    item && item.category === selectedCategory ? num(item.amount) : 0;
+  const alreadyUsed = Math.max(0, summary?.actual || 0) - currentItemAmount;
+  const remainingBefore = plannedForCategory - alreadyUsed;
+  const remainingAfter = remainingBefore - enteredAmount;
+  const overAfter = remainingAfter < 0;
+
   return (
     <Modal title={item ? "Edit spending" : "Log spending"} onClose={onClose}>
       <form onSubmit={onSave} className="space-y-3">
+        <Field label="Category">
+          <select
+            name="category"
+            required
+            value={selectedCategory}
+            onChange={(event) => setSelectedCategory(event.target.value)}
+            className="budget-input"
+          >
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-3">
+          <BudgetMeter
+            label="Planned"
+            value={plannedForCategory}
+          />
+          <BudgetMeter
+            label="Already used"
+            value={alreadyUsed}
+          />
+          <BudgetMeter
+            label="Remaining"
+            value={remainingBefore}
+            danger={remainingBefore < 0}
+          />
+        </div>
+
         <div className="grid grid-cols-2 gap-2">
           <Field label="Amount">
             <input
@@ -1185,7 +1270,10 @@ function ActualExpenseEditor({
               inputMode="decimal"
               step="0.01"
               min="0.01"
-              defaultValue={num(item?.amount) || ""}
+              value={enteredAmount || ""}
+              onChange={(event) =>
+                setEnteredAmount(Number(event.target.value || 0))
+              }
               className="budget-input"
               placeholder="0.00"
             />
@@ -1211,35 +1299,38 @@ function ActualExpenseEditor({
           />
         </Field>
 
-        <Field label="Category">
-          <input
-            name="category"
-            list="budget-category-options"
-            required
-            defaultValue={item?.category || ""}
-            className="budget-input"
-            placeholder="Fuel, Groceries, Utilities…"
-          />
-          <datalist id="budget-category-options">
-            {categories.map((category) => (
-              <option key={category} value={category} />
-            ))}
-          </datalist>
-        </Field>
+        <input
+          type="hidden"
+          name="assigned_paycheck"
+          value={item?.assigned_paycheck || currentPaycheck}
+        />
 
-        <Field label="Paycheck period">
-          <select
-            name="assigned_paycheck"
-            defaultValue={item?.assigned_paycheck || currentPaycheck}
-            className="budget-input"
+        {enteredAmount > 0 && (
+          <div
+            className={`rounded-xl border p-3 text-sm ${
+              overAfter
+                ? "border-amber-300 bg-amber-50 text-amber-950"
+                : "border-emerald-200 bg-emerald-50 text-emerald-900"
+            }`}
           >
-            {paycheckDates.map((date) => (
-              <option key={date} value={date}>
-                {dateLabel(date)}
-              </option>
-            ))}
-          </select>
-        </Field>
+            <strong>
+              After this expense:{" "}
+              {overAfter
+                ? `${money(Math.abs(remainingAfter))} over budget`
+                : `${money(remainingAfter)} remaining`}
+            </strong>
+            {overAfter && (
+              <span className="mt-1 block text-xs leading-5">
+                You can still save it. You will be asked to confirm because it
+                exceeds the category budget for this pay period.
+              </span>
+            )}
+          </div>
+        )}
+
+        <p className="text-[11px] text-slate-500">
+          Pay period: {dateLabel(item?.assigned_paycheck || currentPaycheck)}
+        </p>
 
         <Field label="Note (optional)">
           <textarea
@@ -1621,6 +1712,31 @@ function Field({
       {label}
       <div className="mt-1.5">{children}</div>
     </label>
+  );
+}
+
+function BudgetMeter({
+  label,
+  value,
+  danger,
+}: {
+  label: string;
+  value: number;
+  danger?: boolean;
+}) {
+  return (
+    <div>
+      <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+        {label}
+      </span>
+      <strong
+        className={`mt-1 block text-sm ${
+          danger ? "text-rose-600" : "text-slate-950"
+        }`}
+      >
+        {money(value)}
+      </strong>
+    </div>
   );
 }
 
