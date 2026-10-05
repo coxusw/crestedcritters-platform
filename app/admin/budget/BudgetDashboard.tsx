@@ -348,6 +348,9 @@ export default function BudgetDashboard() {
     const eventFund = String(data.get("event_fund") || "").trim();
     const targetBudget = Number(data.get("target_budget") || 0);
     const dueDate = String(data.get("due_date") || "");
+    const fundingDeadline = String(
+      data.get("funding_deadline") || dueDate
+    );
     const startPaycheck = String(
       data.get("funding_start_paycheck") || paycheck.paycheck_date
     );
@@ -360,7 +363,7 @@ export default function BudgetDashboard() {
     }
 
     const fundingDates = paycheckDates.filter(
-      (date) => date >= startPaycheck && date <= dueDate
+      (date) => date >= startPaycheck && date <= fundingDeadline
     );
 
     if (!fundingDates.length) {
@@ -392,6 +395,7 @@ export default function BudgetDashboard() {
         status: "Funding",
         notes,
         funding_start_paycheck: startPaycheck,
+        funding_deadline: fundingDeadline,
         auto_fund: true,
       })
       .select("id")
@@ -452,6 +456,9 @@ export default function BudgetDashboard() {
 
     const data = new FormData(event.currentTarget);
     const category = String(data.get("category") || "Other").trim() || "Other";
+    const futureExpenseId =
+      String(data.get("future_expense_id") || "").trim() || null;
+
     const payload = {
       spent_date: String(data.get("spent_date") || todayIso()),
       assigned_paycheck: String(
@@ -461,12 +468,15 @@ export default function BudgetDashboard() {
       description: String(data.get("description") || "").trim(),
       amount: Number(data.get("amount") || 0),
       note: String(data.get("note") || "").trim() || null,
+      future_expense_id: futureExpenseId,
     };
 
     if (!payload.description || payload.amount <= 0) {
       setError("Enter what you paid for and an amount greater than $0.");
       return;
     }
+
+    const warnings: string[] = [];
 
     const categoryBudget = categoryComparison.find(
       (row) => row.category === category
@@ -478,20 +488,57 @@ export default function BudgetDashboard() {
         : 0;
     const usedBefore =
       Math.max(0, categoryBudget?.actual || 0) - currentItemAmount;
-    const remainingBefore = plannedForCategory - usedBefore;
-    const wouldExceed = payload.amount > remainingBefore;
+    const categoryRemainingBefore = plannedForCategory - usedBefore;
 
-    if (wouldExceed) {
+    if (payload.amount > categoryRemainingBefore) {
       const afterTotal = usedBefore + payload.amount;
       const overBy = Math.max(0, afterTotal - plannedForCategory);
-      const message =
+      warnings.push(
         plannedForCategory > 0
-          ? `This ${money(payload.amount)} expense will put ${category} ${money(overBy)} over its ${money(plannedForCategory)} budget for this pay period.\n\nProceed anyway?`
-          : `${category} has no planned budget for this pay period. This ${money(payload.amount)} expense will be over budget.\n\nProceed anyway?`;
+          ? `${category} will be ${money(overBy)} over its ${money(
+              plannedForCategory
+            )} budget for this pay period.`
+          : `${category} has no planned budget for this pay period, so this expense will be over budget.`
+      );
+    }
 
-      if (!window.confirm(message)) {
-        return;
+    if (futureExpenseId) {
+      const bucket = futureExpenses.find(
+        (item) => item.id === futureExpenseId
+      );
+
+      if (bucket) {
+        const fundedThrough = bucketFundedThrough(
+          bucket.id,
+          payload.assigned_paycheck
+        );
+        const currentBucketAmount =
+          editor.item?.future_expense_id === bucket.id
+            ? num(editor.item.amount)
+            : 0;
+        const spentBefore =
+          Math.max(0, num(bucket.actual_funding_spend)) -
+          currentBucketAmount;
+        const availableBefore = fundedThrough - spentBefore;
+
+        if (payload.amount > availableBefore) {
+          const negativeBy = payload.amount - availableBefore;
+          warnings.push(
+            `${bucket.event_fund || "This bucket"} will go ${money(
+              negativeBy
+            )} negative after this purchase.`
+          );
+        }
       }
+    }
+
+    if (
+      warnings.length &&
+      !window.confirm(
+        `${warnings.join("\n\n")}\n\nProceed anyway?`
+      )
+    ) {
+      return;
     }
 
     setSaving(true);
@@ -785,6 +832,18 @@ export default function BudgetDashboard() {
       a.category.localeCompare(b.category)
     );
   }, [expenses, actualExpenses]);
+
+  const bucketFundedThrough = (bucketId: string, throughPaycheck: string) =>
+    bucketContributions
+      .filter(
+        (row) =>
+          row.future_expense_id === bucketId &&
+          !!row.assigned_paycheck &&
+          row.assigned_paycheck <= throughPaycheck &&
+          row.status !== "Cancelled" &&
+          row.status !== "Deferred"
+      )
+      .reduce((sum, row) => sum + num(row.planned_amount), 0);
 
   const discretionaryRows = expenses.filter((expense) =>
     (expense.line_item || "").toLowerCase().includes("discretionary spending")
@@ -1258,31 +1317,82 @@ export default function BudgetDashboard() {
                   {futureExpenses.length ? (
                     futureExpenses
                       .filter((item) => item.status !== "Completed")
-                      .slice(0, 8)
-                      .map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3 last:border-0 last:pb-0"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-black">
-                              {item.event_fund || "Future expense"}
-                            </p>
-                            <p className="mt-0.5 text-[11px] text-slate-500">
-                              Due {dateLabel(item.due_date)} · {item.status || "Open"}
-                              {item.auto_fund ? " · Auto-funded" : ""}
-                            </p>
+                      .map((item) => {
+                        const funded = bucketFundedThrough(
+                          item.id,
+                          paycheck.paycheck_date
+                        );
+                        const spent = num(item.actual_funding_spend);
+                        const available = funded - spent;
+                        const target = num(item.target_budget);
+                        const progress =
+                          target > 0
+                            ? Math.max(0, Math.min(100, (funded / target) * 100))
+                            : 0;
+
+                        return (
+                          <div
+                            key={item.id}
+                            className="border-b border-slate-100 pb-4 last:border-0 last:pb-0"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-black">
+                                  {item.event_fund || "Future expense"}
+                                </p>
+                                <p className="mt-0.5 text-[11px] text-slate-500">
+                                  Due {dateLabel(item.due_date)} · Fund by{" "}
+                                  {dateLabel(item.funding_deadline || item.due_date)}
+                                </p>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <strong className="block text-sm">
+                                  {money(target)}
+                                </strong>
+                                <span className="text-[10px] text-slate-500">
+                                  target
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                              <div
+                                className="h-full rounded-full bg-blue-600"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                              <div>
+                                <span className="block text-[10px] text-slate-500">
+                                  Accumulated
+                                </span>
+                                <strong>{money(funded)}</strong>
+                              </div>
+                              <div>
+                                <span className="block text-[10px] text-slate-500">
+                                  Spent
+                                </span>
+                                <strong>{money(spent)}</strong>
+                              </div>
+                              <div>
+                                <span className="block text-[10px] text-slate-500">
+                                  Available
+                                </span>
+                                <strong
+                                  className={
+                                    available < 0
+                                      ? "text-rose-600"
+                                      : "text-emerald-700"
+                                  }
+                                >
+                                  {money(available)}
+                                </strong>
+                              </div>
+                            </div>
                           </div>
-                          <div className="shrink-0 text-right">
-                            <strong className="block text-sm">
-                              {money(num(item.target_budget))}
-                            </strong>
-                            <span className="text-[10px] text-slate-500">
-                              target
-                            </span>
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                   ) : (
                     <p className="text-sm text-slate-500">
                       No future goals yet.
@@ -1485,6 +1595,8 @@ export default function BudgetDashboard() {
           paycheckDates={paycheckDates}
           categories={categories}
           comparisons={categoryComparison}
+          futureExpenses={futureExpenses}
+          bucketContributions={bucketContributions}
           saving={saving}
           onClose={() => setEditor(null)}
           onSave={saveActualExpense}
