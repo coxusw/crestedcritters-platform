@@ -124,6 +124,14 @@ const dateLabel = (value: string | null) => {
 
 const num = (value: number | string | null | undefined) => Number(value || 0);
 
+const isFundingCompleteStatus = (value: string | null | undefined) =>
+  ["funded", "received", "finalized", "completed", "closed", "paid", "settled"].includes(
+    (value || "").trim().toLowerCase()
+  );
+
+const paycheckCountsAsFunded = (row: Paycheck) =>
+  num(row.actual_check) > 0 || isFundingCompleteStatus(row.period_status);
+
 const todayIso = () => {
   const today = new Date();
   return [
@@ -182,6 +190,8 @@ export default function BudgetDashboard() {
   const [forecastDate, setForecastDate] = useState<string | null>(null);
   const [forecastExpenses, setForecastExpenses] = useState<Expense[]>([]);
   const [forecastLoading, setForecastLoading] = useState(false);
+  const [forecastTab, setForecastTab] = useState<"paychecks" | "sinking">("paychecks");
+  const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([]);
   const [bucketContributions, setBucketContributions] = useState<BucketContribution[]>([]);
@@ -643,7 +653,7 @@ export default function BudgetDashboard() {
       if (bucket) {
         const fundedThrough = bucketFundedThrough(
           bucket.id,
-          payload.assigned_paycheck
+          "9999-12-31"
         );
         const currentBucketAmount =
           editor.item?.future_expense_id === bucket.id
@@ -974,6 +984,20 @@ export default function BudgetDashboard() {
     );
   }, [expenses, actualExpenses]);
 
+  const fundedPaycheckDates = useMemo(
+    () =>
+      new Set(
+        paychecks
+          .filter(paycheckCountsAsFunded)
+          .map((row) => row.paycheck_date)
+      ),
+    [paychecks]
+  );
+
+  const contributionCountsAsFunded = (row: BucketContribution) =>
+    isFundingCompleteStatus(row.status) ||
+    (!!row.assigned_paycheck && fundedPaycheckDates.has(row.assigned_paycheck));
+
   const bucketFundedThrough = (bucketId: string, throughPaycheck: string) =>
     bucketContributions
       .filter(
@@ -982,7 +1006,8 @@ export default function BudgetDashboard() {
           !!row.assigned_paycheck &&
           row.assigned_paycheck <= throughPaycheck &&
           row.status !== "Cancelled" &&
-          row.status !== "Deferred"
+          row.status !== "Deferred" &&
+          contributionCountsAsFunded(row)
       )
       .reduce((sum, row) => sum + num(row.planned_amount), 0);
 
@@ -1082,10 +1107,9 @@ export default function BudgetDashboard() {
         .filter(
           (row) =>
             row.future_expense_id === bucket.id &&
-            !!row.assigned_paycheck &&
-            row.assigned_paycheck <= paycheck.paycheck_date &&
             row.status !== "Cancelled" &&
-            row.status !== "Deferred"
+            row.status !== "Deferred" &&
+            contributionCountsAsFunded(row)
         )
         .reduce((sum, row) => sum + num(row.planned_amount), 0);
 
@@ -1146,6 +1170,7 @@ export default function BudgetDashboard() {
     futurePlanExpenses,
     futureExpenses,
     bucketContributions,
+    fundedPaycheckDates,
   ]);
 
   const discretionaryRows = expenses.filter((expense) =>
@@ -1722,183 +1747,217 @@ export default function BudgetDashboard() {
 
           {view === "forecast" && (
             <>
-              <div className="flex items-end justify-between gap-3">
-                <SectionTitle
-                  title="Forecast"
-                  subtitle="Look ahead by paycheck and fund future expenses before they arrive."
-                />
+              <SectionTitle
+                title="Forecast"
+                subtitle="Look ahead by paycheck and keep planned money separate from money you actually have."
+              />
+
+              <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-200 p-1">
                 <button
-                  onClick={() => setEditor({ type: "future" })}
-                  className="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-sm font-black text-white"
+                  type="button"
+                  onClick={() => setForecastTab("paychecks")}
+                  className={`rounded-xl px-3 py-2.5 text-sm font-black transition ${
+                    forecastTab === "paychecks"
+                      ? "bg-white text-slate-950 shadow-sm"
+                      : "text-slate-500"
+                  }`}
                 >
-                  + Future goal
+                  Upcoming paychecks
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForecastTab("sinking")}
+                  className={`rounded-xl px-3 py-2.5 text-sm font-black transition ${
+                    forecastTab === "sinking"
+                      ? "bg-white text-slate-950 shadow-sm"
+                      : "text-slate-500"
+                  }`}
+                >
+                  Sinking funds
                 </button>
               </div>
 
-              <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                <div className="flex items-end justify-between gap-3">
-                  <div>
-                    <h3 className="font-black">Sinking funds & future expenses</h3>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      New goals automatically reserve money in each paycheck before the due date.
+              {forecastTab === "paychecks" ? (
+                <section>
+                  <div className="mb-2 px-1">
+                    <h3 className="text-lg font-black">Upcoming paychecks</h3>
+                    <p className="text-xs leading-5 text-slate-500">
+                      Tap any paycheck to see exactly what is currently planned for it.
                     </p>
                   </div>
-                  <span className="text-xs font-black text-slate-500">
-                    {futureExpenses.length} goals
-                  </span>
-                </div>
 
-                <div className="mt-3 space-y-3">
-                  {futureExpenses.length ? (
-                    futureExpenses
-                      .filter((item) => item.status !== "Completed")
-                      .map((item) => {
-                        const funded = bucketFundedThrough(
-                          item.id,
-                          paycheck.paycheck_date
-                        );
-                        const spent = num(item.actual_funding_spend);
-                        const available = funded - spent;
-                        const target = num(item.target_budget);
-                        const progress =
-                          target > 0
-                            ? Math.max(0, Math.min(100, (funded / target) * 100))
-                            : 0;
+                  <div className="space-y-2">
+                    {paychecks
+                      .filter((row) => row.paycheck_date >= paycheck.paycheck_date)
+                      .map((row) => {
+                        const forecastIncome =
+                          num(row.actual_check) || num(row.projected_check);
+                        const forecastPlanned = num(row.planned_spending);
+                        const forecastAvailable =
+                          forecastIncome - forecastPlanned;
 
                         return (
-                          <div
-                            key={item.id}
-                            className="border-b border-slate-100 pb-4 last:border-0 last:pb-0"
+                          <button
+                            key={row.paycheck_date}
+                            onClick={() =>
+                              void openForecastPaycheck(row.paycheck_date)
+                            }
+                            className="w-full rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200"
                           >
                             <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-black">
-                                  {item.event_fund || "Future expense"}
+                              <div>
+                                <p className="text-sm font-black">
+                                  {dateLabel(row.paycheck_date)}
                                 </p>
-                                <p className="mt-0.5 text-[11px] text-slate-500">
-                                  Due {dateLabel(item.due_date)} · Fund by{" "}
-                                  {dateLabel(item.funding_deadline || item.due_date)}
+                                <p className="mt-1 text-[11px] text-slate-500">
+                                  Income {money(forecastIncome)} · Planned{" "}
+                                  {money(forecastPlanned)}
                                 </p>
                               </div>
                               <div className="shrink-0 text-right">
-                                <strong className="block text-sm">
-                                  {money(target)}
-                                </strong>
-                                <span className="text-[10px] text-slate-500">
-                                  target
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                              <div
-                                className="h-full rounded-full bg-blue-600"
-                                style={{ width: `${progress}%` }}
-                              />
-                            </div>
-
-                            <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                              <div>
-                                <span className="block text-[10px] text-slate-500">
-                                  Accumulated
-                                </span>
-                                <strong>{money(funded)}</strong>
-                              </div>
-                              <div>
-                                <span className="block text-[10px] text-slate-500">
-                                  Spent
-                                </span>
-                                <strong>{money(spent)}</strong>
-                              </div>
-                              <div>
-                                <span className="block text-[10px] text-slate-500">
-                                  Available
-                                </span>
                                 <strong
                                   className={
-                                    available < 0
-                                      ? "text-rose-600"
-                                      : "text-emerald-700"
+                                    forecastAvailable < 0
+                                      ? "block text-sm text-rose-600"
+                                      : "block text-sm text-emerald-700"
                                   }
                                 >
-                                  {money(available)}
+                                  {money(forecastAvailable)}
                                 </strong>
+                                <span className="text-[10px] text-slate-500">
+                                  available
+                                </span>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })
-                  ) : (
-                    <p className="text-sm text-slate-500">
-                      No future goals yet.
-                    </p>
-                  )}
-                </div>
-              </section>
-
-              <section>
-                <div className="mb-2 px-1">
-                  <h3 className="text-lg font-black">Upcoming paychecks</h3>
-                  <p className="text-xs leading-5 text-slate-500">
-                    Tap any paycheck to see exactly what is currently planned for it.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  {paychecks
-                    .filter((row) => row.paycheck_date >= paycheck.paycheck_date)
-                    .map((row) => {
-                      const forecastIncome =
-                        num(row.actual_check) || num(row.projected_check);
-                      const forecastPlanned = num(row.planned_spending);
-                      const forecastAvailable =
-                        forecastIncome - forecastPlanned;
-
-                      return (
-                        <button
-                          key={row.paycheck_date}
-                          onClick={() =>
-                            void openForecastPaycheck(row.paycheck_date)
-                          }
-                          className="w-full rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-black">
-                                {dateLabel(row.paycheck_date)}
-                              </p>
-                              <p className="mt-1 text-[11px] text-slate-500">
-                                Income {money(forecastIncome)} · Planned{" "}
-                                {money(forecastPlanned)}
-                              </p>
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <strong
-                                className={
-                                  forecastAvailable < 0
-                                    ? "block text-sm text-rose-600"
-                                    : "block text-sm text-emerald-700"
-                                }
-                              >
-                                {money(forecastAvailable)}
-                              </strong>
-                              <span className="text-[10px] text-slate-500">
-                                available
+                            <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
+                              <span>
+                                Running pool{" "}
+                                {money(num(row.running_cash_goal_pool))}
                               </span>
+                              <strong className="text-blue-600">View plan ›</strong>
                             </div>
-                          </div>
-                          <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
-                            <span>
-                              Running pool{" "}
-                              {money(num(row.running_cash_goal_pool))}
-                            </span>
-                            <strong className="text-blue-600">View plan ›</strong>
-                          </div>
-                        </button>
-                      );
-                    })}
-                </div>
-              </section>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </section>
+              ) : (
+                <>
+                  <div className="flex items-end justify-between gap-3 px-1">
+                    <div>
+                      <h3 className="text-lg font-black">Sinking funds</h3>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Only money from a received/finalized paycheck counts as funded.
+                        Future paycheck allocations stay planned until then.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setEditor({ type: "future" })}
+                      className="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-sm font-black text-white"
+                    >
+                      + Future goal
+                    </button>
+                  </div>
+
+                  <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+                    {futureExpenses.filter((item) => item.status !== "Completed").length ? (
+                      futureExpenses
+                        .filter((item) => item.status !== "Completed")
+                        .map((item) => {
+                          const funded = bucketFundedThrough(
+                            item.id,
+                            "9999-12-31"
+                          );
+                          const totalPlanned = bucketContributions
+                            .filter(
+                              (row) =>
+                                row.future_expense_id === item.id &&
+                                row.status !== "Cancelled" &&
+                                row.status !== "Deferred"
+                            )
+                            .reduce(
+                              (sum, row) => sum + num(row.planned_amount),
+                              0
+                            );
+                          const plannedFuture = Math.max(0, totalPlanned - funded);
+                          const spent = num(item.actual_funding_spend);
+                          const available = funded - spent;
+                          const target = num(item.target_budget);
+                          const progress =
+                            target > 0
+                              ? Math.max(
+                                  0,
+                                  Math.min(100, (funded / target) * 100)
+                                )
+                              : 0;
+                          const expanded = expandedBucketId === item.id;
+
+                          return (
+                            <div
+                              key={item.id}
+                              className="border-b border-slate-100 last:border-0"
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedBucketId((current) =>
+                                    current === item.id ? null : item.id
+                                  )
+                                }
+                                className="w-full px-4 py-4 text-left text-sm font-black"
+                              >
+                                {item.event_fund || "Future expense"}
+                              </button>
+
+                              {expanded && (
+                                <div className="border-t border-slate-100 bg-slate-50 px-4 pb-4 pt-3">
+                                  <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+                                    <BudgetMeter label="Target" value={target} />
+                                    <BudgetMeter label="Funded" value={funded} />
+                                    <BudgetMeter
+                                      label="Available"
+                                      value={available}
+                                      danger={available < 0}
+                                    />
+                                    <BudgetMeter label="Spent" value={spent} />
+                                    <BudgetMeter
+                                      label="Planned future"
+                                      value={plannedFuture}
+                                    />
+                                  </div>
+
+                                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+                                    <div
+                                      className="h-full rounded-full bg-blue-600"
+                                      style={{ width: `${progress}%` }}
+                                    />
+                                  </div>
+
+                                  <p className="mt-3 text-[11px] leading-5 text-slate-500">
+                                    Due {dateLabel(item.due_date)} · Fund by{" "}
+                                    {dateLabel(item.funding_deadline || item.due_date)}
+                                  </p>
+
+                                  {available < 0 && (
+                                    <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold leading-5 text-rose-700">
+                                      This fund is {money(Math.abs(available))} negative.
+                                      Future planned contributions do not cover the current
+                                      negative balance until that income is actually received.
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                    ) : (
+                      <p className="p-4 text-sm text-slate-500">
+                        No future goals yet.
+                      </p>
+                    )}
+                  </section>
+                </>
+              )}
             </>
           )}
 
@@ -2046,6 +2105,7 @@ export default function BudgetDashboard() {
           comparisons={categoryComparison}
           futureExpenses={futureExpenses}
           bucketContributions={bucketContributions}
+          paychecks={paychecks}
           saving={saving}
           onClose={() => setEditor(null)}
           onSave={saveActualExpense}
@@ -2434,6 +2494,7 @@ function ActualExpenseEditor({
   comparisons,
   futureExpenses,
   bucketContributions,
+  paychecks,
   saving,
   onClose,
   onSave,
@@ -2446,6 +2507,7 @@ function ActualExpenseEditor({
   comparisons: Array<{ category: string; planned: number; actual: number }>;
   futureExpenses: FutureExpense[];
   bucketContributions: BucketContribution[];
+  paychecks: Paycheck[];
   saving: boolean;
   onClose: () => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
@@ -2473,16 +2535,21 @@ function ActualExpenseEditor({
   const selectedBucket = futureExpenses.find(
     (bucket) => bucket.id === selectedBucketId
   );
+  const fundedPaycheckDates = new Set(
+    paychecks
+      .filter(paycheckCountsAsFunded)
+      .map((row) => row.paycheck_date)
+  );
   const bucketFunded = selectedBucket
     ? bucketContributions
         .filter(
           (row) =>
             row.future_expense_id === selectedBucket.id &&
-            !!row.assigned_paycheck &&
-            row.assigned_paycheck <=
-              (item?.assigned_paycheck || currentPaycheck) &&
             row.status !== "Cancelled" &&
-            row.status !== "Deferred"
+            row.status !== "Deferred" &&
+            (isFundingCompleteStatus(row.status) ||
+              (!!row.assigned_paycheck &&
+                fundedPaycheckDates.has(row.assigned_paycheck)))
         )
         .reduce((sum, row) => sum + num(row.planned_amount), 0)
     : 0;
