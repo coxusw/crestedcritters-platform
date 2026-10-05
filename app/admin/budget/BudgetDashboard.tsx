@@ -36,11 +36,17 @@ type Person = {
 };
 
 type FutureExpense = {
+  id: string;
   event_fund: string | null;
   due_date: string | null;
   target_budget: number | string | null;
+  planned_funding: number | string | null;
+  remaining_to_plan: number | string | null;
   remaining_actual: number | string | null;
   status: string | null;
+  notes: string | null;
+  funding_start_paycheck: string | null;
+  auto_fund: boolean | null;
 };
 
 type RecurringBill = {
@@ -65,11 +71,12 @@ type ActualExpense = {
   note: string | null;
 };
 
-type View = "home" | "plan" | "reviews" | "more";
+type View = "home" | "plan" | "forecast" | "reviews" | "more";
 type Editor =
-  | { type: "expense"; item?: Expense }
+  | { type: "expense"; item?: Expense; paycheckDate?: string }
   | { type: "recurring"; item?: RecurringBill }
   | { type: "actual"; item?: ActualExpense }
+  | { type: "future" }
   | null;
 
 const money = (value: number) =>
@@ -143,8 +150,12 @@ export default function BudgetDashboard() {
   const [notice, setNotice] = useState("");
   const [editor, setEditor] = useState<Editor>(null);
   const [paycheck, setPaycheck] = useState<Paycheck | null>(null);
+  const [paychecks, setPaychecks] = useState<Paycheck[]>([]);
   const [paycheckDates, setPaycheckDates] = useState<string[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [forecastDate, setForecastDate] = useState<string | null>(null);
+  const [forecastExpenses, setForecastExpenses] = useState<Expense[]>([]);
+  const [forecastLoading, setForecastLoading] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
   const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([]);
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
@@ -226,7 +237,7 @@ export default function BudgetDashboard() {
           .order("name", { ascending: true }),
         supabase
           .from("budget_future_expenses")
-          .select("event_fund,due_date,target_budget,remaining_actual,status")
+          .select("id,event_fund,due_date,target_budget,planned_funding,remaining_to_plan,remaining_actual,status,notes,funding_start_paycheck,auto_fund")
           .order("due_date", { ascending: true, nullsFirst: false }),
         supabase
           .from("budget_recurring_bills")
@@ -262,6 +273,7 @@ export default function BudgetDashboard() {
     }
 
     setPaycheck(selected);
+    setPaychecks(paychecks);
     setPaycheckDates(paychecks.map((row) => row.paycheck_date));
     setExpenses((expenseResult.data || []) as Expense[]);
     setPeople((peopleResult.data || []) as Person[]);
@@ -279,6 +291,134 @@ export default function BudgetDashboard() {
   useEffect(() => {
     void loadData(true);
   }, []);
+
+  async function openForecastPaycheck(date: string) {
+    setForecastDate(date);
+    setForecastLoading(true);
+    setError("");
+
+    const { data, error: forecastError } = await supabase
+      .from("budget_expenses")
+      .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund")
+      .eq("assigned_paycheck", date)
+      .neq("status", "Cancelled")
+      .order("due_date", { ascending: true, nullsFirst: false });
+
+    if (forecastError) {
+      setError(forecastError.message);
+      setForecastExpenses([]);
+    } else {
+      setForecastExpenses((data || []) as Expense[]);
+    }
+    setForecastLoading(false);
+  }
+
+  async function saveFutureGoal(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!paycheck || editor?.type !== "future") return;
+
+    setSaving(true);
+    setNotice("");
+    setError("");
+
+    const data = new FormData(event.currentTarget);
+    const eventFund = String(data.get("event_fund") || "").trim();
+    const targetBudget = Number(data.get("target_budget") || 0);
+    const dueDate = String(data.get("due_date") || "");
+    const startPaycheck = String(
+      data.get("funding_start_paycheck") || paycheck.paycheck_date
+    );
+    const notes = String(data.get("notes") || "").trim() || null;
+
+    if (!eventFund || targetBudget <= 0 || !dueDate) {
+      setError("Enter a goal name, target amount, and due date.");
+      setSaving(false);
+      return;
+    }
+
+    const fundingDates = paycheckDates.filter(
+      (date) => date >= startPaycheck && date <= dueDate
+    );
+
+    if (!fundingDates.length) {
+      setError(
+        "There are no paycheck dates between the selected start date and due date."
+      );
+      setSaving(false);
+      return;
+    }
+
+    const totalCents = Math.round(targetBudget * 100);
+    const baseCents = Math.floor(totalCents / fundingDates.length);
+    const remainderCents = totalCents % fundingDates.length;
+    const contributions = fundingDates.map((date, index) => ({
+      date,
+      amount: (baseCents + (index < remainderCents ? 1 : 0)) / 100,
+    }));
+
+    const { data: goal, error: goalError } = await supabase
+      .from("budget_future_expenses")
+      .insert({
+        event_fund: eventFund,
+        due_date: dueDate,
+        target_budget: targetBudget,
+        planned_funding: targetBudget,
+        actual_funding_spend: 0,
+        remaining_to_plan: 0,
+        remaining_actual: targetBudget,
+        status: "Funding",
+        notes,
+        funding_start_paycheck: startPaycheck,
+        auto_fund: true,
+      })
+      .select("id")
+      .single();
+
+    if (goalError || !goal) {
+      setError(goalError?.message || "Could not create the future goal.");
+      setSaving(false);
+      return;
+    }
+
+    await supabase
+      .from("budget_categories")
+      .upsert({ name: "Sinking Fund", active: true }, { onConflict: "name" });
+
+    const rows = contributions.map((contribution) => ({
+      due_date: contribution.date,
+      assigned_paycheck: contribution.date,
+      category: "Sinking Fund",
+      line_item: `${eventFund} sinking fund`,
+      expense_type: "Sinking Fund",
+      frequency: "Biweekly",
+      planned_amount: contribution.amount,
+      status: "Planned",
+      notes: notes || `Auto-funded for ${eventFund}, due ${dueDate}.`,
+      event_fund: eventFund,
+      future_expense_id: goal.id,
+    }));
+
+    const { error: contributionError } = await supabase
+      .from("budget_expenses")
+      .insert(rows);
+
+    if (contributionError) {
+      await supabase.from("budget_future_expenses").delete().eq("id", goal.id);
+      setError(
+        `The goal could not be funded across paychecks: ${contributionError.message}`
+      );
+      setSaving(false);
+      return;
+    }
+
+    setEditor(null);
+    setView("forecast");
+    setNotice(
+      `${eventFund} added. ${money(targetBudget)} is now spread across ${fundingDates.length} paycheck${fundingDates.length === 1 ? "" : "s"}.`
+    );
+    await loadData();
+    setSaving(false);
+  }
 
   async function saveActualExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -381,12 +521,13 @@ export default function BudgetDashboard() {
     setError("");
 
     const data = new FormData(event.currentTarget);
+    const editorPaycheck = editor.paycheckDate || paycheck.paycheck_date;
     const payload = {
       line_item: String(data.get("line_item") || "").trim(),
       planned_amount: Number(data.get("planned_amount") || 0),
-      due_date: String(data.get("due_date") || paycheck.paycheck_date),
+      due_date: String(data.get("due_date") || editorPaycheck),
       assigned_paycheck: String(
-        data.get("assigned_paycheck") || paycheck.paycheck_date
+        data.get("assigned_paycheck") || editorPaycheck
       ),
       category: String(data.get("category") || "Other"),
       expense_type: String(data.get("expense_type") || "Required"),
@@ -418,9 +559,13 @@ export default function BudgetDashboard() {
       return;
     }
 
+    const savedPaycheck = payload.assigned_paycheck;
     setEditor(null);
     setNotice(editor.item ? "Expense updated." : "Expense added.");
     await loadData();
+    if (view === "forecast") {
+      await openForecastPaycheck(savedPaycheck);
+    }
     setSaving(false);
   }
 
@@ -1058,6 +1203,137 @@ export default function BudgetDashboard() {
             </>
           )}
 
+          {view === "forecast" && (
+            <>
+              <div className="flex items-end justify-between gap-3">
+                <SectionTitle
+                  title="Forecast"
+                  subtitle="Look ahead by paycheck and fund future expenses before they arrive."
+                />
+                <button
+                  onClick={() => setEditor({ type: "future" })}
+                  className="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-sm font-black text-white"
+                >
+                  + Future goal
+                </button>
+              </div>
+
+              <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <h3 className="font-black">Sinking funds & future expenses</h3>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      New goals automatically reserve money in each paycheck before the due date.
+                    </p>
+                  </div>
+                  <span className="text-xs font-black text-slate-500">
+                    {futureExpenses.length} goals
+                  </span>
+                </div>
+
+                <div className="mt-3 space-y-3">
+                  {futureExpenses.length ? (
+                    futureExpenses
+                      .filter((item) => item.status !== "Completed")
+                      .slice(0, 8)
+                      .map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3 last:border-0 last:pb-0"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black">
+                              {item.event_fund || "Future expense"}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-slate-500">
+                              Due {dateLabel(item.due_date)} · {item.status || "Open"}
+                              {item.auto_fund ? " · Auto-funded" : ""}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <strong className="block text-sm">
+                              {money(num(item.target_budget))}
+                            </strong>
+                            <span className="text-[10px] text-slate-500">
+                              target
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="text-sm text-slate-500">
+                      No future goals yet.
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <div className="mb-2 px-1">
+                  <h3 className="text-lg font-black">Upcoming paychecks</h3>
+                  <p className="text-xs leading-5 text-slate-500">
+                    Tap any paycheck to see exactly what is currently planned for it.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  {paychecks
+                    .filter((row) => row.paycheck_date >= paycheck.paycheck_date)
+                    .map((row) => {
+                      const forecastIncome =
+                        num(row.actual_check) || num(row.projected_check);
+                      const forecastPlanned = num(row.planned_spending);
+                      const forecastAvailable =
+                        forecastIncome - forecastPlanned;
+
+                      return (
+                        <button
+                          key={row.paycheck_date}
+                          onClick={() =>
+                            void openForecastPaycheck(row.paycheck_date)
+                          }
+                          className="w-full rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-black">
+                                {dateLabel(row.paycheck_date)}
+                              </p>
+                              <p className="mt-1 text-[11px] text-slate-500">
+                                Income {money(forecastIncome)} · Planned{" "}
+                                {money(forecastPlanned)}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <strong
+                                className={
+                                  forecastAvailable < 0
+                                    ? "block text-sm text-rose-600"
+                                    : "block text-sm text-emerald-700"
+                                }
+                              >
+                                {money(forecastAvailable)}
+                              </strong>
+                              <span className="text-[10px] text-slate-500">
+                                available
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
+                            <span>
+                              Running pool{" "}
+                              {money(num(row.running_cash_goal_pool))}
+                            </span>
+                            <strong className="text-blue-600">View plan ›</strong>
+                          </div>
+                        </button>
+                      );
+                    })}
+                </div>
+              </section>
+            </>
+          )}
+
           {view === "more" && (
             <>
               <SectionTitle
@@ -1129,10 +1405,11 @@ export default function BudgetDashboard() {
         </div>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto grid max-w-xl grid-cols-4 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto grid max-w-xl grid-cols-5 border-t border-slate-200 bg-white/95 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
         {[
           ["home", "⌂", "Home"],
           ["plan", "▤", "Plan"],
+          ["forecast", "◫", "Forecast"],
           ["reviews", "✦", "Reviews"],
           ["more", "•••", "More"],
         ].map(([target, icon, label]) => (
@@ -1148,6 +1425,35 @@ export default function BudgetDashboard() {
           </button>
         ))}
       </nav>
+
+      {forecastDate && (
+        <ForecastPaycheckModal
+          paycheck={paychecks.find((row) => row.paycheck_date === forecastDate) || null}
+          expenses={forecastExpenses}
+          loading={forecastLoading}
+          onClose={() => setForecastDate(null)}
+          onAdd={() => {
+            const date = forecastDate;
+            setForecastDate(null);
+            setEditor({ type: "expense", paycheckDate: date });
+          }}
+          onEdit={(item) => {
+            const date = forecastDate;
+            setForecastDate(null);
+            setEditor({ type: "expense", item, paycheckDate: date });
+          }}
+        />
+      )}
+
+      {editor?.type === "future" && (
+        <FutureGoalEditor
+          currentPaycheck={editor.paycheckDate || paycheck.paycheck_date}
+          paycheckDates={paycheckDates}
+          saving={saving}
+          onClose={() => setEditor(null)}
+          onSave={saveFutureGoal}
+        />
+      )}
 
       {editor?.type === "actual" && (
         <ActualExpenseEditor
@@ -1186,6 +1492,199 @@ export default function BudgetDashboard() {
         />
       )}
     </main>
+  );
+}
+
+function ForecastPaycheckModal({
+  paycheck,
+  expenses,
+  loading,
+  onClose,
+  onAdd,
+  onEdit,
+}: {
+  paycheck: Paycheck | null;
+  expenses: Expense[];
+  loading: boolean;
+  onClose: () => void;
+  onAdd: () => void;
+  onEdit: (item: Expense) => void;
+}) {
+  if (!paycheck) return null;
+
+  const income = num(paycheck.actual_check) || num(paycheck.projected_check);
+  const planned = num(paycheck.planned_spending);
+  const available = income - planned;
+
+  return (
+    <Modal
+      title={`Paycheck · ${dateLabel(paycheck.paycheck_date)}`}
+      onClose={onClose}
+    >
+      <div className="space-y-4">
+        <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-3">
+          <BudgetMeter label="Income" value={income} />
+          <BudgetMeter label="Planned" value={planned} />
+          <BudgetMeter label="Available" value={available} danger={available < 0} />
+        </div>
+
+        <button
+          onClick={onAdd}
+          className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white"
+        >
+          + Add planned expense to this paycheck
+        </button>
+
+        <div>
+          <p className="mb-2 text-sm font-black">Current plan</p>
+          {loading ? (
+            <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+              Loading paycheck plan…
+            </p>
+          ) : expenses.length ? (
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              {expenses.map((expense) => (
+                <ExpenseRow
+                  key={expense.id}
+                  expense={expense}
+                  onEdit={() => onEdit(expense)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+              Nothing is planned for this paycheck yet.
+            </p>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function FutureGoalEditor({
+  currentPaycheck,
+  paycheckDates,
+  saving,
+  onClose,
+  onSave,
+}: {
+  currentPaycheck: string;
+  paycheckDates: string[];
+  saving: boolean;
+  onClose: () => void;
+  onSave: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const [target, setTarget] = useState(0);
+  const [dueDate, setDueDate] = useState("");
+  const [startDate, setStartDate] = useState(currentPaycheck);
+
+  const eligiblePaychecks = paycheckDates.filter(
+    (date) => date >= startDate && (!dueDate || date <= dueDate)
+  );
+  const estimatedContribution =
+    target > 0 && dueDate && eligiblePaychecks.length
+      ? target / eligiblePaychecks.length
+      : 0;
+
+  return (
+    <Modal title="Add future goal" onClose={onClose}>
+      <form onSubmit={onSave} className="space-y-3">
+        <Field label="What are you planning for?">
+          <input
+            name="event_fund"
+            required
+            className="budget-input"
+            placeholder="Christmas, birthday, soccer trip…"
+          />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Target amount">
+            <input
+              name="target_budget"
+              required
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputMode="decimal"
+              value={target || ""}
+              onChange={(event) =>
+                setTarget(Number(event.target.value || 0))
+              }
+              className="budget-input"
+              placeholder="0.00"
+            />
+          </Field>
+          <Field label="Need it by">
+            <input
+              name="due_date"
+              required
+              type="date"
+              value={dueDate}
+              onChange={(event) => setDueDate(event.target.value)}
+              className="budget-input"
+            />
+          </Field>
+        </div>
+
+        <Field label="Start saving from">
+          <select
+            name="funding_start_paycheck"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+            className="budget-input"
+          >
+            {paycheckDates
+              .filter((date) => date >= currentPaycheck)
+              .map((date) => (
+                <option key={date} value={date}>
+                  {dateLabel(date)}
+                </option>
+              ))}
+          </select>
+        </Field>
+
+        {target > 0 && dueDate && (
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-950">
+            {eligiblePaychecks.length ? (
+              <>
+                <p className="text-xs font-bold">Automatic bucket preview</p>
+                <p className="mt-1 text-xl font-black">
+                  About {money(estimatedContribution)} per paycheck
+                </p>
+                <p className="mt-1 text-xs leading-5 text-blue-800">
+                  Spread across {eligiblePaychecks.length} paycheck
+                  {eligiblePaychecks.length === 1 ? "" : "s"}. The final
+                  contribution is adjusted by pennies if needed so the total
+                  matches the target exactly.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm font-bold text-rose-700">
+                Choose a due date after the selected starting paycheck.
+              </p>
+            )}
+          </div>
+        )}
+
+        <Field label="Note (optional)">
+          <textarea
+            name="notes"
+            className="budget-input min-h-20"
+            placeholder="Optional details"
+          />
+        </Field>
+
+        <button
+          type="submit"
+          disabled={saving || !eligiblePaychecks.length}
+          className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+        >
+          {saving ? "Creating bucket…" : "Create sinking-fund plan"}
+        </button>
+      </form>
+    </Modal>
   );
 }
 
