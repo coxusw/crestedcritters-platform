@@ -1447,7 +1447,7 @@ export default function BudgetDashboard() {
 
       {editor?.type === "future" && (
         <FutureGoalEditor
-          currentPaycheck={editor.paycheckDate || paycheck.paycheck_date}
+          currentPaycheck={paycheck.paycheck_date}
           paycheckDates={paycheckDates}
           saving={saving}
           onClose={() => setEditor(null)}
@@ -1474,7 +1474,7 @@ export default function BudgetDashboard() {
       {editor?.type === "expense" && (
         <ExpenseEditor
           item={editor.item}
-          currentPaycheck={paycheck.paycheck_date}
+          currentPaycheck={editor.paycheckDate || paycheck.paycheck_date}
           paycheckDates={paycheckDates}
           saving={saving}
           onClose={() => setEditor(null)}
