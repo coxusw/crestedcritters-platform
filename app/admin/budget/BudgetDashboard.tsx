@@ -17,6 +17,7 @@ type Paycheck = {
   review_required: boolean | null;
   review_reason: string | null;
   review_triggered_at: string | null;
+  rolling_generated: boolean | null;
 };
 
 type Expense = {
@@ -117,6 +118,8 @@ type Debt = {
   priority_override: string | null;
   notes: string | null;
   active: boolean;
+  payoff_status: string | null;
+  paid_off_at: string | null;
 };
 
 type View = "home" | "plan" | "forecast" | "reviews" | "more";
@@ -294,9 +297,16 @@ export default function BudgetDashboard() {
 
     const localToday = todayIso();
 
+    // Keep only a rolling two-paycheck window active. The database job also
+    // runs daily, but refreshing here makes the next period appear immediately
+    // whenever the budget is opened after a payday has passed.
+    await supabase.rpc("refresh_budget_rolling_horizon", {
+      p_reference_date: localToday,
+    });
+
     const { data: allPaychecks, error: paychecksError } = await supabase
       .from("budget_paychecks")
-      .select("paycheck_date,projected_check,actual_check,period_status,planned_spending,actual_spending,reserve_change,running_cash_goal_pool,checking_before_paycheck,review_required,review_reason,review_triggered_at")
+      .select("paycheck_date,projected_check,actual_check,period_status,planned_spending,actual_spending,reserve_change,running_cash_goal_pool,checking_before_paycheck,review_required,review_reason,review_triggered_at,rolling_generated")
       .order("paycheck_date", { ascending: true });
 
     if (paychecksError) {
@@ -307,6 +317,9 @@ export default function BudgetDashboard() {
 
     const paychecks = (allPaychecks || []) as Paycheck[];
     const selected =
+      paychecks.find(
+        (row) => row.paycheck_date >= localToday && row.rolling_generated
+      ) ||
       paychecks.find((row) => row.paycheck_date >= localToday) ||
       paychecks[paychecks.length - 1] ||
       null;
@@ -381,7 +394,7 @@ export default function BudgetDashboard() {
           .order("planned_amount", { ascending: false, nullsFirst: false }),
         supabase
           .from("budget_debts")
-          .select("id,name,creditor,debt_type,current_balance,original_balance,apr,minimum_payment,payment_frequency,due_timing,term_end_date,promo_end_date,settlement_offer_amount,settlement_offer_expires,settlement_notes,linked_budget_line_item,priority_override,notes,active")
+          .select("id,name,creditor,debt_type,current_balance,original_balance,apr,minimum_payment,payment_frequency,due_timing,term_end_date,promo_end_date,settlement_offer_amount,settlement_offer_expires,settlement_notes,linked_budget_line_item,priority_override,notes,active,payoff_status,paid_off_at")
           .eq("active", true)
           .order("name", { ascending: true }),
       ]);
@@ -823,20 +836,56 @@ export default function BudgetDashboard() {
   }
 
   async function archiveDebt(item: Debt) {
-    if (!window.confirm(`Mark "${item.name}" paid/inactive?`)) return;
+    if (
+      !window.confirm(
+        `Mark "${item.name}" paid off? It will stay in the debt list as paid off until you confirm it.`
+      )
+    ) {
+      return;
+    }
 
     setSaving(true);
     setError("");
-    const { error: archiveError } = await supabase
-      .from("budget_debts")
-      .update({ active: false, updated_at: new Date().toISOString() })
-      .eq("id", item.id);
 
-    if (archiveError) {
-      setError(archiveError.message);
+    const { error: paidError } = await supabase.rpc(
+      "mark_budget_debt_paid",
+      { p_debt_id: item.id }
+    );
+
+    if (paidError) {
+      setError(paidError.message);
     } else {
       setEditor(null);
-      setNotice(`${item.name} marked paid/inactive.`);
+      setNotice(
+        `${item.name} is marked paid off and is waiting for your confirmation before removal.`
+      );
+      await loadData();
+    }
+    setSaving(false);
+  }
+
+  async function confirmDebtPaid(item: Debt) {
+    if (
+      !window.confirm(
+        `Confirm "${item.name}" is fully paid? This removes it from the debt list. Payment history stays in the budget.`
+      )
+    ) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    const { error: confirmError } = await supabase.rpc(
+      "confirm_budget_debt_paid",
+      { p_debt_id: item.id }
+    );
+
+    if (confirmError) {
+      setError(confirmError.message);
+    } else {
+      setEditor(null);
+      setNotice(`${item.name} confirmed paid and removed from tracked debts.`);
       await loadData();
     }
     setSaving(false);
@@ -1327,7 +1376,12 @@ export default function BudgetDashboard() {
     };
 
     return debts
-      .filter((debt) => debt.active && num(debt.current_balance) > 0)
+      .filter(
+        (debt) =>
+          debt.active &&
+          debt.payoff_status === "Active" &&
+          num(debt.current_balance) > 0
+      )
       .map((debt) => {
         const balance = num(debt.current_balance);
         const apr =
@@ -2388,7 +2442,11 @@ export default function BudgetDashboard() {
 
                   <div className="space-y-2">
                     {paychecks
-                      .filter((row) => row.paycheck_date >= paycheck.paycheck_date)
+                      .filter(
+                        (row) =>
+                          row.paycheck_date >= paycheck.paycheck_date &&
+                          row.rolling_generated
+                      )
                       .map((row) => {
                         const forecastIncome =
                           num(row.actual_check) || num(row.projected_check);
@@ -2622,6 +2680,12 @@ export default function BudgetDashboard() {
                               <strong className="block truncate text-sm">
                                 {debt.name}
                               </strong>
+                              {debt.payoff_status ===
+                                "Paid off - awaiting confirmation" && (
+                                <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                                  Paid off · confirm to remove
+                                </span>
+                              )}
                               <span className="mt-0.5 block text-[11px] text-slate-500">
                                 {debt.debt_type}
                                 {apr == null
@@ -2634,8 +2698,18 @@ export default function BudgetDashboard() {
                                   : ""}
                               </span>
                             </span>
-                            <strong className="shrink-0 text-sm">
-                              {money(num(debt.current_balance))}
+                            <strong
+                              className={`shrink-0 text-sm ${
+                                debt.payoff_status ===
+                                "Paid off - awaiting confirmation"
+                                  ? "text-emerald-700"
+                                  : ""
+                              }`}
+                            >
+                              {debt.payoff_status ===
+                              "Paid off - awaiting confirmation"
+                                ? "Paid"
+                                : money(num(debt.current_balance))}
                             </strong>
                           </button>
                         );
@@ -2934,6 +3008,9 @@ export default function BudgetDashboard() {
           onSave={saveDebt}
           onArchive={
             editor.item ? () => archiveDebt(editor.item!) : undefined
+          }
+          onConfirmPaid={
+            editor.item ? () => confirmDebtPaid(editor.item!) : undefined
           }
         />
       )}
@@ -4054,6 +4131,7 @@ function DebtEditor({
   onClose,
   onSave,
   onArchive,
+  onConfirmPaid,
 }: {
   item?: Debt;
   budgetItems: Array<{
@@ -4065,6 +4143,7 @@ function DebtEditor({
   onClose: () => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
   onArchive?: () => void;
+  onConfirmPaid?: () => void;
 }) {
   const [debtType, setDebtType] = useState(item?.debt_type || "Other");
   const [apr, setApr] = useState(
@@ -4115,6 +4194,7 @@ function DebtEditor({
                 "Collection",
                 "Student loan",
                 "Auto loan",
+                "Mortgage",
                 "Personal loan",
                 "Medical",
                 "Other",
@@ -4340,16 +4420,27 @@ function DebtEditor({
           {saving ? "Saving…" : item ? "Save debt" : "Add debt"}
         </button>
 
-        {item && onArchive && (
-          <button
-            type="button"
-            onClick={onArchive}
-            disabled={saving}
-            className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800 disabled:opacity-50"
-          >
-            Mark paid / inactive
-          </button>
-        )}
+        {item &&
+          item.payoff_status === "Paid off - awaiting confirmation" &&
+          onConfirmPaid ? (
+            <button
+              type="button"
+              onClick={onConfirmPaid}
+              disabled={saving}
+              className="w-full rounded-xl border border-emerald-300 bg-emerald-100 px-4 py-3 text-sm font-black text-emerald-900 disabled:opacity-50"
+            >
+              Confirm paid off & remove
+            </button>
+          ) : item && onArchive ? (
+            <button
+              type="button"
+              onClick={onArchive}
+              disabled={saving}
+              className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800 disabled:opacity-50"
+            >
+              Mark paid off
+            </button>
+          ) : null}
       </form>
     </Modal>
   );
