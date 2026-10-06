@@ -3961,6 +3961,298 @@ function RecurringEditor({
   );
 }
 
+function DebtEditor({
+  item,
+  budgetItems,
+  saving,
+  onClose,
+  onSave,
+  onArchive,
+}: {
+  item?: Debt;
+  budgetItems: string[];
+  saving: boolean;
+  onClose: () => void;
+  onSave: (event: FormEvent<HTMLFormElement>) => void;
+  onArchive?: () => void;
+}) {
+  const [debtType, setDebtType] = useState(item?.debt_type || "Other");
+  const [apr, setApr] = useState(
+    item?.apr == null ? "" : String(item.apr)
+  );
+  const isCollection =
+    debtType.toLowerCase().includes("collection");
+
+  return (
+    <Modal title={item ? "Edit debt" : "Add debt"} onClose={onClose}>
+      <form onSubmit={onSave} className="space-y-3">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+          Add the facts you know. Leave APR blank when it is unknown; enter{" "}
+          <strong>0</strong> only when the debt truly has no interest. The
+          paycheck review uses these details to decide which balances deserve
+          extra money first.
+        </div>
+
+        <Field label="Debt name">
+          <input
+            name="name"
+            required
+            defaultValue={item?.name || ""}
+            className="budget-input"
+            placeholder="Capital One, XbotGo, Discover collection…"
+          />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Creditor / collector">
+            <input
+              name="creditor"
+              defaultValue={item?.creditor || ""}
+              className="budget-input"
+              placeholder="Optional"
+            />
+          </Field>
+          <Field label="Debt type">
+            <select
+              name="debt_type"
+              value={debtType}
+              onChange={(event) => setDebtType(event.target.value)}
+              className="budget-input"
+            >
+              {[
+                "Credit card",
+                "Installment / BNPL",
+                "Collection",
+                "Student loan",
+                "Auto loan",
+                "Personal loan",
+                "Medical",
+                "Other",
+              ].map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Current balance owed">
+            <input
+              name="current_balance"
+              required
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              defaultValue={num(item?.current_balance) || ""}
+              className="budget-input"
+              placeholder="0.00"
+            />
+          </Field>
+          <Field label="Original balance (optional)">
+            <input
+              name="original_balance"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              defaultValue={
+                item?.original_balance == null
+                  ? ""
+                  : num(item.original_balance)
+              }
+              className="budget-input"
+              placeholder="0.00"
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="APR / interest rate">
+            <input
+              name="apr"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={apr}
+              onChange={(event) => setApr(event.target.value)}
+              className="budget-input"
+              placeholder="Blank = unknown"
+            />
+          </Field>
+          <Field label="Minimum / required payment">
+            <input
+              name="minimum_payment"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              defaultValue={
+                item?.minimum_payment == null
+                  ? ""
+                  : num(item.minimum_payment)
+              }
+              className="budget-input"
+              placeholder="0.00"
+            />
+          </Field>
+        </div>
+
+        {apr === "0" || Number(apr) === 0 ? (
+          <p className="rounded-xl bg-emerald-50 p-3 text-xs leading-5 text-emerald-800">
+            Recorded as 0% interest. Unless there is a deadline or settlement
+            opportunity, the review will usually keep this behind debt that is
+            actively charging interest.
+          </p>
+        ) : null}
+
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Payment frequency">
+            <select
+              name="payment_frequency"
+              defaultValue={item?.payment_frequency || ""}
+              className="budget-input"
+            >
+              <option value="">Not specified</option>
+              <option value="Weekly">Weekly</option>
+              <option value="Biweekly">Every 2 weeks</option>
+              <option value="Monthly">Monthly</option>
+              <option value="One-time">No repeating minimum</option>
+            </select>
+          </Field>
+          <Field label="Due timing / terms">
+            <input
+              name="due_timing"
+              defaultValue={item?.due_timing || ""}
+              className="budget-input"
+              placeholder="15th, every paycheck, arrangement…"
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Payoff / term end date">
+            <input
+              name="term_end_date"
+              type="date"
+              defaultValue={item?.term_end_date || ""}
+              className="budget-input"
+            />
+          </Field>
+          <Field label="Promo / 0% ends">
+            <input
+              name="promo_end_date"
+              type="date"
+              defaultValue={item?.promo_end_date || ""}
+              className="budget-input"
+            />
+          </Field>
+        </div>
+
+        <Field label="Linked budget payment (optional)">
+          <select
+            name="linked_budget_line_item"
+            defaultValue={item?.linked_budget_line_item || ""}
+            className="budget-input"
+          >
+            <option value="">Not linked</option>
+            {budgetItems.map((budgetItem) => (
+              <option key={budgetItem} value={budgetItem}>
+                {budgetItem}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+          <p className="text-xs font-black text-amber-950">
+            Settlement offer {isCollection ? "(common for collections)" : "(optional)"}
+          </p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <Field label="Offer amount">
+              <input
+                name="settlement_offer_amount"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                defaultValue={
+                  item?.settlement_offer_amount == null
+                    ? ""
+                    : num(item.settlement_offer_amount)
+                }
+                className="budget-input"
+                placeholder="0.00"
+              />
+            </Field>
+            <Field label="Offer expires">
+              <input
+                name="settlement_offer_expires"
+                type="date"
+                defaultValue={item?.settlement_offer_expires || ""}
+                className="budget-input"
+              />
+            </Field>
+          </div>
+          <div className="mt-2">
+            <Field label="Settlement details">
+              <textarea
+                name="settlement_notes"
+                defaultValue={item?.settlement_notes || ""}
+                className="budget-input min-h-20"
+                placeholder="Offer terms, paid-in-full wording, phone quote, etc."
+              />
+            </Field>
+          </div>
+        </div>
+
+        <Field label="Priority override">
+          <select
+            name="priority_override"
+            defaultValue={item?.priority_override || "Auto"}
+            className="budget-input"
+          >
+            <option value="Auto">Automatic — let the review rank it</option>
+            <option value="High">Force high priority</option>
+            <option value="Low">Force low priority</option>
+          </select>
+        </Field>
+
+        <Field label="Notes">
+          <textarea
+            name="notes"
+            defaultValue={item?.notes || ""}
+            className="budget-input min-h-24"
+            placeholder="Anything else the review should know"
+          />
+        </Field>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+        >
+          {saving ? "Saving…" : item ? "Save debt" : "Add debt"}
+        </button>
+
+        {item && onArchive && (
+          <button
+            type="button"
+            onClick={onArchive}
+            disabled={saving}
+            className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800 disabled:opacity-50"
+          >
+            Mark paid / inactive
+          </button>
+        )}
+      </form>
+    </Modal>
+  );
+}
+
 function Modal({
   title,
   onClose,
