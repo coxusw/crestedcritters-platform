@@ -3526,11 +3526,27 @@ function ForecastPaycheckModal({
   onAdd: () => void;
   onEdit: (item: Expense) => void;
 }) {
+  const [tab, setTab] = useState<PlanTab>("all");
+
   if (!paycheck) return null;
 
   const income = num(paycheck.actual_check) || num(paycheck.projected_check);
   const planned = num(paycheck.planned_spending);
   const available = income - planned;
+  const activeExpenses = expenses.filter(
+    (expense) =>
+      expense.status !== "Cancelled" &&
+      expense.status !== "Deferred"
+  );
+  const bills = activeExpenses.filter(
+    (expense) => expensePlanGroup(expense) === "bills"
+  );
+  const sinking = activeExpenses.filter(
+    (expense) => expensePlanGroup(expense) === "sinking"
+  );
+  const spending = activeExpenses.filter(
+    (expense) => expensePlanGroup(expense) === "spending"
+  );
 
   return (
     <Modal
@@ -3551,28 +3567,76 @@ function ForecastPaycheckModal({
           + Add planned expense to this paycheck
         </button>
 
-        <div>
-          <p className="mb-2 text-sm font-black">Current plan</p>
-          {loading ? (
-            <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
-              Loading paycheck plan…
-            </p>
-          ) : expenses.length ? (
-            <div className="overflow-hidden rounded-2xl border border-slate-200">
-              {expenses.map((expense) => (
-                <ExpenseRow
-                  key={expense.id}
-                  expense={expense}
-                  onEdit={() => onEdit(expense)}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
-              Nothing is planned for this paycheck yet.
-            </p>
-          )}
+        <div className="grid grid-cols-4 gap-1 rounded-2xl bg-slate-200 p-1">
+          {[
+            ["bills", "Bills", bills.length],
+            ["sinking", "Sinking", sinking.length],
+            ["spending", "Spending", spending.length],
+            ["all", "All", activeExpenses.length],
+          ].map(([value, label, count]) => (
+            <button
+              key={String(value)}
+              type="button"
+              onClick={() => setTab(value as PlanTab)}
+              className={`min-w-0 rounded-xl px-1.5 py-2.5 text-[11px] font-black transition sm:text-sm ${
+                tab === value
+                  ? "bg-white text-slate-950 shadow-sm"
+                  : "text-slate-500"
+              }`}
+            >
+              <span className="block truncate">{label}</span>
+              <span className="mt-0.5 block text-[9px] font-bold text-slate-400">
+                {count}
+              </span>
+            </button>
+          ))}
         </div>
+
+        {loading ? (
+          <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+            Loading paycheck plan…
+          </p>
+        ) : !activeExpenses.length ? (
+          <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+            Nothing is planned for this paycheck yet.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {(tab === "bills" || tab === "all") && (
+              <PlanExpenseSection
+                title="Bills"
+                subtitle="Required bills, debt payments, collections, subscriptions, utilities, insurance, and other obligations."
+                expenses={bills}
+                groupBy={(expense) => expense.category || "Other bills"}
+                onEdit={onEdit}
+                emptyText="No bills are assigned to this paycheck."
+              />
+            )}
+
+            {(tab === "sinking" || tab === "all") && (
+              <PlanExpenseSection
+                title="Sinking funds"
+                subtitle="Money being set aside for a specific future goal or event."
+                expenses={sinking}
+                groupBy={(expense) =>
+                  expense.event_fund || "Other sinking fund"
+                }
+                onEdit={onEdit}
+                emptyText="No sinking-fund contributions are assigned to this paycheck."
+              />
+            )}
+
+            {(tab === "spending" || tab === "all") && (
+              <PlanExpenseSection
+                title="Spending"
+                subtitle="Chris and Jennifer discretionary, forgotten/unplanned buffer, vehicle fuel, and food."
+                expenses={spending}
+                onEdit={onEdit}
+                emptyText="No day-to-day spending is assigned to this paycheck."
+              />
+            )}
+          </div>
+        )}
       </div>
     </Modal>
   );
