@@ -675,7 +675,10 @@ export default function BudgetDashboard() {
 
     const { error: removeError } = await supabase
       .from("budget_future_expenses")
-      .delete()
+      .update({
+        status: "Removed",
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", item.id)
       .eq("status", "Closed");
 
@@ -683,7 +686,7 @@ export default function BudgetDashboard() {
       setError(removeError.message);
     } else {
       setEditor(null);
-      setNotice("Closed sinking fund removed.");
+      setNotice("Closed sinking fund removed from view. Its historical closeout transfer is preserved.");
       await loadData();
     }
     setSaving(false);
@@ -2795,25 +2798,26 @@ export default function BudgetDashboard() {
                   </div>
 
                   <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-                    {futureExpenses.filter((item) => item.status !== "Completed").length ? (
+                    {futureExpenses.filter((item) => !isClosedFundStatus(item.status)).length ? (
                       futureExpenses
-                        .filter((item) => item.status !== "Completed")
+                        .filter((item) => !isClosedFundStatus(item.status))
                         .map((item) => {
                           const funded = bucketFundedThrough(
                             item.id,
                             "9999-12-31"
                           );
-                          const totalPlanned = bucketContributions
-                            .filter(
-                              (row) =>
-                                row.future_expense_id === item.id &&
-                                row.status !== "Cancelled" &&
-                                row.status !== "Deferred"
-                            )
-                            .reduce(
-                              (sum, row) => sum + num(row.planned_amount),
-                              0
-                            );
+                          const totalPlanned =
+                            bucketContributions
+                              .filter(
+                                (row) =>
+                                  row.future_expense_id === item.id &&
+                                  row.status !== "Cancelled" &&
+                                  row.status !== "Deferred"
+                              )
+                              .reduce(
+                                (sum, row) => sum + num(row.planned_amount),
+                                0
+                              ) + bucketIncomingCloseouts(item.id);
                           const plannedFuture = Math.max(0, totalPlanned - funded);
                           const spent = num(item.actual_funding_spend);
                           const available = funded - spent;
@@ -2826,6 +2830,8 @@ export default function BudgetDashboard() {
                                 )
                               : 0;
                           const expanded = expandedBucketId === item.id;
+                          const datePassed =
+                            !!item.due_date && item.due_date < todayIso();
 
                           return (
                             <div
@@ -2841,7 +2847,16 @@ export default function BudgetDashboard() {
                                 }
                                 className="w-full px-4 py-4 text-left text-sm font-black"
                               >
-                                {item.event_fund || "Future expense"}
+                                <span className="flex items-center justify-between gap-3">
+                                  <span className="min-w-0 truncate">
+                                    {item.event_fund || "Future expense"}
+                                  </span>
+                                  {datePassed && (
+                                    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-amber-800">
+                                      Date passed
+                                    </span>
+                                  )}
+                                </span>
                               </button>
 
                               {expanded && (
@@ -2879,6 +2894,18 @@ export default function BudgetDashboard() {
                                       Future planned contributions do not cover the current
                                       negative balance until that income is actually received.
                                     </div>
+                                  )}
+
+                                  {datePassed && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setEditor({ type: "close-fund", item })
+                                      }
+                                      className="mt-3 w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
+                                    >
+                                      Close out sinking fund
+                                    </button>
                                   )}
                                 </div>
                               )}
@@ -3872,7 +3899,7 @@ function ActualExpenseEditor({
   const overAfter = remainingAfter < 0;
 
   const openBuckets = futureExpenses.filter(
-    (bucket) => bucket.status !== "Completed"
+    (bucket) => !isClosedFundStatus(bucket.status)
   );
 
   const currentCycleAmount = (bucketId: string) =>
