@@ -801,17 +801,22 @@ export default function BudgetDashboard() {
       return;
     }
 
-    const { error: rollingError } = await supabase.rpc(
-      "refresh_budget_rolling_horizon",
-      { p_reference_date: todayIso() }
-    );
-
-    if (rollingError) {
-      setError(
-        `Debt saved, but the forecast could not be refreshed: ${rollingError.message}`
+    if (editor.item?.id) {
+      const { error: rollingError } = await supabase.rpc(
+        "refresh_budget_debt_schedule",
+        {
+          p_debt_id: editor.item.id,
+          p_reference_date: todayIso(),
+        }
       );
-      setSaving(false);
-      return;
+
+      if (rollingError) {
+        setError(
+          `Debt saved, but its forecast schedule could not be refreshed: ${rollingError.message}`
+        );
+        setSaving(false);
+        return;
+      }
     }
 
     setEditor(null);
