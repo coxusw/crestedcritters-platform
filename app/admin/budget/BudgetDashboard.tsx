@@ -4101,7 +4101,7 @@ function DebtEditor({
           </Field>
         </div>
 
-        {apr === "0" || Number(apr) === 0 ? (
+        {apr.trim() !== "" && Number(apr) === 0 ? (
           <p className="rounded-xl bg-emerald-50 p-3 text-xs leading-5 text-emerald-800">
             Recorded as 0% interest. Unless there is a deadline or settlement
             opportunity, the review will usually keep this behind debt that is
