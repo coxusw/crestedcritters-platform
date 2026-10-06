@@ -1048,8 +1048,8 @@ export default function BudgetDashboard() {
       : num(paycheck.checking_before_paycheck);
   const reconciliationAdjustment =
     checkingBalance == null ? 0 : checkingBalance - income;
-  const availableExtra =
-    checkingBalance == null ? income - planned : checkingBalance - planned;
+  const cashAvailable = checkingBalance == null ? income : checkingBalance;
+  const availableExtra = cashAvailable - planned;
 
   const categoryComparison = useMemo(() => {
     const map = new Map<
@@ -1282,7 +1282,7 @@ export default function BudgetDashboard() {
       : 200;
 
   const basePlanWithoutDiscretionary = planned - discretionaryTotal;
-  const baseExtra = income - basePlanWithoutDiscretionary;
+  const baseExtra = cashAvailable - basePlanWithoutDiscretionary;
   const suggestedEach =
     availableExtra >= 0
       ? currentEach
@@ -1291,7 +1291,7 @@ export default function BudgetDashboard() {
           Math.min(currentEach, Math.floor(baseExtra / 2 / 25) * 25)
         );
   const suggestedExtra =
-    income - basePlanWithoutDiscretionary - suggestedEach * 2;
+    cashAvailable - basePlanWithoutDiscretionary - suggestedEach * 2;
 
   const reviewText = useMemo(() => {
     if (!paycheck) return "";
@@ -1580,7 +1580,7 @@ export default function BudgetDashboard() {
               <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-900 p-3 text-white">
                 <MiniStat label="Income" value={money(income)} />
                 <MiniStat label="Planned" value={money(planned)} />
-                <MiniStat label="Extra" value={money(availableExtra)} />
+                <MiniStat label="After plan" value={money(availableExtra)} />
               </div>
 
               <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
