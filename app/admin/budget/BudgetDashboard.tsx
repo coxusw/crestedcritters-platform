@@ -1727,15 +1727,6 @@ export default function BudgetDashboard() {
                     : "Enter paycheck & current checking balance"}
                 </button>
 
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-black text-slate-950">
-                    Current priority ladder
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">
-                    After required bills and catch-up obligations: finish the dealership down payment → build a $1,000 emergency fund → pay down high-interest debt → build a 1-month reserve → 3-month reserve → 6-month reserve.
-                  </p>
-                </div>
-
                 {paycheck.review_required && (
                   <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4">
                     <div className="flex items-start justify-between gap-3">
