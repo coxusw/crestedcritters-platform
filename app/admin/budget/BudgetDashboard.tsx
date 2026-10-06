@@ -110,6 +110,7 @@ type Debt = {
   minimum_payment: number | string | null;
   payment_frequency: string | null;
   due_timing: string | null;
+  payment_grace_days: number | string | null;
   term_end_date: string | null;
   promo_end_date: string | null;
   settlement_offer_amount: number | string | null;
@@ -396,7 +397,7 @@ export default function BudgetDashboard() {
           .order("planned_amount", { ascending: false, nullsFirst: false }),
         supabase
           .from("budget_debts")
-          .select("id,name,creditor,debt_type,current_balance,original_balance,apr,minimum_payment,payment_frequency,due_timing,term_end_date,promo_end_date,settlement_offer_amount,settlement_offer_expires,settlement_notes,linked_budget_line_item,priority_override,notes,active,payoff_status,paid_off_at")
+          .select("id,name,creditor,debt_type,current_balance,original_balance,apr,minimum_payment,payment_frequency,due_timing,payment_grace_days,term_end_date,promo_end_date,settlement_offer_amount,settlement_offer_expires,settlement_notes,linked_budget_line_item,priority_override,notes,active,payoff_status,paid_off_at")
           .eq("active", true)
           .order("name", { ascending: true }),
       ]);
@@ -765,6 +766,10 @@ export default function BudgetDashboard() {
       minimum_payment: numberOrNull("minimum_payment"),
       payment_frequency: textOrNull("payment_frequency"),
       due_timing: textOrNull("due_timing"),
+      payment_grace_days: Math.max(
+        0,
+        Math.min(31, Math.trunc(numberOrNull("payment_grace_days") ?? 0))
+      ),
       term_end_date: textOrNull("term_end_date"),
       promo_end_date: textOrNull("promo_end_date"),
       settlement_offer_amount: numberOrNull("settlement_offer_amount"),
@@ -792,6 +797,19 @@ export default function BudgetDashboard() {
 
     if (result.error) {
       setError(result.error.message);
+      setSaving(false);
+      return;
+    }
+
+    const { error: rollingError } = await supabase.rpc(
+      "refresh_budget_rolling_horizon",
+      { p_reference_date: todayIso() }
+    );
+
+    if (rollingError) {
+      setError(
+        `Debt saved, but the forecast could not be refreshed: ${rollingError.message}`
+      );
       setSaving(false);
       return;
     }
@@ -4364,6 +4382,24 @@ function DebtEditor({
             />
           </Field>
         </div>
+
+        <Field label="Planning grace (days)">
+          <input
+            name="payment_grace_days"
+            type="number"
+            inputMode="numeric"
+            min="0"
+            max="31"
+            step="1"
+            defaultValue={num(item?.payment_grace_days)}
+            className="budget-input"
+          />
+          <p className="mt-1 text-[11px] leading-4 text-slate-500">
+            The forecast may use a paycheck this many days after the due date.
+            This is only a budget-planning window and does not change the
+            lender&apos;s actual late-fee or delinquency rules.
+          </p>
+        </Field>
 
         <div className="grid grid-cols-2 gap-2">
           <Field label="Payoff / term end date">
