@@ -177,6 +177,41 @@ const monthlyEquivalent = (amount: number, frequency: string) => {
   return amount;
 };
 
+const PERSONAL_SPENDING_CATEGORIES = [
+  "Chris spending",
+  "Jen spending",
+  "Discretionary spending",
+] as const;
+
+const normalizeSpendingCategory = (value: string | null | undefined) => {
+  const category = (value || "").trim();
+  const normalized = category.toLowerCase();
+
+  if (normalized === "chris discretionary spending") return "Chris spending";
+  if (normalized === "jen discretionary spending") return "Jen spending";
+  if (normalized === "discretionary spending") return "Discretionary spending";
+
+  return category;
+};
+
+const spendingCategoryForExpense = (expense: Expense) => {
+  if (expense.status === "Cancelled" || expense.status === "Deferred") return "";
+
+  const lineItem = (expense.line_item || "").trim();
+  const expenseType = (expense.expense_type || "").trim().toLowerCase();
+  const normalizedLineItem = lineItem.toLowerCase();
+
+  if (
+    !lineItem ||
+    expenseType.includes("sinking") ||
+    normalizedLineItem.includes("sinking fund")
+  ) {
+    return "";
+  }
+
+  return normalizeSpendingCategory(lineItem);
+};
+
 export default function BudgetDashboard() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [view, setView] = useState<View>("home");
@@ -349,11 +384,21 @@ export default function BudgetDashboard() {
     setActualExpenses((actualResult.data || []) as ActualExpense[]);
     setIncomeEntries((incomeResult.data || []) as IncomeEntry[]);
     setFuturePlanExpenses((futurePlanResult.data || []) as Expense[]);
-    setCategories(
-      (categoryResult.data || [])
-        .map((row: { name: string }) => row.name)
-        .filter(Boolean)
-    );
+    const currentBudgetItems = Array.from(
+      new Set(
+        ((expenseResult.data || []) as Expense[])
+          .map(spendingCategoryForExpense)
+          .filter(
+            (category) =>
+              !!category &&
+              !PERSONAL_SPENDING_CATEGORIES.includes(
+                category as (typeof PERSONAL_SPENDING_CATEGORIES)[number]
+              )
+          )
+      )
+    ).sort((a, b) => a.localeCompare(b));
+
+    setCategories([...PERSONAL_SPENDING_CATEGORIES, ...currentBudgetItems]);
     setLoading(false);
   }
 
@@ -711,7 +756,7 @@ export default function BudgetDashboard() {
 
     const warnings: string[] = [];
 
-    const categoryBudget = categoryComparison.find(
+    const categoryBudget = spendingComparison.find(
       (row) => row.category === category
     );
     const plannedForCategory = categoryBudget?.planned || 0;
@@ -1066,7 +1111,19 @@ export default function BudgetDashboard() {
     }
 
     for (const item of actualExpenses) {
-      const category = item.category || "Other";
+      const spendingCategory =
+        normalizeSpendingCategory(item.category) || "Other";
+      const matchingPlan = expenses.find(
+        (expense) =>
+          spendingCategoryForExpense(expense) === spendingCategory
+      );
+      const isPersonalSpending = PERSONAL_SPENDING_CATEGORIES.includes(
+        spendingCategory as (typeof PERSONAL_SPENDING_CATEGORIES)[number]
+      );
+      const category =
+        matchingPlan?.category ||
+        (isPersonalSpending ? "Personal" : item.category) ||
+        "Other";
       const row = map.get(category) || { category, planned: 0, actual: 0 };
       row.actual += num(item.amount);
       map.set(category, row);
@@ -1076,6 +1133,72 @@ export default function BudgetDashboard() {
       a.category.localeCompare(b.category)
     );
   }, [expenses, actualExpenses]);
+
+  const spendingComparison = useMemo(() => {
+    const map = new Map<
+      string,
+      { category: string; planned: number; actual: number }
+    >();
+
+    for (const expense of expenses) {
+      const category = spendingCategoryForExpense(expense);
+      if (!category) continue;
+
+      const row = map.get(category) || { category, planned: 0, actual: 0 };
+      row.planned += num(expense.planned_amount);
+      map.set(category, row);
+    }
+
+    for (const person of people) {
+      const category = `${person.name} spending`;
+      if (!map.has(category)) {
+        map.set(category, {
+          category,
+          planned: num(person.default_discretionary),
+          actual: 0,
+        });
+      }
+    }
+
+    for (const category of PERSONAL_SPENDING_CATEGORIES) {
+      if (!map.has(category)) {
+        map.set(category, { category, planned: 0, actual: 0 });
+      }
+    }
+
+    for (const item of actualExpenses) {
+      const category =
+        normalizeSpendingCategory(item.category) || "Other";
+      const row = map.get(category) || { category, planned: 0, actual: 0 };
+      row.actual += num(item.amount);
+      map.set(category, row);
+    }
+
+    return Array.from(map.values());
+  }, [expenses, people, actualExpenses]);
+
+  const personalSpendingByName = useMemo(() => {
+    const totals = new Map<string, number>();
+
+    for (const person of people) {
+      totals.set(person.name.toLowerCase(), 0);
+    }
+
+    for (const item of actualExpenses) {
+      const category = normalizeSpendingCategory(item.category).toLowerCase();
+
+      for (const person of people) {
+        if (category === `${person.name.toLowerCase()} spending`) {
+          totals.set(
+            person.name.toLowerCase(),
+            (totals.get(person.name.toLowerCase()) || 0) + num(item.amount)
+          );
+        }
+      }
+    }
+
+    return totals;
+  }, [people, actualExpenses]);
 
   const fundedPaycheckDates = useMemo(
     () =>
@@ -1557,7 +1680,8 @@ export default function BudgetDashboard() {
                 <div className="mb-2 px-1">
                   <h2 className="text-lg font-black">Personal spending</h2>
                   <p className="text-xs text-slate-500">
-                    Default allowance. Any change requires both approvals.
+                    Remaining this pay period. Spending logged to Chris or Jen
+                    reduces that person&apos;s balance.
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -1565,7 +1689,8 @@ export default function BudgetDashboard() {
                     <PersonCard
                       key={person.name}
                       name={person.name}
-                      amount={num(person.default_discretionary)}
+                      allowance={num(person.default_discretionary)}
+                      spent={personalSpendingByName.get(person.name.toLowerCase()) || 0}
                     />
                   ))}
                 </div>
@@ -2340,7 +2465,7 @@ export default function BudgetDashboard() {
           currentPaycheck={paycheck.paycheck_date}
           paycheckDates={paycheckDates}
           categories={categories}
-          comparisons={categoryComparison}
+          comparisons={spendingComparison}
           futureExpenses={futureExpenses}
           bucketContributions={bucketContributions}
           paychecks={paychecks}
@@ -2848,7 +2973,22 @@ function ActualExpenseEditor({
   onDelete?: () => void;
 }) {
   const [selectedCategory, setSelectedCategory] = useState(
-    item?.category || categories[0] || "Other"
+    item?.category || ""
+  );
+  const selectableCategories =
+    item?.category && !categories.includes(item.category)
+      ? [item.category, ...categories]
+      : categories;
+  const personalCategories = selectableCategories.filter((category) =>
+    PERSONAL_SPENDING_CATEGORIES.includes(
+      normalizeSpendingCategory(category) as (typeof PERSONAL_SPENDING_CATEGORIES)[number]
+    )
+  );
+  const budgetCategories = selectableCategories.filter(
+    (category) =>
+      !PERSONAL_SPENDING_CATEGORIES.includes(
+        normalizeSpendingCategory(category) as (typeof PERSONAL_SPENDING_CATEGORIES)[number]
+      )
   );
   const [enteredAmount, setEnteredAmount] = useState(num(item?.amount));
   const [selectedBucketId, setSelectedBucketId] = useState(
@@ -2901,7 +3041,7 @@ function ActualExpenseEditor({
   return (
     <Modal title={item ? "Edit spending" : "Log spending"} onClose={onClose}>
       <form onSubmit={onSave} className="space-y-3">
-        <Field label="Category">
+        <Field label="Budget item / spending type">
           <select
             name="category"
             required
@@ -2909,11 +3049,29 @@ function ActualExpenseEditor({
             onChange={(event) => setSelectedCategory(event.target.value)}
             className="budget-input"
           >
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
+            {!selectedCategory && (
+              <option value="" disabled>
+                Choose where this spending belongs
               </option>
-            ))}
+            )}
+            {personalCategories.length > 0 && (
+              <optgroup label="Personal / discretionary">
+                {personalCategories.map((category) => (
+                  <option key={category} value={normalizeSpendingCategory(category)}>
+                    {normalizeSpendingCategory(category)}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {budgetCategories.length > 0 && (
+              <optgroup label="Current budget">
+                {budgetCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </Field>
 
@@ -3490,12 +3648,33 @@ function Stat({
   );
 }
 
-function PersonCard({ name, amount }: { name: string; amount: number }) {
+function PersonCard({
+  name,
+  allowance,
+  spent,
+}: {
+  name: string;
+  allowance: number;
+  spent: number;
+}) {
+  const remaining = allowance - spent;
+  const over = remaining < 0;
+
   return (
     <article className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
       <p className="text-xs font-bold text-slate-500">{name}</p>
-      <p className="mt-1 text-xl font-black">{money(amount)}</p>
-      <p className="text-[10px] text-slate-400">this pay period</p>
+      <p
+        className={`mt-1 text-xl font-black ${
+          over ? "text-rose-600" : "text-slate-950"
+        }`}
+      >
+        {over
+          ? `${money(Math.abs(remaining))} over`
+          : `${money(remaining)} remaining`}
+      </p>
+      <p className="mt-1 text-[10px] text-slate-400">
+        {money(spent)} spent of {money(allowance)}
+      </p>
     </article>
   );
 }
