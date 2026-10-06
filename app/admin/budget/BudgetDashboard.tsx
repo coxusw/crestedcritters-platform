@@ -97,12 +97,35 @@ type IncomeEntry = {
   income_type: string | null;
 };
 
+type Debt = {
+  id: string;
+  name: string;
+  creditor: string | null;
+  debt_type: string;
+  current_balance: number | string;
+  original_balance: number | string | null;
+  apr: number | string | null;
+  minimum_payment: number | string | null;
+  payment_frequency: string | null;
+  due_timing: string | null;
+  term_end_date: string | null;
+  promo_end_date: string | null;
+  settlement_offer_amount: number | string | null;
+  settlement_offer_expires: string | null;
+  settlement_notes: string | null;
+  linked_budget_line_item: string | null;
+  priority_override: string | null;
+  notes: string | null;
+  active: boolean;
+};
+
 type View = "home" | "plan" | "forecast" | "reviews" | "more";
 type Editor =
   | { type: "expense"; item?: Expense; paycheckDate?: string }
   | { type: "recurring"; item?: RecurringBill }
   | { type: "actual"; item?: ActualExpense }
   | { type: "income"; item?: IncomeEntry }
+  | { type: "debt"; item?: Debt }
   | { type: "paycheck" }
   | { type: "future" }
   | null;
@@ -236,6 +259,7 @@ export default function BudgetDashboard() {
   const [actualExpenses, setActualExpenses] = useState<ActualExpense[]>([]);
   const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>([]);
   const [futurePlanExpenses, setFuturePlanExpenses] = useState<Expense[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [chrisApproved, setChrisApproved] = useState(false);
   const [jenApproved, setJenApproved] = useState(false);
@@ -303,6 +327,7 @@ export default function BudgetDashboard() {
       bucketContributionResult,
       incomeResult,
       futurePlanResult,
+      debtResult,
     ] = await Promise.all([
         supabase
           .from("budget_expenses")
@@ -354,6 +379,11 @@ export default function BudgetDashboard() {
           .order("assigned_paycheck", { ascending: true })
           .order("due_date", { ascending: true, nullsFirst: false })
           .order("planned_amount", { ascending: false, nullsFirst: false }),
+        supabase
+          .from("budget_debts")
+          .select("id,name,creditor,debt_type,current_balance,original_balance,apr,minimum_payment,payment_frequency,due_timing,term_end_date,promo_end_date,settlement_offer_amount,settlement_offer_expires,settlement_notes,linked_budget_line_item,priority_override,notes,active")
+          .eq("active", true)
+          .order("name", { ascending: true }),
       ]);
 
     const firstError =
@@ -365,7 +395,8 @@ export default function BudgetDashboard() {
       categoryResult.error ||
       bucketContributionResult.error ||
       incomeResult.error ||
-      futurePlanResult.error;
+      futurePlanResult.error ||
+      debtResult.error;
 
     if (firstError) {
       setError(firstError.message);
@@ -384,6 +415,7 @@ export default function BudgetDashboard() {
     setActualExpenses((actualResult.data || []) as ActualExpense[]);
     setIncomeEntries((incomeResult.data || []) as IncomeEntry[]);
     setFuturePlanExpenses((futurePlanResult.data || []) as Expense[]);
+    setDebts((debtResult.data || []) as Debt[]);
     const currentBudgetItems = Array.from(
       new Set(
         ((expenseResult.data || []) as Expense[])
@@ -720,6 +752,91 @@ export default function BudgetDashboard() {
       setError(reviewError.message);
     } else {
       setNotice("Budget review marked complete.");
+      await loadData();
+    }
+    setSaving(false);
+  }
+
+  async function saveDebt(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (editor?.type !== "debt") return;
+
+    setSaving(true);
+    setNotice("");
+    setError("");
+
+    const data = new FormData(event.currentTarget);
+    const numberOrNull = (name: string) => {
+      const raw = String(data.get(name) ?? "").trim();
+      if (!raw) return null;
+      const value = Number(raw);
+      return Number.isFinite(value) ? value : null;
+    };
+    const textOrNull = (name: string) =>
+      String(data.get(name) ?? "").trim() || null;
+
+    const payload = {
+      name: String(data.get("name") || "").trim(),
+      creditor: textOrNull("creditor"),
+      debt_type: String(data.get("debt_type") || "Other"),
+      current_balance: Number(data.get("current_balance") || 0),
+      original_balance: numberOrNull("original_balance"),
+      apr: numberOrNull("apr"),
+      minimum_payment: numberOrNull("minimum_payment"),
+      payment_frequency: textOrNull("payment_frequency"),
+      due_timing: textOrNull("due_timing"),
+      term_end_date: textOrNull("term_end_date"),
+      promo_end_date: textOrNull("promo_end_date"),
+      settlement_offer_amount: numberOrNull("settlement_offer_amount"),
+      settlement_offer_expires: textOrNull("settlement_offer_expires"),
+      settlement_notes: textOrNull("settlement_notes"),
+      linked_budget_line_item: textOrNull("linked_budget_line_item"),
+      priority_override: String(data.get("priority_override") || "Auto"),
+      notes: textOrNull("notes"),
+      active: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (!payload.name || payload.current_balance < 0) {
+      setError("Enter a debt name and a valid current balance.");
+      setSaving(false);
+      return;
+    }
+
+    const result = editor.item
+      ? await supabase
+          .from("budget_debts")
+          .update(payload)
+          .eq("id", editor.item.id)
+      : await supabase.from("budget_debts").insert(payload);
+
+    if (result.error) {
+      setError(result.error.message);
+      setSaving(false);
+      return;
+    }
+
+    setEditor(null);
+    setNotice(editor.item ? "Debt details updated." : "Debt added.");
+    await loadData();
+    setSaving(false);
+  }
+
+  async function archiveDebt(item: Debt) {
+    if (!window.confirm(`Mark "${item.name}" paid/inactive?`)) return;
+
+    setSaving(true);
+    setError("");
+    const { error: archiveError } = await supabase
+      .from("budget_debts")
+      .update({ active: false, updated_at: new Date().toISOString() })
+      .eq("id", item.id);
+
+    if (archiveError) {
+      setError(archiveError.message);
+    } else {
+      setEditor(null);
+      setNotice(`${item.name} marked paid/inactive.`);
       await loadData();
     }
     setSaving(false);
@@ -1199,6 +1316,78 @@ export default function BudgetDashboard() {
 
     return totals;
   }, [people, actualExpenses]);
+
+  const debtSignals = useMemo(() => {
+    const today = todayIso();
+    const daysUntil = (date: string | null) => {
+      if (!date) return null;
+      const start = new Date(`${today}T12:00:00`).getTime();
+      const end = new Date(`${date}T12:00:00`).getTime();
+      return Math.ceil((end - start) / 86400000);
+    };
+
+    return debts
+      .filter((debt) => debt.active && num(debt.current_balance) > 0)
+      .map((debt) => {
+        const balance = num(debt.current_balance);
+        const apr =
+          debt.apr == null || String(debt.apr).trim() === ""
+            ? null
+            : num(debt.apr);
+        const settlement = num(debt.settlement_offer_amount);
+        const settlementSavings =
+          settlement > 0 && settlement < balance ? balance - settlement : 0;
+        const settlementDays = daysUntil(debt.settlement_offer_expires);
+        const termDays = daysUntil(debt.term_end_date);
+        const promoDays = daysUntil(debt.promo_end_date);
+
+        let score = 0;
+        const reasons: string[] = [];
+
+        if (debt.priority_override === "High") score += 10000;
+        if (debt.priority_override === "Low") score -= 10000;
+
+        if (settlementSavings > 0) {
+          score += 2500 + Math.min(1500, settlementSavings / 2);
+          reasons.push(
+            `Settlement offer could reduce the balance by ${money(settlementSavings)}${debt.settlement_offer_expires ? ` and expires ${dateLabel(debt.settlement_offer_expires)}` : ""}.`
+          );
+          if (settlementDays != null && settlementDays <= 45) score += 1200;
+        }
+
+        if (apr != null && apr > 0) {
+          score += apr * 100;
+          reasons.push(
+            `${apr.toFixed(2)}% APR means carrying this balance keeps adding interest.`
+          );
+        } else if (apr === 0) {
+          reasons.push("No interest is currently recorded on this debt.");
+        } else {
+          reasons.push("Interest rate is unknown, so the payoff ranking is less certain.");
+        }
+
+        if (promoDays != null && promoDays >= 0 && promoDays <= 90) {
+          score += 900;
+          reasons.push(`Promotional rate ends ${dateLabel(debt.promo_end_date)}.`);
+        }
+
+        if (termDays != null && termDays >= 0) {
+          if (termDays <= 60) score += 1200;
+          else if (termDays <= 180) score += 500;
+          reasons.push(`Recorded payoff/term date is ${dateLabel(debt.term_end_date)}.`);
+        }
+
+        if (apr === 0 && !debt.term_end_date && settlementSavings <= 0) {
+          score -= 250;
+          reasons.push(
+            "With no interest or deadline recorded, extra payments usually rank below expensive debt after the required payment is covered."
+          );
+        }
+
+        return { debt, score, reasons };
+      })
+      .sort((a, b) => b.score - a.score || num(b.debt.current_balance) - num(a.debt.current_balance));
+  }, [debts]);
 
   const fundedPaycheckDates = useMemo(
     () =>
