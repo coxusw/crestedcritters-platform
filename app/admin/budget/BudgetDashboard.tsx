@@ -13,6 +13,7 @@ type Paycheck = {
   actual_spending: number | string | null;
   reserve_change: number | string | null;
   running_cash_goal_pool: number | string | null;
+  checking_before_paycheck: number | string | null;
   review_required: boolean | null;
   review_reason: string | null;
   review_triggered_at: string | null;
@@ -102,6 +103,7 @@ type Editor =
   | { type: "recurring"; item?: RecurringBill }
   | { type: "actual"; item?: ActualExpense }
   | { type: "income"; item?: IncomeEntry }
+  | { type: "paycheck" }
   | { type: "future" }
   | null;
 
@@ -235,7 +237,7 @@ export default function BudgetDashboard() {
 
     const { data: allPaychecks, error: paychecksError } = await supabase
       .from("budget_paychecks")
-      .select("paycheck_date,projected_check,actual_check,period_status,planned_spending,actual_spending,reserve_change,running_cash_goal_pool,review_required,review_reason,review_triggered_at")
+      .select("paycheck_date,projected_check,actual_check,period_status,planned_spending,actual_spending,reserve_change,running_cash_goal_pool,checking_before_paycheck,review_required,review_reason,review_triggered_at")
       .order("paycheck_date", { ascending: true });
 
     if (paychecksError) {
@@ -492,6 +494,69 @@ export default function BudgetDashboard() {
     setSaving(false);
   }
 
+  async function savePaycheckEntry(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!paycheck || editor?.type !== "paycheck") return;
+
+    setSaving(true);
+    setNotice("");
+    setError("");
+
+    const data = new FormData(event.currentTarget);
+    const actualCheck = Number(data.get("actual_check") || 0);
+    const checkingBalanceRaw = String(data.get("checking_balance") ?? "").trim();
+    const checkingBalance = Number(checkingBalanceRaw);
+
+    if (
+      actualCheck <= 0 ||
+      checkingBalanceRaw === "" ||
+      !Number.isFinite(checkingBalance)
+    ) {
+      setError("Enter the paycheck amount and the current checking balance.");
+      setSaving(false);
+      return;
+    }
+
+    const { error: paycheckError } = await supabase
+      .from("budget_paychecks")
+      .update({
+        actual_check: actualCheck,
+        checking_before_paycheck: checkingBalance,
+        period_status: "Received",
+        review_required: true,
+        review_reason: "Paycheck received and checking balance reconciled",
+        review_triggered_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("paycheck_date", paycheck.paycheck_date);
+
+    if (paycheckError) {
+      setError(paycheckError.message);
+      setSaving(false);
+      return;
+    }
+
+    const { error: recalcError } = await supabase.rpc(
+      "recalculate_budget_paychecks"
+    );
+
+    if (recalcError) {
+      setError(
+        `Paycheck was saved, but the budget totals could not be refreshed: ${recalcError.message}`
+      );
+      setSaving(false);
+      return;
+    }
+
+    setEditor(null);
+    setView("reviews");
+    setNotice(
+      "Paycheck and current checking balance saved. Budget review refreshed from the real bank balance."
+    );
+    await loadData();
+    setSaving(false);
+  }
+
   async function saveIncomeEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!paycheck || editor?.type !== "income") return;
@@ -501,6 +566,8 @@ export default function BudgetDashboard() {
     setError("");
 
     const data = new FormData(event.currentTarget);
+    const checkingBalanceRaw = String(data.get("checking_balance") ?? "").trim();
+    const checkingBalance = Number(checkingBalanceRaw);
     const payload = {
       received_date: String(data.get("received_date") || todayIso()),
       assigned_paycheck: String(
@@ -512,8 +579,15 @@ export default function BudgetDashboard() {
       income_type: "Additional",
     };
 
-    if (!payload.source || payload.amount <= 0) {
-      setError("Enter an income source and an amount greater than $0.");
+    if (
+      !payload.source ||
+      payload.amount <= 0 ||
+      checkingBalanceRaw === "" ||
+      !Number.isFinite(checkingBalance)
+    ) {
+      setError(
+        "Enter an income source, an amount greater than $0, and the current checking balance."
+      );
       setSaving(false);
       return;
     }
@@ -531,12 +605,28 @@ export default function BudgetDashboard() {
       return;
     }
 
+    const { error: balanceError } = await supabase
+      .from("budget_paychecks")
+      .update({
+        checking_before_paycheck: checkingBalance,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("paycheck_date", payload.assigned_paycheck);
+
+    if (balanceError) {
+      setError(
+        `Income was saved, but the checking balance could not be reconciled: ${balanceError.message}`
+      );
+      setSaving(false);
+      return;
+    }
+
     setEditor(null);
     setView("reviews");
     setNotice(
       editor.item
-        ? "Additional income updated. Budget review refreshed."
-        : "Additional income logged. Budget review triggered."
+        ? "Additional income and checking balance updated. Budget review refreshed."
+        : "Additional income logged with the current checking balance. Budget review triggered."
     );
     await loadData();
     setSaving(false);
@@ -952,11 +1042,14 @@ export default function BudgetDashboard() {
   const income = basePaycheckIncome + additionalIncome;
   const extraAboveBaseline = Math.max(0, income - expectedPaycheck);
   const planned = num(paycheck?.planned_spending);
-  const availableExtra = income - planned;
-  const actualSpent = actualExpenses.reduce(
-    (sum, item) => sum + num(item.amount),
-    0
-  );
+  const checkingBalance =
+    paycheck?.checking_before_paycheck == null
+      ? null
+      : num(paycheck.checking_before_paycheck);
+  const reconciliationAdjustment =
+    checkingBalance == null ? 0 : checkingBalance - income;
+  const availableExtra =
+    checkingBalance == null ? income - planned : checkingBalance - planned;
 
   const categoryComparison = useMemo(() => {
     const map = new Map<
@@ -1325,9 +1418,16 @@ export default function BudgetDashboard() {
                 <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <Stat label="Total income" value={money(income)} />
                   <Stat label="Planned" value={money(planned)} />
-                  <Stat label="Spent so far" value={money(actualSpent)} />
                   <Stat
-                    label="Available extra"
+                    label="Checking balance"
+                    value={
+                      checkingBalance == null
+                        ? "Not entered"
+                        : money(checkingBalance)
+                    }
+                  />
+                  <Stat
+                    label="Available after plan"
                     value={money(availableExtra)}
                     highlight
                     danger={availableExtra < 0}
@@ -1340,6 +1440,9 @@ export default function BudgetDashboard() {
                     {additionalIncome > 0
                       ? ` + ${money(additionalIncome)} additional income`
                       : ""} · Includes {money(currentEach)} each for Chris + Jen
+                    {checkingBalance == null
+                      ? " · Checking not reconciled yet"
+                      : ` · Reconciliation ${money(reconciliationAdjustment)}`}
                   </span>
                   <strong
                     className={
@@ -1349,6 +1452,16 @@ export default function BudgetDashboard() {
                     {availableExtra < 0 ? "Needs adjustment" : "On plan"}
                   </strong>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setEditor({ type: "paycheck" })}
+                  className="mt-4 w-full rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white"
+                >
+                  {num(paycheck.actual_check) > 0
+                    ? "Update paycheck & checking balance"
+                    : "Enter paycheck & checking balance"}
+                </button>
               </section>
 
               <section>
@@ -1495,9 +1608,35 @@ export default function BudgetDashboard() {
                   <ReviewStat label="Actual/base check" value={money(basePaycheckIncome)} />
                   <ReviewStat label="Additional income" value={money(additionalIncome)} />
                   <ReviewStat label="Total income" value={money(income)} />
+                  <ReviewStat
+                    label="Checking balance"
+                    value={
+                      checkingBalance == null
+                        ? "Not entered"
+                        : money(checkingBalance)
+                    }
+                  />
+                  <ReviewStat
+                    label="Reconciliation"
+                    value={
+                      checkingBalance == null
+                        ? "Pending"
+                        : money(reconciliationAdjustment)
+                    }
+                  />
                   <ReviewStat label="Planned" value={money(planned)} />
-                  <ReviewStat label="Available" value={money(availableExtra)} />
+                  <ReviewStat label="Available after plan" value={money(availableExtra)} />
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setEditor({ type: "paycheck" })}
+                  className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-slate-800"
+                >
+                  {num(paycheck.actual_check) > 0
+                    ? "Update paycheck & current checking balance"
+                    : "Enter paycheck & current checking balance"}
+                </button>
 
                 {paycheck.review_required && (
                   <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4">
@@ -2082,11 +2221,21 @@ export default function BudgetDashboard() {
         />
       )}
 
+      {editor?.type === "paycheck" && (
+        <PaycheckEditor
+          paycheck={paycheck}
+          saving={saving}
+          onClose={() => setEditor(null)}
+          onSave={savePaycheckEntry}
+        />
+      )}
+
       {editor?.type === "income" && (
         <IncomeEditor
           item={editor.item}
           currentPaycheck={paycheck.paycheck_date}
           paycheckDates={paycheckDates}
+          currentCheckingBalance={checkingBalance}
           saving={saving}
           onClose={() => setEditor(null)}
           onSave={saveIncomeEntry}
@@ -2375,10 +2524,84 @@ function FutureGoalEditor({
   );
 }
 
+function PaycheckEditor({
+  paycheck,
+  saving,
+  onClose,
+  onSave,
+}: {
+  paycheck: Paycheck;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const existingBalance =
+    paycheck.checking_before_paycheck == null
+      ? ""
+      : String(paycheck.checking_before_paycheck);
+
+  return (
+    <Modal
+      title={num(paycheck.actual_check) > 0 ? "Update paycheck" : "Enter paycheck"}
+      onClose={onClose}
+    >
+      <form onSubmit={onSave} className="space-y-3">
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-900">
+          Enter the checking balance <strong>after the paycheck has posted</strong>.
+          That real bank balance becomes the starting point for this budget review.
+        </div>
+
+        <Field label="Actual paycheck amount">
+          <input
+            name="actual_check"
+            required
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            min="0.01"
+            defaultValue={
+              num(paycheck.actual_check) || num(paycheck.projected_check) || ""
+            }
+            className="budget-input"
+            placeholder="0.00"
+          />
+        </Field>
+
+        <Field label="Current checking balance">
+          <input
+            name="checking_balance"
+            required
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            defaultValue={existingBalance}
+            className="budget-input"
+            placeholder="0.00"
+          />
+        </Field>
+
+        <p className="text-[11px] leading-5 text-slate-500">
+          Pay period: {dateLabel(paycheck.paycheck_date)}. Enter exactly what the
+          bank shows after the deposit. The balance may be positive or negative.
+        </p>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save paycheck & reconcile"}
+        </button>
+      </form>
+    </Modal>
+  );
+}
+
 function IncomeEditor({
   item,
   currentPaycheck,
   paycheckDates,
+  currentCheckingBalance,
   saving,
   onClose,
   onSave,
@@ -2387,6 +2610,7 @@ function IncomeEditor({
   item?: IncomeEntry;
   currentPaycheck: string;
   paycheckDates: string[];
+  currentCheckingBalance: number | null;
   saving: boolean;
   onClose: () => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
@@ -2448,6 +2672,26 @@ function IncomeEditor({
           </select>
         </Field>
 
+        <Field label="Current checking balance">
+          <input
+            name="checking_balance"
+            required
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            defaultValue={
+              currentCheckingBalance == null ? "" : currentCheckingBalance
+            }
+            className="budget-input"
+            placeholder="0.00"
+          />
+        </Field>
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-700">
+          Enter the balance the bank shows <strong>after this income is already posted</strong>.
+          The budget will use that real balance as the new reconciliation starting point.
+        </div>
+
         <Field label="Note (optional)">
           <textarea
             name="note"
@@ -2459,8 +2703,9 @@ function IncomeEditor({
 
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-900">
           Saving additional income immediately triggers a budget review for the
-          selected pay period. The review will look ahead for shortfalls,
-          early-payment opportunities, debt, and sinking funds.
+          selected pay period. The review starts from the checking balance you
+          entered, then looks ahead for shortfalls, early-payment opportunities,
+          debt, and sinking funds.
         </div>
 
         <button
