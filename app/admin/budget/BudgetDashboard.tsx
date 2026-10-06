@@ -159,6 +159,9 @@ const dateLabel = (value: string | null) => {
   });
 };
 
+const coalesceFundDeadline = (item: FutureExpense) =>
+  item.funding_deadline || item.due_date || "9999-12-31";
+
 const num = (value: number | string | null | undefined) => Number(value || 0);
 
 const isFundingCompleteStatus = (value: string | null | undefined) =>
@@ -3119,30 +3122,118 @@ export default function BudgetDashboard() {
                     </button>
                   </div>
 
-                  <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
-                    {futureExpenses.length ? (
-                      futureExpenses.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-start justify-between gap-3 border-b border-slate-100 p-3 last:border-0"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-black">
-                              {item.event_fund}
-                            </p>
-                            <p className="mt-0.5 text-[11px] text-slate-500">
-                              Due {dateLabel(item.due_date)} · {item.status || "Open"}
-                            </p>
-                          </div>
-                          <strong className="shrink-0 text-sm">
-                            {money(num(item.target_budget))}
-                          </strong>
+                  <div className="mt-3 space-y-3">
+                    <div className="overflow-hidden rounded-xl border border-slate-200">
+                      {futureExpenses.filter(
+                        (item) => !isClosedFundStatus(item.status)
+                      ).length ? (
+                        futureExpenses
+                          .filter((item) => !isClosedFundStatus(item.status))
+                          .map((item) => {
+                            const datePassed =
+                              !!item.due_date && item.due_date < todayIso();
+                            const funded = bucketFundedThrough(
+                              item.id,
+                              "9999-12-31"
+                            );
+                            const spent = num(item.actual_funding_spend);
+                            const available = funded - spent;
+
+                            return (
+                              <div
+                                key={item.id}
+                                className="border-b border-slate-100 p-3 last:border-0"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-black">
+                                      {item.event_fund}
+                                    </p>
+                                    <p className="mt-0.5 text-[11px] text-slate-500">
+                                      Due {dateLabel(item.due_date)} · {item.status || "Open"}
+                                    </p>
+                                    {datePassed && (
+                                      <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-800">
+                                        Date passed
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="shrink-0 text-right">
+                                    <strong className="block text-sm">
+                                      {money(num(item.target_budget))}
+                                    </strong>
+                                    <span className="text-[10px] text-slate-500">
+                                      {money(available)} available
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {datePassed && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEditor({ type: "close-fund", item })
+                                    }
+                                    className="mt-3 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-black text-slate-800"
+                                  >
+                                    Close out fund
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })
+                      ) : (
+                        <p className="p-3 text-sm text-slate-500">
+                          No open future expenses or sinking funds.
+                        </p>
+                      )}
+                    </div>
+
+                    {futureExpenses.some(
+                      (item) => (item.status || "").toLowerCase() === "closed"
+                    ) && (
+                      <div>
+                        <p className="mb-2 px-1 text-xs font-black uppercase tracking-wide text-slate-500">
+                          Closed · awaiting removal
+                        </p>
+                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                          {futureExpenses
+                            .filter(
+                              (item) =>
+                                (item.status || "").toLowerCase() === "closed"
+                            )
+                            .map((item) => (
+                              <div
+                                key={item.id}
+                                className="border-b border-slate-200 p-3 last:border-0"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-black">
+                                      {item.event_fund}
+                                    </p>
+                                    <p className="mt-0.5 text-[11px] leading-5 text-slate-500">
+                                      Closed
+                                      {item.closed_at
+                                        ? " " + dateLabel(item.closed_at.slice(0, 10))
+                                        : ""}
+                                      {num(item.closeout_amount) > 0
+                                        ? " · " + money(num(item.closeout_amount)) + " reassigned"
+                                        : " · no leftover"}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => void removeClosedSinkingFund(item)}
+                                    className="shrink-0 text-xs font-black text-rose-600"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
                         </div>
-                      ))
-                    ) : (
-                      <p className="p-3 text-sm text-slate-500">
-                        No future expenses or sinking funds yet.
-                      </p>
+                      </div>
                     )}
                   </div>
                 </section>
@@ -3205,6 +3296,32 @@ export default function BudgetDashboard() {
           saving={saving}
           onClose={() => setEditor(null)}
           onSave={saveFutureGoal}
+        />
+      )}
+
+      {editor?.type === "close-fund" && (
+        <SinkingFundCloseoutModal
+          item={editor.item}
+          available={Math.max(
+            0,
+            bucketFundedThrough(editor.item.id, "9999-12-31") -
+              num(editor.item.actual_funding_spend)
+          )}
+          nextFund={
+            futureExpenses
+              .filter(
+                (item) =>
+                  item.id !== editor.item.id &&
+                  !isClosedFundStatus(item.status) &&
+                  coalesceFundDeadline(item) >= paycheck.paycheck_date
+              )
+              .sort((a, b) =>
+                coalesceFundDeadline(a).localeCompare(coalesceFundDeadline(b))
+              )[0] || null
+          }
+          saving={saving}
+          onClose={() => setEditor(null)}
+          onSave={closeSinkingFund}
         />
       )}
 
