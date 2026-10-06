@@ -73,6 +73,7 @@ type RecurringBill = {
   frequency: string | null;
   monthly_equivalent: number | string | null;
   due_timing: string | null;
+  payment_grace_days: number | string | null;
   active: boolean | null;
   notes: string | null;
 };
@@ -360,7 +361,7 @@ export default function BudgetDashboard() {
           .order("due_date", { ascending: true, nullsFirst: false }),
         supabase
           .from("budget_recurring_bills")
-          .select("id,category,item,amount,frequency,monthly_equivalent,due_timing,active,notes")
+          .select("id,category,item,amount,frequency,monthly_equivalent,due_timing,payment_grace_days,active,notes")
           .eq("active", true)
           .order("category", { ascending: true })
           .order("item", { ascending: true }),
@@ -1108,6 +1109,10 @@ export default function BudgetDashboard() {
     const category = String(data.get("category") || "Other");
     const frequency = String(data.get("frequency") || "Monthly");
     const dueTiming = String(data.get("due_timing") || "").trim() || "TBD";
+    const rawGraceDays = Number(data.get("payment_grace_days") || 0);
+    const paymentGraceDays = Number.isFinite(rawGraceDays)
+      ? Math.max(0, Math.min(31, Math.trunc(rawGraceDays)))
+      : 0;
     const notes = String(data.get("notes") || "").trim() || null;
     const updateFuture = data.get("update_future") === "on";
     const createOccurrences = data.get("create_occurrences") === "on";
@@ -1126,6 +1131,7 @@ export default function BudgetDashboard() {
       frequency,
       monthly_equivalent: monthlyEquivalent(amount, frequency),
       due_timing: dueTiming,
+      payment_grace_days: paymentGraceDays,
       active: true,
       notes,
       ...(!editor.item && createOccurrences && nextDueDate
@@ -1179,7 +1185,10 @@ export default function BudgetDashboard() {
       }
     }
 
-    if (!editor.item && createOccurrences && nextDueDate) {
+    if (
+      (!editor.item && createOccurrences && nextDueDate) ||
+      (editor.item && updateFuture)
+    ) {
       const { error: rollingError } = await supabase.rpc(
         "refresh_budget_rolling_horizon",
         { p_reference_date: todayIso() }
@@ -4090,6 +4099,24 @@ function RecurringEditor({
             />
           </Field>
         </div>
+
+        <Field label="Planning grace (days)">
+          <input
+            name="payment_grace_days"
+            type="number"
+            inputMode="numeric"
+            min="0"
+            max="31"
+            step="1"
+            defaultValue={num(item?.payment_grace_days)}
+            className="budget-input"
+          />
+          <p className="mt-1 text-[11px] leading-4 text-slate-500">
+            Allows the forecast to use a paycheck this many days after the due date
+            when that keeps a pay period from being overloaded. This is a planning
+            rule only; it does not change the creditor&apos;s actual late-fee terms.
+          </p>
+        </Field>
 
         {!item && (
           <Field label="Next due date">
