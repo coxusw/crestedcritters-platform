@@ -2825,24 +2825,74 @@ export default function BudgetDashboard() {
       {editor?.type === "debt" && (
         <DebtEditor
           item={editor.item}
-          budgetItems={Array.from(
-            new Set(
-              futurePlanExpenses
-                .filter((expense) => {
-                  const category = (expense.category || "").toLowerCase();
-                  const name = (expense.line_item || "").toLowerCase();
-                  return (
-                    category === "debt" ||
-                    name.includes("affirm") ||
-                    name.includes("collection") ||
-                    name.includes("capital one") ||
-                    name.includes("credit card")
-                  );
-                })
-                .map((expense) => expense.line_item || "")
-                .filter(Boolean)
-            )
-          )}
+          budgetItems={(() => {
+            const seen = new Set<string>();
+            const options: Array<{
+              value: string;
+              label: string;
+              group: string;
+            }> = [];
+
+            for (const bill of recurringBills) {
+              const value = (bill.item || "").trim();
+              if (!value) continue;
+              const key = value.toLowerCase();
+              if (seen.has(key)) continue;
+              seen.add(key);
+
+              options.push({
+                value,
+                label: `${value} — ${money(num(bill.amount))} / ${bill.frequency || "recurring"}`,
+                group: bill.category || "Other recurring bills",
+              });
+            }
+
+            for (const expense of futurePlanExpenses) {
+              const value = (expense.line_item || "").trim();
+              if (!value) continue;
+
+              const type = (expense.expense_type || "").toLowerCase();
+              const name = value.toLowerCase();
+              const category = (expense.category || "").toLowerCase();
+
+              if (
+                type.includes("reserve") ||
+                name.startsWith("reserve ") ||
+                type.includes("sinking")
+              ) {
+                continue;
+              }
+
+              const looksDebtRelated =
+                category === "debt" ||
+                name.includes("affirm") ||
+                name.includes("collection") ||
+                name.includes("capital one") ||
+                name.includes("credit card") ||
+                name.includes("mortgage") ||
+                name.includes("jeep") ||
+                name.includes("pacifica") ||
+                name.includes("van payment");
+
+              if (!looksDebtRelated) continue;
+
+              const key = value.toLowerCase();
+              if (seen.has(key)) continue;
+              seen.add(key);
+
+              options.push({
+                value,
+                label: value,
+                group: "Other planned debt payments",
+              });
+            }
+
+            return options.sort((a, b) => {
+              const groupCompare = a.group.localeCompare(b.group);
+              if (groupCompare !== 0) return groupCompare;
+              return a.value.localeCompare(b.value);
+            });
+          })()}
           saving={saving}
           onClose={() => setEditor(null)}
           onSave={saveDebt}
@@ -3970,7 +4020,11 @@ function DebtEditor({
   onArchive,
 }: {
   item?: Debt;
-  budgetItems: string[];
+  budgetItems: Array<{
+    value: string;
+    label: string;
+    group: string;
+  }>;
   saving: boolean;
   onClose: () => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
@@ -4152,19 +4206,31 @@ function DebtEditor({
           </Field>
         </div>
 
-        <Field label="Linked budget payment (optional)">
+        <Field label="Linked recurring / planned payment (optional)">
           <select
             name="linked_budget_line_item"
             defaultValue={item?.linked_budget_line_item || ""}
             className="budget-input"
           >
             <option value="">Not linked</option>
-            {budgetItems.map((budgetItem) => (
-              <option key={budgetItem} value={budgetItem}>
-                {budgetItem}
-              </option>
-            ))}
+            {Array.from(new Set(budgetItems.map((option) => option.group))).map(
+              (group) => (
+                <optgroup key={group} label={group}>
+                  {budgetItems
+                    .filter((option) => option.group === group)
+                    .map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                </optgroup>
+              )
+            )}
           </select>
+          <p className="mt-1.5 text-[11px] leading-5 text-slate-500">
+            This only links the debt to an existing recurring or planned payment.
+            It does not add another expense to the paycheck.
+          </p>
         </Field>
 
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
