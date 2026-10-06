@@ -254,6 +254,7 @@ export default function BudgetDashboard() {
   const [forecastExpenses, setForecastExpenses] = useState<Expense[]>([]);
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastTab, setForecastTab] = useState<"paychecks" | "sinking">("paychecks");
+  const [moreTab, setMoreTab] = useState<"debts" | "recurring" | "future">("debts");
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([]);
@@ -297,9 +298,9 @@ export default function BudgetDashboard() {
 
     const localToday = todayIso();
 
-    // Keep only a rolling two-paycheck window active. The database job also
-    // runs daily, but refreshing here makes the next period appear immediately
-    // whenever the budget is opened after a payday has passed.
+    // Keep at least one full year of paycheck cycles visible. The database job
+    // runs daily so each passed biweekly cycle automatically extends the plan
+    // another two weeks, maintaining the one-year look-ahead.
     await supabase.rpc("refresh_budget_rolling_horizon", {
       p_reference_date: localToday,
     });
@@ -544,7 +545,7 @@ export default function BudgetDashboard() {
     setEditor(null);
     setView("forecast");
     setNotice(
-      `${eventFund} added. ${money(targetBudget)} is spread across about ${fundingPeriodCount} paycheck${fundingPeriodCount === 1 ? "" : "s"}, but only the rolling two-paycheck window is generated at a time.`
+      `${eventFund} added. ${money(targetBudget)} is spread across about ${fundingPeriodCount} paycheck${fundingPeriodCount === 1 ? "" : "s"} and will stay included in the rolling one-year forecast.`
     );
     await loadData();
     setSaving(false);
@@ -1198,7 +1199,7 @@ export default function BudgetDashboard() {
       editor.item
         ? "Recurring bill updated."
         : createOccurrences && nextDueDate
-          ? "Recurring bill added. Only the rolling two-paycheck window was generated."
+          ? "Recurring bill added to the rolling one-year forecast."
           : "Recurring bill added."
     );
     await loadData();
@@ -2585,154 +2586,226 @@ export default function BudgetDashboard() {
             <>
               <SectionTitle
                 title="More"
-                subtitle="Recurring bills, goals, and future expenses."
+                subtitle="Manage debts, recurring bills, and future expenses without one long page."
               />
 
-              <div className="grid grid-cols-3 gap-2">
-                <CountCard
-                  label="Recurring bills"
-                  value={String(recurringBills.length)}
-                />
-                <CountCard
-                  label="Future funds"
-                  value={String(futureExpenses.length)}
-                />
-                <CountCard
-                  label="Active debts"
-                  value={String(debts.length)}
-                />
+              <div className="grid grid-cols-3 gap-1 rounded-2xl bg-slate-200 p-1">
+                <button
+                  type="button"
+                  onClick={() => setMoreTab("debts")}
+                  className={`min-w-0 rounded-xl px-2 py-2.5 text-xs font-black transition sm:text-sm ${
+                    moreTab === "debts"
+                      ? "bg-white text-slate-950 shadow-sm"
+                      : "text-slate-500"
+                  }`}
+                >
+                  Debts
+                  <span className="ml-1 text-[10px] font-bold text-slate-400">
+                    {debts.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMoreTab("recurring")}
+                  className={`min-w-0 rounded-xl px-2 py-2.5 text-xs font-black transition sm:text-sm ${
+                    moreTab === "recurring"
+                      ? "bg-white text-slate-950 shadow-sm"
+                      : "text-slate-500"
+                  }`}
+                >
+                  Recurring
+                  <span className="ml-1 text-[10px] font-bold text-slate-400">
+                    {recurringBills.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMoreTab("future")}
+                  className={`min-w-0 rounded-xl px-2 py-2.5 text-xs font-black transition sm:text-sm ${
+                    moreTab === "future"
+                      ? "bg-white text-slate-950 shadow-sm"
+                      : "text-slate-500"
+                  }`}
+                >
+                  Future
+                  <span className="ml-1 text-[10px] font-bold text-slate-400">
+                    {futureExpenses.length}
+                  </span>
+                </button>
               </div>
 
-              <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-black">Debts</h3>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Track the balance, interest, minimum, payoff terms, and
-                      settlement offers so paycheck reviews can rank extra payments.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditor({ type: "debt" })}
-                    className="shrink-0 rounded-xl bg-slate-950 px-3 py-2 text-sm font-black text-white"
-                  >
-                    + Debt
-                  </button>
-                </div>
-
-                <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
-                  {debts.length ? (
-                    debts
-                      .slice()
-                      .sort((a, b) => num(b.current_balance) - num(a.current_balance))
-                      .map((debt) => {
-                        const apr =
-                          debt.apr == null || String(debt.apr).trim() === ""
-                            ? null
-                            : num(debt.apr);
-                        return (
-                          <button
-                            key={debt.id}
-                            type="button"
-                            onClick={() => setEditor({ type: "debt", item: debt })}
-                            className="flex w-full items-center justify-between gap-3 border-b border-slate-100 p-3 text-left last:border-0"
-                          >
-                            <span className="min-w-0">
-                              <strong className="block truncate text-sm">
-                                {debt.name}
-                              </strong>
-                              {debt.payoff_status ===
-                                "Paid off - awaiting confirmation" && (
-                                <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                                  Paid off · confirm to remove
-                                </span>
-                              )}
-                              <span className="mt-0.5 block text-[11px] text-slate-500">
-                                {debt.debt_type}
-                                {apr == null
-                                  ? " · APR unknown"
-                                  : apr === 0
-                                    ? " · 0% interest"
-                                    : ` · ${apr.toFixed(2)}% APR`}
-                                {num(debt.minimum_payment) > 0
-                                  ? ` · min ${money(num(debt.minimum_payment))}`
-                                  : ""}
-                              </span>
-                            </span>
-                            <strong
-                              className={`shrink-0 text-sm ${
-                                debt.payoff_status ===
-                                "Paid off - awaiting confirmation"
-                                  ? "text-emerald-700"
-                                  : ""
-                              }`}
-                            >
-                              {debt.payoff_status ===
-                              "Paid off - awaiting confirmation"
-                                ? "Paid"
-                                : money(num(debt.current_balance))}
-                            </strong>
-                          </button>
-                        );
-                      })
-                  ) : (
-                    <p className="p-3 text-sm text-slate-500">
-                      No structured debts yet. Add one to start tracking payoff
-                      cost and priority.
-                    </p>
-                  )}
-                </div>
-              </section>
-
-              <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                <h3 className="font-black">Next future expenses</h3>
-                <div className="mt-3 space-y-3">
-                  {futureExpenses.slice(0, 6).map((item) => (
-                    <div
-                      key={`${item.event_fund}-${item.due_date}`}
-                      className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3 last:border-0 last:pb-0"
-                    >
-                      <div>
-                        <p className="text-sm font-black">{item.event_fund}</p>
-                        <p className="mt-0.5 text-[11px] text-slate-500">
-                          {dateLabel(item.due_date)} · {item.status || "Open"}
-                        </p>
-                      </div>
-                      <strong className="text-sm">
-                        {money(num(item.target_budget))}
-                      </strong>
+              {moreTab === "debts" && (
+                <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-black">Debts</h3>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Balances, interest, required payments, payoff terms, and collections.
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </section>
-
-              <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-black">Recurring bills</h3>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Edit a bill once and optionally update its future planned entries.
-                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setEditor({ type: "debt" })}
+                      className="shrink-0 rounded-xl bg-slate-950 px-3 py-2 text-sm font-black text-white"
+                    >
+                      + Debt
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setEditor({ type: "recurring" })}
-                    className="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-sm font-black text-white"
-                  >
-                    + Recurring
-                  </button>
-                </div>
 
-                <div className="mt-3 space-y-1">
-                  {recurringBills.map((bill) => (
-                    <RecurringRow
-                      key={bill.id}
-                      bill={bill}
-                      onEdit={() => setEditor({ type: "recurring", item: bill })}
-                    />
-                  ))}
-                </div>
-              </section>
+                  <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
+                    {debts.length ? (
+                      debts
+                        .slice()
+                        .sort((a, b) => {
+                          const aPaid =
+                            a.payoff_status === "Paid off - awaiting confirmation";
+                          const bPaid =
+                            b.payoff_status === "Paid off - awaiting confirmation";
+                          if (aPaid !== bPaid) return aPaid ? -1 : 1;
+                          return num(b.current_balance) - num(a.current_balance);
+                        })
+                        .map((debt) => {
+                          const apr =
+                            debt.apr == null || String(debt.apr).trim() === ""
+                              ? null
+                              : num(debt.apr);
+                          return (
+                            <button
+                              key={debt.id}
+                              type="button"
+                              onClick={() => setEditor({ type: "debt", item: debt })}
+                              className="flex w-full items-center justify-between gap-3 border-b border-slate-100 p-3 text-left last:border-0"
+                            >
+                              <span className="min-w-0">
+                                <strong className="block truncate text-sm">
+                                  {debt.name}
+                                </strong>
+                                {debt.payoff_status ===
+                                  "Paid off - awaiting confirmation" && (
+                                  <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                                    Paid off · confirm to remove
+                                  </span>
+                                )}
+                                <span className="mt-0.5 block text-[11px] text-slate-500">
+                                  {debt.debt_type}
+                                  {apr == null
+                                    ? " · APR unknown"
+                                    : apr === 0
+                                      ? " · 0% interest"
+                                      : ` · ${apr.toFixed(2)}% APR`}
+                                  {num(debt.minimum_payment) > 0
+                                    ? ` · min ${money(num(debt.minimum_payment))}`
+                                    : ""}
+                                </span>
+                              </span>
+                              <strong
+                                className={`shrink-0 text-sm ${
+                                  debt.payoff_status ===
+                                  "Paid off - awaiting confirmation"
+                                    ? "text-emerald-700"
+                                    : ""
+                                }`}
+                              >
+                                {debt.payoff_status ===
+                                "Paid off - awaiting confirmation"
+                                  ? "Paid"
+                                  : money(num(debt.current_balance))}
+                              </strong>
+                            </button>
+                          );
+                        })
+                    ) : (
+                      <p className="p-3 text-sm text-slate-500">
+                        No structured debts yet.
+                      </p>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {moreTab === "recurring" && (
+                <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-black">Recurring bills</h3>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Edit a bill once and its future rolling forecast can follow it.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setEditor({ type: "recurring" })}
+                      className="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-sm font-black text-white"
+                    >
+                      + Recurring
+                    </button>
+                  </div>
+
+                  <div className="mt-3 space-y-1">
+                    {recurringBills.length ? (
+                      recurringBills.map((bill) => (
+                        <RecurringRow
+                          key={bill.id}
+                          bill={bill}
+                          onEdit={() =>
+                            setEditor({ type: "recurring", item: bill })
+                          }
+                        />
+                      ))
+                    ) : (
+                      <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
+                        No recurring bills are active.
+                      </p>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {moreTab === "future" && (
+                <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-black">Future expenses</h3>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Upcoming goals and sinking funds. Funding is still planned until a paycheck is received.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditor({ type: "future" })}
+                      className="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-sm font-black text-white"
+                    >
+                      + Future
+                    </button>
+                  </div>
+
+                  <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
+                    {futureExpenses.length ? (
+                      futureExpenses.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-start justify-between gap-3 border-b border-slate-100 p-3 last:border-0"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black">
+                              {item.event_fund}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-slate-500">
+                              Due {dateLabel(item.due_date)} · {item.status || "Open"}
+                            </p>
+                          </div>
+                          <strong className="shrink-0 text-sm">
+                            {money(num(item.target_budget))}
+                          </strong>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="p-3 text-sm text-slate-500">
+                        No future expenses or sinking funds yet.
+                      </p>
+                    )}
+                  </div>
+                </section>
+              )}
             </>
           )}
 
