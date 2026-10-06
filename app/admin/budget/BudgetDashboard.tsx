@@ -1980,7 +1980,7 @@ export default function BudgetDashboard() {
                       <div>
                         <p className="text-sm font-black">Budget vs actual</p>
                         <p className="mt-1 text-xs text-slate-500">
-                          Actual spending logged during this paycheck period.
+                          Plan is the budget target for this paycheck period, not money already funded. Spent is what has actually been logged.
                         </p>
                       </div>
                       <button
@@ -1991,38 +1991,26 @@ export default function BudgetDashboard() {
                       </button>
                     </div>
                     <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200">
-                      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                      <div className="grid grid-cols-[1fr_auto_auto] gap-3 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
                         <span>Category</span>
                         <span>Plan</span>
                         <span>Spent</span>
-                        <span>Left</span>
                       </div>
                       {categoryComparison.map((row) => (
                         <div
                           key={row.category}
-                          className="grid grid-cols-[1fr_auto_auto_auto] gap-2 border-t border-slate-100 px-3 py-2.5 text-xs"
+                          className="grid grid-cols-[1fr_auto_auto] gap-3 border-t border-slate-100 px-3 py-2.5 text-xs"
                         >
                           <span className="font-bold">{row.category}</span>
                           <span>{money(row.planned)}</span>
                           <span
                             className={
-                              row.actual > row.planned && row.planned > 0
-                                ? "font-black text-rose-600"
-                                : "font-black text-slate-900"
-                            }
-                          >
-                            {money(row.actual)}
-                          </span>
-                          <span
-                            className={
-                              row.planned - row.actual < 0
+                              row.actual > row.planned
                                 ? "font-black text-rose-600"
                                 : "font-black text-emerald-700"
                             }
                           >
-                            {row.planned - row.actual < 0
-                              ? `-${money(Math.abs(row.planned - row.actual))}`
-                              : money(row.planned - row.actual)}
+                            {money(row.actual)}
                           </span>
                         </div>
                       ))}
