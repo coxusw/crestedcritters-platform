@@ -1108,7 +1108,13 @@ export default function BudgetDashboard() {
     if (!paycheck) return [];
 
     const suggestions: Array<{
-      kind: "shortfall" | "debt" | "bucket" | "future";
+      kind:
+        | "shortfall"
+        | "dealership"
+        | "emergency"
+        | "high-interest"
+        | "bucket"
+        | "future";
       title: string;
       detail: string;
       amount: number;
@@ -1121,6 +1127,8 @@ export default function BudgetDashboard() {
       (row) => row.paycheck_date > paycheck.paycheck_date
     );
 
+    // Keep near-term paycheck shortfalls visible so the priority ladder never
+    // ignores bills that are already expected to exceed a future check.
     for (const row of futureChecks) {
       if (remaining <= 0) break;
       const projected = num(row.projected_check);
@@ -1140,53 +1148,126 @@ export default function BudgetDashboard() {
       remaining -= amount;
     }
 
-    const futureDebt = futurePlanExpenses
+    // Finish the deferred dealership down payment before starting the emergency fund.
+    const dealershipItems = futurePlanExpenses
       .filter((item) => {
-        if (!item.assigned_paycheck || item.assigned_paycheck <= paycheck.paycheck_date) {
+        if (
+          !item.assigned_paycheck ||
+          item.assigned_paycheck <= paycheck.paycheck_date
+        ) {
           return false;
         }
         if (item.status === "Cancelled" || item.status === "Deferred") {
           return false;
         }
         if (num(item.planned_amount) <= 0) return false;
-
-        const category = (item.category || "").toLowerCase();
-        const type = (item.expense_type || "").toLowerCase();
-        const name = (item.line_item || "").toLowerCase();
-
-        return (
-          category.includes("debt") ||
-          category.includes("collection") ||
-          type.includes("catch-up") ||
-          name.includes("loan") ||
-          name.includes("collection")
-        );
+        return (item.line_item || "")
+          .toLowerCase()
+          .includes("dealership deferred down payment");
       })
-      .sort((a, b) => {
-        const dateCompare = (a.assigned_paycheck || "").localeCompare(
-          b.assigned_paycheck || ""
-        );
-        if (dateCompare !== 0) return dateCompare;
-        return num(b.planned_amount) - num(a.planned_amount);
-      });
+      .sort((a, b) =>
+        (a.assigned_paycheck || "").localeCompare(b.assigned_paycheck || "")
+      );
 
-    for (const item of futureDebt.slice(0, 4)) {
+    for (const item of dealershipItems) {
       if (remaining <= 0) break;
-      const plannedAmount = num(item.planned_amount);
-      const amount = Math.min(remaining, plannedAmount);
+      const amount = Math.min(remaining, num(item.planned_amount));
       suggestions.push({
-        kind: "debt",
-        title: `Pay toward ${item.line_item || "future debt"} early`,
-        detail: `Currently planned for ${dateLabel(
+        kind: "dealership",
+        title: `Finish ${item.line_item || "dealership down payment"}`,
+        detail: `This is currently planned for ${dateLabel(
           item.assigned_paycheck
-        )}. Paying some or all early would free that future paycheck.`,
+        )}. The $1,000 emergency-fund goal comes immediately after the dealership balance is covered.`,
         amount,
       });
       remaining -= amount;
     }
 
+    // First true savings milestone: $1,000 emergency fund.
+    const emergencyFund = futureExpenses.find((item) =>
+      (item.event_fund || "").toLowerCase().includes("emergency fund")
+    );
+
+    if (remaining > 0 && emergencyFund && emergencyFund.status !== "Completed") {
+      const funded = bucketContributions
+        .filter(
+          (row) =>
+            row.future_expense_id === emergencyFund.id &&
+            row.status !== "Cancelled" &&
+            row.status !== "Deferred" &&
+            contributionCountsAsFunded(row)
+        )
+        .reduce((sum, row) => sum + num(row.planned_amount), 0);
+      const spent = num(emergencyFund.actual_funding_spend);
+      const availableInFund = funded - spent;
+      const needed = Math.max(
+        0,
+        num(emergencyFund.target_budget) - availableInFund
+      );
+
+      if (needed > 0) {
+        const amount = Math.min(remaining, needed);
+        suggestions.push({
+          kind: "emergency",
+          title: "Build the $1,000 emergency fund",
+          detail: `Currently ${money(
+            Math.max(0, availableInFund)
+          )} of ${money(
+            num(emergencyFund.target_budget)
+          )} is actually funded. Future planned money does not count until the income is received.`,
+          amount,
+        });
+        remaining -= amount;
+      }
+    }
+
+    // After the emergency fund, surplus goes to high-interest consumer debt
+    // before any one-month/three-month/six-month reserve build.
+    const hasHighInterestDebt = futurePlanExpenses.some((item) => {
+      if (item.status === "Cancelled" || item.status === "Deferred") return false;
+      if (num(item.planned_amount) <= 0) return false;
+
+      const name = (item.line_item || "").toLowerCase();
+      const notes = (item.notes || "").toLowerCase();
+      const type = (item.expense_type || "").toLowerCase();
+
+      const isCollection =
+        name.includes("collection") ||
+        name.includes("resurgent") ||
+        name.includes("spring oaks") ||
+        name.includes("williams & fudge") ||
+        notes.includes("repayment plan");
+
+      if (isCollection || type.includes("reserve") || type.includes("sinking")) {
+        return false;
+      }
+
+      return (
+        name.includes("affirm") ||
+        name.includes("capital one") ||
+        name.includes("credit card") ||
+        name.includes("high interest") ||
+        notes.includes("high interest")
+      );
+    });
+
+    if (remaining > 0 && hasHighInterestDebt) {
+      suggestions.push({
+        kind: "high-interest",
+        title: "Pay down high-interest debt",
+        detail:
+          "The $1,000 emergency fund comes first. After that is funded, extra cash should attack the highest-interest balance before building the 1-month reserve. Collection payment plans stay current, but do not jump ahead of this step.",
+        amount: remaining,
+      });
+      remaining = 0;
+    }
+
     const bucketsByDeadline = [...futureExpenses]
-      .filter((item) => item.status !== "Completed")
+      .filter(
+        (item) =>
+          item.status !== "Completed" &&
+          !(item.event_fund || "").toLowerCase().includes("emergency fund")
+      )
       .sort((a, b) =>
         (a.funding_deadline || a.due_date || "9999-12-31").localeCompare(
           b.funding_deadline || b.due_date || "9999-12-31"
@@ -1223,7 +1304,10 @@ export default function BudgetDashboard() {
 
     const futureRequired = futurePlanExpenses
       .filter((item) => {
-        if (!item.assigned_paycheck || item.assigned_paycheck <= paycheck.paycheck_date) {
+        if (
+          !item.assigned_paycheck ||
+          item.assigned_paycheck <= paycheck.paycheck_date
+        ) {
           return false;
         }
         if (item.status === "Cancelled" || item.status === "Deferred") {
@@ -1231,7 +1315,12 @@ export default function BudgetDashboard() {
         }
         if (num(item.planned_amount) <= 0) return false;
         const type = (item.expense_type || "").toLowerCase();
-        return !type.includes("sinking") && !type.includes("optional");
+        const name = (item.line_item || "").toLowerCase();
+        return (
+          !type.includes("sinking") &&
+          !type.includes("optional") &&
+          !name.includes("dealership deferred down payment")
+        );
       })
       .sort((a, b) => {
         const dateCompare = (a.assigned_paycheck || "").localeCompare(
@@ -1637,6 +1726,15 @@ export default function BudgetDashboard() {
                     ? "Update paycheck & current checking balance"
                     : "Enter paycheck & current checking balance"}
                 </button>
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-black text-slate-950">
+                    Current priority ladder
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">
+                    After required bills and catch-up obligations: finish the dealership down payment → build a $1,000 emergency fund → pay down high-interest debt → build a 1-month reserve → 3-month reserve → 6-month reserve.
+                  </p>
+                </div>
 
                 {paycheck.review_required && (
                   <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4">
