@@ -2840,6 +2840,12 @@ export default function BudgetDashboard() {
               const name = value.toLowerCase();
               const category = (bill.category || "").toLowerCase();
 
+              const isCollection =
+                name.includes("collection") ||
+                name.includes("resurgent") ||
+                name.includes("wltmn wnbrg") ||
+                name.includes("williams & fudge") ||
+                name.includes("spring oaks");
               const isDebtCategory = category === "debt";
               const isMortgage =
                 category === "housing" &&
@@ -2855,7 +2861,7 @@ export default function BudgetDashboard() {
                   name.includes("auto loan") ||
                   name.includes("vehicle loan"));
 
-              if (!isDebtCategory && !isMortgage && !isVehicleLoan) continue;
+              if (!isCollection && !isDebtCategory && !isMortgage && !isVehicleLoan) continue;
 
               const key = value.toLowerCase();
               if (seen.has(key)) continue;
@@ -2864,18 +2870,56 @@ export default function BudgetDashboard() {
               options.push({
                 value,
                 label: `${value} — ${money(num(bill.amount))} / ${bill.frequency || "recurring"}`,
-                group: isDebtCategory
-                  ? "Debt payments"
-                  : isMortgage
-                    ? "Mortgage / home loans"
-                    : "Vehicle loans",
+                group: isCollection
+                  ? "Collections"
+                  : isDebtCategory
+                    ? "Debt payments"
+                    : isMortgage
+                      ? "Mortgage / home loans"
+                      : "Vehicle loans",
+              });
+            }
+
+            for (const expense of futurePlanExpenses) {
+              const value = (expense.line_item || "").trim();
+              if (!value) continue;
+
+              const name = value.toLowerCase();
+              const type = (expense.expense_type || "").toLowerCase();
+
+              if (
+                type.includes("reserve") ||
+                type.includes("sinking") ||
+                name.startsWith("reserve ")
+              ) {
+                continue;
+              }
+
+              const isCollection =
+                name.includes("collection") ||
+                name.includes("resurgent") ||
+                name.includes("wltmn wnbrg") ||
+                name.includes("williams & fudge") ||
+                name.includes("spring oaks");
+
+              if (!isCollection) continue;
+
+              const key = value.toLowerCase();
+              if (seen.has(key)) continue;
+              seen.add(key);
+
+              options.push({
+                value,
+                label: value,
+                group: "Collections",
               });
             }
 
             const groupOrder: Record<string, number> = {
-              "Debt payments": 0,
-              "Vehicle loans": 1,
-              "Mortgage / home loans": 2,
+              "Collections": 0,
+              "Debt payments": 1,
+              "Vehicle loans": 2,
+              "Mortgage / home loans": 3,
             };
 
             return options.sort((a, b) => {
