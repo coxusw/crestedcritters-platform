@@ -2836,6 +2836,27 @@ export default function BudgetDashboard() {
             for (const bill of recurringBills) {
               const value = (bill.item || "").trim();
               if (!value) continue;
+
+              const name = value.toLowerCase();
+              const category = (bill.category || "").toLowerCase();
+
+              const isDebtCategory = category === "debt";
+              const isMortgage =
+                category === "housing" &&
+                (name.includes("mortgage") ||
+                  name.includes("home equity") ||
+                  name.includes("heloc"));
+              const isVehicleLoan =
+                category === "vehicle" &&
+                (name.includes("jeep") ||
+                  name.includes("pacifica") ||
+                  name.includes("van payment") ||
+                  name.includes("car payment") ||
+                  name.includes("auto loan") ||
+                  name.includes("vehicle loan"));
+
+              if (!isDebtCategory && !isMortgage && !isVehicleLoan) continue;
+
               const key = value.toLowerCase();
               if (seen.has(key)) continue;
               seen.add(key);
@@ -2843,53 +2864,24 @@ export default function BudgetDashboard() {
               options.push({
                 value,
                 label: `${value} — ${money(num(bill.amount))} / ${bill.frequency || "recurring"}`,
-                group: bill.category || "Other recurring bills",
+                group: isDebtCategory
+                  ? "Debt payments"
+                  : isMortgage
+                    ? "Mortgage / home loans"
+                    : "Vehicle loans",
               });
             }
 
-            for (const expense of futurePlanExpenses) {
-              const value = (expense.line_item || "").trim();
-              if (!value) continue;
-
-              const type = (expense.expense_type || "").toLowerCase();
-              const name = value.toLowerCase();
-              const category = (expense.category || "").toLowerCase();
-
-              if (
-                type.includes("reserve") ||
-                name.startsWith("reserve ") ||
-                type.includes("sinking")
-              ) {
-                continue;
-              }
-
-              const looksDebtRelated =
-                category === "debt" ||
-                name.includes("affirm") ||
-                name.includes("collection") ||
-                name.includes("capital one") ||
-                name.includes("credit card") ||
-                name.includes("mortgage") ||
-                name.includes("jeep") ||
-                name.includes("pacifica") ||
-                name.includes("van payment");
-
-              if (!looksDebtRelated) continue;
-
-              const key = value.toLowerCase();
-              if (seen.has(key)) continue;
-              seen.add(key);
-
-              options.push({
-                value,
-                label: value,
-                group: "Other planned debt payments",
-              });
-            }
+            const groupOrder: Record<string, number> = {
+              "Debt payments": 0,
+              "Vehicle loans": 1,
+              "Mortgage / home loans": 2,
+            };
 
             return options.sort((a, b) => {
-              const groupCompare = a.group.localeCompare(b.group);
-              if (groupCompare !== 0) return groupCompare;
+              const order =
+                (groupOrder[a.group] ?? 99) - (groupOrder[b.group] ?? 99);
+              if (order !== 0) return order;
               return a.value.localeCompare(b.value);
             });
           })()}
