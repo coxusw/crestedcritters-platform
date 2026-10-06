@@ -2155,8 +2155,15 @@ export default function BudgetDashboard() {
                   {people.map((person) => (
                     <PersonCard
                       key={person.name}
-                      name={person.name}
-                      allowance={num(person.default_discretionary)}
+                      name={person.name.toLowerCase() === "jen" ? "Jennifer" : person.name}
+                      allowance={
+                        num(person.default_discretionary) +
+                        (person.name.toLowerCase() === "chris"
+                          ? discretionaryCloseoutBonus.chris
+                          : person.name.toLowerCase() === "jen"
+                            ? discretionaryCloseoutBonus.jen
+                            : 0)
+                      }
                       spent={personalSpendingByName.get(person.name.toLowerCase()) || 0}
                     />
                   ))}
@@ -2264,15 +2271,68 @@ export default function BudgetDashboard() {
                 <MiniStat label="After plan" value={money(availableExtra)} />
               </div>
 
-              <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-                {expenses.map((expense) => (
-                  <ExpenseRow
-                    key={expense.id}
-                    expense={expense}
-                    onEdit={() => setEditor({ type: "expense", item: expense })}
-                  />
+              <div className="grid grid-cols-4 gap-1 rounded-2xl bg-slate-200 p-1">
+                {[
+                  ["bills", "Bills", planBills.length],
+                  ["sinking", "Sinking", planSinking.length],
+                  ["spending", "Spending", planSpending.length],
+                  ["all", "All", activePlanExpenses.length],
+                ].map(([tab, label, count]) => (
+                  <button
+                    key={String(tab)}
+                    type="button"
+                    onClick={() => setPlanTab(tab as PlanTab)}
+                    className={`min-w-0 rounded-xl px-1.5 py-2.5 text-[11px] font-black transition sm:text-sm ${
+                      planTab === tab
+                        ? "bg-white text-slate-950 shadow-sm"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    <span className="block truncate">{label}</span>
+                    <span className="mt-0.5 block text-[9px] font-bold text-slate-400">
+                      {count}
+                    </span>
+                  </button>
                 ))}
               </div>
+
+              {(planTab === "bills" || planTab === "all") && (
+                <PlanExpenseSection
+                  title="Bills"
+                  subtitle="Required bills, debt payments, collections, subscriptions, utilities, insurance, and other obligations."
+                  expenses={planBills}
+                  groupBy={(expense) => expense.category || "Other bills"}
+                  onEdit={(expense) =>
+                    setEditor({ type: "expense", item: expense })
+                  }
+                  emptyText="No bills are assigned to this paycheck."
+                />
+              )}
+
+              {(planTab === "sinking" || planTab === "all") && (
+                <PlanExpenseSection
+                  title="Sinking funds"
+                  subtitle="Money being set aside for a specific future goal or event."
+                  expenses={planSinking}
+                  groupBy={sinkingFundNameForExpense}
+                  onEdit={(expense) =>
+                    setEditor({ type: "expense", item: expense })
+                  }
+                  emptyText="No sinking-fund contributions are assigned to this paycheck."
+                />
+              )}
+
+              {(planTab === "spending" || planTab === "all") && (
+                <PlanExpenseSection
+                  title="Spending"
+                  subtitle="Chris and Jennifer discretionary, forgotten/unplanned buffer, vehicle fuel, and food."
+                  expenses={planSpending}
+                  onEdit={(expense) =>
+                    setEditor({ type: "expense", item: expense })
+                  }
+                  emptyText="No day-to-day spending is assigned to this paycheck."
+                />
+              )}
             </>
           )}
 
@@ -4925,6 +4985,95 @@ function PersonCard({
   );
 }
 
+function PlanExpenseSection({
+  title,
+  subtitle,
+  expenses,
+  onEdit,
+  groupBy,
+  emptyText,
+}: {
+  title: string;
+  subtitle: string;
+  expenses: Expense[];
+  onEdit: (expense: Expense) => void;
+  groupBy?: (expense: Expense) => string;
+  emptyText: string;
+}) {
+  const subtotal = expenses.reduce(
+    (sum, expense) => sum + num(expense.planned_amount),
+    0
+  );
+  const groups = new Map<string, Expense[]>();
+
+  if (groupBy) {
+    for (const expense of expenses) {
+      const key = groupBy(expense) || "Other";
+      groups.set(key, [...(groups.get(key) || []), expense]);
+    }
+  }
+
+  return (
+    <section>
+      <div className="mb-2 flex items-end justify-between gap-3 px-1">
+        <div className="min-w-0">
+          <h3 className="text-base font-black">{title}</h3>
+          <p className="mt-0.5 text-[11px] leading-4 text-slate-500">
+            {subtitle}
+          </p>
+        </div>
+        <strong className="shrink-0 text-sm">{money(subtotal)}</strong>
+      </div>
+
+      {!expenses.length ? (
+        <p className="rounded-2xl bg-white p-4 text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
+          {emptyText}
+        </p>
+      ) : groupBy ? (
+        <div className="space-y-2">
+          {Array.from(groups.entries()).map(([group, rows]) => (
+            <div
+              key={group}
+              className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-3.5 py-2">
+                <span className="min-w-0 truncate text-[11px] font-black uppercase tracking-wide text-slate-500">
+                  {group}
+                </span>
+                <strong className="shrink-0 text-xs text-slate-600">
+                  {money(
+                    rows.reduce(
+                      (sum, expense) => sum + num(expense.planned_amount),
+                      0
+                    )
+                  )}
+                </strong>
+              </div>
+              {rows.map((expense) => (
+                <ExpenseRow
+                  key={expense.id}
+                  expense={expense}
+                  onEdit={() => onEdit(expense)}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+          {expenses.map((expense) => (
+            <ExpenseRow
+              key={expense.id}
+              expense={expense}
+              onEdit={() => onEdit(expense)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ExpenseRow({
   expense,
   onEdit,
@@ -4936,7 +5085,7 @@ function ExpenseRow({
     <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-3.5 last:border-0">
       <div className="min-w-0">
         <p className="truncate text-sm font-black">
-          {expense.line_item || "Unnamed expense"}
+          {expenseDisplayName(expense)}
         </p>
         <p className="mt-0.5 text-[11px] text-slate-500">
           {dateLabel(expense.due_date)}
