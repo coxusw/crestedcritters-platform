@@ -33,6 +33,7 @@ type Expense = {
   status: string | null;
   notes: string | null;
   event_fund: string | null;
+  future_expense_id: string | null;
 };
 
 type Person = {
@@ -56,6 +57,11 @@ type FutureExpense = {
   auto_fund: boolean | null;
   repeat_annually: boolean | null;
   funding_deadline_rule: string | null;
+  closed_at: string | null;
+  closeout_amount: number | string | null;
+  closeout_destination: string | null;
+  closeout_destination_fund_id: string | null;
+  closeout_assigned_paycheck: string | null;
 };
 
 type BucketContribution = {
@@ -133,6 +139,7 @@ type Editor =
   | { type: "debt"; item?: Debt }
   | { type: "paycheck" }
   | { type: "future" }
+  | { type: "close-fund"; item: FutureExpense }
   | null;
 
 const money = (value: number) =>
@@ -231,6 +238,7 @@ const spendingCategoryForExpense = (expense: Expense) => {
 
   if (
     !lineItem ||
+    expense.future_expense_id ||
     expenseType.includes("sinking") ||
     normalizedLineItem.includes("sinking fund")
   ) {
@@ -238,6 +246,53 @@ const spendingCategoryForExpense = (expense: Expense) => {
   }
 
   return normalizeSpendingCategory(lineItem);
+};
+
+type PlanTab = "bills" | "sinking" | "spending" | "all";
+type PlanGroup = Exclude<PlanTab, "all">;
+
+const isClosedFundStatus = (value: string | null | undefined) =>
+  ["closed", "completed", "cancelled", "removed"].includes(
+    (value || "").trim().toLowerCase()
+  );
+
+const expensePlanGroup = (expense: Expense): PlanGroup => {
+  const line = (expense.line_item || "").trim().toLowerCase();
+  const category = (expense.category || "").trim().toLowerCase();
+  const type = (expense.expense_type || "").trim().toLowerCase();
+
+  if (
+    expense.future_expense_id ||
+    type.includes("sinking") ||
+    category === "sinking fund" ||
+    line.includes("sinking fund")
+  ) {
+    return "sinking";
+  }
+
+  if (
+    line.includes("chris discretionary") ||
+    line.includes("jen discretionary") ||
+    line.includes("jennifer discretionary") ||
+    line.includes("forgotten / unplanned expense buffer") ||
+    category === "fuel" ||
+    category === "groceries" ||
+    category === "food" ||
+    line.includes("vehicle fuel") ||
+    line.includes("grocer") ||
+    line === "food"
+  ) {
+    return "spending";
+  }
+
+  return "bills";
+};
+
+const expenseDisplayName = (expense: Expense) => {
+  const name = expense.line_item || "Unnamed expense";
+  return name.toLowerCase() === "jen discretionary spending"
+    ? "Jennifer discretionary spending"
+    : name;
 };
 
 export default function BudgetDashboard() {
@@ -256,6 +311,7 @@ export default function BudgetDashboard() {
   const [forecastExpenses, setForecastExpenses] = useState<Expense[]>([]);
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastTab, setForecastTab] = useState<"paychecks" | "sinking">("paychecks");
+  const [planTab, setPlanTab] = useState<PlanTab>("all");
   const [moreTab, setMoreTab] = useState<"debts" | "recurring" | "future">("debts");
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
@@ -347,7 +403,7 @@ export default function BudgetDashboard() {
     ] = await Promise.all([
         supabase
           .from("budget_expenses")
-          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund")
+          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund,future_expense_id")
           .eq("assigned_paycheck", selected.paycheck_date)
           .order("due_date", { ascending: true, nullsFirst: false })
           .order("planned_amount", { ascending: false, nullsFirst: false }),
@@ -358,7 +414,7 @@ export default function BudgetDashboard() {
           .order("name", { ascending: true }),
         supabase
           .from("budget_future_expenses")
-          .select("id,event_fund,due_date,target_budget,planned_funding,actual_funding_spend,remaining_to_plan,remaining_actual,status,notes,funding_start_paycheck,funding_deadline,auto_fund,repeat_annually,funding_deadline_rule")
+          .select("id,event_fund,due_date,target_budget,planned_funding,actual_funding_spend,remaining_to_plan,remaining_actual,status,notes,funding_start_paycheck,funding_deadline,auto_fund,repeat_annually,funding_deadline_rule,closed_at,closeout_amount,closeout_destination,closeout_destination_fund_id,closeout_assigned_paycheck")
           .order("due_date", { ascending: true, nullsFirst: false }),
         supabase
           .from("budget_recurring_bills")
@@ -389,7 +445,7 @@ export default function BudgetDashboard() {
           .order("received_date", { ascending: false }),
         supabase
           .from("budget_expenses")
-          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund")
+          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund,future_expense_id")
           .gte("assigned_paycheck", selected.paycheck_date)
           .neq("status", "Cancelled")
           .order("assigned_paycheck", { ascending: true })
@@ -461,7 +517,7 @@ export default function BudgetDashboard() {
 
     const { data, error: forecastError } = await supabase
       .from("budget_expenses")
-      .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund")
+      .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund,future_expense_id")
       .eq("assigned_paycheck", date)
       .neq("status", "Cancelled")
       .order("due_date", { ascending: true, nullsFirst: false })
