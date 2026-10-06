@@ -608,6 +608,87 @@ export default function BudgetDashboard() {
     await loadData();
     setSaving(false);
   }
+  async function closeSinkingFund(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!paycheck || editor?.type !== "close-fund") return;
+
+    setSaving(true);
+    setNotice("");
+    setError("");
+
+    const data = new FormData(event.currentTarget);
+    const destination = String(data.get("destination") || "none");
+
+    const { data: closeout, error: closeError } = await supabase.rpc(
+      "close_budget_sinking_fund",
+      {
+        p_fund_id: editor.item.id,
+        p_destination: destination,
+        p_assigned_paycheck: paycheck.paycheck_date,
+      }
+    );
+
+    if (closeError) {
+      setError(closeError.message);
+      setSaving(false);
+      return;
+    }
+
+    const result = (closeout || {}) as {
+      leftover?: number | string;
+      destination?: string;
+      destination_fund_name?: string | null;
+    };
+    const leftover = num(result.leftover);
+
+    setEditor(null);
+    setNotice(
+      leftover > 0
+        ? `${editor.item.event_fund || "Sinking fund"} closed with ${money(
+            leftover
+          )} moved ${
+            result.destination === "discretionary"
+              ? "evenly to Chris and Jennifer discretionary spending"
+              : result.destination === "buffer"
+                ? "to the forgotten / unplanned expense buffer"
+                : result.destination === "next_fund"
+                  ? `to ${result.destination_fund_name || "the next sinking fund"}`
+                  : "out of the fund"
+          }.`
+        : `${editor.item.event_fund || "Sinking fund"} closed with no money left to reassign.`
+    );
+    await loadData();
+    setSaving(false);
+  }
+
+  async function removeClosedSinkingFund(item: FutureExpense) {
+    if (
+      !window.confirm(
+        `Remove "${item.event_fund || "this sinking fund"}" from the sinking-fund list? Historical spending and plan rows will remain, but they will no longer be linked to this fund.`
+      )
+    ) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    const { error: removeError } = await supabase
+      .from("budget_future_expenses")
+      .delete()
+      .eq("id", item.id)
+      .eq("status", "Closed");
+
+    if (removeError) {
+      setError(removeError.message);
+    } else {
+      setEditor(null);
+      setNotice("Closed sinking fund removed.");
+      await loadData();
+    }
+    setSaving(false);
+  }
+
   async function savePaycheckEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!paycheck || editor?.type !== "paycheck") return;
@@ -1313,6 +1394,36 @@ export default function BudgetDashboard() {
   const cashAvailable = checkingBalance == null ? income : checkingBalance;
   const availableExtra = cashAvailable - planned;
 
+  const currentCloseoutTransfers = useMemo(
+    () =>
+      futureExpenses.filter(
+        (item) =>
+          isClosedFundStatus(item.status) &&
+          item.closeout_assigned_paycheck === paycheck?.paycheck_date &&
+          num(item.closeout_amount) > 0
+      ),
+    [futureExpenses, paycheck?.paycheck_date]
+  );
+
+  const discretionaryCloseoutBonus = useMemo(() => {
+    const total = currentCloseoutTransfers
+      .filter((item) => item.closeout_destination === "discretionary")
+      .reduce((sum, item) => sum + num(item.closeout_amount), 0);
+    const chris = Math.floor((total * 100) / 2) / 100;
+    return {
+      chris,
+      jen: Math.round((total - chris) * 100) / 100,
+    };
+  }, [currentCloseoutTransfers]);
+
+  const bufferCloseoutBonus = useMemo(
+    () =>
+      currentCloseoutTransfers
+        .filter((item) => item.closeout_destination === "buffer")
+        .reduce((sum, item) => sum + num(item.closeout_amount), 0),
+    [currentCloseoutTransfers]
+  );
+
   const categoryComparison = useMemo(() => {
     const map = new Map<
       string,
@@ -1391,8 +1502,35 @@ export default function BudgetDashboard() {
       map.set(category, row);
     }
 
+    if (bufferCloseoutBonus > 0) {
+      const category = "Forgotten / unplanned expense buffer";
+      const row = map.get(category) || { category, planned: 0, actual: 0 };
+      row.planned += bufferCloseoutBonus;
+      map.set(category, row);
+    }
+
+    if (discretionaryCloseoutBonus.chris > 0) {
+      const category = "Chris spending";
+      const row = map.get(category) || { category, planned: 0, actual: 0 };
+      row.planned += discretionaryCloseoutBonus.chris;
+      map.set(category, row);
+    }
+
+    if (discretionaryCloseoutBonus.jen > 0) {
+      const category = "Jen spending";
+      const row = map.get(category) || { category, planned: 0, actual: 0 };
+      row.planned += discretionaryCloseoutBonus.jen;
+      map.set(category, row);
+    }
+
     return Array.from(map.values());
-  }, [expenses, people, actualExpenses]);
+  }, [
+    expenses,
+    people,
+    actualExpenses,
+    bufferCloseoutBonus,
+    discretionaryCloseoutBonus,
+  ]);
 
   const personalSpendingByName = useMemo(() => {
     const totals = new Map<string, number>();
@@ -1508,6 +1646,21 @@ export default function BudgetDashboard() {
     isFundingCompleteStatus(row.status) ||
     (!!row.assigned_paycheck && fundedPaycheckDates.has(row.assigned_paycheck));
 
+  const bucketIncomingCloseouts = (
+    bucketId: string,
+    throughPaycheck = "9999-12-31"
+  ) =>
+    futureExpenses
+      .filter(
+        (item) =>
+          item.closeout_destination === "next_fund" &&
+          item.closeout_destination_fund_id === bucketId &&
+          !!item.closeout_assigned_paycheck &&
+          item.closeout_assigned_paycheck <= throughPaycheck &&
+          num(item.closeout_amount) > 0
+      )
+      .reduce((sum, item) => sum + num(item.closeout_amount), 0);
+
   const bucketFundedThrough = (bucketId: string, throughPaycheck: string) =>
     bucketContributions
       .filter(
@@ -1519,7 +1672,8 @@ export default function BudgetDashboard() {
           row.status !== "Deferred" &&
           contributionCountsAsFunded(row)
       )
-      .reduce((sum, row) => sum + num(row.planned_amount), 0);
+      .reduce((sum, row) => sum + num(row.planned_amount), 0) +
+    bucketIncomingCloseouts(bucketId, throughPaycheck);
 
   const allocationSuggestions = useMemo(() => {
     if (!paycheck) return [];
@@ -1682,7 +1836,7 @@ export default function BudgetDashboard() {
     const bucketsByDeadline = [...futureExpenses]
       .filter(
         (item) =>
-          item.status !== "Completed" &&
+          !isClosedFundStatus(item.status) &&
           !(item.event_fund || "").toLowerCase().includes("emergency fund")
       )
       .sort((a, b) =>
@@ -1694,15 +1848,7 @@ export default function BudgetDashboard() {
     for (const bucket of bucketsByDeadline) {
       if (remaining <= 0) break;
 
-      const funded = bucketContributions
-        .filter(
-          (row) =>
-            row.future_expense_id === bucket.id &&
-            row.status !== "Cancelled" &&
-            row.status !== "Deferred" &&
-            contributionCountsAsFunded(row)
-        )
-        .reduce((sum, row) => sum + num(row.planned_amount), 0);
+      const funded = bucketFundedThrough(bucket.id, "9999-12-31");
 
       const needed = Math.max(0, num(bucket.target_budget) - funded);
       if (needed <= 0) continue;
@@ -1772,6 +1918,26 @@ export default function BudgetDashboard() {
     fundedPaycheckDates,
     debtSignals,
   ]);
+
+  const activePlanExpenses = expenses.filter(
+    (expense) =>
+      expense.status !== "Cancelled" &&
+      expense.status !== "Deferred"
+  );
+  const planBills = activePlanExpenses.filter(
+    (expense) => expensePlanGroup(expense) === "bills"
+  );
+  const planSinking = activePlanExpenses.filter(
+    (expense) => expensePlanGroup(expense) === "sinking"
+  );
+  const planSpending = activePlanExpenses.filter(
+    (expense) => expensePlanGroup(expense) === "spending"
+  );
+  const sinkingFundNameForExpense = (expense: Expense) =>
+    expense.event_fund ||
+    futureExpenses.find((item) => item.id === expense.future_expense_id)
+      ?.event_fund ||
+    "Other sinking fund";
 
   const discretionaryRows = expenses.filter((expense) =>
     (expense.line_item || "").toLowerCase().includes("discretionary spending")
