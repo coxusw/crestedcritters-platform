@@ -499,27 +499,18 @@ export default function BudgetDashboard() {
       return;
     }
 
-    const fundingDates = paycheckDates.filter(
-      (date) => date >= startPaycheck && date <= fundingDeadline
-    );
-
-    if (!fundingDates.length) {
-      setError(
-        "There are no paycheck dates between the selected start date and due date."
-      );
+    if (!fundingDeadline || fundingDeadline < startPaycheck) {
+      setError("The funding deadline must be on or after the starting paycheck.");
       setSaving(false);
       return;
     }
 
-    const totalCents = Math.round(targetBudget * 100);
-    const baseCents = Math.floor(totalCents / fundingDates.length);
-    const remainderCents = totalCents % fundingDates.length;
-    const contributions = fundingDates.map((date, index) => ({
-      date,
-      amount: (baseCents + (index < remainderCents ? 1 : 0)) / 100,
-    }));
+    const startMs = new Date(`${startPaycheck}T12:00:00`).getTime();
+    const deadlineMs = new Date(`${fundingDeadline}T12:00:00`).getTime();
+    const fundingPeriodCount =
+      Math.floor((deadlineMs - startMs) / (14 * 86400000)) + 1;
 
-    const { data: goal, error: goalError } = await supabase
+    const { error: goalError } = await supabase
       .from("budget_future_expenses")
       .insert({
         event_fund: eventFund,
@@ -534,12 +525,10 @@ export default function BudgetDashboard() {
         funding_start_paycheck: startPaycheck,
         funding_deadline: fundingDeadline,
         auto_fund: true,
-      })
-      .select("id")
-      .single();
+      });
 
-    if (goalError || !goal) {
-      setError(goalError?.message || "Could not create the future goal.");
+    if (goalError) {
+      setError(goalError.message || "Could not create the future goal.");
       setSaving(false);
       return;
     }
@@ -548,42 +537,18 @@ export default function BudgetDashboard() {
       .from("budget_categories")
       .upsert({ name: "Sinking Fund", active: true }, { onConflict: "name" });
 
-    const rows = contributions.map((contribution) => ({
-      due_date: contribution.date,
-      assigned_paycheck: contribution.date,
-      category: "Sinking Fund",
-      line_item: `${eventFund} sinking fund`,
-      expense_type: "Sinking Fund",
-      frequency: "Biweekly",
-      planned_amount: contribution.amount,
-      status: "Planned",
-      notes: notes || `Auto-funded for ${eventFund}, due ${dueDate}.`,
-      event_fund: eventFund,
-      future_expense_id: goal.id,
-    }));
-
-    const { error: contributionError } = await supabase
-      .from("budget_expenses")
-      .insert(rows);
-
-    if (contributionError) {
-      await supabase.from("budget_future_expenses").delete().eq("id", goal.id);
-      setError(
-        `The goal could not be funded across paychecks: ${contributionError.message}`
-      );
-      setSaving(false);
-      return;
-    }
+    await supabase.rpc("refresh_budget_rolling_horizon", {
+      p_reference_date: todayIso(),
+    });
 
     setEditor(null);
     setView("forecast");
     setNotice(
-      `${eventFund} added. ${money(targetBudget)} is now spread across ${fundingDates.length} paycheck${fundingDates.length === 1 ? "" : "s"}.`
+      `${eventFund} added. ${money(targetBudget)} is spread across about ${fundingPeriodCount} paycheck${fundingPeriodCount === 1 ? "" : "s"}, but only the rolling two-paycheck window is generated at a time.`
     );
     await loadData();
     setSaving(false);
   }
-
   async function savePaycheckEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!paycheck || editor?.type !== "paycheck") return;
@@ -1162,6 +1127,14 @@ export default function BudgetDashboard() {
       due_timing: dueTiming,
       active: true,
       notes,
+      ...(!editor.item && createOccurrences && nextDueDate
+        ? {
+            generation_enabled: true,
+            generation_anchor_date: nextDueDate,
+            generation_line_item: item,
+            generation_expense_type: "Required",
+          }
+        : {}),
     };
 
     await supabase
@@ -1206,39 +1179,28 @@ export default function BudgetDashboard() {
     }
 
     if (!editor.item && createOccurrences && nextDueDate) {
-      const lastPaycheck = paycheckDates[paycheckDates.length - 1];
-      const horizon = lastPaycheck ? addDays(lastPaycheck, 14) : nextDueDate;
-      const dueDates = buildRecurringDates(nextDueDate, frequency, horizon);
+      const { error: rollingError } = await supabase.rpc(
+        "refresh_budget_rolling_horizon",
+        { p_reference_date: todayIso() }
+      );
 
-      if (dueDates.length) {
-        const occurrenceRows = dueDates.map((dueDate) => ({
-          due_date: dueDate,
-          assigned_paycheck: assignedPaycheckForDueDate(dueDate),
-          category,
-          line_item: item,
-          expense_type: "Required",
-          frequency,
-          planned_amount: amount,
-          status: "Planned",
-          notes: "Generated from recurring bill in Budget Lab.",
-        }));
-
-        const { error: occurrenceError } = await supabase
-          .from("budget_expenses")
-          .insert(occurrenceRows);
-
-        if (occurrenceError) {
-          setError(
-            `Recurring bill saved, but its planned occurrences could not be generated: ${occurrenceError.message}`
-          );
-          setSaving(false);
-          return;
-        }
+      if (rollingError) {
+        setError(
+          `Recurring bill saved, but the rolling paycheck window could not be refreshed: ${rollingError.message}`
+        );
+        setSaving(false);
+        return;
       }
     }
 
     setEditor(null);
-    setNotice(editor.item ? "Recurring bill updated." : "Recurring bill added.");
+    setNotice(
+      editor.item
+        ? "Recurring bill updated."
+        : createOccurrences && nextDueDate
+          ? "Recurring bill added. Only the rolling two-paycheck window was generated."
+          : "Recurring bill added."
+    );
     await loadData();
     setSaving(false);
   }
