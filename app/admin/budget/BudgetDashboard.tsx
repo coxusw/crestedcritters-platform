@@ -1533,45 +1533,45 @@ export default function BudgetDashboard() {
       }
     }
 
-    // After the emergency fund, surplus goes to high-interest consumer debt
-    // before any one-month/three-month/six-month reserve build.
-    const hasHighInterestDebt = futurePlanExpenses.some((item) => {
-      if (item.status === "Cancelled" || item.status === "Deferred") return false;
-      if (num(item.planned_amount) <= 0) return false;
-
-      const name = (item.line_item || "").toLowerCase();
-      const notes = (item.notes || "").toLowerCase();
-      const type = (item.expense_type || "").toLowerCase();
-
-      const isCollection =
-        name.includes("collection") ||
-        name.includes("resurgent") ||
-        name.includes("spring oaks") ||
-        name.includes("williams & fudge") ||
-        notes.includes("repayment plan");
-
-      if (isCollection || type.includes("reserve") || type.includes("sinking")) {
-        return false;
-      }
+    // After the emergency fund, use the structured debt details instead of
+    // guessing from the bill name. Interest, settlement offers, and deadlines
+    // can all change which balance deserves extra money first.
+    const debtTarget = debtSignals.find(({ debt }) => {
+      const apr =
+        debt.apr == null || String(debt.apr).trim() === ""
+          ? null
+          : num(debt.apr);
+      const settlement =
+        num(debt.settlement_offer_amount) > 0 &&
+        num(debt.settlement_offer_amount) < num(debt.current_balance);
+      const urgentTerm =
+        !!debt.term_end_date && debt.term_end_date <= addDays(todayIso(), 180);
+      const urgentPromo =
+        !!debt.promo_end_date && debt.promo_end_date <= addDays(todayIso(), 90);
 
       return (
-        name.includes("affirm") ||
-        name.includes("capital one") ||
-        name.includes("credit card") ||
-        name.includes("high interest") ||
-        notes.includes("high interest")
+        debt.priority_override === "High" ||
+        (apr != null && apr > 0) ||
+        settlement ||
+        urgentTerm ||
+        urgentPromo
       );
     });
 
-    if (remaining > 0 && hasHighInterestDebt) {
+    if (remaining > 0 && debtTarget) {
+      const amount = Math.min(
+        remaining,
+        num(debtTarget.debt.current_balance)
+      );
       suggestions.push({
         kind: "high-interest",
-        title: "Pay down high-interest debt",
+        title: `Extra payment: ${debtTarget.debt.name}`,
         detail:
-          "The $1,000 emergency fund comes first. After that is funded, extra cash should attack the highest-interest balance before building the 1-month reserve. Collection payment plans stay current, but do not jump ahead of this step.",
-        amount: remaining,
+          debtTarget.reasons[0] ||
+          "This debt currently ranks above lower-cost balances for extra payments.",
+        amount,
       });
-      remaining = 0;
+      remaining -= amount;
     }
 
     const bucketsByDeadline = [...futureExpenses]
@@ -1665,6 +1665,7 @@ export default function BudgetDashboard() {
     futureExpenses,
     bucketContributions,
     fundedPaycheckDates,
+    debtSignals,
   ]);
 
   const discretionaryRows = expenses.filter((expense) =>
@@ -2163,6 +2164,69 @@ export default function BudgetDashboard() {
                   </div>
                 </div>
 
+                {debtSignals.length > 0 && (
+                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <div className="flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-black text-amber-950">
+                          Debt payoff signals
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-amber-800">
+                          Ranked from the details you enter: interest cost, settlement
+                          offers, promotional deadlines, and payoff terms.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setView("more")}
+                        className="shrink-0 text-xs font-black text-amber-900"
+                      >
+                        Manage debts
+                      </button>
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      {debtSignals.slice(0, 5).map(({ debt, reasons }, index) => {
+                        const apr =
+                          debt.apr == null || String(debt.apr).trim() === ""
+                            ? null
+                            : num(debt.apr);
+                        return (
+                          <button
+                            key={debt.id}
+                            type="button"
+                            onClick={() => setEditor({ type: "debt", item: debt })}
+                            className="w-full rounded-xl bg-white p-3 text-left ring-1 ring-amber-100"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="text-sm font-black text-slate-950">
+                                    {index + 1}. {debt.name}
+                                  </span>
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                                    {apr == null
+                                      ? "APR unknown"
+                                      : apr === 0
+                                        ? "0% interest"
+                                        : `${apr.toFixed(2)}% APR`}
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-xs leading-5 text-slate-500">
+                                  {reasons.slice(0, 2).join(" ")}
+                                </p>
+                              </div>
+                              <strong className="shrink-0 text-sm text-slate-950">
+                                {money(num(debt.current_balance))}
+                              </strong>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-5 border-t border-slate-200 pt-5">
                   <div className="mb-5">
                     <div className="flex items-end justify-between gap-3">
@@ -2504,16 +2568,86 @@ export default function BudgetDashboard() {
                 subtitle="Recurring bills, goals, and future expenses."
               />
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <CountCard
-                  label="Active recurring bills"
+                  label="Recurring bills"
                   value={String(recurringBills.length)}
                 />
                 <CountCard
                   label="Future funds"
                   value={String(futureExpenses.length)}
                 />
+                <CountCard
+                  label="Active debts"
+                  value={String(debts.length)}
+                />
               </div>
+
+              <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-black">Debts</h3>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Track the balance, interest, minimum, payoff terms, and
+                      settlement offers so paycheck reviews can rank extra payments.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditor({ type: "debt" })}
+                    className="shrink-0 rounded-xl bg-slate-950 px-3 py-2 text-sm font-black text-white"
+                  >
+                    + Debt
+                  </button>
+                </div>
+
+                <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
+                  {debts.length ? (
+                    debts
+                      .slice()
+                      .sort((a, b) => num(b.current_balance) - num(a.current_balance))
+                      .map((debt) => {
+                        const apr =
+                          debt.apr == null || String(debt.apr).trim() === ""
+                            ? null
+                            : num(debt.apr);
+                        return (
+                          <button
+                            key={debt.id}
+                            type="button"
+                            onClick={() => setEditor({ type: "debt", item: debt })}
+                            className="flex w-full items-center justify-between gap-3 border-b border-slate-100 p-3 text-left last:border-0"
+                          >
+                            <span className="min-w-0">
+                              <strong className="block truncate text-sm">
+                                {debt.name}
+                              </strong>
+                              <span className="mt-0.5 block text-[11px] text-slate-500">
+                                {debt.debt_type}
+                                {apr == null
+                                  ? " · APR unknown"
+                                  : apr === 0
+                                    ? " · 0% interest"
+                                    : ` · ${apr.toFixed(2)}% APR`}
+                                {num(debt.minimum_payment) > 0
+                                  ? ` · min ${money(num(debt.minimum_payment))}`
+                                  : ""}
+                              </span>
+                            </span>
+                            <strong className="shrink-0 text-sm">
+                              {money(num(debt.current_balance))}
+                            </strong>
+                          </button>
+                        );
+                      })
+                  ) : (
+                    <p className="p-3 text-sm text-slate-500">
+                      No structured debts yet. Add one to start tracking payoff
+                      cost and priority.
+                    </p>
+                  )}
+                </div>
+              </section>
 
               <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
                 <h3 className="font-black">Next future expenses</h3>
@@ -2565,6 +2699,12 @@ export default function BudgetDashboard() {
               </section>
             </>
           )}
+
+          <div
+            aria-hidden="true"
+            className="h-40 shrink-0 sm:h-24"
+            style={{ height: "calc(10rem + env(safe-area-inset-bottom, 0px))" }}
+          />
         </div>
       </div>
 
@@ -2679,6 +2819,36 @@ export default function BudgetDashboard() {
           saving={saving}
           onClose={() => setEditor(null)}
           onSave={saveRecurring}
+        />
+      )}
+
+      {editor?.type === "debt" && (
+        <DebtEditor
+          item={editor.item}
+          budgetItems={Array.from(
+            new Set(
+              futurePlanExpenses
+                .filter((expense) => {
+                  const category = (expense.category || "").toLowerCase();
+                  const name = (expense.line_item || "").toLowerCase();
+                  return (
+                    category === "debt" ||
+                    name.includes("affirm") ||
+                    name.includes("collection") ||
+                    name.includes("capital one") ||
+                    name.includes("credit card")
+                  );
+                })
+                .map((expense) => expense.line_item || "")
+                .filter(Boolean)
+            )
+          )}
+          saving={saving}
+          onClose={() => setEditor(null)}
+          onSave={saveDebt}
+          onArchive={
+            editor.item ? () => archiveDebt(editor.item!) : undefined
+          }
         />
       )}
     </main>
@@ -3189,6 +3359,65 @@ function ActualExpenseEditor({
   const remainingAfter = remainingBefore - enteredAmount;
   const overAfter = remainingAfter < 0;
 
+  const openBuckets = futureExpenses.filter(
+    (bucket) => bucket.status !== "Completed"
+  );
+
+  const currentCycleAmount = (bucketId: string) =>
+    bucketContributions
+      .filter(
+        (row) =>
+          row.future_expense_id === bucketId &&
+          row.assigned_paycheck === currentPaycheck &&
+          row.status !== "Cancelled" &&
+          row.status !== "Deferred"
+      )
+      .reduce((sum, row) => sum + num(row.planned_amount), 0);
+
+  const nextPlannedPaycheck = (bucket: FutureExpense) => {
+    const contributionDates = bucketContributions
+      .filter(
+        (row) =>
+          row.future_expense_id === bucket.id &&
+          !!row.assigned_paycheck &&
+          row.assigned_paycheck > currentPaycheck &&
+          row.status !== "Cancelled" &&
+          row.status !== "Deferred"
+      )
+      .map((row) => row.assigned_paycheck as string)
+      .sort();
+
+    return (
+      contributionDates[0] ||
+      (bucket.funding_start_paycheck &&
+      bucket.funding_start_paycheck > currentPaycheck
+        ? bucket.funding_start_paycheck
+        : null) ||
+      bucket.due_date ||
+      null
+    );
+  };
+
+  const currentCycleBuckets = openBuckets
+    .filter((bucket) => currentCycleAmount(bucket.id) > 0)
+    .sort((a, b) => {
+      const amountDiff = currentCycleAmount(b.id) - currentCycleAmount(a.id);
+      if (amountDiff !== 0) return amountDiff;
+      return (a.due_date || "9999-12-31").localeCompare(
+        b.due_date || "9999-12-31"
+      );
+    });
+
+  const upcomingBuckets = openBuckets
+    .filter((bucket) => currentCycleAmount(bucket.id) <= 0)
+    .sort((a, b) => {
+      const dateCompare = (nextPlannedPaycheck(a) || "9999-12-31").localeCompare(
+        nextPlannedPaycheck(b) || "9999-12-31"
+      );
+      if (dateCompare !== 0) return dateCompare;
+      return (a.event_fund || "").localeCompare(b.event_fund || "");
+    });
+
   const selectedBucket = futureExpenses.find(
     (bucket) => bucket.id === selectedBucketId
   );
@@ -3276,13 +3505,29 @@ function ActualExpenseEditor({
             className="budget-input"
           >
             <option value="">No bucket</option>
-            {futureExpenses
-              .filter((bucket) => bucket.status !== "Completed")
-              .map((bucket) => (
-                <option key={bucket.id} value={bucket.id}>
-                  {bucket.event_fund || "Future expense"}
-                </option>
-              ))}
+            {currentCycleBuckets.length > 0 && (
+              <optgroup label="This pay cycle / current plan">
+                {currentCycleBuckets.map((bucket) => (
+                  <option key={bucket.id} value={bucket.id}>
+                    {bucket.event_fund || "Future expense"} —{" "}
+                    {money(currentCycleAmount(bucket.id))} this check
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {upcomingBuckets.length > 0 && (
+              <optgroup label="Upcoming / lower priority this cycle">
+                {upcomingBuckets.map((bucket) => {
+                  const nextDate = nextPlannedPaycheck(bucket);
+                  return (
+                    <option key={bucket.id} value={bucket.id}>
+                      {bucket.event_fund || "Future expense"}
+                      {nextDate ? ` — next ${dateLabel(nextDate)}` : ""}
+                    </option>
+                  );
+                })}
+              </optgroup>
+            )}
           </select>
         </Field>
 
@@ -3727,7 +3972,15 @@ function Modal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 sm:items-center sm:p-4">
-      <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-3xl">
+      <div
+        className="w-full max-w-xl overflow-y-auto overscroll-contain rounded-t-3xl bg-white px-4 pt-4 shadow-2xl sm:rounded-3xl"
+        style={{
+          maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - 0.5rem)",
+          paddingBottom: "calc(6rem + env(safe-area-inset-bottom, 0px))",
+          scrollPaddingBottom: "calc(6rem + env(safe-area-inset-bottom, 0px))",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-xl font-black">{title}</h2>
           <button
