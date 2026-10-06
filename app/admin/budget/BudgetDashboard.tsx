@@ -1583,32 +1583,32 @@ export default function BudgetDashboard() {
       }}
     >
       <div className="mx-auto max-w-xl">
-        <header className="sticky top-0 z-30 border-b border-white/10 bg-gradient-to-r from-slate-950 to-blue-950 px-3 py-2.5 text-white shadow-md">
-          <div className="flex items-center gap-2">
+        <header className="sticky top-0 z-30 border-b border-white/10 bg-gradient-to-r from-slate-950 to-blue-950 px-3 pb-2.5 pt-2 text-white shadow-md">
+          <div className="flex items-center justify-between gap-2">
             <Link
               href="/admin"
-              className="shrink-0 rounded-lg px-1 py-1 text-[11px] font-black uppercase tracking-[0.08em] text-emerald-300"
+              className="text-[10px] font-black uppercase tracking-[0.08em] text-emerald-300"
             >
-              ← Admin
+              ← Crested Critters Admin
             </Link>
-            <h1 className="min-w-0 flex-1 truncate text-lg font-black tracking-tight">
-              Household Budget
-            </h1>
             <div className="flex shrink-0 gap-1.5">
               <button
                 onClick={() => setEditor({ type: "income" })}
-                className="rounded-lg bg-blue-300 px-2.5 py-2 text-xs font-black text-blue-950"
+                className="rounded-lg bg-blue-300 px-2 py-1.5 text-[11px] font-black leading-none text-blue-950"
               >
                 + Income
               </button>
               <button
                 onClick={() => setEditor({ type: "actual" })}
-                className="rounded-lg bg-emerald-300 px-2.5 py-2 text-xs font-black text-emerald-950"
+                className="rounded-lg bg-emerald-300 px-2 py-1.5 text-[11px] font-black leading-none text-emerald-950"
               >
                 + Spend
               </button>
             </div>
           </div>
+          <h1 className="mt-1 text-base font-black leading-tight tracking-tight">
+            Household Budget
+          </h1>
         </header>
 
         <div className="space-y-4 p-3 sm:p-4">
