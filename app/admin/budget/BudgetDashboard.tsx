@@ -1575,7 +1575,13 @@ export default function BudgetDashboard() {
   if (!paycheck) return null;
 
   return (
-    <main className="min-h-[100dvh] bg-slate-100 pb-[calc(8.5rem+env(safe-area-inset-bottom))] text-slate-950">
+    <main
+      className="min-h-[100dvh] bg-slate-100 text-slate-950"
+      style={{
+        paddingBottom: "calc(12rem + env(safe-area-inset-bottom, 0px))",
+        scrollPaddingBottom: "calc(12rem + env(safe-area-inset-bottom, 0px))",
+      }}
+    >
       <div className="mx-auto max-w-xl">
         <header className="sticky top-0 z-30 border-b border-white/10 bg-gradient-to-r from-slate-950 to-blue-950 px-3 py-2.5 text-white shadow-md">
           <div className="flex items-center gap-2">
