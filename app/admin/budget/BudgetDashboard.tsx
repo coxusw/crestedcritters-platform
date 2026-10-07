@@ -3132,54 +3132,118 @@ export default function BudgetDashboard() {
                     </button>
                   </div>
 
+                  <p className="mt-3 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+                    Extra debt payoff follows this order from top to bottom. Every
+                    required minimum stays in the normal paycheck plan. Drag rows
+                    on desktop or use the arrows on mobile.
+                  </p>
+
                   <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
                     {debts.length ? (
-                      debts
-                        .slice()
-                        .sort((a, b) => {
-                          const aPaid =
-                            a.payoff_status === "Paid off - awaiting confirmation";
-                          const bPaid =
-                            b.payoff_status === "Paid off - awaiting confirmation";
-                          if (aPaid !== bPaid) return aPaid ? -1 : 1;
-                          return num(b.current_balance) - num(a.current_balance);
-                        })
-                        .map((debt) => {
-                          const apr =
-                            debt.apr == null || String(debt.apr).trim() === ""
-                              ? null
-                              : num(debt.apr);
-                          return (
-                            <button
-                              key={debt.id}
-                              type="button"
-                              onClick={() => setEditor({ type: "debt", item: debt })}
-                              className="flex w-full items-center justify-between gap-3 border-b border-slate-100 p-3 text-left last:border-0"
-                            >
-                              <span className="min-w-0">
-                                <strong className="block truncate text-sm">
-                                  {debt.name}
-                                </strong>
-                                {debt.payoff_status ===
-                                  "Paid off - awaiting confirmation" && (
-                                  <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                                    Paid off · confirm to remove
+                      [
+                        ...debts
+                          .filter(
+                            (debt) =>
+                              debt.payoff_status ===
+                              "Paid off - awaiting confirmation"
+                          )
+                          .sort((a, b) => a.name.localeCompare(b.name)),
+                        ...orderedActiveDebts(),
+                      ].map((debt, index, ordered) => {
+                        const apr =
+                          debt.apr == null || String(debt.apr).trim() === ""
+                            ? null
+                            : num(debt.apr);
+                        const isActive =
+                          debt.payoff_status === "Active" &&
+                          num(debt.current_balance) > 0;
+                        const activeIndex = isActive
+                          ? orderedActiveDebts().findIndex(
+                              (item) => item.id === debt.id
+                            )
+                          : -1;
+                        const activeCount = orderedActiveDebts().length;
+
+                        return (
+                          <div
+                            key={debt.id}
+                            draggable={isActive}
+                            onDragStart={() => {
+                              if (isActive) setDraggedDebtId(debt.id);
+                            }}
+                            onDragEnd={() => setDraggedDebtId(null)}
+                            onDragOver={(event) => {
+                              if (isActive) event.preventDefault();
+                            }}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              if (draggedDebtId && isActive) {
+                                reorderDebtPriority(draggedDebtId, debt.id);
+                              }
+                              setDraggedDebtId(null);
+                            }}
+                            className={`flex items-center gap-2 border-b border-slate-100 p-3 last:border-0 ${
+                              draggedDebtId === debt.id
+                                ? "bg-blue-50"
+                                : "bg-white"
+                            }`}
+                          >
+                            <div className="flex shrink-0 flex-col items-center gap-1">
+                              {isActive ? (
+                                <>
+                                  <span
+                                    className="cursor-grab select-none text-lg font-black text-slate-400"
+                                    title="Drag to reorder"
+                                    aria-hidden="true"
+                                  >
+                                    ⋮⋮
                                   </span>
-                                )}
-                                <span className="mt-0.5 block text-[11px] text-slate-500">
-                                  {debt.debt_type}
-                                  {apr == null
-                                    ? " · APR unknown"
-                                    : apr === 0
-                                      ? " · 0% interest"
-                                      : ` · ${apr.toFixed(2)}% APR`}
-                                  {num(debt.minimum_payment) > 0
-                                    ? ` · min ${money(num(debt.minimum_payment))}`
-                                    : ""}
+                                  <span className="rounded-full bg-slate-950 px-2 py-0.5 text-[10px] font-black text-white">
+                                    #{num(debt.priority_rank) || activeIndex + 1}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-lg text-emerald-600">✓</span>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditor({ type: "debt", item: debt })
+                              }
+                              className="min-w-0 flex-1 text-left"
+                            >
+                              <strong className="block truncate text-sm">
+                                {debt.name}
+                              </strong>
+                              {debt.payoff_status ===
+                                "Paid off - awaiting confirmation" && (
+                                <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                                  Paid off · confirm to remove
                                 </span>
+                              )}
+                              <span className="mt-0.5 block text-[11px] text-slate-500">
+                                {debt.debt_type}
+                                {apr == null
+                                  ? " · APR unknown"
+                                  : apr === 0
+                                    ? " · 0% interest"
+                                    : ` · ${apr.toFixed(2)}% APR`}
+                                {num(debt.minimum_payment) > 0
+                                  ? ` · min ${money(
+                                      num(debt.minimum_payment)
+                                    )}`
+                                  : ""}
+                                {debt.balance_estimated
+                                  ? " · balance estimated"
+                                  : ""}
                               </span>
+                            </button>
+
+                            <div className="shrink-0 text-right">
                               <strong
-                                className={`shrink-0 text-sm ${
+                                className={`block text-sm ${
                                   debt.payoff_status ===
                                   "Paid off - awaiting confirmation"
                                     ? "text-emerald-700"
@@ -3191,14 +3255,46 @@ export default function BudgetDashboard() {
                                   ? "Paid"
                                   : money(num(debt.current_balance))}
                               </strong>
-                            </button>
-                          );
-                        })
+
+                              {isActive ? (
+                                <div className="mt-1 flex justify-end gap-1">
+                                  <button
+                                    type="button"
+                                    disabled={activeIndex <= 0}
+                                    onClick={() =>
+                                      moveDebtPriorityStep(debt.id, -1)
+                                    }
+                                    className="rounded-md border border-slate-200 px-2 py-1 text-[10px] font-black text-slate-600 disabled:opacity-30"
+                                    aria-label={`Move ${debt.name} up in debt priority`}
+                                  >
+                                    ↑
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      activeIndex < 0 ||
+                                      activeIndex >= activeCount - 1
+                                    }
+                                    onClick={() =>
+                                      moveDebtPriorityStep(debt.id, 1)
+                                    }
+                                    className="rounded-md border border-slate-200 px-2 py-1 text-[10px] font-black text-slate-600 disabled:opacity-30"
+                                    aria-label={`Move ${debt.name} down in debt priority`}
+                                  >
+                                    ↓
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })
                     ) : (
                       <p className="p-3 text-sm text-slate-500">
                         No structured debts yet.
                       </p>
                     )}
+                  </div>
                   </div>
                 </section>
               )}
