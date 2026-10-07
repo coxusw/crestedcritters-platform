@@ -2262,8 +2262,19 @@ export default function BudgetDashboard() {
                       )?.id;
                     setEditor({
                       type: "actual",
+                      plannedExpenseId: expense.id,
                       futureExpenseId: fundId || undefined,
                     });
+                  }}
+                  groupSpentBy={(group) => {
+                    const fundId = futureExpenses.find(
+                      (item) => item.event_fund === group
+                    )?.id;
+                    if (!fundId) return 0;
+
+                    return actualExpenses
+                      .filter((item) => item.future_expense_id === fundId)
+                      .reduce((sum, item) => sum + num(item.amount), 0);
                   }}
                   emptyText="No sinking-fund contributions are assigned to this paycheck."
                 />
