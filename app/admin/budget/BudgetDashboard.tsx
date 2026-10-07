@@ -578,6 +578,47 @@ export default function BudgetDashboard() {
     setSaving(false);
   }
 
+  async function deleteBudgetSetupItem(
+    itemType: "recurring" | "future" | "debt",
+    itemId: string,
+    label: string
+  ) {
+    const detail =
+      itemType === "recurring"
+        ? "This permanently deletes the recurring bill and its generated future plan entries. Logged spending history stays intact."
+        : itemType === "future"
+          ? "This permanently deletes the sinking fund and its planned contributions. Logged spending history stays intact."
+          : "This permanently deletes the debt, its linked recurring payment setup, and future debt-plan entries. Logged spending history stays intact.";
+
+    if (!window.confirm(`Delete "${label}"?\n\n${detail}`)) return;
+
+    setSaving(true);
+    setError("");
+    setNotice("");
+
+    const { error: deleteError } = await supabase.rpc(
+      "delete_budget_setup_item",
+      {
+        p_item_type: itemType,
+        p_item_id: itemId,
+        p_reference_date: todayIso(),
+      }
+    );
+
+    if (deleteError) {
+      setError(deleteError.message);
+      setSaving(false);
+      return;
+    }
+
+    setEditor(null);
+    setNotice(
+      `${label} deleted from the budget. Existing logged transactions were left in history.`
+    );
+    await loadData();
+    setSaving(false);
+  }
+
   async function savePaycheckEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!paycheck || editor?.type !== "paycheck") return;
@@ -1224,20 +1265,40 @@ export default function BudgetDashboard() {
   }
 
   async function cancelExpense(expense: Expense) {
-    if (!window.confirm(`Remove "${expense.line_item}" from the plan?`)) return;
+    const generated = Boolean(
+      expense.generated_recurring_id ||
+        expense.future_expense_id ||
+        expense.forecast_generated
+    );
+
+    const message = generated
+      ? `Remove this generated occurrence of "${expense.line_item}" from the plan? The source recurring bill, sinking fund, or forecast rule will remain.`
+      : `Permanently delete "${expense.line_item}" from the budget?`;
+
+    if (!window.confirm(message)) return;
 
     setSaving(true);
     setError("");
 
-    const { error: updateError } = await supabase
-      .from("budget_expenses")
-      .update({ status: "Cancelled" })
-      .eq("id", expense.id);
+    const result = generated
+      ? await supabase
+          .from("budget_expenses")
+          .update({ status: "Cancelled" })
+          .eq("id", expense.id)
+      : await supabase
+          .from("budget_expenses")
+          .delete()
+          .eq("id", expense.id);
 
-    if (updateError) setError(updateError.message);
-    else {
+    if (result.error) {
+      setError(result.error.message);
+    } else {
       setEditor(null);
-      setNotice("Expense removed from the plan.");
+      setNotice(
+        generated
+          ? "Generated occurrence removed from this plan."
+          : "Expense permanently deleted from the budget."
+      );
       await loadData();
     }
     setSaving(false);
@@ -3152,6 +3213,16 @@ export default function BudgetDashboard() {
           saving={saving}
           onClose={() => setEditor(null)}
           onSave={saveFutureGoal}
+          onDelete={
+            editor.item
+              ? () =>
+                  deleteBudgetSetupItem(
+                    "future",
+                    editor.item!.id,
+                    editor.item!.event_fund || "Sinking fund"
+                  )
+              : undefined
+          }
         />
       )}
 
@@ -3244,6 +3315,16 @@ export default function BudgetDashboard() {
           saving={saving}
           onClose={() => setEditor(null)}
           onSave={saveRecurring}
+          onDelete={
+            editor.item
+              ? () =>
+                  deleteBudgetSetupItem(
+                    "recurring",
+                    editor.item!.id,
+                    editor.item!.item || "Recurring bill"
+                  )
+              : undefined
+          }
         />
       )}
 
@@ -3362,6 +3443,16 @@ export default function BudgetDashboard() {
           }
           onConfirmPaid={
             editor.item ? () => confirmDebtPaid(editor.item!) : undefined
+          }
+          onDelete={
+            editor.item
+              ? () =>
+                  deleteBudgetSetupItem(
+                    "debt",
+                    editor.item!.id,
+                    editor.item!.name
+                  )
+              : undefined
           }
         />
       )}
