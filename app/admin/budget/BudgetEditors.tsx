@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import {
-  ActualExpense, BucketContribution, Debt, Expense, FutureExpense, IncomeEntry, Paycheck, Person, PlanTab, RecurringBill, PERSONAL_SPENDING_CATEGORIES, coalesceFundDeadline, dateLabel, expenseDisplayName, expensePlanGroup, isClosedFundStatus, isFundingCompleteStatus, money, monthlyEquivalent, normalizeSpendingCategory, num, paycheckCountsAsFunded, spendingCategoryForExpense, todayIso
+  ActualExpense, BucketContribution, Debt, Expense, FutureExpense, IncomeEntry, Paycheck, PlanTab, RecurringBill, coalesceFundDeadline, dateLabel, expenseDisplayName, expensePlanGroup, isClosedFundStatus, isFundingCompleteStatus, money, monthlyEquivalent, normalizeSpendingCategory, num, paycheckCountsAsFunded, spendingCategoryForExpense, todayIso
 } from "./budgetModel";
 import { BudgetMeter, Field, Modal, PlanExpenseSection } from "./BudgetUi";
 
@@ -124,7 +124,7 @@ export function ForecastPaycheckModal({
             {(tab === "spending" || tab === "all") && (
               <PlanExpenseSection
                 title="Spending"
-                subtitle="Chris and Jennifer discretionary, forgotten/unplanned buffer, vehicle fuel, and food."
+                subtitle="Forgotten/unplanned buffer, vehicle fuel, and food."
                 expenses={spending}
                 onEdit={onEdit}
                 emptyText="No day-to-day spending is assigned to this paycheck."
@@ -184,9 +184,6 @@ export function SinkingFundCloseoutModal({
               </option>
               <option value="buffer">
                 Forgotten / unplanned expense buffer
-              </option>
-              <option value="discretionary">
-                Discretionary spending — split evenly between Chris and Jennifer
               </option>
               {nextFund && (
                 <option value="next_fund">
@@ -663,17 +660,7 @@ export function ActualExpenseEditor({
     item?.category && !categories.includes(item.category)
       ? [item.category, ...categories]
       : categories;
-  const personalCategories = selectableCategories.filter((category) =>
-    PERSONAL_SPENDING_CATEGORIES.includes(
-      normalizeSpendingCategory(category) as (typeof PERSONAL_SPENDING_CATEGORIES)[number]
-    )
-  );
-  const budgetCategories = selectableCategories.filter(
-    (category) =>
-      !PERSONAL_SPENDING_CATEGORIES.includes(
-        normalizeSpendingCategory(category) as (typeof PERSONAL_SPENDING_CATEGORIES)[number]
-      )
-  );
+  const budgetCategories = selectableCategories;
   const [enteredAmount, setEnteredAmount] = useState(num(item?.amount));
   const [description, setDescription] = useState(
     item?.description || selectedPlannedExpense?.line_item || ""
@@ -878,15 +865,6 @@ export function ActualExpenseEditor({
               <option value="" disabled>
                 Choose where this spending belongs
               </option>
-            )}
-            {personalCategories.length > 0 && (
-              <optgroup label="Personal / discretionary">
-                {personalCategories.map((category) => (
-                  <option key={category} value={normalizeSpendingCategory(category)}>
-                    {normalizeSpendingCategory(category)}
-                  </option>
-                ))}
-              </optgroup>
             )}
             {budgetCategories.length > 0 && (
               <optgroup label="Current budget">
