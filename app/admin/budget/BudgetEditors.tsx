@@ -536,6 +536,8 @@ export function PaycheckEditor({
     paycheck.reconciled_checking_balance == null
       ? ""
       : String(paycheck.reconciled_checking_balance);
+  const defaultBalanceTiming =
+    paycheck.paycheck_date > todayIso() ? "before" : "after";
 
   return (
     <Modal
@@ -544,8 +546,10 @@ export function PaycheckEditor({
     >
       <form onSubmit={onSave} className="space-y-3">
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-900">
-          Enter the checking balance <strong>after the paycheck has posted</strong>.
-          That real bank balance becomes the starting point for this budget review.
+          Enter the balance your bank shows right now. If the paycheck has not
+          posted yet, choose <strong>Before deposit</strong> and the budget will
+          add the paycheck once. If it is already in the bank balance, choose
+          <strong>After deposit</strong>.
         </div>
 
         <Field label="Actual paycheck amount">
@@ -564,7 +568,18 @@ export function PaycheckEditor({
           />
         </Field>
 
-        <Field label="Current checking balance">
+        <Field label="Does this balance already include the paycheck?">
+          <select
+            name="checking_balance_timing"
+            defaultValue={defaultBalanceTiming}
+            className="budget-input"
+          >
+            <option value="before">Before deposit — add paycheck to this balance</option>
+            <option value="after">After deposit — paycheck is already included</option>
+          </select>
+        </Field>
+
+        <Field label="Bank checking balance">
           <input
             name="reconciled_checking_balance"
             required
@@ -579,7 +594,8 @@ export function PaycheckEditor({
 
         <p className="text-[11px] leading-5 text-slate-500">
           Pay period: {dateLabel(paycheck.paycheck_date)}. Enter exactly what the
-          bank shows after the deposit. The balance may be positive or negative.
+          bank shows now and choose whether that balance is before or after the
+          deposit. The balance may be positive or negative.
         </p>
 
         <button
@@ -669,7 +685,18 @@ export function IncomeEditor({
           </select>
         </Field>
 
-        <Field label="Current checking balance">
+        <Field label="Does this balance already include the income?">
+          <select
+            name="checking_balance_timing"
+            defaultValue="after"
+            className="budget-input"
+          >
+            <option value="before">Before deposit — add this income to the balance</option>
+            <option value="after">After deposit — income is already included</option>
+          </select>
+        </Field>
+
+        <Field label="Bank checking balance">
           <input
             name="reconciled_checking_balance"
             required
@@ -685,8 +712,9 @@ export function IncomeEditor({
         </Field>
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-700">
-          Enter the balance the bank shows <strong>after this income is already posted</strong>.
-          The budget will use that real balance as the new reconciliation starting point.
+          Enter the balance the bank shows now and tell the budget whether this
+          income is already included. That prevents the deposit from being
+          counted twice or accidentally left out.
         </div>
 
         <Field label="Note (optional)">
