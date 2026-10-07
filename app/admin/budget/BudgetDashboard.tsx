@@ -48,6 +48,7 @@ import {
   ActualExpenseRow,
   ApprovalButton,
   BudgetMeter,
+  ExpenseRow,
   CountCard,
   MiniStat,
   PersonCard,
