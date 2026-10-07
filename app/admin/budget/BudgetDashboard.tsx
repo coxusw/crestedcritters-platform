@@ -714,6 +714,7 @@ export default function BudgetDashboard() {
         ? {
             tracking_start_balance: Number(data.get("current_balance") || 0),
             tracking_start_date: todayIso(),
+            tracking_start_at: new Date().toISOString(),
             balance_estimated: false,
           }
         : {}),
