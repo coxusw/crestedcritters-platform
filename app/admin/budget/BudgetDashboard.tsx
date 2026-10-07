@@ -128,6 +128,17 @@ export default function BudgetDashboard() {
       return;
     }
 
+    const { error: autoFundError } = await supabase.rpc(
+      "refresh_budget_auto_fund_plans",
+      { p_reference_date: localToday }
+    );
+
+    if (autoFundError) {
+      setError(autoFundError.message);
+      setLoading(false);
+      return;
+    }
+
     const { error: allocationError } = await supabase.rpc(
       "refresh_budget_forecast_surplus_allocations",
       { p_reference_date: localToday }
@@ -304,73 +315,187 @@ export default function BudgetDashboard() {
     setError("");
 
     const data = new FormData(event.currentTarget);
+    const existing = editor.item;
+    const isEditing = !!existing;
     const eventFund = String(data.get("event_fund") || "").trim();
-    const targetBudget = Number(data.get("target_budget") || 0);
-    const dueDate = String(data.get("due_date") || "");
-    const fundingDeadline = String(
-      data.get("funding_deadline") || dueDate
-    );
-    const startPaycheck = String(
-      data.get("funding_start_paycheck") || paycheck.paycheck_date
-    );
+    const targetRaw = String(data.get("target_budget") || "").trim();
+    const targetBudget = targetRaw ? Number(targetRaw) : null;
+    const dueDate = String(data.get("due_date") || "").trim() || null;
+    const autoFund = data.get("auto_fund") === "on";
+    const startPaycheck =
+      String(
+        data.get("funding_start_paycheck") ||
+          existing?.funding_start_paycheck ||
+          paycheck.paycheck_date
+      ).trim() || paycheck.paycheck_date;
+    const fundingDeadline =
+      String(
+        data.get("funding_deadline") ||
+          existing?.funding_deadline ||
+          dueDate ||
+          ""
+      ).trim() || null;
     const notes = String(data.get("notes") || "").trim() || null;
 
-    if (!eventFund || targetBudget <= 0 || !dueDate) {
+    if (!eventFund) {
+      setError("Enter a sinking-fund name.");
+      setSaving(false);
+      return;
+    }
+
+    if (!isEditing && (!targetBudget || targetBudget <= 0 || !dueDate)) {
       setError("Enter a goal name, target amount, and due date.");
       setSaving(false);
       return;
     }
 
-    if (!fundingDeadline || fundingDeadline < startPaycheck) {
-      setError("The funding deadline must be on or after the starting paycheck.");
+    if (
+      autoFund &&
+      (!targetBudget ||
+        targetBudget <= 0 ||
+        !dueDate ||
+        !fundingDeadline)
+    ) {
+      setError(
+        "Automatic funding needs a target amount, due date, and funding deadline."
+      );
       setSaving(false);
       return;
     }
 
-    const startMs = new Date(`${startPaycheck}T12:00:00`).getTime();
-    const deadlineMs = new Date(`${fundingDeadline}T12:00:00`).getTime();
-    const fundingPeriodCount =
-      Math.floor((deadlineMs - startMs) / (14 * 86400000)) + 1;
-
-    const { error: goalError } = await supabase
-      .from("budget_future_expenses")
-      .insert({
-        event_fund: eventFund,
-        due_date: dueDate,
-        target_budget: targetBudget,
-        planned_funding: targetBudget,
-        actual_funding_spend: 0,
-        remaining_to_plan: 0,
-        remaining_actual: targetBudget,
-        status: "Funding",
-        notes,
-        funding_start_paycheck: startPaycheck,
-        funding_deadline: fundingDeadline,
-        auto_fund: true,
-      });
-
-    if (goalError) {
-      setError(goalError.message || "Could not create the future goal.");
+    if (
+      autoFund &&
+      fundingDeadline &&
+      fundingDeadline < startPaycheck
+    ) {
+      setError(
+        "The funding deadline must be on or after the starting paycheck."
+      );
       setSaving(false);
       return;
+    }
+
+    const nextStatus =
+      targetBudget && targetBudget > 0 && dueDate
+        ? existing?.status === "Need budget"
+          ? "Funding"
+          : existing?.status || "Funding"
+        : existing?.status === "Priority"
+          ? "Priority"
+          : "Need budget";
+
+    const payload = {
+      event_fund: eventFund,
+      due_date: dueDate,
+      target_budget: targetBudget,
+      status: nextStatus,
+      notes,
+      funding_start_paycheck: autoFund ? startPaycheck : existing?.funding_start_paycheck || null,
+      funding_deadline: autoFund ? fundingDeadline : existing?.funding_deadline || dueDate,
+      auto_fund: autoFund,
+    };
+
+    let goalId = existing?.id || null;
+
+    if (existing) {
+      const { error: goalError } = await supabase
+        .from("budget_future_expenses")
+        .update(payload)
+        .eq("id", existing.id);
+
+      if (goalError) {
+        setError(goalError.message || "Could not update the sinking fund.");
+        setSaving(false);
+        return;
+      }
+    } else {
+      const { data: createdGoal, error: goalError } = await supabase
+        .from("budget_future_expenses")
+        .insert({
+          ...payload,
+          planned_funding: 0,
+          actual_funding_spend: 0,
+          remaining_to_plan: targetBudget || 0,
+          remaining_actual: targetBudget || 0,
+        })
+        .select("id")
+        .single();
+
+      if (goalError || !createdGoal) {
+        setError(
+          goalError?.message || "Could not create the future goal."
+        );
+        setSaving(false);
+        return;
+      }
+
+      goalId = createdGoal.id;
     }
 
     await supabase
       .from("budget_categories")
       .upsert({ name: "Sinking Fund", active: true }, { onConflict: "name" });
 
-    await supabase.rpc("refresh_budget_rolling_horizon", {
-      p_reference_date: todayIso(),
-    });
+    const { error: horizonError } = await supabase.rpc(
+      "refresh_budget_rolling_horizon",
+      { p_reference_date: todayIso() }
+    );
+
+    if (horizonError) {
+      setError(
+        `Sinking fund saved, but the rolling forecast could not refresh: ${horizonError.message}`
+      );
+      setSaving(false);
+      return;
+    }
+
+    const { error: autoFundError } = await supabase.rpc(
+      "refresh_budget_auto_fund_plans",
+      { p_reference_date: todayIso() }
+    );
+
+    if (autoFundError) {
+      setError(
+        `Sinking fund saved, but its future funding plan could not refresh: ${autoFundError.message}`
+      );
+      setSaving(false);
+      return;
+    }
+
+    const { error: allocationError } = await supabase.rpc(
+      "refresh_budget_forecast_surplus_allocations",
+      { p_reference_date: todayIso() }
+    );
+
+    if (allocationError) {
+      setError(
+        `Sinking fund saved, but the surplus forecast could not refresh: ${allocationError.message}`
+      );
+      setSaving(false);
+      return;
+    }
 
     setEditor(null);
     setView("forecast");
-    setNotice(
-      `${eventFund} added. ${money(targetBudget)} is spread across about ${fundingPeriodCount} paycheck${fundingPeriodCount === 1 ? "" : "s"} and will stay included in the rolling one-year forecast.`
-    );
+    setForecastTab("sinking");
+    setExpandedBucketId(goalId);
+
+    if (isEditing) {
+      setNotice(
+        autoFund
+          ? `${eventFund} updated. Future unfunded contributions were recalculated without changing money from already received paychecks.`
+          : `${eventFund} updated. Existing planned contributions were left in place because automatic funding is off.`
+      );
+    } else {
+      setNotice(
+        `${eventFund} added. Future contributions are planned automatically and remain unfunded until each paycheck is received.`
+      );
+    }
+
     await loadData();
     setSaving(false);
   }
+
   async function closeSinkingFund(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!paycheck || editor?.type !== "close-fund") return;
@@ -2507,17 +2632,28 @@ export default function BudgetDashboard() {
                                     </div>
                                   )}
 
-                                  {datePassed && (
+                                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        setEditor({ type: "close-fund", item })
+                                        setEditor({ type: "future", item })
                                       }
-                                      className="mt-3 w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
+                                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-900"
                                     >
-                                      Close out sinking fund
+                                      Edit sinking fund
                                     </button>
-                                  )}
+                                    {datePassed && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setEditor({ type: "close-fund", item })
+                                        }
+                                        className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
+                                      >
+                                        Close out sinking fund
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -2873,15 +3009,26 @@ export default function BudgetDashboard() {
                                   </div>
                                 </div>
 
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setEditor({ type: "close-fund", item })
-                                  }
-                                  className="mt-3 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-black text-slate-800"
-                                >
-                                  Close out fund
-                                </button>
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEditor({ type: "future", item })
+                                    }
+                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-black text-slate-800"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEditor({ type: "close-fund", item })
+                                    }
+                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-black text-slate-800"
+                                  >
+                                    Close out
+                                  </button>
+                                </div>
                               </div>
                             );
                           })
@@ -2994,6 +3141,7 @@ export default function BudgetDashboard() {
 
       {editor?.type === "future" && (
         <FutureGoalEditor
+          item={editor.item}
           currentPaycheck={paycheck.paycheck_date}
           paycheckDates={paycheckDates}
           saving={saving}

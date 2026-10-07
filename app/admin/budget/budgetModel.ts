@@ -137,7 +137,7 @@ export type Editor =
   | { type: "income"; item?: IncomeEntry }
   | { type: "debt"; item?: Debt }
   | { type: "paycheck" }
-  | { type: "future" }
+  | { type: "future"; item?: FutureExpense }
   | { type: "close-fund"; item: FutureExpense }
   | null;
 
