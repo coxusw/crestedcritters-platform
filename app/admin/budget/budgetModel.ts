@@ -228,6 +228,7 @@ export const spendingCategoryForExpense = (expense: Expense) => {
     !lineItem ||
     expense.future_expense_id ||
     expenseType.includes("sinking") ||
+    expenseType.includes("forecast debt") ||
     normalizedLineItem.includes("sinking fund")
   ) {
     return "";
