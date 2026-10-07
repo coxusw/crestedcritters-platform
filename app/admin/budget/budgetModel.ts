@@ -30,6 +30,9 @@ export type Expense = {
   event_fund: string | null;
   future_expense_id: string | null;
   generated_recurring_id: string | null;
+  forecast_generated: boolean | null;
+  forecast_debt_id: string | null;
+  forecast_suppressed: boolean | null;
 };
 
 export type FutureExpense = {
@@ -225,6 +228,7 @@ export const spendingCategoryForExpense = (expense: Expense) => {
     !lineItem ||
     expense.future_expense_id ||
     expenseType.includes("sinking") ||
+    expenseType.includes("forecast debt") ||
     normalizedLineItem.includes("sinking fund")
   ) {
     return "";
