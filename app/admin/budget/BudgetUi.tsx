@@ -141,6 +141,7 @@ export function PlanExpenseSection({
   onEdit,
   onSpend,
   groupBy,
+  groupSpentBy,
   emptyText,
 }: {
   title: string;
@@ -149,6 +150,7 @@ export function PlanExpenseSection({
   onEdit: (expense: Expense) => void;
   onSpend?: (expense: Expense) => void;
   groupBy?: (expense: Expense) => string;
+  groupSpentBy?: (group: string) => number;
   emptyText: string;
 }) {
   const subtotal = expenses.reduce(
@@ -182,34 +184,68 @@ export function PlanExpenseSection({
         </p>
       ) : groupBy ? (
         <div className="space-y-2">
-          {Array.from(groups.entries()).map(([group, rows]) => (
-            <div
-              key={group}
-              className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"
-            >
-              <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-3.5 py-2">
-                <span className="min-w-0 truncate text-[11px] font-black uppercase tracking-wide text-slate-500">
-                  {group}
-                </span>
-                <strong className="shrink-0 text-xs text-slate-600">
-                  {money(
-                    rows.reduce(
-                      (sum, expense) => sum + num(expense.planned_amount),
-                      0
-                    )
+          {Array.from(groups.entries()).map(([group, rows]) => {
+            const groupPlanned = rows.reduce(
+              (sum, expense) => sum + num(expense.planned_amount),
+              0
+            );
+            const rowSpent = rows.reduce(
+              (sum, expense) => sum + num(expense.actual_amount),
+              0
+            );
+            const groupSpent = groupSpentBy ? groupSpentBy(group) : rowSpent;
+            const unassignedGroupSpend = Math.max(0, groupSpent - rowSpent);
+
+            return (
+              <div
+                key={group}
+                className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"
+              >
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-3.5 py-2">
+                  <span className="min-w-0 truncate text-[11px] font-black uppercase tracking-wide text-slate-500">
+                    {group}
+                  </span>
+                  {groupSpentBy ? (
+                    <div className="shrink-0 text-right">
+                      <strong className="block text-xs text-slate-700">
+                        {money(groupSpent)} / {money(groupPlanned)}
+                      </strong>
+                      <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                        Spent / Plan
+                      </span>
+                    </div>
+                  ) : (
+                    <strong className="shrink-0 text-xs text-slate-600">
+                      {money(groupPlanned)}
+                    </strong>
                   )}
-                </strong>
+                </div>
+                {rows.map((expense) => (
+                  <ExpenseRow
+                    key={expense.id}
+                    expense={expense}
+                    onEdit={() => onEdit(expense)}
+                    onSpend={onSpend ? () => onSpend(expense) : undefined}
+                  />
+                ))}
+                {groupSpentBy && unassignedGroupSpend > 0.005 ? (
+                  <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-amber-50/60 px-3.5 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-black text-slate-700">
+                        Other spending from this fund
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-slate-500">
+                        Not tied to a specific planned line
+                      </p>
+                    </div>
+                    <strong className="shrink-0 text-xs text-amber-800">
+                      {money(unassignedGroupSpend)}
+                    </strong>
+                  </div>
+                ) : null}
               </div>
-              {rows.map((expense) => (
-                <ExpenseRow
-                  key={expense.id}
-                  expense={expense}
-                  onEdit={() => onEdit(expense)}
-                  onSpend={onSpend ? () => onSpend(expense) : undefined}
-                />
-              ))}
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
