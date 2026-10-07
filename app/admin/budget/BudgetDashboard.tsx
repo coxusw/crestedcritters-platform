@@ -118,9 +118,26 @@ export default function BudgetDashboard() {
     // Keep at least one full year of paycheck cycles visible. The database job
     // runs daily so each passed biweekly cycle automatically extends the plan
     // another two weeks, maintaining the one-year look-ahead.
-    await supabase.rpc("refresh_budget_rolling_horizon", {
+    const { error: horizonError } = await supabase.rpc("refresh_budget_rolling_horizon", {
       p_reference_date: localToday,
     });
+
+    if (horizonError) {
+      setError(horizonError.message);
+      setLoading(false);
+      return;
+    }
+
+    const { error: allocationError } = await supabase.rpc(
+      "refresh_budget_forecast_surplus_allocations",
+      { p_reference_date: localToday }
+    );
+
+    if (allocationError) {
+      setError(allocationError.message);
+      setLoading(false);
+      return;
+    }
 
     const { data: allPaychecks, error: paychecksError } = await supabase
       .from("budget_paychecks")
@@ -160,8 +177,9 @@ export default function BudgetDashboard() {
     ] = await Promise.all([
       supabase
         .from("budget_expenses")
-        .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
+        .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id,forecast_generated,forecast_debt_id,forecast_suppressed")
         .eq("assigned_paycheck", selected.paycheck_date)
+        .eq("forecast_suppressed", false)
         .order("due_date", { ascending: true, nullsFirst: false })
         .order("planned_amount", { ascending: false, nullsFirst: false }),
       supabase
@@ -184,6 +202,7 @@ export default function BudgetDashboard() {
         .from("budget_expenses")
         .select("future_expense_id,assigned_paycheck,planned_amount,status")
         .not("future_expense_id", "is", null)
+        .eq("forecast_suppressed", false)
         .order("assigned_paycheck", { ascending: true }),
       supabase
         .from("budget_income_entries")
@@ -192,9 +211,10 @@ export default function BudgetDashboard() {
         .order("received_date", { ascending: false }),
       supabase
         .from("budget_expenses")
-        .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
+        .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id,forecast_generated,forecast_debt_id,forecast_suppressed")
         .gte("assigned_paycheck", selected.paycheck_date)
         .neq("status", "Cancelled")
+        .eq("forecast_suppressed", false)
         .order("assigned_paycheck", { ascending: true })
         .order("due_date", { ascending: true, nullsFirst: false })
         .order("planned_amount", { ascending: false, nullsFirst: false }),
@@ -259,9 +279,10 @@ export default function BudgetDashboard() {
 
     const { data, error: forecastError } = await supabase
       .from("budget_expenses")
-      .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
+      .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id,forecast_generated,forecast_debt_id,forecast_suppressed")
       .eq("assigned_paycheck", date)
       .neq("status", "Cancelled")
+      .eq("forecast_suppressed", false)
       .order("due_date", { ascending: true, nullsFirst: false })
       .order("planned_amount", { ascending: false, nullsFirst: false });
 
@@ -884,6 +905,7 @@ export default function BudgetDashboard() {
         ) || null
       : null;
     const linkedDebtId =
+      linkedPlan?.forecast_debt_id ||
       linkedRecurring?.linked_debt_id ||
       (linkedPlan
         ? debts.find(
@@ -2422,7 +2444,7 @@ export default function BudgetDashboard() {
                             </div>
                             <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
                               <span>
-                                Running pool{" "}
+                                Unassigned pool{" "}
                                 {money(num(row.running_cash_goal_pool))}
                               </span>
                               <strong className="text-blue-600">View plan ›</strong>
