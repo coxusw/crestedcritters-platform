@@ -230,25 +230,42 @@ export function SinkingFundCloseoutModal({
 }
 
 export function FutureGoalEditor({
+  item,
   currentPaycheck,
   paycheckDates,
   saving,
   onClose,
   onSave,
 }: {
+  item?: FutureExpense;
   currentPaycheck: string;
   paycheckDates: string[];
   saving: boolean;
   onClose: () => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
 }) {
-  const [target, setTarget] = useState(0);
-  const [dueDate, setDueDate] = useState("");
-  const [startDate, setStartDate] = useState(currentPaycheck);
-  const [fundingDeadline, setFundingDeadline] = useState(currentPaycheck);
+  const isEditing = !!item;
+  const existingTarget = num(item?.target_budget);
+  const defaultStart =
+    item?.funding_start_paycheck &&
+    item.funding_start_paycheck >= currentPaycheck
+      ? item.funding_start_paycheck
+      : currentPaycheck;
+  const defaultAutoFund = item
+    ? Boolean(item.auto_fund || (!existingTarget && !item.due_date))
+    : true;
+
+  const [target, setTarget] = useState(existingTarget);
+  const [dueDate, setDueDate] = useState(item?.due_date || "");
+  const [startDate, setStartDate] = useState(defaultStart);
+  const [fundingDeadline, setFundingDeadline] = useState(
+    item?.funding_deadline || defaultStart
+  );
+  const [autoFund, setAutoFund] = useState(defaultAutoFund);
 
   useEffect(() => {
-    if (!dueDate) return;
+    if (!autoFund || !dueDate) return;
+
     const latestEligible =
       paycheckDates.filter(
         (date) => date >= startDate && date <= dueDate
@@ -261,26 +278,39 @@ export function FutureGoalEditor({
     ) {
       setFundingDeadline(latestEligible);
     }
-  }, [dueDate, startDate, paycheckDates, fundingDeadline]);
+  }, [
+    autoFund,
+    dueDate,
+    startDate,
+    paycheckDates,
+    fundingDeadline,
+  ]);
 
-  const eligiblePaychecks = paycheckDates.filter(
-    (date) =>
-      date >= startDate &&
-      date <= fundingDeadline &&
-      (!dueDate || date <= dueDate)
-  );
+  const eligiblePaychecks = autoFund
+    ? paycheckDates.filter(
+        (date) =>
+          date >= startDate &&
+          date <= fundingDeadline &&
+          (!dueDate || date <= dueDate)
+      )
+    : [];
+
   const estimatedContribution =
     target > 0 && dueDate && eligiblePaychecks.length
       ? target / eligiblePaychecks.length
       : 0;
 
   return (
-    <Modal title="Add future goal" onClose={onClose}>
+    <Modal
+      title={isEditing ? "Edit sinking fund" : "Add future goal"}
+      onClose={onClose}
+    >
       <form onSubmit={onSave} className="space-y-3">
         <Field label="What are you planning for?">
           <input
             name="event_fund"
             required
+            defaultValue={item?.event_fund || ""}
             className="budget-input"
             placeholder="Christmas, birthday, soccer trip…"
           />
@@ -290,9 +320,9 @@ export function FutureGoalEditor({
           <Field label="Target amount">
             <input
               name="target_budget"
-              required
+              required={!isEditing || autoFund}
               type="number"
-              min="0.01"
+              min={isEditing && !autoFund ? "0" : "0.01"}
               step="0.01"
               inputMode="decimal"
               value={target || ""}
@@ -303,10 +333,11 @@ export function FutureGoalEditor({
               placeholder="0.00"
             />
           </Field>
+
           <Field label="Need it by">
             <input
               name="due_date"
-              required
+              required={!isEditing || autoFund}
               type="date"
               value={dueDate}
               onChange={(event) => setDueDate(event.target.value)}
@@ -315,72 +346,104 @@ export function FutureGoalEditor({
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Start saving from">
-            <select
-              name="funding_start_paycheck"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              className="budget-input"
-            >
-              {paycheckDates
-                .filter((date) => date >= currentPaycheck)
-                .map((date) => (
-                  <option key={date} value={date}>
-                    {dateLabel(date)}
-                  </option>
-                ))}
-            </select>
-          </Field>
+        <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-700">
+          <input
+            type="checkbox"
+            name="auto_fund"
+            checked={autoFund}
+            onChange={(event) => setAutoFund(event.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-slate-300"
+          />
+          <span>
+            <strong className="block text-slate-950">
+              Automatically plan future contributions
+            </strong>
+            When enabled, future unfunded contributions are redistributed to
+            match this target and deadline. Money from already received
+            paychecks stays untouched.
+          </span>
+        </label>
 
-          <Field label="Fully funded by">
-            <select
-              name="funding_deadline"
-              value={fundingDeadline}
-              onChange={(event) => setFundingDeadline(event.target.value)}
-              className="budget-input"
-            >
-              {paycheckDates
-                .filter(
-                  (date) =>
-                    date >= startDate && (!dueDate || date <= dueDate)
-                )
-                .map((date) => (
-                  <option key={date} value={date}>
-                    {dateLabel(date)}
-                  </option>
-                ))}
-            </select>
-          </Field>
-        </div>
+        {autoFund ? (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Start saving from">
+                <select
+                  name="funding_start_paycheck"
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                  className="budget-input"
+                >
+                  {paycheckDates
+                    .filter((date) => date >= currentPaycheck)
+                    .map((date) => (
+                      <option key={date} value={date}>
+                        {dateLabel(date)}
+                      </option>
+                    ))}
+                </select>
+              </Field>
 
-        {target > 0 && dueDate && (
-          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-950">
-            {eligiblePaychecks.length ? (
-              <>
-                <p className="text-xs font-bold">Automatic bucket preview</p>
-                <p className="mt-1 text-xl font-black">
-                  About {money(estimatedContribution)} per paycheck
-                </p>
-                <p className="mt-1 text-xs leading-5 text-blue-800">
-                  Spread across {eligiblePaychecks.length} paycheck
-                  {eligiblePaychecks.length === 1 ? "" : "s"}, ending with the{" "}
-                  {dateLabel(fundingDeadline)} paycheck. The final contribution
-                  is adjusted by pennies if needed so the total matches the
-                  target exactly.
-                </p>
-              </>
-            ) : (
-              <p className="text-sm font-bold text-rose-700">
-                Choose a due date after the selected starting paycheck.
-              </p>
+              <Field label="Fully funded by">
+                <select
+                  name="funding_deadline"
+                  value={fundingDeadline}
+                  onChange={(event) =>
+                    setFundingDeadline(event.target.value)
+                  }
+                  className="budget-input"
+                >
+                  {paycheckDates
+                    .filter(
+                      (date) =>
+                        date >= startDate && (!dueDate || date <= dueDate)
+                    )
+                    .map((date) => (
+                      <option key={date} value={date}>
+                        {dateLabel(date)}
+                      </option>
+                    ))}
+                </select>
+              </Field>
+            </div>
+
+            {target > 0 && dueDate && (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-950">
+                {eligiblePaychecks.length ? (
+                  <>
+                    <p className="text-xs font-bold">
+                      Automatic bucket preview
+                    </p>
+                    <p className="mt-1 text-xl font-black">
+                      About {money(estimatedContribution)} per paycheck
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-blue-800">
+                      Spread across {eligiblePaychecks.length} future paycheck
+                      {eligiblePaychecks.length === 1 ? "" : "s"}, ending with
+                      the {dateLabel(fundingDeadline)} paycheck. Already funded
+                      contributions are preserved when editing.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm font-bold text-rose-700">
+                    Choose a funding window that includes at least one future
+                    paycheck.
+                  </p>
+                )}
+              </div>
             )}
+          </>
+        ) : (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+            Automatic funding is off. You can still edit the name, target,
+            date, and notes without moving existing planned contributions.
           </div>
         )}
 
         <Field label="Note (optional)">
           <textarea
             name="notes"
+            defaultValue={item?.notes || ""}
             className="budget-input min-h-20"
             placeholder="Optional details"
           />
@@ -394,10 +457,22 @@ export function FutureGoalEditor({
 
         <button
           type="submit"
-          disabled={saving || !eligiblePaychecks.length}
+          disabled={
+            saving ||
+            (autoFund &&
+              (!target ||
+                !dueDate ||
+                !eligiblePaychecks.length))
+          }
           className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
         >
-          {saving ? "Creating bucket…" : "Create sinking-fund plan"}
+          {saving
+            ? isEditing
+              ? "Saving changes…"
+              : "Creating bucket…"
+            : isEditing
+              ? "Save sinking-fund changes"
+              : "Create sinking-fund plan"}
         </button>
       </form>
     </Modal>
