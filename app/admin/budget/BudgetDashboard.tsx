@@ -13,7 +13,7 @@ type Paycheck = {
   actual_spending: number | string | null;
   reserve_change: number | string | null;
   running_cash_goal_pool: number | string | null;
-  checking_before_paycheck: number | string | null;
+  reconciled_checking_balance: number | string | null;
   review_required: boolean | null;
   review_reason: string | null;
   review_triggered_at: string | null;
@@ -31,6 +31,7 @@ type Expense = {
   planned_amount: number | string | null;
   actual_amount: number | string | null;
   status: string | null;
+  reconciliation_status: string | null;
   notes: string | null;
   event_fund: string | null;
   future_expense_id: string | null;
@@ -93,6 +94,8 @@ type ActualExpense = {
   amount: number | string;
   note: string | null;
   future_expense_id: string | null;
+  planned_expense_id: string | null;
+  debt_id: string | null;
 };
 
 type IncomeEntry = {
@@ -128,13 +131,15 @@ type Debt = {
   active: boolean;
   payoff_status: string | null;
   paid_off_at: string | null;
+  priority_rank: number | string | null;
+  balance_estimated: boolean | null;
 };
 
 type View = "home" | "plan" | "forecast" | "reviews" | "more";
 type Editor =
   | { type: "expense"; item?: Expense; paycheckDate?: string }
   | { type: "recurring"; item?: RecurringBill }
-  | { type: "actual"; item?: ActualExpense }
+  | { type: "actual"; item?: ActualExpense; plannedExpenseId?: string }
   | { type: "income"; item?: IncomeEntry }
   | { type: "debt"; item?: Debt }
   | { type: "paycheck" }
@@ -368,7 +373,7 @@ export default function BudgetDashboard() {
 
     const { data: allPaychecks, error: paychecksError } = await supabase
       .from("budget_paychecks")
-      .select("paycheck_date,projected_check,actual_check,period_status,planned_spending,actual_spending,reserve_change,running_cash_goal_pool,checking_before_paycheck,review_required,review_reason,review_triggered_at,rolling_generated")
+      .select("paycheck_date,projected_check,actual_check,period_status,planned_spending,actual_spending,reserve_change,running_cash_goal_pool,reconciled_checking_balance,review_required,review_reason,review_triggered_at,rolling_generated")
       .order("paycheck_date", { ascending: true });
 
     if (paychecksError) {
@@ -406,7 +411,7 @@ export default function BudgetDashboard() {
     ] = await Promise.all([
         supabase
           .from("budget_expenses")
-          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund,future_expense_id")
+          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id")
           .eq("assigned_paycheck", selected.paycheck_date)
           .order("due_date", { ascending: true, nullsFirst: false })
           .order("planned_amount", { ascending: false, nullsFirst: false }),
@@ -427,7 +432,7 @@ export default function BudgetDashboard() {
           .order("item", { ascending: true }),
         supabase
           .from("budget_actual_expenses")
-          .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,created_at")
+          .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,planned_expense_id,debt_id,created_at")
           .eq("assigned_paycheck", selected.paycheck_date)
           .order("spent_date", { ascending: false })
           .order("created_at", { ascending: false }),
@@ -448,7 +453,7 @@ export default function BudgetDashboard() {
           .order("received_date", { ascending: false }),
         supabase
           .from("budget_expenses")
-          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund,future_expense_id")
+          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id")
           .gte("assigned_paycheck", selected.paycheck_date)
           .neq("status", "Cancelled")
           .order("assigned_paycheck", { ascending: true })
@@ -456,7 +461,7 @@ export default function BudgetDashboard() {
           .order("planned_amount", { ascending: false, nullsFirst: false }),
         supabase
           .from("budget_debts")
-          .select("id,name,creditor,debt_type,current_balance,original_balance,apr,minimum_payment,payment_frequency,due_timing,payment_grace_days,term_end_date,promo_end_date,settlement_offer_amount,settlement_offer_expires,settlement_notes,linked_budget_line_item,priority_override,notes,active,payoff_status,paid_off_at")
+          .select("id,name,creditor,debt_type,current_balance,original_balance,apr,minimum_payment,payment_frequency,due_timing,payment_grace_days,term_end_date,promo_end_date,settlement_offer_amount,settlement_offer_expires,settlement_notes,linked_budget_line_item,priority_override,notes,active,payoff_status,paid_off_at,priority_rank,balance_estimated")
           .eq("active", true)
           .order("name", { ascending: true }),
       ]);
@@ -520,7 +525,7 @@ export default function BudgetDashboard() {
 
     const { data, error: forecastError } = await supabase
       .from("budget_expenses")
-      .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund,future_expense_id")
+      .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id")
       .eq("assigned_paycheck", date)
       .neq("status", "Cancelled")
       .order("due_date", { ascending: true, nullsFirst: false })
@@ -705,7 +710,7 @@ export default function BudgetDashboard() {
 
     const data = new FormData(event.currentTarget);
     const actualCheck = Number(data.get("actual_check") || 0);
-    const checkingBalanceRaw = String(data.get("checking_balance") ?? "").trim();
+    const checkingBalanceRaw = String(data.get("reconciled_checking_balance") ?? "").trim();
     const checkingBalance = Number(checkingBalanceRaw);
 
     if (
@@ -722,7 +727,7 @@ export default function BudgetDashboard() {
       .from("budget_paychecks")
       .update({
         actual_check: actualCheck,
-        checking_before_paycheck: checkingBalance,
+        reconciled_checking_balance: checkingBalance,
         period_status: "Received",
         review_required: true,
         review_reason: "Paycheck received and checking balance reconciled",
@@ -767,7 +772,7 @@ export default function BudgetDashboard() {
     setError("");
 
     const data = new FormData(event.currentTarget);
-    const checkingBalanceRaw = String(data.get("checking_balance") ?? "").trim();
+    const checkingBalanceRaw = String(data.get("reconciled_checking_balance") ?? "").trim();
     const checkingBalance = Number(checkingBalanceRaw);
     const payload = {
       received_date: String(data.get("received_date") || todayIso()),
@@ -809,7 +814,7 @@ export default function BudgetDashboard() {
     const { error: balanceError } = await supabase
       .from("budget_paychecks")
       .update({
-        checking_before_paycheck: checkingBalance,
+        reconciled_checking_balance: checkingBalance,
         updated_at: new Date().toISOString(),
       })
       .eq("paycheck_date", payload.assigned_paycheck);
@@ -1392,9 +1397,9 @@ export default function BudgetDashboard() {
   const extraAboveBaseline = Math.max(0, income - expectedPaycheck);
   const planned = num(paycheck?.planned_spending);
   const checkingBalance =
-    paycheck?.checking_before_paycheck == null
+    paycheck?.reconciled_checking_balance == null
       ? null
-      : num(paycheck.checking_before_paycheck);
+      : num(paycheck.reconciled_checking_balance);
   const reconciliationAdjustment =
     checkingBalance == null ? 0 : checkingBalance - income;
   const cashAvailable = checkingBalance == null ? income : checkingBalance;
@@ -3924,9 +3929,9 @@ function PaycheckEditor({
   onSave: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const existingBalance =
-    paycheck.checking_before_paycheck == null
+    paycheck.reconciled_checking_balance == null
       ? ""
-      : String(paycheck.checking_before_paycheck);
+      : String(paycheck.reconciled_checking_balance);
 
   return (
     <Modal
@@ -3957,7 +3962,7 @@ function PaycheckEditor({
 
         <Field label="Current checking balance">
           <input
-            name="checking_balance"
+            name="reconciled_checking_balance"
             required
             type="number"
             inputMode="decimal"
@@ -4062,7 +4067,7 @@ function IncomeEditor({
 
         <Field label="Current checking balance">
           <input
-            name="checking_balance"
+            name="reconciled_checking_balance"
             required
             type="number"
             inputMode="decimal"
