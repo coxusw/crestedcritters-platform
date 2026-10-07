@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import {
-  ActualExpense, BucketContribution, Debt, Expense, FutureExpense, IncomeEntry, Paycheck, PlanTab, RecurringBill, coalesceFundDeadline, dateLabel, expenseDisplayName, expensePlanGroup, isClosedFundStatus, isFundingCompleteStatus, money, monthlyEquivalent, normalizeSpendingCategory, num, paycheckCountsAsFunded, spendingCategoryForExpense, todayIso
+  ActualExpense, BucketContribution, Debt, Expense, FutureExpense, IncomeEntry, Paycheck, PlanTab, RecurringBill, addDays, coalesceFundDeadline, dateLabel, expenseDisplayName, expensePlanGroup, isClosedFundStatus, isFundingCompleteStatus, money, monthlyEquivalent, normalizeSpendingCategory, num, paycheckCountsAsFunded, spendingCategoryForExpense, todayIso
 } from "./budgetModel";
 import { BudgetMeter, Field, Modal, PlanExpenseSection } from "./BudgetUi";
 
@@ -233,6 +233,7 @@ export function FutureGoalEditor({
   item,
   currentPaycheck,
   paycheckDates,
+  fundedAmount = 0,
   saving,
   onClose,
   onSave,
@@ -240,6 +241,7 @@ export function FutureGoalEditor({
   item?: FutureExpense;
   currentPaycheck: string;
   paycheckDates: string[];
+  fundedAmount?: number;
   saving: boolean;
   onClose: () => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
@@ -263,11 +265,32 @@ export function FutureGoalEditor({
   );
   const [autoFund, setAutoFund] = useState(defaultAutoFund);
 
+  const paycheckOptions = Array.from(new Set(paycheckDates)).sort();
+  let lastPaycheck =
+    paycheckOptions[paycheckOptions.length - 1] || currentPaycheck;
+  const extensionThrough =
+    dueDate || item?.funding_deadline || lastPaycheck;
+  let extensionGuard = 0;
+
+  while (lastPaycheck < extensionThrough && extensionGuard < 80) {
+    lastPaycheck = addDays(lastPaycheck, 14);
+    paycheckOptions.push(lastPaycheck);
+    extensionGuard += 1;
+  }
+
+  if (
+    item?.funding_deadline &&
+    !paycheckOptions.includes(item.funding_deadline)
+  ) {
+    paycheckOptions.push(item.funding_deadline);
+    paycheckOptions.sort();
+  }
+
   useEffect(() => {
     if (!autoFund || !dueDate) return;
 
     const latestEligible =
-      paycheckDates.filter(
+      paycheckOptions.filter(
         (date) => date >= startDate && date <= dueDate
       ).slice(-1)[0] || startDate;
 
@@ -282,12 +305,12 @@ export function FutureGoalEditor({
     autoFund,
     dueDate,
     startDate,
-    paycheckDates,
+    paycheckOptions.join("|"),
     fundingDeadline,
   ]);
 
   const eligiblePaychecks = autoFund
-    ? paycheckDates.filter(
+    ? paycheckOptions.filter(
         (date) =>
           date >= startDate &&
           date <= fundingDeadline &&
@@ -295,9 +318,10 @@ export function FutureGoalEditor({
       )
     : [];
 
+  const remainingTarget = Math.max(0, target - fundedAmount);
   const estimatedContribution =
-    target > 0 && dueDate && eligiblePaychecks.length
-      ? target / eligiblePaychecks.length
+    remainingTarget > 0 && dueDate && eligiblePaychecks.length
+      ? remainingTarget / eligiblePaychecks.length
       : 0;
 
   return (
@@ -374,8 +398,12 @@ export function FutureGoalEditor({
                   onChange={(event) => setStartDate(event.target.value)}
                   className="budget-input"
                 >
-                  {paycheckDates
-                    .filter((date) => date >= currentPaycheck)
+                  {paycheckOptions
+                    .filter(
+                      (date) =>
+                        date >= currentPaycheck &&
+                        (!dueDate || date <= dueDate)
+                    )
                     .map((date) => (
                       <option key={date} value={date}>
                         {dateLabel(date)}
@@ -393,7 +421,7 @@ export function FutureGoalEditor({
                   }
                   className="budget-input"
                 >
-                  {paycheckDates
+                  {paycheckOptions
                     .filter(
                       (date) =>
                         date >= startDate && (!dueDate || date <= dueDate)
@@ -418,7 +446,8 @@ export function FutureGoalEditor({
                       About {money(estimatedContribution)} per paycheck
                     </p>
                     <p className="mt-1 text-xs leading-5 text-blue-800">
-                      Spread across {eligiblePaychecks.length} future paycheck
+                      The remaining {money(remainingTarget)} is spread across{" "}
+                      {eligiblePaychecks.length} future paycheck
                       {eligiblePaychecks.length === 1 ? "" : "s"}, ending with
                       the {dateLabel(fundingDeadline)} paycheck. Already funded
                       contributions are preserved when editing.
