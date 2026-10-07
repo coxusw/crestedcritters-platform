@@ -3144,6 +3144,11 @@ export default function BudgetDashboard() {
           item={editor.item}
           currentPaycheck={paycheck.paycheck_date}
           paycheckDates={paycheckDates}
+          fundedAmount={
+            editor.item
+              ? bucketFundedThrough(editor.item.id, "9999-12-31")
+              : 0
+          }
           saving={saving}
           onClose={() => setEditor(null)}
           onSave={saveFutureGoal}
