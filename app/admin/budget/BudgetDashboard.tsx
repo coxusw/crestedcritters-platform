@@ -1271,17 +1271,6 @@ export default function BudgetDashboard() {
     [futureExpenses, paycheck?.paycheck_date]
   );
 
-  const discretionaryCloseoutBonus = useMemo(() => {
-    const total = currentCloseoutTransfers
-      .filter((item) => item.closeout_destination === "discretionary")
-      .reduce((sum, item) => sum + num(item.closeout_amount), 0);
-    const chris = Math.floor((total * 100) / 2) / 100;
-    return {
-      chris,
-      jen: Math.round((total - chris) * 100) / 100,
-    };
-  }, [currentCloseoutTransfers]);
-
   const bufferCloseoutBonus = useMemo(
     () =>
       currentCloseoutTransfers
@@ -1311,13 +1300,7 @@ export default function BudgetDashboard() {
         (expense) =>
           spendingCategoryForExpense(expense) === spendingCategory
       );
-      const isPersonalSpending = PERSONAL_SPENDING_CATEGORIES.includes(
-        spendingCategory as (typeof PERSONAL_SPENDING_CATEGORIES)[number]
-      );
-      const category =
-        matchingPlan?.category ||
-        (isPersonalSpending ? "Personal" : item.category) ||
-        "Other";
+      const category = matchingPlan?.category || item.category || "Other";
       const row = map.get(category) || { category, planned: 0, actual: 0 };
       row.actual += num(item.amount);
       map.set(category, row);
@@ -1343,23 +1326,6 @@ export default function BudgetDashboard() {
       map.set(category, row);
     }
 
-    for (const person of people) {
-      const category = `${person.name} spending`;
-      if (!map.has(category)) {
-        map.set(category, {
-          category,
-          planned: num(person.default_discretionary),
-          actual: 0,
-        });
-      }
-    }
-
-    for (const category of PERSONAL_SPENDING_CATEGORIES) {
-      if (!map.has(category)) {
-        map.set(category, { category, planned: 0, actual: 0 });
-      }
-    }
-
     for (const item of actualExpenses) {
       const category =
         normalizeSpendingCategory(item.category) || "Other";
@@ -1375,51 +1341,8 @@ export default function BudgetDashboard() {
       map.set(category, row);
     }
 
-    if (discretionaryCloseoutBonus.chris > 0) {
-      const category = "Chris spending";
-      const row = map.get(category) || { category, planned: 0, actual: 0 };
-      row.planned += discretionaryCloseoutBonus.chris;
-      map.set(category, row);
-    }
-
-    if (discretionaryCloseoutBonus.jen > 0) {
-      const category = "Jen spending";
-      const row = map.get(category) || { category, planned: 0, actual: 0 };
-      row.planned += discretionaryCloseoutBonus.jen;
-      map.set(category, row);
-    }
-
     return Array.from(map.values());
-  }, [
-    expenses,
-    people,
-    actualExpenses,
-    bufferCloseoutBonus,
-    discretionaryCloseoutBonus,
-  ]);
-
-  const personalSpendingByName = useMemo(() => {
-    const totals = new Map<string, number>();
-
-    for (const person of people) {
-      totals.set(person.name.toLowerCase(), 0);
-    }
-
-    for (const item of actualExpenses) {
-      const category = normalizeSpendingCategory(item.category).toLowerCase();
-
-      for (const person of people) {
-        if (category === `${person.name.toLowerCase()} spending`) {
-          totals.set(
-            person.name.toLowerCase(),
-            (totals.get(person.name.toLowerCase()) || 0) + num(item.amount)
-          );
-        }
-      }
-    }
-
-    return totals;
-  }, [people, actualExpenses]);
+  }, [expenses, actualExpenses, bufferCloseoutBonus]);
 
   const debtSignals = useMemo(() => {
     const today = todayIso();
