@@ -1704,18 +1704,6 @@ export function DebtEditor({
           </div>
         </div>
 
-        <Field label="Priority override">
-          <select
-            name="priority_override"
-            defaultValue={item?.priority_override || "Auto"}
-            className="budget-input"
-          >
-            <option value="Auto">Automatic — let the review rank it</option>
-            <option value="High">Force high priority</option>
-            <option value="Low">Force low priority</option>
-          </select>
-        </Field>
-
         <Field label="Notes">
           <textarea
             name="notes"
