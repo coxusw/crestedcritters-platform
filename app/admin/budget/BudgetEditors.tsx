@@ -1349,7 +1349,11 @@ export function ExpenseEditor({
             disabled={saving}
             className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700 disabled:opacity-50"
           >
-            Remove from plan
+            {item.generated_recurring_id ||
+            item.future_expense_id ||
+            item.forecast_generated
+              ? "Remove this occurrence from plan"
+              : "Delete from budget"}
           </button>
         )}
       </form>
