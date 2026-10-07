@@ -760,6 +760,7 @@ export function IncomeEditor({
   );
 }
 
+
 export function ActualExpenseEditor({
   item,
   currentPaycheck,
@@ -793,45 +794,74 @@ export function ActualExpenseEditor({
   onSave: (event: FormEvent<HTMLFormElement>) => void;
   onDelete?: () => void;
 }) {
-  const [selectedPlannedExpenseId, setSelectedPlannedExpenseId] = useState(
-    item?.planned_expense_id || initialPlannedExpenseId || ""
-  );
-  const selectedPlannedExpense = planExpenses.find(
-    (expense) => expense.id === selectedPlannedExpenseId
+  const initialPlanId =
+    item?.planned_expense_id || initialPlannedExpenseId || "";
+  const initialPlan = planExpenses.find(
+    (expense) => expense.id === initialPlanId
   );
   const initialBucketId =
     item?.future_expense_id ||
     initialFutureExpenseId ||
-    selectedPlannedExpense?.future_expense_id ||
+    initialPlan?.future_expense_id ||
     "";
-  const initialBucket = futureExpenses.find(
-    (bucket) => bucket.id === initialBucketId
-  );
-  const [selectedCategory, setSelectedCategory] = useState(
-    item?.category ||
-      (selectedPlannedExpense
-        ? spendingCategoryForExpense(selectedPlannedExpense) ||
-          selectedPlannedExpense.category ||
-          ""
-        : initialBucket
-          ? "Sinking Fund"
-          : "")
-  );
-  const budgetCategories = Array.from(
-    new Set([
-      ...(initialBucket ? ["Sinking Fund"] : []),
-      ...(item?.category ? [item.category] : []),
-      ...categories,
-    ])
-  );
+  const initialTarget = initialPlanId
+    ? `plan:${initialPlanId}`
+    : initialBucketId
+      ? `bucket:${initialBucketId}`
+      : item?.category
+        ? `category:${normalizeSpendingCategory(item.category)}`
+        : "";
+
+  const [spendTarget, setSpendTarget] = useState(initialTarget);
   const [enteredAmount, setEnteredAmount] = useState(num(item?.amount));
   const [description, setDescription] = useState(
-    item?.description ||
-      selectedPlannedExpense?.line_item ||
-      initialBucket?.event_fund ||
-      ""
+    item?.description || initialPlan?.line_item || ""
   );
-  const [selectedBucketId, setSelectedBucketId] = useState(initialBucketId);
+
+  const selectedPlannedExpenseId = spendTarget.startsWith("plan:")
+    ? spendTarget.slice(5)
+    : "";
+  const directBucketId = spendTarget.startsWith("bucket:")
+    ? spendTarget.slice(7)
+    : "";
+  const directCategory = spendTarget.startsWith("category:")
+    ? spendTarget.slice(9)
+    : "";
+
+  const selectedPlannedExpense = planExpenses.find(
+    (expense) => expense.id === selectedPlannedExpenseId
+  );
+  const selectedBucketId =
+    selectedPlannedExpense?.future_expense_id ||
+    directBucketId ||
+    (item?.planned_expense_id === selectedPlannedExpenseId
+      ? item?.future_expense_id || ""
+      : "");
+  const selectedBucket = futureExpenses.find(
+    (bucket) => bucket.id === selectedBucketId
+  );
+  const selectedCategory = selectedPlannedExpense
+    ? spendingCategoryForExpense(selectedPlannedExpense) ||
+      selectedPlannedExpense.category ||
+      "Other"
+    : selectedBucket
+      ? "Sinking Fund"
+      : directCategory;
+
+  const everydayCategories = Array.from(
+    new Set(
+      [
+        ...categories,
+        ...(item?.category ? [item.category] : []),
+        "Other",
+      ]
+        .map((category) => normalizeSpendingCategory(category))
+        .filter(
+          (category) =>
+            !!category && category.toLowerCase() !== "sinking fund"
+        )
+    )
+  );
 
   const plannedLineActualBefore = selectedPlannedExpense
     ? Math.max(
@@ -845,8 +875,7 @@ export function ActualExpenseEditor({
   const plannedLineRemainingBefore = selectedPlannedExpense
     ? num(selectedPlannedExpense.planned_amount) - plannedLineActualBefore
     : 0;
-  const plannedLineAfter =
-    plannedLineActualBefore + enteredAmount;
+  const plannedLineAfter = plannedLineActualBefore + enteredAmount;
   const plannedLineOver =
     !!selectedPlannedExpense &&
     plannedLineAfter > num(selectedPlannedExpense.planned_amount) + 0.005;
@@ -921,9 +950,6 @@ export function ActualExpenseEditor({
       return (a.event_fund || "").localeCompare(b.event_fund || "");
     });
 
-  const selectedBucket = futureExpenses.find(
-    (bucket) => bucket.id === selectedBucketId
-  );
   const fundedPaycheckDates = new Set(
     paychecks
       .filter(paycheckCountsAsFunded)
@@ -953,87 +979,90 @@ export function ActualExpenseEditor({
   const bucketOverAfter =
     !!selectedBucket && enteredAmount > 0 && bucketAvailableAfter < 0;
 
+  const activePlannedExpenses = planExpenses.filter(
+    (expense) =>
+      expense.status !== "Cancelled" &&
+      expense.status !== "Deferred" &&
+      (expense.expense_type || "").toLowerCase() !== "sinking fund"
+  );
+
+  function changeSpendTarget(nextTarget: string) {
+    setSpendTarget(nextTarget);
+
+    if (nextTarget.startsWith("plan:")) {
+      const planned = planExpenses.find(
+        (expense) => expense.id === nextTarget.slice(5)
+      );
+      setDescription(planned?.line_item || "");
+      return;
+    }
+
+    if (nextTarget.startsWith("bucket:")) {
+      setDescription("");
+      return;
+    }
+
+    if (nextTarget.startsWith("category:")) {
+      setDescription("");
+    }
+  }
+
   return (
     <Modal title={item ? "Edit spending" : "Log spending"} onClose={onClose}>
       <form onSubmit={onSave} className="space-y-3">
-        <Field label="Apply to planned bill / item (optional)">
+        <Field label="Spend for">
           <select
-            name="planned_expense_id"
-            value={selectedPlannedExpenseId}
-            onChange={(event) => {
-              const nextId = event.target.value;
-              setSelectedPlannedExpenseId(nextId);
-              const planned = planExpenses.find(
-                (expense) => expense.id === nextId
-              );
-              if (planned) {
-                setSelectedCategory(
-                  spendingCategoryForExpense(planned) ||
-                    planned.category ||
-                    "Other"
-                );
-                setSelectedBucketId(planned.future_expense_id || "");
-                setDescription(planned.line_item || "");
-              }
-            }}
-            className="budget-input"
-          >
-            <option value="">Not tied to a planned line</option>
-            {planExpenses
-              .filter(
-                (expense) =>
-                  expense.status !== "Cancelled" &&
-                  expense.status !== "Deferred" &&
-                  (expense.expense_type || "").toLowerCase() !== "sinking fund"
-              )
-              .map((expense) => (
-                <option key={expense.id} value={expense.id}>
-                  {expenseDisplayName(expense)} —{" "}
-                  {money(num(expense.planned_amount))}
-                </option>
-              ))}
-          </select>
-        </Field>
-
-        {selectedPlannedExpense && (
-          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <BudgetMeter
-              label="Plan"
-              value={num(selectedPlannedExpense.planned_amount)}
-            />
-            <BudgetMeter
-              label="Spent"
-              value={plannedLineActualBefore}
-              danger={
-                plannedLineActualBefore >
-                num(selectedPlannedExpense.planned_amount)
-              }
-            />
-            <BudgetMeter
-              label="Remaining"
-              value={plannedLineRemainingBefore}
-              danger={plannedLineRemainingBefore < 0}
-            />
-          </div>
-        )}
-
-        <Field label="Budget item / spending type">
-          <select
-            name="category"
             required
-            value={selectedCategory}
-            onChange={(event) => setSelectedCategory(event.target.value)}
+            value={spendTarget}
+            onChange={(event) => changeSpendTarget(event.target.value)}
             className="budget-input"
           >
-            {!selectedCategory && (
+            {!spendTarget && (
               <option value="" disabled>
-                Choose where this spending belongs
+                Choose what this spending is for
               </option>
             )}
-            {budgetCategories.length > 0 && (
-              <optgroup label="Current budget">
-                {budgetCategories.map((category) => (
-                  <option key={category} value={category}>
+
+            {activePlannedExpenses.length > 0 && (
+              <optgroup label="Planned this pay period">
+                {activePlannedExpenses.map((expense) => (
+                  <option key={expense.id} value={`plan:${expense.id}`}>
+                    {expenseDisplayName(expense)} —{" "}
+                    {money(num(expense.planned_amount))}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+
+            {currentCycleBuckets.length > 0 && (
+              <optgroup label="Sinking funds · this pay cycle">
+                {currentCycleBuckets.map((bucket) => (
+                  <option key={bucket.id} value={`bucket:${bucket.id}`}>
+                    {bucket.event_fund || "Future expense"} —{" "}
+                    {money(currentCycleAmount(bucket.id))} this check
+                  </option>
+                ))}
+              </optgroup>
+            )}
+
+            {upcomingBuckets.length > 0 && (
+              <optgroup label="Other sinking funds">
+                {upcomingBuckets.map((bucket) => {
+                  const nextDate = nextPlannedPaycheck(bucket);
+                  return (
+                    <option key={bucket.id} value={`bucket:${bucket.id}`}>
+                      {bucket.event_fund || "Future expense"}
+                      {nextDate ? ` — next ${dateLabel(nextDate)}` : ""}
+                    </option>
+                  );
+                })}
+              </optgroup>
+            )}
+
+            {everydayCategories.length > 0 && (
+              <optgroup label="Everyday / unplanned spending">
+                {everydayCategories.map((category) => (
+                  <option key={category} value={`category:${category}`}>
                     {category}
                   </option>
                 ))}
@@ -1042,59 +1071,49 @@ export function ActualExpenseEditor({
           </select>
         </Field>
 
-        <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-3">
-          <BudgetMeter label="Planned" value={plannedForCategory} />
-          <BudgetMeter label="Already used" value={alreadyUsed} />
-          <BudgetMeter
-            label="Remaining"
-            value={remainingBefore}
-            danger={remainingBefore < 0}
-          />
-        </div>
+        <input
+          type="hidden"
+          name="planned_expense_id"
+          value={selectedPlannedExpenseId}
+        />
+        <input type="hidden" name="category" value={selectedCategory} />
+        <input
+          type="hidden"
+          name="future_expense_id"
+          value={selectedBucketId}
+        />
 
-        <Field label="Use sinking fund / bucket (optional)">
-          <select
-            name="future_expense_id"
-            value={selectedBucketId}
-            onChange={(event) => {
-              const nextBucketId = event.target.value;
-              setSelectedBucketId(nextBucketId);
-              if (nextBucketId && !selectedCategory) {
-                setSelectedCategory("Sinking Fund");
-              }
-            }}
-            className="budget-input"
-          >
-            <option value="">No bucket</option>
-            {currentCycleBuckets.length > 0 && (
-              <optgroup label="This pay cycle / current plan">
-                {currentCycleBuckets.map((bucket) => (
-                  <option key={bucket.id} value={bucket.id}>
-                    {bucket.event_fund || "Future expense"} —{" "}
-                    {money(currentCycleAmount(bucket.id))} this check
-                  </option>
-                ))}
-              </optgroup>
+        {selectedPlannedExpense ? (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <div className="grid grid-cols-3 gap-2">
+              <BudgetMeter
+                label="Plan"
+                value={num(selectedPlannedExpense.planned_amount)}
+              />
+              <BudgetMeter
+                label="Spent"
+                value={plannedLineActualBefore}
+                danger={
+                  plannedLineActualBefore >
+                  num(selectedPlannedExpense.planned_amount)
+                }
+              />
+              <BudgetMeter
+                label="Remaining"
+                value={plannedLineRemainingBefore}
+                danger={plannedLineRemainingBefore < 0}
+              />
+            </div>
+            {selectedBucket && (
+              <p className="mt-2 text-[11px] font-bold text-slate-500">
+                Paid from {selectedBucket.event_fund || "sinking fund"} ·{" "}
+                {money(bucketAvailableBefore)} actually available
+              </p>
             )}
-            {upcomingBuckets.length > 0 && (
-              <optgroup label="Upcoming / lower priority this cycle">
-                {upcomingBuckets.map((bucket) => {
-                  const nextDate = nextPlannedPaycheck(bucket);
-                  return (
-                    <option key={bucket.id} value={bucket.id}>
-                      {bucket.event_fund || "Future expense"}
-                      {nextDate ? ` — next ${dateLabel(nextDate)}` : ""}
-                    </option>
-                  );
-                })}
-              </optgroup>
-            )}
-          </select>
-        </Field>
-
-        {selectedBucket && (
+          </div>
+        ) : selectedBucket ? (
           <div className="grid grid-cols-3 gap-2 rounded-2xl border border-blue-200 bg-blue-50 p-3">
-            <BudgetMeter label="Accumulated" value={bucketFunded} />
+            <BudgetMeter label="Funded" value={bucketFunded} />
             <BudgetMeter label="Spent" value={bucketSpentBefore} />
             <BudgetMeter
               label="Available"
@@ -1102,7 +1121,17 @@ export function ActualExpenseEditor({
               danger={bucketAvailableBefore < 0}
             />
           </div>
-        )}
+        ) : selectedCategory ? (
+          <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-3">
+            <BudgetMeter label="Planned" value={plannedForCategory} />
+            <BudgetMeter label="Used" value={alreadyUsed} />
+            <BudgetMeter
+              label="Remaining"
+              value={remainingBefore}
+              danger={remainingBefore < 0}
+            />
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-2">
           <Field label="Amount">
@@ -1139,7 +1168,11 @@ export function ActualExpenseEditor({
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             className="budget-input"
-            placeholder="Gas, groceries, mortgage…"
+            placeholder={
+              selectedBucket
+                ? "Hotel, gas, food, gift…"
+                : "Gas, groceries, mortgage…"
+            }
           />
         </Field>
 
@@ -1149,30 +1182,7 @@ export function ActualExpenseEditor({
           value={item?.assigned_paycheck || currentPaycheck}
         />
 
-        {enteredAmount > 0 && (
-          <div
-            className={`rounded-xl border p-3 text-sm ${
-              overAfter
-                ? "border-amber-300 bg-amber-50 text-amber-950"
-                : "border-emerald-200 bg-emerald-50 text-emerald-900"
-            }`}
-          >
-            <strong>
-              Category after this expense:{" "}
-              {overAfter
-                ? `${money(Math.abs(remainingAfter))} over budget`
-                : `${money(remainingAfter)} remaining`}
-            </strong>
-            {overAfter && (
-              <span className="mt-1 block text-xs leading-5">
-                You can still save it. You will be asked to confirm because it
-                exceeds the category budget for this pay period.
-              </span>
-            )}
-          </div>
-        )}
-
-        {selectedPlannedExpense && enteredAmount > 0 && (
+        {enteredAmount > 0 && selectedPlannedExpense && (
           <div
             className={`rounded-xl border p-3 text-sm ${
               plannedLineOver
@@ -1181,8 +1191,7 @@ export function ActualExpenseEditor({
             }`}
           >
             <strong>
-              {expenseDisplayName(selectedPlannedExpense)} after this payment:{" "}
-              {money(plannedLineAfter)} of{" "}
+              After this payment: {money(plannedLineAfter)} of{" "}
               {money(num(selectedPlannedExpense.planned_amount))} spent
             </strong>
             {plannedLineOver && (
@@ -1198,7 +1207,7 @@ export function ActualExpenseEditor({
           </div>
         )}
 
-        {selectedBucket && enteredAmount > 0 && (
+        {enteredAmount > 0 && !selectedPlannedExpense && selectedBucket && (
           <div
             className={`rounded-xl border p-3 text-sm ${
               bucketOverAfter
@@ -1207,19 +1216,39 @@ export function ActualExpenseEditor({
             }`}
           >
             <strong>
-              {selectedBucket.event_fund || "Bucket"} after this expense:{" "}
+              After this expense:{" "}
               {bucketOverAfter
                 ? `${money(Math.abs(bucketAvailableAfter))} negative`
                 : `${money(bucketAvailableAfter)} available`}
             </strong>
             {bucketOverAfter && (
               <span className="mt-1 block text-xs leading-5">
-                The bucket can go negative, but you will be asked to confirm
-                before the expense is saved.
+                The sinking fund can go negative, but you will be asked to
+                confirm before saving.
               </span>
             )}
           </div>
         )}
+
+        {enteredAmount > 0 &&
+          !selectedPlannedExpense &&
+          !selectedBucket &&
+          selectedCategory && (
+            <div
+              className={`rounded-xl border p-3 text-sm ${
+                overAfter
+                  ? "border-amber-300 bg-amber-50 text-amber-950"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-900"
+              }`}
+            >
+              <strong>
+                After this expense:{" "}
+                {overAfter
+                  ? `${money(Math.abs(remainingAfter))} over budget`
+                  : `${money(remainingAfter)} remaining`}
+              </strong>
+            </div>
+          )}
 
         <p className="text-[11px] text-slate-500">
           Pay period: {dateLabel(item?.assigned_paycheck || currentPaycheck)}
@@ -1236,7 +1265,7 @@ export function ActualExpenseEditor({
 
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || !spendTarget}
           className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
         >
           {saving ? "Saving…" : item ? "Save spending" : "Log spending"}
