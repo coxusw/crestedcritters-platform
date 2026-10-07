@@ -3,300 +3,62 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
+import {
+  ActualExpense,
+  BucketContribution,
+  Debt,
+  Editor,
+  Expense,
+  FutureExpense,
+  IncomeEntry,
+  Paycheck,
+  Person,
+  PlanTab,
+  RecurringBill,
+  View,
+  PERSONAL_SPENDING_CATEGORIES,
+  addDays,
+  addMonths,
+  coalesceFundDeadline,
+  dateLabel,
+  expenseDisplayName,
+  expensePlanGroup,
+  isClosedFundStatus,
+  isFundingCompleteStatus,
+  money,
+  monthlyEquivalent,
+  normalizeSpendingCategory,
+  num,
+  paycheckCountsAsFunded,
+  spendingCategoryForExpense,
+  todayIso,
+} from "./budgetModel";
+import {
+  ActualExpenseEditor,
+  DebtEditor,
+  ExpenseEditor,
+  ForecastPaycheckModal,
+  FutureGoalEditor,
+  IncomeEditor,
+  PaycheckEditor,
+  RecurringEditor,
+  SinkingFundCloseoutModal,
+} from "./BudgetEditors";
+import {
+  ActualExpenseRow,
+  ApprovalButton,
+  BudgetMeter,
+  ExpenseRow,
+  CountCard,
+  MiniStat,
+  PersonCard,
+  PlanExpenseSection,
+  RecurringRow,
+  ReviewStat,
+  SectionTitle,
+  Stat,
+} from "./BudgetUi";
 
-type Paycheck = {
-  paycheck_date: string;
-  projected_check: number | string | null;
-  actual_check: number | string | null;
-  period_status: string | null;
-  planned_spending: number | string | null;
-  actual_spending: number | string | null;
-  reserve_change: number | string | null;
-  running_cash_goal_pool: number | string | null;
-  checking_before_paycheck: number | string | null;
-  review_required: boolean | null;
-  review_reason: string | null;
-  review_triggered_at: string | null;
-  rolling_generated: boolean | null;
-};
-
-type Expense = {
-  id: string;
-  due_date: string | null;
-  assigned_paycheck: string | null;
-  category: string | null;
-  line_item: string | null;
-  expense_type: string | null;
-  frequency: string | null;
-  planned_amount: number | string | null;
-  actual_amount: number | string | null;
-  status: string | null;
-  notes: string | null;
-  event_fund: string | null;
-  future_expense_id: string | null;
-};
-
-type Person = {
-  name: string;
-  default_discretionary: number | string;
-};
-
-type FutureExpense = {
-  id: string;
-  event_fund: string | null;
-  due_date: string | null;
-  target_budget: number | string | null;
-  planned_funding: number | string | null;
-  actual_funding_spend: number | string | null;
-  remaining_to_plan: number | string | null;
-  remaining_actual: number | string | null;
-  status: string | null;
-  notes: string | null;
-  funding_start_paycheck: string | null;
-  funding_deadline: string | null;
-  auto_fund: boolean | null;
-  repeat_annually: boolean | null;
-  funding_deadline_rule: string | null;
-  closed_at: string | null;
-  closeout_amount: number | string | null;
-  closeout_destination: string | null;
-  closeout_destination_fund_id: string | null;
-  closeout_assigned_paycheck: string | null;
-};
-
-type BucketContribution = {
-  future_expense_id: string | null;
-  assigned_paycheck: string | null;
-  planned_amount: number | string | null;
-  status: string | null;
-};
-
-type RecurringBill = {
-  id: string;
-  category: string | null;
-  item: string | null;
-  amount: number | string | null;
-  frequency: string | null;
-  monthly_equivalent: number | string | null;
-  due_timing: string | null;
-  payment_grace_days: number | string | null;
-  active: boolean | null;
-  notes: string | null;
-};
-
-type ActualExpense = {
-  id: string;
-  spent_date: string;
-  assigned_paycheck: string;
-  category: string;
-  description: string;
-  amount: number | string;
-  note: string | null;
-  future_expense_id: string | null;
-};
-
-type IncomeEntry = {
-  id: string;
-  received_date: string;
-  assigned_paycheck: string;
-  source: string;
-  amount: number | string;
-  note: string | null;
-  income_type: string | null;
-};
-
-type Debt = {
-  id: string;
-  name: string;
-  creditor: string | null;
-  debt_type: string;
-  current_balance: number | string;
-  original_balance: number | string | null;
-  apr: number | string | null;
-  minimum_payment: number | string | null;
-  payment_frequency: string | null;
-  due_timing: string | null;
-  payment_grace_days: number | string | null;
-  term_end_date: string | null;
-  promo_end_date: string | null;
-  settlement_offer_amount: number | string | null;
-  settlement_offer_expires: string | null;
-  settlement_notes: string | null;
-  linked_budget_line_item: string | null;
-  priority_override: string | null;
-  notes: string | null;
-  active: boolean;
-  payoff_status: string | null;
-  paid_off_at: string | null;
-};
-
-type View = "home" | "plan" | "forecast" | "reviews" | "more";
-type Editor =
-  | { type: "expense"; item?: Expense; paycheckDate?: string }
-  | { type: "recurring"; item?: RecurringBill }
-  | { type: "actual"; item?: ActualExpense }
-  | { type: "income"; item?: IncomeEntry }
-  | { type: "debt"; item?: Debt }
-  | { type: "paycheck" }
-  | { type: "future" }
-  | { type: "close-fund"; item: FutureExpense }
-  | null;
-
-const money = (value: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value);
-
-const dateLabel = (value: string | null) => {
-  if (!value) return "TBD";
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-};
-
-const coalesceFundDeadline = (item: FutureExpense) =>
-  item.funding_deadline || item.due_date || "9999-12-31";
-
-const num = (value: number | string | null | undefined) => Number(value || 0);
-
-const isFundingCompleteStatus = (value: string | null | undefined) =>
-  ["funded", "received", "finalized", "completed", "closed", "paid", "settled"].includes(
-    (value || "").trim().toLowerCase()
-  );
-
-const paycheckCountsAsFunded = (row: Paycheck) =>
-  num(row.actual_check) > 0 || isFundingCompleteStatus(row.period_status);
-
-const todayIso = () => {
-  const today = new Date();
-  return [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, "0"),
-    String(today.getDate()).padStart(2, "0"),
-  ].join("-");
-};
-
-const addDays = (iso: string, days: number) => {
-  const [year, month, day] = iso.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  date.setDate(date.getDate() + days);
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
-};
-
-const addMonths = (iso: string, months: number) => {
-  const [year, month, day] = iso.split("-").map(Number);
-  const target = new Date(year, month - 1 + months, 1);
-  const lastDay = new Date(
-    target.getFullYear(),
-    target.getMonth() + 1,
-    0
-  ).getDate();
-  target.setDate(Math.min(day, lastDay));
-  return [
-    target.getFullYear(),
-    String(target.getMonth() + 1).padStart(2, "0"),
-    String(target.getDate()).padStart(2, "0"),
-  ].join("-");
-};
-
-const monthlyEquivalent = (amount: number, frequency: string) => {
-  if (frequency === "Weekly") return (amount * 52) / 12;
-  if (frequency === "Biweekly") return (amount * 26) / 12;
-  if (frequency === "Annual") return amount / 12;
-  return amount;
-};
-
-const PERSONAL_SPENDING_CATEGORIES = [
-  "Chris spending",
-  "Jen spending",
-  "Discretionary spending",
-] as const;
-
-const normalizeSpendingCategory = (value: string | null | undefined) => {
-  const category = (value || "").trim();
-  const normalized = category.toLowerCase();
-
-  if (normalized === "chris discretionary spending") return "Chris spending";
-  if (normalized === "jen discretionary spending") return "Jen spending";
-  if (normalized === "discretionary spending") return "Discretionary spending";
-
-  return category;
-};
-
-const spendingCategoryForExpense = (expense: Expense) => {
-  if (expense.status === "Cancelled" || expense.status === "Deferred") return "";
-
-  const lineItem = (expense.line_item || "").trim();
-  const expenseType = (expense.expense_type || "").trim().toLowerCase();
-  const normalizedLineItem = lineItem.toLowerCase();
-
-  if (
-    !lineItem ||
-    expense.future_expense_id ||
-    expenseType.includes("sinking") ||
-    normalizedLineItem.includes("sinking fund")
-  ) {
-    return "";
-  }
-
-  return normalizeSpendingCategory(lineItem);
-};
-
-type PlanTab = "bills" | "sinking" | "spending" | "all";
-type PlanGroup = Exclude<PlanTab, "all">;
-
-const isClosedFundStatus = (value: string | null | undefined) =>
-  ["closed", "completed", "cancelled", "removed"].includes(
-    (value || "").trim().toLowerCase()
-  );
-
-const expensePlanGroup = (expense: Expense): PlanGroup => {
-  const line = (expense.line_item || "").trim().toLowerCase();
-  const category = (expense.category || "").trim().toLowerCase();
-  const type = (expense.expense_type || "").trim().toLowerCase();
-
-  if (
-    expense.future_expense_id ||
-    type.includes("sinking") ||
-    category === "sinking fund" ||
-    line.includes("sinking fund")
-  ) {
-    return "sinking";
-  }
-
-  if (
-    line.includes("chris discretionary") ||
-    line.includes("jen discretionary") ||
-    line.includes("jennifer discretionary") ||
-    line.includes("forgotten / unplanned expense buffer") ||
-    category === "fuel" ||
-    category === "groceries" ||
-    category === "food" ||
-    line.includes("vehicle fuel") ||
-    line.includes("grocer") ||
-    line === "food"
-  ) {
-    return "spending";
-  }
-
-  return "bills";
-};
-
-const expenseDisplayName = (expense: Expense) => {
-  const name = expense.line_item || "Unnamed expense";
-  return name.toLowerCase() === "jen discretionary spending"
-    ? "Jennifer discretionary spending"
-    : name;
-};
 
 export default function BudgetDashboard() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -325,6 +87,7 @@ export default function BudgetDashboard() {
   const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>([]);
   const [futurePlanExpenses, setFuturePlanExpenses] = useState<Expense[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [draggedDebtId, setDraggedDebtId] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [chrisApproved, setChrisApproved] = useState(false);
   const [jenApproved, setJenApproved] = useState(false);
@@ -368,7 +131,7 @@ export default function BudgetDashboard() {
 
     const { data: allPaychecks, error: paychecksError } = await supabase
       .from("budget_paychecks")
-      .select("paycheck_date,projected_check,actual_check,period_status,planned_spending,actual_spending,reserve_change,running_cash_goal_pool,checking_before_paycheck,review_required,review_reason,review_triggered_at,rolling_generated")
+      .select("paycheck_date,projected_check,actual_check,period_status,planned_spending,actual_spending,reserve_change,running_cash_goal_pool,reconciled_checking_balance,review_required,review_reason,review_triggered_at,rolling_generated")
       .order("paycheck_date", { ascending: true });
 
     if (paychecksError) {
@@ -406,7 +169,7 @@ export default function BudgetDashboard() {
     ] = await Promise.all([
         supabase
           .from("budget_expenses")
-          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund,future_expense_id")
+          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
           .eq("assigned_paycheck", selected.paycheck_date)
           .order("due_date", { ascending: true, nullsFirst: false })
           .order("planned_amount", { ascending: false, nullsFirst: false }),
@@ -421,13 +184,13 @@ export default function BudgetDashboard() {
           .order("due_date", { ascending: true, nullsFirst: false }),
         supabase
           .from("budget_recurring_bills")
-          .select("id,category,item,amount,frequency,monthly_equivalent,due_timing,payment_grace_days,active,notes")
+          .select("id,category,item,amount,frequency,monthly_equivalent,due_timing,payment_grace_days,active,notes,linked_debt_id")
           .eq("active", true)
           .order("category", { ascending: true })
           .order("item", { ascending: true }),
         supabase
           .from("budget_actual_expenses")
-          .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,created_at")
+          .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,planned_expense_id,debt_id,created_at")
           .eq("assigned_paycheck", selected.paycheck_date)
           .order("spent_date", { ascending: false })
           .order("created_at", { ascending: false }),
@@ -448,7 +211,7 @@ export default function BudgetDashboard() {
           .order("received_date", { ascending: false }),
         supabase
           .from("budget_expenses")
-          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund,future_expense_id")
+          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
           .gte("assigned_paycheck", selected.paycheck_date)
           .neq("status", "Cancelled")
           .order("assigned_paycheck", { ascending: true })
@@ -456,7 +219,7 @@ export default function BudgetDashboard() {
           .order("planned_amount", { ascending: false, nullsFirst: false }),
         supabase
           .from("budget_debts")
-          .select("id,name,creditor,debt_type,current_balance,original_balance,apr,minimum_payment,payment_frequency,due_timing,payment_grace_days,term_end_date,promo_end_date,settlement_offer_amount,settlement_offer_expires,settlement_notes,linked_budget_line_item,priority_override,notes,active,payoff_status,paid_off_at")
+          .select("id,name,creditor,debt_type,current_balance,original_balance,apr,minimum_payment,payment_frequency,due_timing,payment_grace_days,term_end_date,promo_end_date,settlement_offer_amount,settlement_offer_expires,settlement_notes,linked_budget_line_item,priority_override,notes,active,payoff_status,paid_off_at,priority_rank,balance_estimated")
           .eq("active", true)
           .order("name", { ascending: true }),
       ]);
@@ -479,9 +242,13 @@ export default function BudgetDashboard() {
       return;
     }
 
+    const visiblePaychecks = paychecks.filter(
+      (row) => !!row.rolling_generated || num(row.actual_check) > 0
+    );
+
     setPaycheck(selected);
-    setPaychecks(paychecks);
-    setPaycheckDates(paychecks.map((row) => row.paycheck_date));
+    setPaychecks(visiblePaychecks);
+    setPaycheckDates(visiblePaychecks.map((row) => row.paycheck_date));
     setExpenses((expenseResult.data || []) as Expense[]);
     setPeople((peopleResult.data || []) as Person[]);
     setFutureExpenses((futureResult.data || []) as FutureExpense[]);
@@ -520,7 +287,7 @@ export default function BudgetDashboard() {
 
     const { data, error: forecastError } = await supabase
       .from("budget_expenses")
-      .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,notes,event_fund,future_expense_id")
+      .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
       .eq("assigned_paycheck", date)
       .neq("status", "Cancelled")
       .order("due_date", { ascending: true, nullsFirst: false })
@@ -705,7 +472,7 @@ export default function BudgetDashboard() {
 
     const data = new FormData(event.currentTarget);
     const actualCheck = Number(data.get("actual_check") || 0);
-    const checkingBalanceRaw = String(data.get("checking_balance") ?? "").trim();
+    const checkingBalanceRaw = String(data.get("reconciled_checking_balance") ?? "").trim();
     const checkingBalance = Number(checkingBalanceRaw);
 
     if (
@@ -722,7 +489,7 @@ export default function BudgetDashboard() {
       .from("budget_paychecks")
       .update({
         actual_check: actualCheck,
-        checking_before_paycheck: checkingBalance,
+        reconciled_checking_balance: checkingBalance,
         period_status: "Received",
         review_required: true,
         review_reason: "Paycheck received and checking balance reconciled",
@@ -733,6 +500,19 @@ export default function BudgetDashboard() {
 
     if (paycheckError) {
       setError(paycheckError.message);
+      setSaving(false);
+      return;
+    }
+
+    const { error: horizonError } = await supabase.rpc(
+      "refresh_budget_rolling_horizon",
+      { p_reference_date: paycheck.paycheck_date }
+    );
+
+    if (horizonError) {
+      setError(
+        `Paycheck was saved, but the next rolling forecast period could not be generated: ${horizonError.message}`
+      );
       setSaving(false);
       return;
     }
@@ -767,7 +547,7 @@ export default function BudgetDashboard() {
     setError("");
 
     const data = new FormData(event.currentTarget);
-    const checkingBalanceRaw = String(data.get("checking_balance") ?? "").trim();
+    const checkingBalanceRaw = String(data.get("reconciled_checking_balance") ?? "").trim();
     const checkingBalance = Number(checkingBalanceRaw);
     const payload = {
       received_date: String(data.get("received_date") || todayIso()),
@@ -809,7 +589,7 @@ export default function BudgetDashboard() {
     const { error: balanceError } = await supabase
       .from("budget_paychecks")
       .update({
-        checking_before_paycheck: checkingBalance,
+        reconciled_checking_balance: checkingBalance,
         updated_at: new Date().toISOString(),
       })
       .eq("paycheck_date", payload.assigned_paycheck);
@@ -920,9 +700,25 @@ export default function BudgetDashboard() {
       settlement_notes: textOrNull("settlement_notes"),
       linked_budget_line_item: textOrNull("linked_budget_line_item"),
       priority_override: String(data.get("priority_override") || "Auto"),
+      priority_rank:
+        editor.item?.priority_rank == null
+          ? debts.filter((debt) => debt.active).length + 1
+          : num(editor.item.priority_rank),
       notes: textOrNull("notes"),
       active: true,
       updated_at: new Date().toISOString(),
+      ...(!editor.item ||
+      Math.abs(
+        Number(data.get("current_balance") || 0) -
+          num(editor.item.current_balance)
+      ) > 0.005
+        ? {
+            tracking_start_balance: Number(data.get("current_balance") || 0),
+            tracking_start_date: todayIso(),
+            tracking_start_at: new Date().toISOString(),
+            balance_estimated: false,
+          }
+        : {}),
     };
 
     if (!payload.name || payload.current_balance < 0) {
@@ -1024,6 +820,72 @@ export default function BudgetDashboard() {
     setSaving(false);
   }
 
+  const orderedActiveDebts = () =>
+    debts
+      .filter(
+        (debt) =>
+          debt.active &&
+          debt.payoff_status === "Active" &&
+          num(debt.current_balance) > 0
+      )
+      .slice()
+      .sort(
+        (a, b) =>
+          (num(a.priority_rank) || 9999) - (num(b.priority_rank) || 9999) ||
+          a.name.localeCompare(b.name)
+      );
+
+  async function persistDebtPriority(nextOrder: Debt[]) {
+    const ids = nextOrder.map((debt) => debt.id);
+    const rankById = new Map(ids.map((id, index) => [id, index + 1]));
+
+    setDebts((current) =>
+      current.map((debt) =>
+        rankById.has(debt.id)
+          ? { ...debt, priority_rank: rankById.get(debt.id)! }
+          : debt
+      )
+    );
+
+    const { error: priorityError } = await supabase.rpc(
+      "set_budget_debt_priority",
+      { p_debt_ids: ids }
+    );
+
+    if (priorityError) {
+      setError(
+        `Debt priority could not be saved: ${priorityError.message}`
+      );
+      await loadData();
+      return;
+    }
+
+    setNotice("Debt payoff priority updated.");
+    await loadData();
+  }
+
+  function reorderDebtPriority(sourceId: string, targetId: string) {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const ordered = orderedActiveDebts();
+    const sourceIndex = ordered.findIndex((debt) => debt.id === sourceId);
+    const targetIndex = ordered.findIndex((debt) => debt.id === targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+
+    const [moved] = ordered.splice(sourceIndex, 1);
+    ordered.splice(targetIndex, 0, moved);
+    void persistDebtPriority(ordered);
+  }
+
+  function moveDebtPriorityStep(debtId: string, direction: -1 | 1) {
+    const ordered = orderedActiveDebts();
+    const index = ordered.findIndex((debt) => debt.id === debtId);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= ordered.length) return;
+
+    [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
+    void persistDebtPriority(ordered);
+  }
+
   async function saveActualExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!paycheck || editor?.type !== "actual") return;
@@ -1032,9 +894,32 @@ export default function BudgetDashboard() {
     setError("");
 
     const data = new FormData(event.currentTarget);
-    const category = String(data.get("category") || "Other").trim() || "Other";
+    const plannedExpenseId =
+      String(data.get("planned_expense_id") || "").trim() || null;
+    const linkedPlan = plannedExpenseId
+      ? expenses.find((expense) => expense.id === plannedExpenseId) || null
+      : null;
+    const category =
+      String(
+        data.get("category") ||
+          (linkedPlan ? spendingCategoryForExpense(linkedPlan) || linkedPlan.category : "") ||
+          "Other"
+      ).trim() || "Other";
     const futureExpenseId =
-      String(data.get("future_expense_id") || "").trim() || null;
+      String(data.get("future_expense_id") || linkedPlan?.future_expense_id || "").trim() ||
+      null;
+    const linkedRecurring = linkedPlan?.generated_recurring_id
+      ? recurringBills.find(
+          (bill) => bill.id === linkedPlan.generated_recurring_id
+        ) || null
+      : null;
+    const linkedDebtId =
+      linkedRecurring?.linked_debt_id ||
+      (linkedPlan
+        ? debts.find(
+            (debt) => debt.linked_budget_line_item === linkedPlan.line_item
+          )?.id || null
+        : null);
 
     const payload = {
       spent_date: String(data.get("spent_date") || todayIso()),
@@ -1042,10 +927,15 @@ export default function BudgetDashboard() {
         data.get("assigned_paycheck") || paycheck.paycheck_date
       ),
       category,
-      description: String(data.get("description") || "").trim(),
+      description:
+        String(data.get("description") || "").trim() ||
+        linkedPlan?.line_item ||
+        "",
       amount: Number(data.get("amount") || 0),
       note: String(data.get("note") || "").trim() || null,
       future_expense_id: futureExpenseId,
+      planned_expense_id: plannedExpenseId,
+      debt_id: linkedDebtId,
     };
 
     if (!payload.description || payload.amount <= 0) {
@@ -1392,9 +1282,9 @@ export default function BudgetDashboard() {
   const extraAboveBaseline = Math.max(0, income - expectedPaycheck);
   const planned = num(paycheck?.planned_spending);
   const checkingBalance =
-    paycheck?.checking_before_paycheck == null
+    paycheck?.reconciled_checking_balance == null
       ? null
-      : num(paycheck.checking_before_paycheck);
+      : num(paycheck.reconciled_checking_balance);
   const reconciliationAdjustment =
     checkingBalance == null ? 0 : checkingBalance - income;
   const cashAvailable = checkingBalance == null ? income : checkingBalance;
@@ -1629,13 +1519,18 @@ export default function BudgetDashboard() {
         if (apr === 0 && !debt.term_end_date && settlementSavings <= 0) {
           score -= 250;
           reasons.push(
-            "With no interest or deadline recorded, extra payments usually rank below expensive debt after the required payment is covered."
+            "No interest or deadline is recorded. Extra-payment priority follows your saved debt order."
           );
         }
 
         return { debt, score, reasons };
       })
-      .sort((a, b) => b.score - a.score || num(b.debt.current_balance) - num(a.debt.current_balance));
+      .sort(
+        (a, b) =>
+          (num(a.debt.priority_rank) || 9999) -
+            (num(b.debt.priority_rank) || 9999) ||
+          a.debt.name.localeCompare(b.debt.name)
+      );
   }, [debts]);
 
   const fundedPaycheckDates = useMemo(
@@ -1798,42 +1693,25 @@ export default function BudgetDashboard() {
       }
     }
 
-    // After the emergency fund, use the structured debt details instead of
-    // guessing from the bill name. Interest, settlement offers, and deadlines
-    // can all change which balance deserves extra money first.
-    const debtTarget = debtSignals.find(({ debt }) => {
-      const apr =
-        debt.apr == null || String(debt.apr).trim() === ""
-          ? null
-          : num(debt.apr);
-      const settlement =
-        num(debt.settlement_offer_amount) > 0 &&
-        num(debt.settlement_offer_amount) < num(debt.current_balance);
-      const urgentTerm =
-        !!debt.term_end_date && debt.term_end_date <= addDays(todayIso(), 180);
-      const urgentPromo =
-        !!debt.promo_end_date && debt.promo_end_date <= addDays(todayIso(), 90);
+    // After the emergency fund, extra debt money follows the household's
+    // explicit drag-and-drop priority order. Required minimums are already
+    // included in planned spending, so this only controls EXTRA payoff money.
+    for (const debtTarget of debtSignals) {
+      if (remaining <= 0) break;
 
-      return (
-        debt.priority_override === "High" ||
-        (apr != null && apr > 0) ||
-        settlement ||
-        urgentTerm ||
-        urgentPromo
-      );
-    });
+      const balance = num(debtTarget.debt.current_balance);
+      if (balance <= 0) continue;
 
-    if (remaining > 0 && debtTarget) {
-      const amount = Math.min(
-        remaining,
-        num(debtTarget.debt.current_balance)
-      );
+      const amount = Math.min(remaining, balance);
       suggestions.push({
         kind: "high-interest",
-        title: `Extra payment: ${debtTarget.debt.name}`,
-        detail:
+        title: `Priority #${num(debtTarget.debt.priority_rank) || "—"}: ${
+          debtTarget.debt.name
+        }`,
+        detail: `Extra debt payoff follows your saved priority order. ${
           debtTarget.reasons[0] ||
-          "This debt currently ranks above lower-cost balances for extra payments.",
+          "Minimum payment remains in the regular paycheck plan."
+        }`,
         amount,
       });
       remaining -= amount;
@@ -2311,6 +2189,12 @@ export default function BudgetDashboard() {
                   onEdit={(expense) =>
                     setEditor({ type: "expense", item: expense })
                   }
+                  onSpend={(expense) =>
+                    setEditor({
+                      type: "actual",
+                      plannedExpenseId: expense.id,
+                    })
+                  }
                   emptyText="No bills are assigned to this paycheck."
                 />
               )}
@@ -2335,6 +2219,12 @@ export default function BudgetDashboard() {
                   expenses={planSpending}
                   onEdit={(expense) =>
                     setEditor({ type: "expense", item: expense })
+                  }
+                  onSpend={(expense) =>
+                    setEditor({
+                      type: "actual",
+                      plannedExpenseId: expense.id,
+                    })
                   }
                   emptyText="No day-to-day spending is assigned to this paycheck."
                 />
@@ -2998,54 +2888,118 @@ export default function BudgetDashboard() {
                     </button>
                   </div>
 
+                  <p className="mt-3 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+                    Extra debt payoff follows this order from top to bottom. Every
+                    required minimum stays in the normal paycheck plan. Drag rows
+                    on desktop or use the arrows on mobile.
+                  </p>
+
                   <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
                     {debts.length ? (
-                      debts
-                        .slice()
-                        .sort((a, b) => {
-                          const aPaid =
-                            a.payoff_status === "Paid off - awaiting confirmation";
-                          const bPaid =
-                            b.payoff_status === "Paid off - awaiting confirmation";
-                          if (aPaid !== bPaid) return aPaid ? -1 : 1;
-                          return num(b.current_balance) - num(a.current_balance);
-                        })
-                        .map((debt) => {
-                          const apr =
-                            debt.apr == null || String(debt.apr).trim() === ""
-                              ? null
-                              : num(debt.apr);
-                          return (
-                            <button
-                              key={debt.id}
-                              type="button"
-                              onClick={() => setEditor({ type: "debt", item: debt })}
-                              className="flex w-full items-center justify-between gap-3 border-b border-slate-100 p-3 text-left last:border-0"
-                            >
-                              <span className="min-w-0">
-                                <strong className="block truncate text-sm">
-                                  {debt.name}
-                                </strong>
-                                {debt.payoff_status ===
-                                  "Paid off - awaiting confirmation" && (
-                                  <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                                    Paid off · confirm to remove
+                      [
+                        ...debts
+                          .filter(
+                            (debt) =>
+                              debt.payoff_status ===
+                              "Paid off - awaiting confirmation"
+                          )
+                          .sort((a, b) => a.name.localeCompare(b.name)),
+                        ...orderedActiveDebts(),
+                      ].map((debt, index, ordered) => {
+                        const apr =
+                          debt.apr == null || String(debt.apr).trim() === ""
+                            ? null
+                            : num(debt.apr);
+                        const isActive =
+                          debt.payoff_status === "Active" &&
+                          num(debt.current_balance) > 0;
+                        const activeIndex = isActive
+                          ? orderedActiveDebts().findIndex(
+                              (item) => item.id === debt.id
+                            )
+                          : -1;
+                        const activeCount = orderedActiveDebts().length;
+
+                        return (
+                          <div
+                            key={debt.id}
+                            draggable={isActive}
+                            onDragStart={() => {
+                              if (isActive) setDraggedDebtId(debt.id);
+                            }}
+                            onDragEnd={() => setDraggedDebtId(null)}
+                            onDragOver={(event) => {
+                              if (isActive) event.preventDefault();
+                            }}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              if (draggedDebtId && isActive) {
+                                reorderDebtPriority(draggedDebtId, debt.id);
+                              }
+                              setDraggedDebtId(null);
+                            }}
+                            className={`flex items-center gap-2 border-b border-slate-100 p-3 last:border-0 ${
+                              draggedDebtId === debt.id
+                                ? "bg-blue-50"
+                                : "bg-white"
+                            }`}
+                          >
+                            <div className="flex shrink-0 flex-col items-center gap-1">
+                              {isActive ? (
+                                <>
+                                  <span
+                                    className="cursor-grab select-none text-lg font-black text-slate-400"
+                                    title="Drag to reorder"
+                                    aria-hidden="true"
+                                  >
+                                    ⋮⋮
                                   </span>
-                                )}
-                                <span className="mt-0.5 block text-[11px] text-slate-500">
-                                  {debt.debt_type}
-                                  {apr == null
-                                    ? " · APR unknown"
-                                    : apr === 0
-                                      ? " · 0% interest"
-                                      : ` · ${apr.toFixed(2)}% APR`}
-                                  {num(debt.minimum_payment) > 0
-                                    ? ` · min ${money(num(debt.minimum_payment))}`
-                                    : ""}
+                                  <span className="rounded-full bg-slate-950 px-2 py-0.5 text-[10px] font-black text-white">
+                                    #{num(debt.priority_rank) || activeIndex + 1}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-lg text-emerald-600">✓</span>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditor({ type: "debt", item: debt })
+                              }
+                              className="min-w-0 flex-1 text-left"
+                            >
+                              <strong className="block truncate text-sm">
+                                {debt.name}
+                              </strong>
+                              {debt.payoff_status ===
+                                "Paid off - awaiting confirmation" && (
+                                <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                                  Paid off · confirm to remove
                                 </span>
+                              )}
+                              <span className="mt-0.5 block text-[11px] text-slate-500">
+                                {debt.debt_type}
+                                {apr == null
+                                  ? " · APR unknown"
+                                  : apr === 0
+                                    ? " · 0% interest"
+                                    : ` · ${apr.toFixed(2)}% APR`}
+                                {num(debt.minimum_payment) > 0
+                                  ? ` · min ${money(
+                                      num(debt.minimum_payment)
+                                    )}`
+                                  : ""}
+                                {debt.balance_estimated
+                                  ? " · balance estimated"
+                                  : ""}
                               </span>
+                            </button>
+
+                            <div className="shrink-0 text-right">
                               <strong
-                                className={`shrink-0 text-sm ${
+                                className={`block text-sm ${
                                   debt.payoff_status ===
                                   "Paid off - awaiting confirmation"
                                     ? "text-emerald-700"
@@ -3057,9 +3011,40 @@ export default function BudgetDashboard() {
                                   ? "Paid"
                                   : money(num(debt.current_balance))}
                               </strong>
-                            </button>
-                          );
-                        })
+
+                              {isActive ? (
+                                <div className="mt-1 flex justify-end gap-1">
+                                  <button
+                                    type="button"
+                                    disabled={activeIndex <= 0}
+                                    onClick={() =>
+                                      moveDebtPriorityStep(debt.id, -1)
+                                    }
+                                    className="rounded-md border border-slate-200 px-2 py-1 text-[10px] font-black text-slate-600 disabled:opacity-30"
+                                    aria-label={`Move ${debt.name} up in debt priority`}
+                                  >
+                                    ↑
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      activeIndex < 0 ||
+                                      activeIndex >= activeCount - 1
+                                    }
+                                    onClick={() =>
+                                      moveDebtPriorityStep(debt.id, 1)
+                                    }
+                                    className="rounded-md border border-slate-200 px-2 py-1 text-[10px] font-black text-slate-600 disabled:opacity-30"
+                                    aria-label={`Move ${debt.name} down in debt priority`}
+                                  >
+                                    ↓
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })
                     ) : (
                       <p className="p-3 text-sm text-slate-500">
                         No structured debts yet.
@@ -3356,6 +3341,8 @@ export default function BudgetDashboard() {
           paycheckDates={paycheckDates}
           categories={categories}
           comparisons={spendingComparison}
+          planExpenses={expenses}
+          initialPlannedExpenseId={editor.plannedExpenseId}
           futureExpenses={futureExpenses}
           bucketContributions={bucketContributions}
           paychecks={paychecks}
@@ -3508,2040 +3495,5 @@ export default function BudgetDashboard() {
         />
       )}
     </main>
-  );
-}
-
-function ForecastPaycheckModal({
-  paycheck,
-  expenses,
-  loading,
-  onClose,
-  onAdd,
-  onEdit,
-}: {
-  paycheck: Paycheck | null;
-  expenses: Expense[];
-  loading: boolean;
-  onClose: () => void;
-  onAdd: () => void;
-  onEdit: (item: Expense) => void;
-}) {
-  const [tab, setTab] = useState<PlanTab>("all");
-
-  if (!paycheck) return null;
-
-  const income = num(paycheck.actual_check) || num(paycheck.projected_check);
-  const planned = num(paycheck.planned_spending);
-  const available = income - planned;
-  const activeExpenses = expenses.filter(
-    (expense) =>
-      expense.status !== "Cancelled" &&
-      expense.status !== "Deferred"
-  );
-  const bills = activeExpenses.filter(
-    (expense) => expensePlanGroup(expense) === "bills"
-  );
-  const sinking = activeExpenses.filter(
-    (expense) => expensePlanGroup(expense) === "sinking"
-  );
-  const spending = activeExpenses.filter(
-    (expense) => expensePlanGroup(expense) === "spending"
-  );
-
-  return (
-    <Modal
-      title={`Paycheck · ${dateLabel(paycheck.paycheck_date)}`}
-      onClose={onClose}
-    >
-      <div className="space-y-4">
-        <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-3">
-          <BudgetMeter label="Income" value={income} />
-          <BudgetMeter label="Planned" value={planned} />
-          <BudgetMeter label="Available" value={available} danger={available < 0} />
-        </div>
-
-        <button
-          onClick={onAdd}
-          className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white"
-        >
-          + Add planned expense to this paycheck
-        </button>
-
-        <div className="grid grid-cols-4 gap-1 rounded-2xl bg-slate-200 p-1">
-          {[
-            ["bills", "Bills", bills.length],
-            ["sinking", "Sinking", sinking.length],
-            ["spending", "Spending", spending.length],
-            ["all", "All", activeExpenses.length],
-          ].map(([value, label, count]) => (
-            <button
-              key={String(value)}
-              type="button"
-              onClick={() => setTab(value as PlanTab)}
-              className={`min-w-0 rounded-xl px-1.5 py-2.5 text-[11px] font-black transition sm:text-sm ${
-                tab === value
-                  ? "bg-white text-slate-950 shadow-sm"
-                  : "text-slate-500"
-              }`}
-            >
-              <span className="block truncate">{label}</span>
-              <span className="mt-0.5 block text-[9px] font-bold text-slate-400">
-                {count}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {loading ? (
-          <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
-            Loading paycheck plan…
-          </p>
-        ) : !activeExpenses.length ? (
-          <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
-            Nothing is planned for this paycheck yet.
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {(tab === "bills" || tab === "all") && (
-              <PlanExpenseSection
-                title="Bills"
-                subtitle="Required bills, debt payments, collections, subscriptions, utilities, insurance, and other obligations."
-                expenses={bills}
-                groupBy={(expense) => expense.category || "Other bills"}
-                onEdit={onEdit}
-                emptyText="No bills are assigned to this paycheck."
-              />
-            )}
-
-            {(tab === "sinking" || tab === "all") && (
-              <PlanExpenseSection
-                title="Sinking funds"
-                subtitle="Money being set aside for a specific future goal or event."
-                expenses={sinking}
-                groupBy={(expense) =>
-                  expense.event_fund || "Other sinking fund"
-                }
-                onEdit={onEdit}
-                emptyText="No sinking-fund contributions are assigned to this paycheck."
-              />
-            )}
-
-            {(tab === "spending" || tab === "all") && (
-              <PlanExpenseSection
-                title="Spending"
-                subtitle="Chris and Jennifer discretionary, forgotten/unplanned buffer, vehicle fuel, and food."
-                expenses={spending}
-                onEdit={onEdit}
-                emptyText="No day-to-day spending is assigned to this paycheck."
-              />
-            )}
-          </div>
-        )}
-      </div>
-    </Modal>
-  );
-}
-
-function SinkingFundCloseoutModal({
-  item,
-  available,
-  nextFund,
-  saving,
-  onClose,
-  onSave,
-}: {
-  item: FutureExpense;
-  available: number;
-  nextFund: FutureExpense | null;
-  saving: boolean;
-  onClose: () => void;
-  onSave: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  const [destination, setDestination] = useState("");
-
-  return (
-    <Modal
-      title={`Close out · ${item.event_fund || "Sinking fund"}`}
-      onClose={onClose}
-    >
-      <form onSubmit={onSave} className="space-y-3">
-        <div className="rounded-2xl bg-slate-100 p-4">
-          <p className="text-xs font-bold text-slate-500">Actually available</p>
-          <p className="mt-1 text-2xl font-black">{money(available)}</p>
-          <p className="mt-1 text-[11px] leading-5 text-slate-500">
-            Only money from received/finalized paychecks counts here. Any future
-            unfunded contributions to this sinking fund will be cancelled when
-            you close it.
-          </p>
-        </div>
-
-        {available > 0 ? (
-          <Field label="Where should the leftover go?">
-            <select
-              name="destination"
-              required
-              value={destination}
-              onChange={(event) => setDestination(event.target.value)}
-              className="budget-input"
-            >
-              <option value="" disabled>
-                Choose a destination
-              </option>
-              <option value="buffer">
-                Forgotten / unplanned expense buffer
-              </option>
-              <option value="discretionary">
-                Discretionary spending — split evenly between Chris and Jennifer
-              </option>
-              {nextFund && (
-                <option value="next_fund">
-                  Next sinking fund — {nextFund.event_fund || "Future expense"}
-                </option>
-              )}
-            </select>
-          </Field>
-        ) : (
-          <input type="hidden" name="destination" value="none" />
-        )}
-
-        {available > 0 && nextFund && (
-          <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-900">
-            The closest open sinking-fund deadline is{" "}
-            <strong>{nextFund.event_fund || "Future expense"}</strong>
-            {" · "}
-            {dateLabel(coalesceFundDeadline(nextFund))}. Moving money there
-            immediately counts it as funded and reduces later planned
-            contributions by the same amount.
-          </div>
-        )}
-
-        <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-600">
-          Closing the fund preserves its spending history. Afterward it will
-          appear under <strong>Closed · awaiting removal</strong> so you can
-          remove it from view once you are satisfied with the closeout.
-        </div>
-
-        <button
-          type="submit"
-          disabled={saving || (available > 0 && !destination)}
-          className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
-        >
-          {saving
-            ? "Closing…"
-            : available > 0
-              ? `Close fund & reassign ${money(available)}`
-              : "Close fund"}
-        </button>
-      </form>
-    </Modal>
-  );
-}
-
-function FutureGoalEditor({
-  currentPaycheck,
-  paycheckDates,
-  saving,
-  onClose,
-  onSave,
-}: {
-  currentPaycheck: string;
-  paycheckDates: string[];
-  saving: boolean;
-  onClose: () => void;
-  onSave: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  const [target, setTarget] = useState(0);
-  const [dueDate, setDueDate] = useState("");
-  const [startDate, setStartDate] = useState(currentPaycheck);
-  const [fundingDeadline, setFundingDeadline] = useState(currentPaycheck);
-
-  useEffect(() => {
-    if (!dueDate) return;
-    const latestEligible =
-      paycheckDates.filter(
-        (date) => date >= startDate && date <= dueDate
-      ).slice(-1)[0] || startDate;
-
-    if (
-      !fundingDeadline ||
-      fundingDeadline < startDate ||
-      fundingDeadline > dueDate
-    ) {
-      setFundingDeadline(latestEligible);
-    }
-  }, [dueDate, startDate, paycheckDates, fundingDeadline]);
-
-  const eligiblePaychecks = paycheckDates.filter(
-    (date) =>
-      date >= startDate &&
-      date <= fundingDeadline &&
-      (!dueDate || date <= dueDate)
-  );
-  const estimatedContribution =
-    target > 0 && dueDate && eligiblePaychecks.length
-      ? target / eligiblePaychecks.length
-      : 0;
-
-  return (
-    <Modal title="Add future goal" onClose={onClose}>
-      <form onSubmit={onSave} className="space-y-3">
-        <Field label="What are you planning for?">
-          <input
-            name="event_fund"
-            required
-            className="budget-input"
-            placeholder="Christmas, birthday, soccer trip…"
-          />
-        </Field>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Target amount">
-            <input
-              name="target_budget"
-              required
-              type="number"
-              min="0.01"
-              step="0.01"
-              inputMode="decimal"
-              value={target || ""}
-              onChange={(event) =>
-                setTarget(Number(event.target.value || 0))
-              }
-              className="budget-input"
-              placeholder="0.00"
-            />
-          </Field>
-          <Field label="Need it by">
-            <input
-              name="due_date"
-              required
-              type="date"
-              value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
-              className="budget-input"
-            />
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Start saving from">
-            <select
-              name="funding_start_paycheck"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              className="budget-input"
-            >
-              {paycheckDates
-                .filter((date) => date >= currentPaycheck)
-                .map((date) => (
-                  <option key={date} value={date}>
-                    {dateLabel(date)}
-                  </option>
-                ))}
-            </select>
-          </Field>
-
-          <Field label="Fully funded by">
-            <select
-              name="funding_deadline"
-              value={fundingDeadline}
-              onChange={(event) => setFundingDeadline(event.target.value)}
-              className="budget-input"
-            >
-              {paycheckDates
-                .filter(
-                  (date) =>
-                    date >= startDate && (!dueDate || date <= dueDate)
-                )
-                .map((date) => (
-                  <option key={date} value={date}>
-                    {dateLabel(date)}
-                  </option>
-                ))}
-            </select>
-          </Field>
-        </div>
-
-        {target > 0 && dueDate && (
-          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-950">
-            {eligiblePaychecks.length ? (
-              <>
-                <p className="text-xs font-bold">Automatic bucket preview</p>
-                <p className="mt-1 text-xl font-black">
-                  About {money(estimatedContribution)} per paycheck
-                </p>
-                <p className="mt-1 text-xs leading-5 text-blue-800">
-                  Spread across {eligiblePaychecks.length} paycheck
-                  {eligiblePaychecks.length === 1 ? "" : "s"}, ending with the{" "}
-                  {dateLabel(fundingDeadline)} paycheck. The final contribution
-                  is adjusted by pennies if needed so the total matches the
-                  target exactly.
-                </p>
-              </>
-            ) : (
-              <p className="text-sm font-bold text-rose-700">
-                Choose a due date after the selected starting paycheck.
-              </p>
-            )}
-          </div>
-        )}
-
-        <Field label="Note (optional)">
-          <textarea
-            name="notes"
-            className="budget-input min-h-20"
-            placeholder="Optional details"
-          />
-        </Field>
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
-          For trips, use one all-inclusive sinking fund for the whole trip.
-          Hotel, fuel, food, tolls, parking, and other purchases can all be
-          logged against this same fund as they happen.
-        </div>
-
-        <button
-          type="submit"
-          disabled={saving || !eligiblePaychecks.length}
-          className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
-        >
-          {saving ? "Creating bucket…" : "Create sinking-fund plan"}
-        </button>
-      </form>
-    </Modal>
-  );
-}
-
-function PaycheckEditor({
-  paycheck,
-  saving,
-  onClose,
-  onSave,
-}: {
-  paycheck: Paycheck;
-  saving: boolean;
-  onClose: () => void;
-  onSave: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  const existingBalance =
-    paycheck.checking_before_paycheck == null
-      ? ""
-      : String(paycheck.checking_before_paycheck);
-
-  return (
-    <Modal
-      title={num(paycheck.actual_check) > 0 ? "Update paycheck" : "Enter paycheck"}
-      onClose={onClose}
-    >
-      <form onSubmit={onSave} className="space-y-3">
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-900">
-          Enter the checking balance <strong>after the paycheck has posted</strong>.
-          That real bank balance becomes the starting point for this budget review.
-        </div>
-
-        <Field label="Actual paycheck amount">
-          <input
-            name="actual_check"
-            required
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            min="0.01"
-            defaultValue={
-              num(paycheck.actual_check) || num(paycheck.projected_check) || ""
-            }
-            className="budget-input"
-            placeholder="0.00"
-          />
-        </Field>
-
-        <Field label="Current checking balance">
-          <input
-            name="checking_balance"
-            required
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            defaultValue={existingBalance}
-            className="budget-input"
-            placeholder="0.00"
-          />
-        </Field>
-
-        <p className="text-[11px] leading-5 text-slate-500">
-          Pay period: {dateLabel(paycheck.paycheck_date)}. Enter exactly what the
-          bank shows after the deposit. The balance may be positive or negative.
-        </p>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
-        >
-          {saving ? "Saving…" : "Save paycheck & reconcile"}
-        </button>
-      </form>
-    </Modal>
-  );
-}
-
-function IncomeEditor({
-  item,
-  currentPaycheck,
-  paycheckDates,
-  currentCheckingBalance,
-  saving,
-  onClose,
-  onSave,
-  onDelete,
-}: {
-  item?: IncomeEntry;
-  currentPaycheck: string;
-  paycheckDates: string[];
-  currentCheckingBalance: number | null;
-  saving: boolean;
-  onClose: () => void;
-  onSave: (event: FormEvent<HTMLFormElement>) => void;
-  onDelete?: () => void;
-}) {
-  return (
-    <Modal
-      title={item ? "Edit additional income" : "Add additional income"}
-      onClose={onClose}
-    >
-      <form onSubmit={onSave} className="space-y-3">
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Amount">
-            <input
-              name="amount"
-              required
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0.01"
-              defaultValue={num(item?.amount) || ""}
-              className="budget-input"
-              placeholder="0.00"
-            />
-          </Field>
-
-          <Field label="Date received">
-            <input
-              name="received_date"
-              required
-              type="date"
-              defaultValue={item?.received_date || todayIso()}
-              className="budget-input"
-            />
-          </Field>
-        </div>
-
-        <Field label="Income source">
-          <input
-            name="source"
-            required
-            defaultValue={item?.source || ""}
-            className="budget-input"
-            placeholder="Bonus, reimbursement, side income…"
-          />
-        </Field>
-
-        <Field label="Budget period">
-          <select
-            name="assigned_paycheck"
-            defaultValue={item?.assigned_paycheck || currentPaycheck}
-            className="budget-input"
-          >
-            {paycheckDates.map((date) => (
-              <option key={date} value={date}>
-                {dateLabel(date)}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <Field label="Current checking balance">
-          <input
-            name="checking_balance"
-            required
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            defaultValue={
-              currentCheckingBalance == null ? "" : currentCheckingBalance
-            }
-            className="budget-input"
-            placeholder="0.00"
-          />
-        </Field>
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-700">
-          Enter the balance the bank shows <strong>after this income is already posted</strong>.
-          The budget will use that real balance as the new reconciliation starting point.
-        </div>
-
-        <Field label="Note (optional)">
-          <textarea
-            name="note"
-            defaultValue={item?.note || ""}
-            className="budget-input min-h-20"
-            placeholder="Optional details"
-          />
-        </Field>
-
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-900">
-          Saving additional income immediately triggers a budget review for the
-          selected pay period. The review starts from the checking balance you
-          entered, then looks ahead for shortfalls, early-payment opportunities,
-          debt, and sinking funds.
-        </div>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
-        >
-          {saving ? "Saving…" : item ? "Save income" : "Add income & review"}
-        </button>
-
-        {item && onDelete && (
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={saving}
-            className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700 disabled:opacity-50"
-          >
-            Delete income entry
-          </button>
-        )}
-      </form>
-    </Modal>
-  );
-}
-
-function ActualExpenseEditor({
-  item,
-  currentPaycheck,
-  paycheckDates,
-  categories,
-  comparisons,
-  futureExpenses,
-  bucketContributions,
-  paychecks,
-  saving,
-  onClose,
-  onSave,
-  onDelete,
-}: {
-  item?: ActualExpense;
-  currentPaycheck: string;
-  paycheckDates: string[];
-  categories: string[];
-  comparisons: Array<{ category: string; planned: number; actual: number }>;
-  futureExpenses: FutureExpense[];
-  bucketContributions: BucketContribution[];
-  paychecks: Paycheck[];
-  saving: boolean;
-  onClose: () => void;
-  onSave: (event: FormEvent<HTMLFormElement>) => void;
-  onDelete?: () => void;
-}) {
-  const [selectedCategory, setSelectedCategory] = useState(
-    item?.category || ""
-  );
-  const selectableCategories =
-    item?.category && !categories.includes(item.category)
-      ? [item.category, ...categories]
-      : categories;
-  const personalCategories = selectableCategories.filter((category) =>
-    PERSONAL_SPENDING_CATEGORIES.includes(
-      normalizeSpendingCategory(category) as (typeof PERSONAL_SPENDING_CATEGORIES)[number]
-    )
-  );
-  const budgetCategories = selectableCategories.filter(
-    (category) =>
-      !PERSONAL_SPENDING_CATEGORIES.includes(
-        normalizeSpendingCategory(category) as (typeof PERSONAL_SPENDING_CATEGORIES)[number]
-      )
-  );
-  const [enteredAmount, setEnteredAmount] = useState(num(item?.amount));
-  const [selectedBucketId, setSelectedBucketId] = useState(
-    item?.future_expense_id || ""
-  );
-
-  const summary = comparisons.find(
-    (row) => row.category === selectedCategory
-  );
-  const plannedForCategory = summary?.planned || 0;
-  const currentItemAmount =
-    item && item.category === selectedCategory ? num(item.amount) : 0;
-  const alreadyUsed = Math.max(0, summary?.actual || 0) - currentItemAmount;
-  const remainingBefore = plannedForCategory - alreadyUsed;
-  const remainingAfter = remainingBefore - enteredAmount;
-  const overAfter = remainingAfter < 0;
-
-  const openBuckets = futureExpenses.filter(
-    (bucket) => !isClosedFundStatus(bucket.status)
-  );
-
-  const currentCycleAmount = (bucketId: string) =>
-    bucketContributions
-      .filter(
-        (row) =>
-          row.future_expense_id === bucketId &&
-          row.assigned_paycheck === currentPaycheck &&
-          row.status !== "Cancelled" &&
-          row.status !== "Deferred"
-      )
-      .reduce((sum, row) => sum + num(row.planned_amount), 0);
-
-  const nextPlannedPaycheck = (bucket: FutureExpense) => {
-    const contributionDates = bucketContributions
-      .filter(
-        (row) =>
-          row.future_expense_id === bucket.id &&
-          !!row.assigned_paycheck &&
-          row.assigned_paycheck > currentPaycheck &&
-          row.status !== "Cancelled" &&
-          row.status !== "Deferred"
-      )
-      .map((row) => row.assigned_paycheck as string)
-      .sort();
-
-    return (
-      contributionDates[0] ||
-      (bucket.funding_start_paycheck &&
-      bucket.funding_start_paycheck > currentPaycheck
-        ? bucket.funding_start_paycheck
-        : null) ||
-      bucket.due_date ||
-      null
-    );
-  };
-
-  const currentCycleBuckets = openBuckets
-    .filter((bucket) => currentCycleAmount(bucket.id) > 0)
-    .sort((a, b) => {
-      const amountDiff = currentCycleAmount(b.id) - currentCycleAmount(a.id);
-      if (amountDiff !== 0) return amountDiff;
-      return (a.due_date || "9999-12-31").localeCompare(
-        b.due_date || "9999-12-31"
-      );
-    });
-
-  const upcomingBuckets = openBuckets
-    .filter((bucket) => currentCycleAmount(bucket.id) <= 0)
-    .sort((a, b) => {
-      const dateCompare = (nextPlannedPaycheck(a) || "9999-12-31").localeCompare(
-        nextPlannedPaycheck(b) || "9999-12-31"
-      );
-      if (dateCompare !== 0) return dateCompare;
-      return (a.event_fund || "").localeCompare(b.event_fund || "");
-    });
-
-  const selectedBucket = futureExpenses.find(
-    (bucket) => bucket.id === selectedBucketId
-  );
-  const fundedPaycheckDates = new Set(
-    paychecks
-      .filter(paycheckCountsAsFunded)
-      .map((row) => row.paycheck_date)
-  );
-  const bucketFunded = selectedBucket
-    ? bucketContributions
-        .filter(
-          (row) =>
-            row.future_expense_id === selectedBucket.id &&
-            row.status !== "Cancelled" &&
-            row.status !== "Deferred" &&
-            (isFundingCompleteStatus(row.status) ||
-              (!!row.assigned_paycheck &&
-                fundedPaycheckDates.has(row.assigned_paycheck)))
-        )
-        .reduce((sum, row) => sum + num(row.planned_amount), 0)
-    : 0;
-  const currentBucketItemAmount =
-    item?.future_expense_id === selectedBucketId ? num(item?.amount) : 0;
-  const bucketSpentBefore = selectedBucket
-    ? Math.max(0, num(selectedBucket.actual_funding_spend)) -
-      currentBucketItemAmount
-    : 0;
-  const bucketAvailableBefore = bucketFunded - bucketSpentBefore;
-  const bucketAvailableAfter = bucketAvailableBefore - enteredAmount;
-  const bucketOverAfter =
-    !!selectedBucket && enteredAmount > 0 && bucketAvailableAfter < 0;
-
-  return (
-    <Modal title={item ? "Edit spending" : "Log spending"} onClose={onClose}>
-      <form onSubmit={onSave} className="space-y-3">
-        <Field label="Budget item / spending type">
-          <select
-            name="category"
-            required
-            value={selectedCategory}
-            onChange={(event) => setSelectedCategory(event.target.value)}
-            className="budget-input"
-          >
-            {!selectedCategory && (
-              <option value="" disabled>
-                Choose where this spending belongs
-              </option>
-            )}
-            {personalCategories.length > 0 && (
-              <optgroup label="Personal / discretionary">
-                {personalCategories.map((category) => (
-                  <option key={category} value={normalizeSpendingCategory(category)}>
-                    {normalizeSpendingCategory(category)}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {budgetCategories.length > 0 && (
-              <optgroup label="Current budget">
-                {budgetCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
-        </Field>
-
-        <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-3">
-          <BudgetMeter label="Planned" value={plannedForCategory} />
-          <BudgetMeter label="Already used" value={alreadyUsed} />
-          <BudgetMeter
-            label="Remaining"
-            value={remainingBefore}
-            danger={remainingBefore < 0}
-          />
-        </div>
-
-        <Field label="Use sinking fund / bucket (optional)">
-          <select
-            name="future_expense_id"
-            value={selectedBucketId}
-            onChange={(event) => setSelectedBucketId(event.target.value)}
-            className="budget-input"
-          >
-            <option value="">No bucket</option>
-            {currentCycleBuckets.length > 0 && (
-              <optgroup label="This pay cycle / current plan">
-                {currentCycleBuckets.map((bucket) => (
-                  <option key={bucket.id} value={bucket.id}>
-                    {bucket.event_fund || "Future expense"} —{" "}
-                    {money(currentCycleAmount(bucket.id))} this check
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {upcomingBuckets.length > 0 && (
-              <optgroup label="Upcoming / lower priority this cycle">
-                {upcomingBuckets.map((bucket) => {
-                  const nextDate = nextPlannedPaycheck(bucket);
-                  return (
-                    <option key={bucket.id} value={bucket.id}>
-                      {bucket.event_fund || "Future expense"}
-                      {nextDate ? ` — next ${dateLabel(nextDate)}` : ""}
-                    </option>
-                  );
-                })}
-              </optgroup>
-            )}
-          </select>
-        </Field>
-
-        {selectedBucket && (
-          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-blue-200 bg-blue-50 p-3">
-            <BudgetMeter label="Accumulated" value={bucketFunded} />
-            <BudgetMeter label="Spent" value={bucketSpentBefore} />
-            <BudgetMeter
-              label="Available"
-              value={bucketAvailableBefore}
-              danger={bucketAvailableBefore < 0}
-            />
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Amount">
-            <input
-              name="amount"
-              required
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0.01"
-              value={enteredAmount || ""}
-              onChange={(event) =>
-                setEnteredAmount(Number(event.target.value || 0))
-              }
-              className="budget-input"
-              placeholder="0.00"
-            />
-          </Field>
-          <Field label="Date paid">
-            <input
-              name="spent_date"
-              required
-              type="date"
-              defaultValue={item?.spent_date || todayIso()}
-              className="budget-input"
-            />
-          </Field>
-        </div>
-
-        <Field label="What did you pay for?">
-          <input
-            name="description"
-            required
-            defaultValue={item?.description || ""}
-            className="budget-input"
-            placeholder="Gas, groceries, mortgage…"
-          />
-        </Field>
-
-        <input
-          type="hidden"
-          name="assigned_paycheck"
-          value={item?.assigned_paycheck || currentPaycheck}
-        />
-
-        {enteredAmount > 0 && (
-          <div
-            className={`rounded-xl border p-3 text-sm ${
-              overAfter
-                ? "border-amber-300 bg-amber-50 text-amber-950"
-                : "border-emerald-200 bg-emerald-50 text-emerald-900"
-            }`}
-          >
-            <strong>
-              Category after this expense:{" "}
-              {overAfter
-                ? `${money(Math.abs(remainingAfter))} over budget`
-                : `${money(remainingAfter)} remaining`}
-            </strong>
-            {overAfter && (
-              <span className="mt-1 block text-xs leading-5">
-                You can still save it. You will be asked to confirm because it
-                exceeds the category budget for this pay period.
-              </span>
-            )}
-          </div>
-        )}
-
-        {selectedBucket && enteredAmount > 0 && (
-          <div
-            className={`rounded-xl border p-3 text-sm ${
-              bucketOverAfter
-                ? "border-amber-300 bg-amber-50 text-amber-950"
-                : "border-blue-200 bg-blue-50 text-blue-950"
-            }`}
-          >
-            <strong>
-              {selectedBucket.event_fund || "Bucket"} after this expense:{" "}
-              {bucketOverAfter
-                ? `${money(Math.abs(bucketAvailableAfter))} negative`
-                : `${money(bucketAvailableAfter)} available`}
-            </strong>
-            {bucketOverAfter && (
-              <span className="mt-1 block text-xs leading-5">
-                The bucket can go negative, but you will be asked to confirm
-                before the expense is saved.
-              </span>
-            )}
-          </div>
-        )}
-
-        <p className="text-[11px] text-slate-500">
-          Pay period: {dateLabel(item?.assigned_paycheck || currentPaycheck)}
-        </p>
-
-        <Field label="Note (optional)">
-          <textarea
-            name="note"
-            defaultValue={item?.note || ""}
-            className="budget-input min-h-20"
-            placeholder="Optional details"
-          />
-        </Field>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
-        >
-          {saving ? "Saving…" : item ? "Save spending" : "Log spending"}
-        </button>
-
-        {item && onDelete && (
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={saving}
-            className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700 disabled:opacity-50"
-          >
-            Delete spending entry
-          </button>
-        )}
-      </form>
-    </Modal>
-  );
-}
-
-function ExpenseEditor({
-  item,
-  currentPaycheck,
-  paycheckDates,
-  saving,
-  onClose,
-  onSave,
-  onCancelExpense,
-}: {
-  item?: Expense;
-  currentPaycheck: string;
-  paycheckDates: string[];
-  saving: boolean;
-  onClose: () => void;
-  onSave: (event: FormEvent<HTMLFormElement>) => void;
-  onCancelExpense?: () => void;
-}) {
-  return (
-    <Modal title={item ? "Edit planned expense" : "Add expense"} onClose={onClose}>
-      <form onSubmit={onSave} className="space-y-3">
-        <Field label="Expense name">
-          <input
-            name="line_item"
-            required
-            defaultValue={item?.line_item || ""}
-            className="budget-input"
-            placeholder="Expense name"
-          />
-        </Field>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Amount">
-            <input
-              name="planned_amount"
-              required
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              defaultValue={num(item?.planned_amount) || ""}
-              className="budget-input"
-            />
-          </Field>
-          <Field label="Due date">
-            <input
-              name="due_date"
-              required
-              type="date"
-              defaultValue={item?.due_date || currentPaycheck}
-              className="budget-input"
-            />
-          </Field>
-        </div>
-
-        <Field label="Paycheck paying it">
-          <select
-            name="assigned_paycheck"
-            defaultValue={item?.assigned_paycheck || currentPaycheck}
-            className="budget-input"
-          >
-            {paycheckDates.map((date) => (
-              <option key={date} value={date}>
-                {dateLabel(date)}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Category">
-            <input
-              name="category"
-              defaultValue={item?.category || ""}
-              className="budget-input"
-              placeholder="Utilities, Vehicle…"
-            />
-          </Field>
-          <Field label="Type">
-            <select
-              name="expense_type"
-              defaultValue={item?.expense_type || "Required"}
-              className="budget-input"
-            >
-              <option>Required</option>
-              <option>Living</option>
-              <option>Catch-up</option>
-              <option>Reserve</option>
-              <option>Sinking Fund</option>
-              <option>Optional</option>
-            </select>
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Frequency">
-            <select
-              name="frequency"
-              defaultValue={item?.frequency || "One-time"}
-              className="budget-input"
-            >
-              <option>One-time</option>
-              <option>Monthly</option>
-              <option>Biweekly</option>
-              <option>Weekly</option>
-              <option>Annual</option>
-            </select>
-          </Field>
-          <Field label="Status">
-            <select
-              name="status"
-              defaultValue={item?.status || "Planned"}
-              className="budget-input"
-            >
-              <option>Planned</option>
-              <option>Paid</option>
-              <option>Deferred</option>
-              <option>Cancelled</option>
-            </select>
-          </Field>
-        </div>
-
-        <Field label="Notes">
-          <textarea
-            name="notes"
-            defaultValue={item?.notes || ""}
-            className="budget-input min-h-20"
-            placeholder="Optional"
-          />
-        </Field>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
-        >
-          {saving ? "Saving…" : item ? "Save expense" : "Add to budget"}
-        </button>
-
-        {item && onCancelExpense && item.status !== "Cancelled" && (
-          <button
-            type="button"
-            onClick={onCancelExpense}
-            disabled={saving}
-            className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700 disabled:opacity-50"
-          >
-            Remove from plan
-          </button>
-        )}
-      </form>
-    </Modal>
-  );
-}
-
-function RecurringEditor({
-  item,
-  saving,
-  onClose,
-  onSave,
-}: {
-  item?: RecurringBill;
-  saving: boolean;
-  onClose: () => void;
-  onSave: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  return (
-    <Modal title={item ? "Edit recurring bill" : "Add recurring bill"} onClose={onClose}>
-      <form onSubmit={onSave} className="space-y-3">
-        <Field label="Bill name">
-          <input
-            name="item"
-            required
-            defaultValue={item?.item || ""}
-            className="budget-input"
-            placeholder="Mortgage, internet, gym…"
-          />
-        </Field>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Amount">
-            <input
-              name="amount"
-              required
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              defaultValue={num(item?.amount) || ""}
-              className="budget-input"
-            />
-          </Field>
-          <Field label="Category">
-            <input
-              name="category"
-              defaultValue={item?.category || ""}
-              className="budget-input"
-              placeholder="Utilities"
-            />
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Frequency">
-            <select
-              name="frequency"
-              defaultValue={item?.frequency || "Monthly"}
-              className="budget-input"
-            >
-              <option>Monthly</option>
-              <option>Variable Monthly</option>
-              <option>Biweekly</option>
-              <option>Weekly</option>
-              <option>Annual</option>
-            </select>
-          </Field>
-          <Field label="Due / timing">
-            <input
-              name="due_timing"
-              defaultValue={item?.due_timing || ""}
-              className="budget-input"
-              placeholder="8th of each month"
-            />
-          </Field>
-        </div>
-
-        <Field label="Planning grace (days)">
-          <input
-            name="payment_grace_days"
-            type="number"
-            inputMode="numeric"
-            min="0"
-            max="31"
-            step="1"
-            defaultValue={num(item?.payment_grace_days)}
-            className="budget-input"
-          />
-          <p className="mt-1 text-[11px] leading-4 text-slate-500">
-            Allows the forecast to use a paycheck this many days after the due date
-            when that keeps a pay period from being overloaded. This is a planning
-            rule only; it does not change the creditor&apos;s actual late-fee terms.
-          </p>
-        </Field>
-
-        {!item && (
-          <Field label="Next due date">
-            <input
-              name="next_due_date"
-              type="date"
-              required
-              className="budget-input"
-            />
-          </Field>
-        )}
-
-        <Field label="Notes">
-          <textarea
-            name="notes"
-            defaultValue={item?.notes || ""}
-            className="budget-input min-h-20"
-            placeholder="Optional"
-          />
-        </Field>
-
-        {item ? (
-          <label className="flex gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
-            <input
-              type="checkbox"
-              name="update_future"
-              defaultChecked
-              className="mt-0.5 h-4 w-4"
-            />
-            <span>
-              <strong>Update current and future planned entries</strong>
-              <span className="mt-1 block text-xs leading-5 text-blue-800">
-                Use this when a bill changes permanently, such as lowering Xfinity.
-              </span>
-            </span>
-          </label>
-        ) : (
-          <label className="flex gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
-            <input
-              type="checkbox"
-              name="create_occurrences"
-              defaultChecked
-              className="mt-0.5 h-4 w-4"
-            />
-            <span>
-              <strong>Add it to future paycheck plans</strong>
-              <span className="mt-1 block text-xs leading-5 text-blue-800">
-                Creates the upcoming occurrences through the current budget forecast.
-              </span>
-            </span>
-          </label>
-        )}
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
-        >
-          {saving
-            ? "Saving…"
-            : item
-              ? "Save recurring bill"
-              : "Add recurring bill"}
-        </button>
-      </form>
-    </Modal>
-  );
-}
-
-function DebtEditor({
-  item,
-  budgetItems,
-  saving,
-  onClose,
-  onSave,
-  onArchive,
-  onConfirmPaid,
-}: {
-  item?: Debt;
-  budgetItems: Array<{
-    value: string;
-    label: string;
-    group: string;
-  }>;
-  saving: boolean;
-  onClose: () => void;
-  onSave: (event: FormEvent<HTMLFormElement>) => void;
-  onArchive?: () => void;
-  onConfirmPaid?: () => void;
-}) {
-  const [debtType, setDebtType] = useState(item?.debt_type || "Other");
-  const [apr, setApr] = useState(
-    item?.apr == null ? "" : String(item.apr)
-  );
-  const isCollection =
-    debtType.toLowerCase().includes("collection");
-
-  return (
-    <Modal title={item ? "Edit debt" : "Add debt"} onClose={onClose}>
-      <form onSubmit={onSave} className="space-y-3">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
-          Add the facts you know. Leave APR blank when it is unknown; enter{" "}
-          <strong>0</strong> only when the debt truly has no interest. The
-          paycheck review uses these details to decide which balances deserve
-          extra money first.
-        </div>
-
-        <Field label="Debt name">
-          <input
-            name="name"
-            required
-            defaultValue={item?.name || ""}
-            className="budget-input"
-            placeholder="Capital One, XbotGo, Discover collection…"
-          />
-        </Field>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Creditor / collector">
-            <input
-              name="creditor"
-              defaultValue={item?.creditor || ""}
-              className="budget-input"
-              placeholder="Optional"
-            />
-          </Field>
-          <Field label="Debt type">
-            <select
-              name="debt_type"
-              value={debtType}
-              onChange={(event) => setDebtType(event.target.value)}
-              className="budget-input"
-            >
-              {[
-                "Credit card",
-                "Installment / BNPL",
-                "Collection",
-                "Student loan",
-                "Auto loan",
-                "Mortgage",
-                "Personal loan",
-                "Medical",
-                "Other",
-              ].map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Current balance owed">
-            <input
-              name="current_balance"
-              required
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              defaultValue={num(item?.current_balance) || ""}
-              className="budget-input"
-              placeholder="0.00"
-            />
-          </Field>
-          <Field label="Original balance (optional)">
-            <input
-              name="original_balance"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              defaultValue={
-                item?.original_balance == null
-                  ? ""
-                  : num(item.original_balance)
-              }
-              className="budget-input"
-              placeholder="0.00"
-            />
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="APR / interest rate">
-            <input
-              name="apr"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              value={apr}
-              onChange={(event) => setApr(event.target.value)}
-              className="budget-input"
-              placeholder="Blank = unknown"
-            />
-          </Field>
-          <Field label="Minimum / required payment">
-            <input
-              name="minimum_payment"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              defaultValue={
-                item?.minimum_payment == null
-                  ? ""
-                  : num(item.minimum_payment)
-              }
-              className="budget-input"
-              placeholder="0.00"
-            />
-          </Field>
-        </div>
-
-        {apr.trim() !== "" && Number(apr) === 0 ? (
-          <p className="rounded-xl bg-emerald-50 p-3 text-xs leading-5 text-emerald-800">
-            Recorded as 0% interest. Unless there is a deadline or settlement
-            opportunity, the review will usually keep this behind debt that is
-            actively charging interest.
-          </p>
-        ) : null}
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Payment frequency">
-            <select
-              name="payment_frequency"
-              defaultValue={item?.payment_frequency || ""}
-              className="budget-input"
-            >
-              <option value="">Not specified</option>
-              <option value="Weekly">Weekly</option>
-              <option value="Biweekly">Every 2 weeks</option>
-              <option value="Monthly">Monthly</option>
-              <option value="One-time">No repeating minimum</option>
-            </select>
-          </Field>
-          <Field label="Due timing / terms">
-            <input
-              name="due_timing"
-              defaultValue={item?.due_timing || ""}
-              className="budget-input"
-              placeholder="15th, every paycheck, arrangement…"
-            />
-          </Field>
-        </div>
-
-        <Field label="Planning grace (days)">
-          <input
-            name="payment_grace_days"
-            type="number"
-            inputMode="numeric"
-            min="0"
-            max="31"
-            step="1"
-            defaultValue={num(item?.payment_grace_days)}
-            className="budget-input"
-          />
-          <p className="mt-1 text-[11px] leading-4 text-slate-500">
-            The forecast may use a paycheck this many days after the due date.
-            This is only a budget-planning window and does not change the
-            lender&apos;s actual late-fee or delinquency rules.
-          </p>
-        </Field>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Payoff / term end date">
-            <input
-              name="term_end_date"
-              type="date"
-              defaultValue={item?.term_end_date || ""}
-              className="budget-input"
-            />
-          </Field>
-          <Field label="Promo / 0% ends">
-            <input
-              name="promo_end_date"
-              type="date"
-              defaultValue={item?.promo_end_date || ""}
-              className="budget-input"
-            />
-          </Field>
-        </div>
-
-        <Field label="Linked recurring / planned payment (optional)">
-          <select
-            name="linked_budget_line_item"
-            defaultValue={item?.linked_budget_line_item || ""}
-            className="budget-input"
-          >
-            <option value="">Not linked</option>
-            {Array.from(new Set(budgetItems.map((option) => option.group))).map(
-              (group) => (
-                <optgroup key={group} label={group}>
-                  {budgetItems
-                    .filter((option) => option.group === group)
-                    .map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                </optgroup>
-              )
-            )}
-          </select>
-          <p className="mt-1.5 text-[11px] leading-5 text-slate-500">
-            This only links the debt to an existing recurring or planned payment.
-            It does not add another expense to the paycheck.
-          </p>
-        </Field>
-
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
-          <p className="text-xs font-black text-amber-950">
-            Settlement offer {isCollection ? "(common for collections)" : "(optional)"}
-          </p>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <Field label="Offer amount">
-              <input
-                name="settlement_offer_amount"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                defaultValue={
-                  item?.settlement_offer_amount == null
-                    ? ""
-                    : num(item.settlement_offer_amount)
-                }
-                className="budget-input"
-                placeholder="0.00"
-              />
-            </Field>
-            <Field label="Offer expires">
-              <input
-                name="settlement_offer_expires"
-                type="date"
-                defaultValue={item?.settlement_offer_expires || ""}
-                className="budget-input"
-              />
-            </Field>
-          </div>
-          <div className="mt-2">
-            <Field label="Settlement details">
-              <textarea
-                name="settlement_notes"
-                defaultValue={item?.settlement_notes || ""}
-                className="budget-input min-h-20"
-                placeholder="Offer terms, paid-in-full wording, phone quote, etc."
-              />
-            </Field>
-          </div>
-        </div>
-
-        <Field label="Priority override">
-          <select
-            name="priority_override"
-            defaultValue={item?.priority_override || "Auto"}
-            className="budget-input"
-          >
-            <option value="Auto">Automatic — let the review rank it</option>
-            <option value="High">Force high priority</option>
-            <option value="Low">Force low priority</option>
-          </select>
-        </Field>
-
-        <Field label="Notes">
-          <textarea
-            name="notes"
-            defaultValue={item?.notes || ""}
-            className="budget-input min-h-24"
-            placeholder="Anything else the review should know"
-          />
-        </Field>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
-        >
-          {saving ? "Saving…" : item ? "Save debt" : "Add debt"}
-        </button>
-
-        {item &&
-          item.payoff_status === "Paid off - awaiting confirmation" &&
-          onConfirmPaid ? (
-            <button
-              type="button"
-              onClick={onConfirmPaid}
-              disabled={saving}
-              className="w-full rounded-xl border border-emerald-300 bg-emerald-100 px-4 py-3 text-sm font-black text-emerald-900 disabled:opacity-50"
-            >
-              Confirm paid off & remove
-            </button>
-          ) : item && onArchive ? (
-            <button
-              type="button"
-              onClick={onArchive}
-              disabled={saving}
-              className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800 disabled:opacity-50"
-            >
-              Mark paid off
-            </button>
-          ) : null}
-      </form>
-    </Modal>
-  );
-}
-
-function Modal({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 sm:items-center sm:p-4">
-      <div
-        className="w-full max-w-xl overflow-y-auto overscroll-contain rounded-t-3xl bg-white px-4 pt-4 shadow-2xl sm:rounded-3xl"
-        style={{
-          maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - 0.5rem)",
-          paddingBottom: "calc(6rem + env(safe-area-inset-bottom, 0px))",
-          scrollPaddingBottom: "calc(6rem + env(safe-area-inset-bottom, 0px))",
-          WebkitOverflowScrolling: "touch",
-        }}
-      >
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-xl font-black">{title}</h2>
-          <button
-            onClick={onClose}
-            className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-        {children}
-      </div>
-      <style jsx global>{`
-        .budget-input {
-          width: 100%;
-          border: 1px solid rgb(203 213 225);
-          border-radius: 0.75rem;
-          background: white;
-          padding: 0.75rem;
-          font-size: 16px;
-          color: rgb(15 23 42);
-          outline: none;
-        }
-        .budget-input:focus {
-          border-color: rgb(37 99 235);
-          box-shadow: 0 0 0 3px rgb(219 234 254);
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block text-xs font-black text-slate-600">
-      {label}
-      <div className="mt-1.5">{children}</div>
-    </label>
-  );
-}
-
-function BudgetMeter({
-  label,
-  value,
-  danger,
-}: {
-  label: string;
-  value: number;
-  danger?: boolean;
-}) {
-  return (
-    <div>
-      <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-        {label}
-      </span>
-      <strong
-        className={`mt-1 block text-sm ${
-          danger ? "text-rose-600" : "text-slate-950"
-        }`}
-      >
-        {money(value)}
-      </strong>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  highlight,
-  danger,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-  danger?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-2xl p-3 ${
-        highlight
-          ? "bg-blue-400/20 ring-1 ring-blue-300/20"
-          : "bg-white/10"
-      }`}
-    >
-      <span className="block text-[10px] text-slate-300">{label}</span>
-      <strong
-        className={`mt-1 block text-base sm:text-lg ${
-          danger ? "text-rose-300" : ""
-        }`}
-      >
-        {value}
-      </strong>
-    </div>
-  );
-}
-
-function PersonCard({
-  name,
-  allowance,
-  spent,
-}: {
-  name: string;
-  allowance: number;
-  spent: number;
-}) {
-  const remaining = allowance - spent;
-  const over = remaining < 0;
-
-  return (
-    <article className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-      <p className="text-xs font-bold text-slate-500">{name}</p>
-      <p
-        className={`mt-1 text-xl font-black ${
-          over ? "text-rose-600" : "text-slate-950"
-        }`}
-      >
-        {over
-          ? `${money(Math.abs(remaining))} over`
-          : `${money(remaining)} remaining`}
-      </p>
-      <p className="mt-1 text-[10px] text-slate-400">
-        {money(spent)} spent of {money(allowance)}
-      </p>
-    </article>
-  );
-}
-
-function PlanExpenseSection({
-  title,
-  subtitle,
-  expenses,
-  onEdit,
-  groupBy,
-  emptyText,
-}: {
-  title: string;
-  subtitle: string;
-  expenses: Expense[];
-  onEdit: (expense: Expense) => void;
-  groupBy?: (expense: Expense) => string;
-  emptyText: string;
-}) {
-  const subtotal = expenses.reduce(
-    (sum, expense) => sum + num(expense.planned_amount),
-    0
-  );
-  const groups = new Map<string, Expense[]>();
-
-  if (groupBy) {
-    for (const expense of expenses) {
-      const key = groupBy(expense) || "Other";
-      groups.set(key, [...(groups.get(key) || []), expense]);
-    }
-  }
-
-  return (
-    <section>
-      <div className="mb-2 flex items-end justify-between gap-3 px-1">
-        <div className="min-w-0">
-          <h3 className="text-base font-black">{title}</h3>
-          <p className="mt-0.5 text-[11px] leading-4 text-slate-500">
-            {subtitle}
-          </p>
-        </div>
-        <strong className="shrink-0 text-sm">{money(subtotal)}</strong>
-      </div>
-
-      {!expenses.length ? (
-        <p className="rounded-2xl bg-white p-4 text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
-          {emptyText}
-        </p>
-      ) : groupBy ? (
-        <div className="space-y-2">
-          {Array.from(groups.entries()).map(([group, rows]) => (
-            <div
-              key={group}
-              className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"
-            >
-              <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-3.5 py-2">
-                <span className="min-w-0 truncate text-[11px] font-black uppercase tracking-wide text-slate-500">
-                  {group}
-                </span>
-                <strong className="shrink-0 text-xs text-slate-600">
-                  {money(
-                    rows.reduce(
-                      (sum, expense) => sum + num(expense.planned_amount),
-                      0
-                    )
-                  )}
-                </strong>
-              </div>
-              {rows.map((expense) => (
-                <ExpenseRow
-                  key={expense.id}
-                  expense={expense}
-                  onEdit={() => onEdit(expense)}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-          {expenses.map((expense) => (
-            <ExpenseRow
-              key={expense.id}
-              expense={expense}
-              onEdit={() => onEdit(expense)}
-            />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function ExpenseRow({
-  expense,
-  onEdit,
-}: {
-  expense: Expense;
-  onEdit: () => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-3.5 last:border-0">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-black">
-          {expenseDisplayName(expense)}
-        </p>
-        <p className="mt-0.5 text-[11px] text-slate-500">
-          {dateLabel(expense.due_date)}
-          {expense.category ? ` · ${expense.category}` : ""}
-          {expense.status ? ` · ${expense.status}` : ""}
-        </p>
-      </div>
-      <div className="shrink-0 text-right">
-        <strong className="block text-sm">
-          {money(num(expense.actual_amount) || num(expense.planned_amount))}
-        </strong>
-        <button
-          onClick={onEdit}
-          className="mt-1 text-xs font-black text-blue-600"
-        >
-          Edit
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ActualExpenseRow({
-  item,
-  bucketName,
-  onEdit,
-}: {
-  item: ActualExpense;
-  bucketName?: string;
-  onEdit: () => void;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-3.5 last:border-0">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-black">{item.description}</p>
-        <p className="mt-0.5 text-[11px] text-slate-500">
-          {dateLabel(item.spent_date)} · {item.category}
-          {bucketName ? ` · Bucket: ${bucketName}` : ""}
-          {item.note ? ` · ${item.note}` : ""}
-        </p>
-      </div>
-      <div className="shrink-0 text-right">
-        <strong className="block text-sm">{money(num(item.amount))}</strong>
-        <button
-          onClick={onEdit}
-          className="mt-1 text-xs font-black text-blue-600"
-        >
-          Edit
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function RecurringRow({
-  bill,
-  onEdit,
-}: {
-  bill: RecurringBill;
-  onEdit: () => void;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3 border-b border-slate-100 py-3 last:border-0">
-      <div className="min-w-0">
-        <p className="text-sm font-black">{bill.item}</p>
-        <p className="mt-0.5 text-[11px] leading-5 text-slate-500">
-          {bill.category || "Other"} · {bill.frequency || "Recurring"} ·{" "}
-          {bill.due_timing || "Timing TBD"}
-        </p>
-      </div>
-      <div className="shrink-0 text-right">
-        <strong className="block text-sm">{money(num(bill.amount))}</strong>
-        <button
-          onClick={onEdit}
-          className="mt-1 text-xs font-black text-blue-600"
-        >
-          Edit
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function SectionTitle({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <div className="px-1">
-      <h2 className="text-xl font-black">{title}</h2>
-      <p className="mt-1 text-xs leading-5 text-slate-500">{subtitle}</p>
-    </div>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <span className="block text-[10px] text-slate-400">{label}</span>
-      <strong className="mt-1 block text-sm">{value}</strong>
-    </div>
-  );
-}
-
-function ReviewStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-slate-50 p-2.5">
-      <span className="block text-[10px] text-slate-500">{label}</span>
-      <strong className="mt-1 block text-sm">{value}</strong>
-    </div>
-  );
-}
-
-function ApprovalButton({
-  name,
-  approved,
-  onClick,
-}: {
-  name: string;
-  approved: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-xl border p-3 text-left ${
-        approved
-          ? "border-emerald-300 bg-emerald-50"
-          : "border-slate-200 bg-white"
-      }`}
-    >
-      <span className="block text-xs text-slate-500">{name}</span>
-      <strong className={approved ? "text-emerald-700" : "text-slate-950"}>
-        {approved ? "Approved ✓" : "Approve"}
-      </strong>
-    </button>
-  );
-}
-
-function CountCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-      <p className="text-2xl font-black">{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{label}</p>
-    </div>
   );
 }
