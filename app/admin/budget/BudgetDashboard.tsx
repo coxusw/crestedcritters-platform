@@ -2378,6 +2378,12 @@ export default function BudgetDashboard() {
                   onEdit={(expense) =>
                     setEditor({ type: "expense", item: expense })
                   }
+                  onSpend={(expense) =>
+                    setEditor({
+                      type: "actual",
+                      plannedExpenseId: expense.id,
+                    })
+                  }
                   emptyText="No bills are assigned to this paycheck."
                 />
               )}
@@ -2402,6 +2408,12 @@ export default function BudgetDashboard() {
                   expenses={planSpending}
                   onEdit={(expense) =>
                     setEditor({ type: "expense", item: expense })
+                  }
+                  onSpend={(expense) =>
+                    setEditor({
+                      type: "actual",
+                      plannedExpenseId: expense.id,
+                    })
                   }
                   emptyText="No day-to-day spending is assigned to this paycheck."
                 />
@@ -3423,6 +3435,8 @@ export default function BudgetDashboard() {
           paycheckDates={paycheckDates}
           categories={categories}
           comparisons={spendingComparison}
+          planExpenses={expenses}
+          initialPlannedExpenseId={editor.plannedExpenseId}
           futureExpenses={futureExpenses}
           bucketContributions={bucketContributions}
           paychecks={paychecks}
@@ -4192,6 +4206,8 @@ function ActualExpenseEditor({
   paycheckDates,
   categories,
   comparisons,
+  planExpenses,
+  initialPlannedExpenseId,
   futureExpenses,
   bucketContributions,
   paychecks,
@@ -4205,6 +4221,8 @@ function ActualExpenseEditor({
   paycheckDates: string[];
   categories: string[];
   comparisons: Array<{ category: string; planned: number; actual: number }>;
+  planExpenses: Expense[];
+  initialPlannedExpenseId?: string;
   futureExpenses: FutureExpense[];
   bucketContributions: BucketContribution[];
   paychecks: Paycheck[];
@@ -4213,8 +4231,19 @@ function ActualExpenseEditor({
   onSave: (event: FormEvent<HTMLFormElement>) => void;
   onDelete?: () => void;
 }) {
+  const [selectedPlannedExpenseId, setSelectedPlannedExpenseId] = useState(
+    item?.planned_expense_id || initialPlannedExpenseId || ""
+  );
+  const selectedPlannedExpense = planExpenses.find(
+    (expense) => expense.id === selectedPlannedExpenseId
+  );
   const [selectedCategory, setSelectedCategory] = useState(
-    item?.category || ""
+    item?.category ||
+      (selectedPlannedExpense
+        ? spendingCategoryForExpense(selectedPlannedExpense) ||
+          selectedPlannedExpense.category ||
+          ""
+        : "")
   );
   const selectableCategories =
     item?.category && !categories.includes(item.category)
@@ -4232,9 +4261,30 @@ function ActualExpenseEditor({
       )
   );
   const [enteredAmount, setEnteredAmount] = useState(num(item?.amount));
-  const [selectedBucketId, setSelectedBucketId] = useState(
-    item?.future_expense_id || ""
+  const [description, setDescription] = useState(
+    item?.description || selectedPlannedExpense?.line_item || ""
   );
+  const [selectedBucketId, setSelectedBucketId] = useState(
+    item?.future_expense_id || selectedPlannedExpense?.future_expense_id || ""
+  );
+
+  const plannedLineActualBefore = selectedPlannedExpense
+    ? Math.max(
+        0,
+        num(selectedPlannedExpense.actual_amount) -
+          (item?.planned_expense_id === selectedPlannedExpense.id
+            ? num(item.amount)
+            : 0)
+      )
+    : 0;
+  const plannedLineRemainingBefore = selectedPlannedExpense
+    ? num(selectedPlannedExpense.planned_amount) - plannedLineActualBefore
+    : 0;
+  const plannedLineAfter =
+    plannedLineActualBefore + enteredAmount;
+  const plannedLineOver =
+    !!selectedPlannedExpense &&
+    plannedLineAfter > num(selectedPlannedExpense.planned_amount) + 0.005;
 
   const summary = comparisons.find(
     (row) => row.category === selectedCategory
@@ -4341,6 +4391,67 @@ function ActualExpenseEditor({
   return (
     <Modal title={item ? "Edit spending" : "Log spending"} onClose={onClose}>
       <form onSubmit={onSave} className="space-y-3">
+        <Field label="Apply to planned bill / item (optional)">
+          <select
+            name="planned_expense_id"
+            value={selectedPlannedExpenseId}
+            onChange={(event) => {
+              const nextId = event.target.value;
+              setSelectedPlannedExpenseId(nextId);
+              const planned = planExpenses.find(
+                (expense) => expense.id === nextId
+              );
+              if (planned) {
+                setSelectedCategory(
+                  spendingCategoryForExpense(planned) ||
+                    planned.category ||
+                    "Other"
+                );
+                setSelectedBucketId(planned.future_expense_id || "");
+                setDescription(planned.line_item || "");
+              }
+            }}
+            className="budget-input"
+          >
+            <option value="">Not tied to a planned line</option>
+            {planExpenses
+              .filter(
+                (expense) =>
+                  expense.status !== "Cancelled" &&
+                  expense.status !== "Deferred" &&
+                  (expense.expense_type || "").toLowerCase() !== "sinking fund"
+              )
+              .map((expense) => (
+                <option key={expense.id} value={expense.id}>
+                  {expenseDisplayName(expense)} —{" "}
+                  {money(num(expense.planned_amount))}
+                </option>
+              ))}
+          </select>
+        </Field>
+
+        {selectedPlannedExpense && (
+          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <BudgetMeter
+              label="Plan"
+              value={num(selectedPlannedExpense.planned_amount)}
+            />
+            <BudgetMeter
+              label="Spent"
+              value={plannedLineActualBefore}
+              danger={
+                plannedLineActualBefore >
+                num(selectedPlannedExpense.planned_amount)
+              }
+            />
+            <BudgetMeter
+              label="Remaining"
+              value={plannedLineRemainingBefore}
+              danger={plannedLineRemainingBefore < 0}
+            />
+          </div>
+        )}
+
         <Field label="Budget item / spending type">
           <select
             name="category"
@@ -4463,7 +4574,8 @@ function ActualExpenseEditor({
           <input
             name="description"
             required
-            defaultValue={item?.description || ""}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
             className="budget-input"
             placeholder="Gas, groceries, mortgage…"
           />
@@ -4493,6 +4605,32 @@ function ActualExpenseEditor({
               <span className="mt-1 block text-xs leading-5">
                 You can still save it. You will be asked to confirm because it
                 exceeds the category budget for this pay period.
+              </span>
+            )}
+          </div>
+        )}
+
+        {selectedPlannedExpense && enteredAmount > 0 && (
+          <div
+            className={`rounded-xl border p-3 text-sm ${
+              plannedLineOver
+                ? "border-rose-300 bg-rose-50 text-rose-950"
+                : "border-emerald-200 bg-emerald-50 text-emerald-900"
+            }`}
+          >
+            <strong>
+              {expenseDisplayName(selectedPlannedExpense)} after this payment:{" "}
+              {money(plannedLineAfter)} of{" "}
+              {money(num(selectedPlannedExpense.planned_amount))} spent
+            </strong>
+            {plannedLineOver && (
+              <span className="mt-1 block text-xs leading-5">
+                This planned item will be{" "}
+                {money(
+                  plannedLineAfter -
+                    num(selectedPlannedExpense.planned_amount)
+                )}{" "}
+                over plan.
               </span>
             )}
           </div>
