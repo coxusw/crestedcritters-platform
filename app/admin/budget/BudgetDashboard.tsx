@@ -1676,15 +1676,15 @@ export default function BudgetDashboard() {
 
   const reviewText = useMemo(() => {
     if (!paycheck) return "";
-    if (availableExtra >= 250) {
-      return `This paycheck leaves ${money(
-        availableExtra
-      )} after the current plan. That gives you room to strengthen the buffer, fund an upcoming need early, or follow your debt priority order.`;
+    if (availableExtra > 500) {
+      return `This paycheck has ${money(
+        availableExtra - 500
+      )} above the $500 unassigned cushion. That extra should move to the current emergency-fund or debt milestone instead of sitting in the running pool.`;
     }
     if (availableExtra >= 0) {
-      return `The plan fits, with ${money(
+      return `The plan fits and leaves ${money(
         availableExtra
-      )} left after planned spending. Keeping that amount as cushion is reasonable unless a higher-priority need comes up.`;
+      )} unassigned. The rolling forecast automatically gives surplus above the $500 cushion a job.`;
     }
     return `The current plan is ${money(
       Math.abs(availableExtra)
@@ -2151,7 +2151,7 @@ export default function BudgetDashboard() {
                         ))
                       ) : (
                         <p className="rounded-xl bg-white p-3 text-sm text-slate-500">
-                          No specific future obligation needs the surplus right now. Keeping it as cushion/reserve is reasonable.
+                          No additional allocation is suggested. The remaining amount is within the $500 unassigned cushion.
                         </p>
                       )}
                     </div>
@@ -2294,7 +2294,7 @@ export default function BudgetDashboard() {
             <>
               <SectionTitle
                 title="Forecast"
-                subtitle="Look ahead by paycheck and keep planned money separate from money you actually have."
+                subtitle="Surplus is automatically assigned to the current emergency-fund or debt milestone, while future money stays planned until the paycheck is received."
               />
 
               <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-200 p-1">
