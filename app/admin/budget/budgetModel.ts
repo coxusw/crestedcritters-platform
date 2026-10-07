@@ -133,7 +133,7 @@ export type View = "home" | "plan" | "forecast" | "reviews" | "more";
 export type Editor =
   | { type: "expense"; item?: Expense; paycheckDate?: string }
   | { type: "recurring"; item?: RecurringBill }
-  | { type: "actual"; item?: ActualExpense; plannedExpenseId?: string }
+  | { type: "actual"; item?: ActualExpense; plannedExpenseId?: string; futureExpenseId?: string }
   | { type: "income"; item?: IncomeEntry }
   | { type: "debt"; item?: Debt }
   | { type: "paycheck" }
