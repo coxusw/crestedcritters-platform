@@ -389,9 +389,7 @@ export default function BudgetDashboard() {
         ? `${editor.item.event_fund || "Sinking fund"} closed with ${money(
             leftover
           )} moved ${
-            result.destination === "discretionary"
-              ? "evenly to Chris and Jennifer discretionary spending"
-              : result.destination === "buffer"
+            result.destination === "buffer"
                 ? "to the forgotten / unplanned expense buffer"
                 : result.destination === "next_fund"
                   ? `to ${result.destination_fund_name || "the next sinking fund"}`
