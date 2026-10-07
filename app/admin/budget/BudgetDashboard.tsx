@@ -35,6 +35,7 @@ type Expense = {
   notes: string | null;
   event_fund: string | null;
   future_expense_id: string | null;
+  generated_recurring_id: string | null;
 };
 
 type Person = {
@@ -83,6 +84,7 @@ type RecurringBill = {
   payment_grace_days: number | string | null;
   active: boolean | null;
   notes: string | null;
+  linked_debt_id: string | null;
 };
 
 type ActualExpense = {
@@ -411,7 +413,7 @@ export default function BudgetDashboard() {
     ] = await Promise.all([
         supabase
           .from("budget_expenses")
-          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id")
+          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
           .eq("assigned_paycheck", selected.paycheck_date)
           .order("due_date", { ascending: true, nullsFirst: false })
           .order("planned_amount", { ascending: false, nullsFirst: false }),
@@ -426,7 +428,7 @@ export default function BudgetDashboard() {
           .order("due_date", { ascending: true, nullsFirst: false }),
         supabase
           .from("budget_recurring_bills")
-          .select("id,category,item,amount,frequency,monthly_equivalent,due_timing,payment_grace_days,active,notes")
+          .select("id,category,item,amount,frequency,monthly_equivalent,due_timing,payment_grace_days,active,notes,linked_debt_id")
           .eq("active", true)
           .order("category", { ascending: true })
           .order("item", { ascending: true }),
@@ -453,7 +455,7 @@ export default function BudgetDashboard() {
           .order("received_date", { ascending: false }),
         supabase
           .from("budget_expenses")
-          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id")
+          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
           .gte("assigned_paycheck", selected.paycheck_date)
           .neq("status", "Cancelled")
           .order("assigned_paycheck", { ascending: true })
@@ -529,7 +531,7 @@ export default function BudgetDashboard() {
 
     const { data, error: forecastError } = await supabase
       .from("budget_expenses")
-      .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id")
+      .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
       .eq("assigned_paycheck", date)
       .neq("status", "Cancelled")
       .order("due_date", { ascending: true, nullsFirst: false })
@@ -1083,22 +1085,18 @@ export default function BudgetDashboard() {
     const futureExpenseId =
       String(data.get("future_expense_id") || linkedPlan?.future_expense_id || "").trim() ||
       null;
-    const linkedRecurring = linkedPlan?.id
-      ? recurringBills.find((bill) =>
-          futurePlanExpenses.some(
-            (expense) =>
-              expense.id === linkedPlan.id &&
-              expense.line_item === bill.item
-          )
-        )
-      : null;
-    const linkedDebt = linkedPlan
-      ? debts.find(
-          (debt) =>
-            debt.linked_budget_line_item === linkedPlan.line_item ||
-            linkedRecurring?.item === debt.linked_budget_line_item
+    const linkedRecurring = linkedPlan?.generated_recurring_id
+      ? recurringBills.find(
+          (bill) => bill.id === linkedPlan.generated_recurring_id
         ) || null
       : null;
+    const linkedDebtId =
+      linkedRecurring?.linked_debt_id ||
+      (linkedPlan
+        ? debts.find(
+            (debt) => debt.linked_budget_line_item === linkedPlan.line_item
+          )?.id || null
+        : null);
 
     const payload = {
       spent_date: String(data.get("spent_date") || todayIso()),
@@ -1114,7 +1112,7 @@ export default function BudgetDashboard() {
       note: String(data.get("note") || "").trim() || null,
       future_expense_id: futureExpenseId,
       planned_expense_id: plannedExpenseId,
-      debt_id: linkedDebt?.id || null,
+      debt_id: linkedDebtId,
     };
 
     if (!payload.description || payload.amount <= 0) {
