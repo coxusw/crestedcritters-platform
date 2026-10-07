@@ -1519,7 +1519,7 @@ export default function BudgetDashboard() {
         if (apr === 0 && !debt.term_end_date && settlementSavings <= 0) {
           score -= 250;
           reasons.push(
-            "With no interest or deadline recorded, extra payments usually rank below expensive debt after the required payment is covered."
+            "No interest or deadline is recorded. Extra-payment priority follows your saved debt order."
           );
         }
 
