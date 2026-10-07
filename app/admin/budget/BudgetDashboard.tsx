@@ -1162,28 +1162,30 @@ export default function BudgetDashboard() {
 
     const warnings: string[] = [];
 
-    const categoryBudget = spendingComparison.find(
-      (row) => row.category === category
-    );
-    const plannedForCategory = categoryBudget?.planned || 0;
-    const currentItemAmount =
-      editor.item && editor.item.category === category
-        ? num(editor.item.amount)
-        : 0;
-    const usedBefore =
-      Math.max(0, categoryBudget?.actual || 0) - currentItemAmount;
-    const categoryRemainingBefore = plannedForCategory - usedBefore;
-
-    if (payload.amount > categoryRemainingBefore) {
-      const afterTotal = usedBefore + payload.amount;
-      const overBy = Math.max(0, afterTotal - plannedForCategory);
-      warnings.push(
-        plannedForCategory > 0
-          ? `${category} will be ${money(overBy)} over its ${money(
-              plannedForCategory
-            )} budget for this pay period.`
-          : `${category} has no planned budget for this pay period, so this expense will be over budget.`
+    if (!futureExpenseId) {
+      const categoryBudget = spendingComparison.find(
+        (row) => row.category === category
       );
+      const plannedForCategory = categoryBudget?.planned || 0;
+      const currentItemAmount =
+        editor.item && editor.item.category === category
+          ? num(editor.item.amount)
+          : 0;
+      const usedBefore =
+        Math.max(0, categoryBudget?.actual || 0) - currentItemAmount;
+      const categoryRemainingBefore = plannedForCategory - usedBefore;
+
+      if (payload.amount > categoryRemainingBefore) {
+        const afterTotal = usedBefore + payload.amount;
+        const overBy = Math.max(0, afterTotal - plannedForCategory);
+        warnings.push(
+          plannedForCategory > 0
+            ? `${category} will be ${money(overBy)} over its ${money(
+                plannedForCategory
+              )} budget for this pay period.`
+            : `${category} has no planned budget for this pay period, so this expense will be over budget.`
+        );
+      }
     }
 
     if (futureExpenseId) {
@@ -2232,6 +2234,18 @@ export default function BudgetDashboard() {
                   onEdit={(expense) =>
                     setEditor({ type: "expense", item: expense })
                   }
+                  onSpend={(expense) => {
+                    const fundId =
+                      expense.future_expense_id ||
+                      futureExpenses.find(
+                        (item) =>
+                          item.event_fund === sinkingFundNameForExpense(expense)
+                      )?.id;
+                    setEditor({
+                      type: "actual",
+                      futureExpenseId: fundId || undefined,
+                    });
+                  }}
                   emptyText="No sinking-fund contributions are assigned to this paycheck."
                 />
               )}
@@ -3344,6 +3358,7 @@ export default function BudgetDashboard() {
           comparisons={spendingComparison}
           planExpenses={expenses}
           initialPlannedExpenseId={editor.plannedExpenseId}
+          initialFutureExpenseId={editor.futureExpenseId}
           futureExpenses={futureExpenses}
           bucketContributions={bucketContributions}
           paychecks={paychecks}
