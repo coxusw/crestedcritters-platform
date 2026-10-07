@@ -768,6 +768,7 @@ export function ActualExpenseEditor({
   comparisons,
   planExpenses,
   initialPlannedExpenseId,
+  initialFutureExpenseId,
   futureExpenses,
   bucketContributions,
   paychecks,
@@ -783,6 +784,7 @@ export function ActualExpenseEditor({
   comparisons: Array<{ category: string; planned: number; actual: number }>;
   planExpenses: Expense[];
   initialPlannedExpenseId?: string;
+  initialFutureExpenseId?: string;
   futureExpenses: FutureExpense[];
   bucketContributions: BucketContribution[];
   paychecks: Paycheck[];
@@ -797,26 +799,39 @@ export function ActualExpenseEditor({
   const selectedPlannedExpense = planExpenses.find(
     (expense) => expense.id === selectedPlannedExpenseId
   );
+  const initialBucketId =
+    item?.future_expense_id ||
+    initialFutureExpenseId ||
+    selectedPlannedExpense?.future_expense_id ||
+    "";
+  const initialBucket = futureExpenses.find(
+    (bucket) => bucket.id === initialBucketId
+  );
   const [selectedCategory, setSelectedCategory] = useState(
     item?.category ||
       (selectedPlannedExpense
         ? spendingCategoryForExpense(selectedPlannedExpense) ||
           selectedPlannedExpense.category ||
           ""
-        : "")
+        : initialBucket
+          ? "Sinking Fund"
+          : "")
   );
-  const selectableCategories =
-    item?.category && !categories.includes(item.category)
-      ? [item.category, ...categories]
-      : categories;
-  const budgetCategories = selectableCategories;
+  const budgetCategories = Array.from(
+    new Set([
+      ...(initialBucket ? ["Sinking Fund"] : []),
+      ...(item?.category ? [item.category] : []),
+      ...categories,
+    ])
+  );
   const [enteredAmount, setEnteredAmount] = useState(num(item?.amount));
   const [description, setDescription] = useState(
-    item?.description || selectedPlannedExpense?.line_item || ""
+    item?.description ||
+      selectedPlannedExpense?.line_item ||
+      initialBucket?.event_fund ||
+      ""
   );
-  const [selectedBucketId, setSelectedBucketId] = useState(
-    item?.future_expense_id || selectedPlannedExpense?.future_expense_id || ""
-  );
+  const [selectedBucketId, setSelectedBucketId] = useState(initialBucketId);
 
   const plannedLineActualBefore = selectedPlannedExpense
     ? Math.max(
@@ -1041,7 +1056,13 @@ export function ActualExpenseEditor({
           <select
             name="future_expense_id"
             value={selectedBucketId}
-            onChange={(event) => setSelectedBucketId(event.target.value)}
+            onChange={(event) => {
+              const nextBucketId = event.target.value;
+              setSelectedBucketId(nextBucketId);
+              if (nextBucketId && !selectedCategory) {
+                setSelectedCategory("Sinking Fund");
+              }
+            }}
             className="budget-input"
           >
             <option value="">No bucket</option>
