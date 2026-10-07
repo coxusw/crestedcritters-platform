@@ -32,11 +32,6 @@ export type Expense = {
   generated_recurring_id: string | null;
 };
 
-export type Person = {
-  name: string;
-  default_discretionary: number | string;
-};
-
 export type FutureExpense = {
   id: string;
   event_fund: string | null;
@@ -216,22 +211,8 @@ export const monthlyEquivalent = (amount: number, frequency: string) => {
   return amount;
 };
 
-export const PERSONAL_SPENDING_CATEGORIES = [
-  "Chris spending",
-  "Jen spending",
-  "Discretionary spending",
-] as const;
-
-export const normalizeSpendingCategory = (value: string | null | undefined) => {
-  const category = (value || "").trim();
-  const normalized = category.toLowerCase();
-
-  if (normalized === "chris discretionary spending") return "Chris spending";
-  if (normalized === "jen discretionary spending") return "Jen spending";
-  if (normalized === "discretionary spending") return "Discretionary spending";
-
-  return category;
-};
+export const normalizeSpendingCategory = (value: string | null | undefined) =>
+  (value || "").trim();
 
 export const spendingCategoryForExpense = (expense: Expense) => {
   if (expense.status === "Cancelled" || expense.status === "Deferred") return "";
@@ -275,9 +256,6 @@ export const expensePlanGroup = (expense: Expense): PlanGroup => {
   }
 
   if (
-    line.includes("chris discretionary") ||
-    line.includes("jen discretionary") ||
-    line.includes("jennifer discretionary") ||
     line.includes("forgotten / unplanned expense buffer") ||
     category === "fuel" ||
     category === "groceries" ||
@@ -292,9 +270,5 @@ export const expensePlanGroup = (expense: Expense): PlanGroup => {
   return "bills";
 };
 
-export const expenseDisplayName = (expense: Expense) => {
-  const name = expense.line_item || "Unnamed expense";
-  return name.toLowerCase() === "jen discretionary spending"
-    ? "Jennifer discretionary spending"
-    : name;
-};
+export const expenseDisplayName = (expense: Expense) =>
+  expense.line_item || "Unnamed expense";
