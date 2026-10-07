@@ -1995,7 +1995,7 @@ export default function BudgetDashboard() {
                   <Stat label="Total income" value={money(income)} />
                   <Stat label="Planned" value={money(planned)} />
                   <Stat
-                    label="Checking balance"
+                    label="Cash available"
                     value={
                       checkingBalance == null
                         ? "Not entered"
@@ -2232,7 +2232,7 @@ export default function BudgetDashboard() {
                   <ReviewStat label="Additional income" value={money(additionalIncome)} />
                   <ReviewStat label="Total income" value={money(income)} />
                   <ReviewStat
-                    label="Checking balance"
+                    label="Cash available"
                     value={
                       checkingBalance == null
                         ? "Not entered"
