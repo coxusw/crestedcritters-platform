@@ -2632,17 +2632,28 @@ export default function BudgetDashboard() {
                                     </div>
                                   )}
 
-                                  {datePassed && (
+                                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        setEditor({ type: "close-fund", item })
+                                        setEditor({ type: "future", item })
                                       }
-                                      className="mt-3 w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
+                                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-900"
                                     >
-                                      Close out sinking fund
+                                      Edit sinking fund
                                     </button>
-                                  )}
+                                    {datePassed && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setEditor({ type: "close-fund", item })
+                                        }
+                                        className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
+                                      >
+                                        Close out sinking fund
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -2998,15 +3009,26 @@ export default function BudgetDashboard() {
                                   </div>
                                 </div>
 
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setEditor({ type: "close-fund", item })
-                                  }
-                                  className="mt-3 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-black text-slate-800"
-                                >
-                                  Close out fund
-                                </button>
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEditor({ type: "future", item })
+                                    }
+                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-black text-slate-800"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEditor({ type: "close-fund", item })
+                                    }
+                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-black text-slate-800"
+                                  >
+                                    Close out
+                                  </button>
+                                </div>
                               </div>
                             );
                           })
@@ -3119,6 +3141,7 @@ export default function BudgetDashboard() {
 
       {editor?.type === "future" && (
         <FutureGoalEditor
+          item={editor.item}
           currentPaycheck={paycheck.paycheck_date}
           paycheckDates={paycheckDates}
           saving={saving}
