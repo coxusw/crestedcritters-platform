@@ -1850,7 +1850,7 @@ export default function BudgetDashboard() {
                     Base {money(basePaycheckIncome)}
                     {additionalIncome > 0
                       ? ` + ${money(additionalIncome)} additional income`
-                      : ""} · Includes {money(currentEach)} each for Chris + Jen
+                      : ""}
                     {checkingBalance == null
                       ? " · Checking not reconciled yet"
                       : ` · Reconciliation ${money(reconciliationAdjustment)}`}
@@ -1873,33 +1873,6 @@ export default function BudgetDashboard() {
                     ? "Update paycheck & checking balance"
                     : "Enter paycheck & checking balance"}
                 </button>
-              </section>
-
-              <section>
-                <div className="mb-2 px-1">
-                  <h2 className="text-lg font-black">Personal spending</h2>
-                  <p className="text-xs text-slate-500">
-                    Remaining this pay period. Spending logged to Chris or Jen
-                    reduces that person&apos;s balance.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {people.map((person) => (
-                    <PersonCard
-                      key={person.name}
-                      name={person.name.toLowerCase() === "jen" ? "Jennifer" : person.name}
-                      allowance={
-                        num(person.default_discretionary) +
-                        (person.name.toLowerCase() === "chris"
-                          ? discretionaryCloseoutBonus.chris
-                          : person.name.toLowerCase() === "jen"
-                            ? discretionaryCloseoutBonus.jen
-                            : 0)
-                      }
-                      spent={personalSpendingByName.get(person.name.toLowerCase()) || 0}
-                    />
-                  ))}
-                </div>
               </section>
 
               <button
@@ -2063,7 +2036,7 @@ export default function BudgetDashboard() {
               {(planTab === "spending" || planTab === "all") && (
                 <PlanExpenseSection
                   title="Spending"
-                  subtitle="Chris and Jennifer discretionary, forgotten/unplanned buffer, vehicle fuel, and food."
+                  subtitle="Forgotten/unplanned buffer, vehicle fuel, and food."
                   expenses={planSpending}
                   onEdit={(expense) =>
                     setEditor({ type: "expense", item: expense })
@@ -2344,67 +2317,6 @@ export default function BudgetDashboard() {
                       ))}
                     </div>
                   </div>
-
-                  <div className="flex items-end justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-bold text-slate-500">
-                        Suggested allowance
-                      </p>
-                      <p className="mt-1 text-3xl font-black">
-                        {money(suggestedEach)}
-                        <span className="ml-1 text-xs font-bold text-slate-500">
-                          each
-                        </span>
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-slate-500">
-                        Extra after suggestion
-                      </p>
-                      <p
-                        className={`text-xl font-black ${
-                          suggestedExtra < 0
-                            ? "text-rose-600"
-                            : "text-slate-950"
-                        }`}
-                      >
-                        {money(suggestedExtra)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-                    A discretionary change is not applied until{" "}
-                    <strong>both Chris and Jen</strong> approve the same amount.
-                  </p>
-
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <ApprovalButton
-                      name="Chris"
-                      approved={chrisApproved}
-                      onClick={() => setChrisApproved((value) => !value)}
-                    />
-                    <ApprovalButton
-                      name="Jen"
-                      approved={jenApproved}
-                      onClick={() => setJenApproved((value) => !value)}
-                    />
-                  </div>
-
-                  <button
-                    disabled={
-                      !chrisApproved ||
-                      !jenApproved ||
-                      suggestedEach === currentEach
-                    }
-                    className="mt-3 w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:bg-slate-300 disabled:text-slate-500"
-                  >
-                    {suggestedEach === currentEach
-                      ? "No change recommended"
-                      : chrisApproved && jenApproved
-                        ? `Ready to apply ${money(suggestedEach)} each`
-                        : "Waiting for both approvals"}
-                  </button>
 
                   {paycheck.review_required && (
                     <button
