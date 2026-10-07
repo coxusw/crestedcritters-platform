@@ -1162,7 +1162,26 @@ export default function BudgetDashboard() {
 
     const warnings: string[] = [];
 
-    if (!futureExpenseId) {
+    if (linkedPlan) {
+      const currentLinkedAmount =
+        editor.item?.planned_expense_id === linkedPlan.id
+          ? num(editor.item.amount)
+          : 0;
+      const usedBefore =
+        Math.max(0, num(linkedPlan.actual_amount)) - currentLinkedAmount;
+      const plannedAmount = num(linkedPlan.planned_amount);
+      const remainingBefore = plannedAmount - usedBefore;
+
+      if (payload.amount > remainingBefore) {
+        const afterTotal = usedBefore + payload.amount;
+        const overBy = Math.max(0, afterTotal - plannedAmount);
+        warnings.push(
+          `${linkedPlan.line_item || "This planned item"} will be ${money(overBy)} over its ${money(
+            plannedAmount
+          )} planned amount for this pay period.`
+        );
+      }
+    } else if (!futureExpenseId) {
       const categoryBudget = spendingComparison.find(
         (row) => row.category === category
       );
