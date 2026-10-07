@@ -1716,69 +1716,24 @@ export default function BudgetDashboard() {
       ?.event_fund ||
     "Other sinking fund";
 
-  const discretionaryRows = expenses.filter((expense) =>
-    (expense.line_item || "").toLowerCase().includes("discretionary spending")
-  );
-  const discretionaryTotal = discretionaryRows.reduce(
-    (sum, expense) => sum + num(expense.planned_amount),
-    0
-  );
-  const currentEach =
-    people.length > 0
-      ? people.reduce(
-          (sum, person) => sum + num(person.default_discretionary),
-          0
-        ) / people.length
-      : 200;
-
-  const basePlanWithoutDiscretionary = planned - discretionaryTotal;
-  const baseExtra = cashAvailable - basePlanWithoutDiscretionary;
-  const suggestedEach =
-    availableExtra >= 0
-      ? currentEach
-      : Math.max(
-          0,
-          Math.min(currentEach, Math.floor(baseExtra / 2 / 25) * 25)
-        );
-  const suggestedExtra =
-    cashAvailable - basePlanWithoutDiscretionary - suggestedEach * 2;
-
   const reviewText = useMemo(() => {
     if (!paycheck) return "";
     if (availableExtra >= 250) {
       return `This paycheck leaves ${money(
         availableExtra
-      )} after the current plan, including ${money(
-        currentEach
-      )} each for Chris and Jen. No discretionary cut is needed based on the current numbers.`;
+      )} after the current plan. That gives you room to strengthen the buffer, fund an upcoming need early, or follow your debt priority order.`;
     }
     if (availableExtra >= 0) {
-      return `The plan fits, but only ${money(
+      return `The plan fits, with ${money(
         availableExtra
-      )} remains. The current ${money(
-        currentEach
-      )} each is possible, but the review should consider whether some of that would be better held as cushion.`;
-    }
-    if (baseExtra < 0) {
-      return `The current plan is ${money(
-        Math.abs(availableExtra)
-      )} short. Even reducing both discretionary allowances to $0 would still leave the core plan ${money(
-        Math.abs(baseExtra)
-      )} short, so another planned expense also needs to move, shrink, or be deferred.`;
+      )} left after planned spending. Keeping that amount as cushion is reasonable unless a higher-priority need comes up.`;
     }
     return `The current plan is ${money(
       Math.abs(availableExtra)
-    )} short with ${money(
-      currentEach
-    )} each in discretionary spending. A temporary allowance of about ${money(
-      suggestedEach
-    )} each would bring this paycheck back inside the available income.`;
-  }, [availableExtra, baseExtra, currentEach, paycheck, suggestedEach]);
+    )} short, so at least one planned expense needs to move, shrink, or be deferred before this paycheck is finalized.`;
+  }, [availableExtra, paycheck]);
 
-  const normalExpenses = expenses.filter(
-    (expense) =>
-      !(expense.line_item || "").toLowerCase().includes("discretionary spending")
-  );
+  const normalExpenses = expenses;
 
   if (loading) {
     return (
