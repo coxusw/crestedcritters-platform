@@ -12,11 +12,9 @@ import {
   FutureExpense,
   IncomeEntry,
   Paycheck,
-  Person,
   PlanTab,
   RecurringBill,
   View,
-  PERSONAL_SPENDING_CATEGORIES,
   addDays,
   addMonths,
   coalesceFundDeadline,
@@ -46,12 +44,10 @@ import {
 } from "./BudgetEditors";
 import {
   ActualExpenseRow,
-  ApprovalButton,
   BudgetMeter,
   ExpenseRow,
   CountCard,
   MiniStat,
-  PersonCard,
   PlanExpenseSection,
   RecurringRow,
   ReviewStat,
@@ -79,7 +75,6 @@ export default function BudgetDashboard() {
   const [planTab, setPlanTab] = useState<PlanTab>("all");
   const [moreTab, setMoreTab] = useState<"debts" | "recurring" | "future">("debts");
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
-  const [people, setPeople] = useState<Person[]>([]);
   const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([]);
   const [bucketContributions, setBucketContributions] = useState<BucketContribution[]>([]);
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
@@ -89,8 +84,6 @@ export default function BudgetDashboard() {
   const [debts, setDebts] = useState<Debt[]>([]);
   const [draggedDebtId, setDraggedDebtId] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
-  const [chrisApproved, setChrisApproved] = useState(false);
-  const [jenApproved, setJenApproved] = useState(false);
 
   async function loadData(showSpinner = false) {
     if (showSpinner) setLoading(true);
@@ -157,80 +150,66 @@ export default function BudgetDashboard() {
 
     const [
       expenseResult,
-      peopleResult,
       futureResult,
       recurringResult,
       actualResult,
-      categoryResult,
       bucketContributionResult,
       incomeResult,
       futurePlanResult,
       debtResult,
     ] = await Promise.all([
-        supabase
-          .from("budget_expenses")
-          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
-          .eq("assigned_paycheck", selected.paycheck_date)
-          .order("due_date", { ascending: true, nullsFirst: false })
-          .order("planned_amount", { ascending: false, nullsFirst: false }),
-        supabase
-          .from("budget_people")
-          .select("name,default_discretionary")
-          .eq("active", true)
-          .order("name", { ascending: true }),
-        supabase
-          .from("budget_future_expenses")
-          .select("id,event_fund,due_date,target_budget,planned_funding,actual_funding_spend,remaining_to_plan,remaining_actual,status,notes,funding_start_paycheck,funding_deadline,auto_fund,repeat_annually,funding_deadline_rule,closed_at,closeout_amount,closeout_destination,closeout_destination_fund_id,closeout_assigned_paycheck")
-          .order("due_date", { ascending: true, nullsFirst: false }),
-        supabase
-          .from("budget_recurring_bills")
-          .select("id,category,item,amount,frequency,monthly_equivalent,due_timing,payment_grace_days,active,notes,linked_debt_id")
-          .eq("active", true)
-          .order("category", { ascending: true })
-          .order("item", { ascending: true }),
-        supabase
-          .from("budget_actual_expenses")
-          .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,planned_expense_id,debt_id,created_at")
-          .eq("assigned_paycheck", selected.paycheck_date)
-          .order("spent_date", { ascending: false })
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("budget_categories")
-          .select("name")
-          .eq("active", true)
-          .order("name", { ascending: true }),
-        supabase
-          .from("budget_expenses")
-          .select("future_expense_id,assigned_paycheck,planned_amount,status")
-          .not("future_expense_id", "is", null)
-          .order("assigned_paycheck", { ascending: true }),
-        supabase
-          .from("budget_income_entries")
-          .select("id,received_date,assigned_paycheck,source,amount,note,income_type")
-          .eq("assigned_paycheck", selected.paycheck_date)
-          .order("received_date", { ascending: false }),
-        supabase
-          .from("budget_expenses")
-          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
-          .gte("assigned_paycheck", selected.paycheck_date)
-          .neq("status", "Cancelled")
-          .order("assigned_paycheck", { ascending: true })
-          .order("due_date", { ascending: true, nullsFirst: false })
-          .order("planned_amount", { ascending: false, nullsFirst: false }),
-        supabase
-          .from("budget_debts")
-          .select("id,name,creditor,debt_type,current_balance,original_balance,apr,minimum_payment,payment_frequency,due_timing,payment_grace_days,term_end_date,promo_end_date,settlement_offer_amount,settlement_offer_expires,settlement_notes,linked_budget_line_item,priority_override,notes,active,payoff_status,paid_off_at,priority_rank,balance_estimated")
-          .eq("active", true)
-          .order("name", { ascending: true }),
-      ]);
+      supabase
+        .from("budget_expenses")
+        .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
+        .eq("assigned_paycheck", selected.paycheck_date)
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .order("planned_amount", { ascending: false, nullsFirst: false }),
+      supabase
+        .from("budget_future_expenses")
+        .select("id,event_fund,due_date,target_budget,planned_funding,actual_funding_spend,remaining_to_plan,remaining_actual,status,notes,funding_start_paycheck,funding_deadline,auto_fund,repeat_annually,funding_deadline_rule,closed_at,closeout_amount,closeout_destination,closeout_destination_fund_id,closeout_assigned_paycheck")
+        .order("due_date", { ascending: true, nullsFirst: false }),
+      supabase
+        .from("budget_recurring_bills")
+        .select("id,category,item,amount,frequency,monthly_equivalent,due_timing,payment_grace_days,active,notes,linked_debt_id")
+        .eq("active", true)
+        .order("category", { ascending: true })
+        .order("item", { ascending: true }),
+      supabase
+        .from("budget_actual_expenses")
+        .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,planned_expense_id,debt_id,created_at")
+        .eq("assigned_paycheck", selected.paycheck_date)
+        .order("spent_date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("budget_expenses")
+        .select("future_expense_id,assigned_paycheck,planned_amount,status")
+        .not("future_expense_id", "is", null)
+        .order("assigned_paycheck", { ascending: true }),
+      supabase
+        .from("budget_income_entries")
+        .select("id,received_date,assigned_paycheck,source,amount,note,income_type")
+        .eq("assigned_paycheck", selected.paycheck_date)
+        .order("received_date", { ascending: false }),
+      supabase
+        .from("budget_expenses")
+        .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
+        .gte("assigned_paycheck", selected.paycheck_date)
+        .neq("status", "Cancelled")
+        .order("assigned_paycheck", { ascending: true })
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .order("planned_amount", { ascending: false, nullsFirst: false }),
+      supabase
+        .from("budget_debts")
+        .select("id,name,creditor,debt_type,current_balance,original_balance,apr,minimum_payment,payment_frequency,due_timing,payment_grace_days,term_end_date,promo_end_date,settlement_offer_amount,settlement_offer_expires,settlement_notes,linked_budget_line_item,priority_override,notes,active,payoff_status,paid_off_at,priority_rank,balance_estimated")
+        .eq("active", true)
+        .order("name", { ascending: true }),
+    ]);
 
     const firstError =
       expenseResult.error ||
-      peopleResult.error ||
       futureResult.error ||
       recurringResult.error ||
       actualResult.error ||
-      categoryResult.error ||
       bucketContributionResult.error ||
       incomeResult.error ||
       futurePlanResult.error ||
@@ -250,7 +229,6 @@ export default function BudgetDashboard() {
     setPaychecks(visiblePaychecks);
     setPaycheckDates(visiblePaychecks.map((row) => row.paycheck_date));
     setExpenses((expenseResult.data || []) as Expense[]);
-    setPeople((peopleResult.data || []) as Person[]);
     setFutureExpenses((futureResult.data || []) as FutureExpense[]);
     setBucketContributions((bucketContributionResult.data || []) as BucketContribution[]);
     setRecurringBills((recurringResult.data || []) as RecurringBill[]);
@@ -262,17 +240,11 @@ export default function BudgetDashboard() {
       new Set(
         ((expenseResult.data || []) as Expense[])
           .map(spendingCategoryForExpense)
-          .filter(
-            (category) =>
-              !!category &&
-              !PERSONAL_SPENDING_CATEGORIES.includes(
-                category as (typeof PERSONAL_SPENDING_CATEGORIES)[number]
-              )
-          )
+          .filter(Boolean)
       )
     ).sort((a, b) => a.localeCompare(b));
 
-    setCategories([...PERSONAL_SPENDING_CATEGORIES, ...currentBudgetItems]);
+    setCategories(currentBudgetItems);
     setLoading(false);
   }
 
