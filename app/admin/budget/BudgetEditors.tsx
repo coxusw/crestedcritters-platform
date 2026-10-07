@@ -237,6 +237,7 @@ export function FutureGoalEditor({
   saving,
   onClose,
   onSave,
+  onDelete,
 }: {
   item?: FutureExpense;
   currentPaycheck: string;
@@ -245,6 +246,7 @@ export function FutureGoalEditor({
   saving: boolean;
   onClose: () => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
+  onDelete?: () => void;
 }) {
   const isEditing = !!item;
   const existingTarget = num(item?.target_budget);
@@ -503,6 +505,17 @@ export function FutureGoalEditor({
               ? "Save sinking-fund changes"
               : "Create sinking-fund plan"}
         </button>
+
+        {item && onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={saving}
+            className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700 disabled:opacity-50"
+          >
+            Delete sinking fund
+          </button>
+        )}
       </form>
     </Modal>
   );
@@ -1349,11 +1362,13 @@ export function RecurringEditor({
   saving,
   onClose,
   onSave,
+  onDelete,
 }: {
   item?: RecurringBill;
   saving: boolean;
   onClose: () => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
+  onDelete?: () => void;
 }) {
   return (
     <Modal title={item ? "Edit recurring bill" : "Add recurring bill"} onClose={onClose}>
@@ -1496,6 +1511,17 @@ export function RecurringEditor({
               ? "Save recurring bill"
               : "Add recurring bill"}
         </button>
+
+        {item && onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={saving}
+            className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700 disabled:opacity-50"
+          >
+            Delete recurring bill
+          </button>
+        )}
       </form>
     </Modal>
   );
@@ -1509,6 +1535,7 @@ export function DebtEditor({
   onSave,
   onArchive,
   onConfirmPaid,
+  onDelete,
 }: {
   item?: Debt;
   budgetItems: Array<{
@@ -1521,6 +1548,7 @@ export function DebtEditor({
   onSave: (event: FormEvent<HTMLFormElement>) => void;
   onArchive?: () => void;
   onConfirmPaid?: () => void;
+  onDelete?: () => void;
 }) {
   const [debtType, setDebtType] = useState(item?.debt_type || "Other");
   const [apr, setApr] = useState(
@@ -1824,6 +1852,17 @@ export function DebtEditor({
               Mark paid off
             </button>
           ) : null}
+
+        {item && onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={saving}
+            className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700 disabled:opacity-50"
+          >
+            Delete debt from budget
+          </button>
+        )}
       </form>
     </Modal>
   );
