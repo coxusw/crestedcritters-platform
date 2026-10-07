@@ -5504,6 +5504,7 @@ function PlanExpenseSection({
   subtitle,
   expenses,
   onEdit,
+  onSpend,
   groupBy,
   emptyText,
 }: {
@@ -5511,6 +5512,7 @@ function PlanExpenseSection({
   subtitle: string;
   expenses: Expense[];
   onEdit: (expense: Expense) => void;
+  onSpend?: (expense: Expense) => void;
   groupBy?: (expense: Expense) => string;
   emptyText: string;
 }) {
@@ -5568,6 +5570,7 @@ function PlanExpenseSection({
                   key={expense.id}
                   expense={expense}
                   onEdit={() => onEdit(expense)}
+                  onSpend={onSpend ? () => onSpend(expense) : undefined}
                 />
               ))}
             </div>
@@ -5580,6 +5583,7 @@ function PlanExpenseSection({
               key={expense.id}
               expense={expense}
               onEdit={() => onEdit(expense)}
+              onSpend={onSpend ? () => onSpend(expense) : undefined}
             />
           ))}
         </div>
@@ -5591,10 +5595,27 @@ function PlanExpenseSection({
 function ExpenseRow({
   expense,
   onEdit,
+  onSpend,
 }: {
   expense: Expense;
   onEdit: () => void;
+  onSpend?: () => void;
 }) {
+  const planned = num(expense.planned_amount);
+  const spent = num(expense.actual_amount);
+  const reconciliationStatus =
+    expense.status === "Cancelled"
+      ? "Canceled"
+      : expense.status === "Deferred"
+        ? "Moved"
+        : expense.reconciliation_status ||
+          (spent <= 0
+            ? "Unpaid"
+            : spent + 0.005 < planned
+              ? "Partial"
+              : "Paid");
+  const overPlan = spent > planned + 0.005;
+
   return (
     <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-3.5 last:border-0">
       <div className="min-w-0">
@@ -5604,19 +5625,39 @@ function ExpenseRow({
         <p className="mt-0.5 text-[11px] text-slate-500">
           {dateLabel(expense.due_date)}
           {expense.category ? ` · ${expense.category}` : ""}
-          {expense.status ? ` · ${expense.status}` : ""}
+          {` · ${reconciliationStatus}`}
+        </p>
+        <p className="mt-1 text-[11px] font-bold text-slate-500">
+          Plan {money(planned)} ·{" "}
+          <span className={overPlan ? "text-rose-600" : "text-emerald-700"}>
+            Spent {money(spent)}
+          </span>
         </p>
       </div>
       <div className="shrink-0 text-right">
-        <strong className="block text-sm">
-          {money(num(expense.actual_amount) || num(expense.planned_amount))}
+        <strong className={`block text-sm ${
+          overPlan ? "text-rose-600" : "text-emerald-700"
+        }`}>
+          {money(spent)} / {money(planned)}
         </strong>
-        <button
-          onClick={onEdit}
-          className="mt-1 text-xs font-black text-blue-600"
-        >
-          Edit
-        </button>
+        <div className="mt-1 flex items-center justify-end gap-2">
+          {onSpend && expense.status !== "Cancelled" && expense.status !== "Deferred" ? (
+            <button
+              type="button"
+              onClick={onSpend}
+              className="text-xs font-black text-emerald-700"
+            >
+              Spend
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onEdit}
+            className="text-xs font-black text-blue-600"
+          >
+            Edit
+          </button>
+        </div>
       </div>
     </div>
   );
