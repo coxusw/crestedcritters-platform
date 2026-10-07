@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import {
-  ActualExpense, BucketContribution, Debt, Expense, FutureExpense, IncomeEntry, Paycheck, Person, PlanTab, RecurringBill, PERSONAL_SPENDING_CATEGORIES, dateLabel, expenseDisplayName, expensePlanGroup, isClosedFundStatus, money, monthlyEquivalent, normalizeSpendingCategory, num, paycheckCountsAsFunded, spendingCategoryForExpense, todayIso
+  ActualExpense, BucketContribution, Debt, Expense, FutureExpense, IncomeEntry, Paycheck, Person, PlanTab, RecurringBill, PERSONAL_SPENDING_CATEGORIES, coalesceFundDeadline, dateLabel, expenseDisplayName, expensePlanGroup, isClosedFundStatus, money, monthlyEquivalent, normalizeSpendingCategory, num, paycheckCountsAsFunded, spendingCategoryForExpense, todayIso
 } from "./budgetModel";
 import { BudgetMeter, Field, Modal, PlanExpenseSection } from "./BudgetUi";
 
