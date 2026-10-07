@@ -128,6 +128,17 @@ export default function BudgetDashboard() {
       return;
     }
 
+    const { error: autoFundError } = await supabase.rpc(
+      "refresh_budget_auto_fund_plans",
+      { p_reference_date: localToday }
+    );
+
+    if (autoFundError) {
+      setError(autoFundError.message);
+      setLoading(false);
+      return;
+    }
+
     const { error: allocationError } = await supabase.rpc(
       "refresh_budget_forecast_surplus_allocations",
       { p_reference_date: localToday }
