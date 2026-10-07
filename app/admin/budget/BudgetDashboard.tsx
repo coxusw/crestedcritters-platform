@@ -3295,7 +3295,6 @@ export default function BudgetDashboard() {
                       </p>
                     )}
                   </div>
-                  </div>
                 </section>
               )}
 
