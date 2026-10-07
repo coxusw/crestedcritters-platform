@@ -696,6 +696,19 @@ export default function BudgetDashboard() {
       return;
     }
 
+    const { error: surplusError } = await supabase.rpc(
+      "refresh_budget_forecast_surplus_allocations",
+      { p_reference_date: paycheck.paycheck_date }
+    );
+
+    if (surplusError) {
+      setError(
+        `Paycheck was saved, but the plan could not be fully reworked: ${surplusError.message}`
+      );
+      setSaving(false);
+      return;
+    }
+
     setEditor(null);
     setView("reviews");
     setNotice(
@@ -773,6 +786,31 @@ export default function BudgetDashboard() {
     if (balanceError) {
       setError(
         `Income was saved, but the checking balance could not be reconciled: ${balanceError.message}`
+      );
+      setSaving(false);
+      return;
+    }
+
+    const { error: incomeRecalcError } = await supabase.rpc(
+      "recalculate_budget_paychecks"
+    );
+
+    if (incomeRecalcError) {
+      setError(
+        `Income was saved, but the budget totals could not be refreshed: ${incomeRecalcError.message}`
+      );
+      setSaving(false);
+      return;
+    }
+
+    const { error: incomeSurplusError } = await supabase.rpc(
+      "refresh_budget_forecast_surplus_allocations",
+      { p_reference_date: payload.assigned_paycheck }
+    );
+
+    if (incomeSurplusError) {
+      setError(
+        `Income was saved, but the plan could not be fully reworked: ${incomeSurplusError.message}`
       );
       setSaving(false);
       return;
