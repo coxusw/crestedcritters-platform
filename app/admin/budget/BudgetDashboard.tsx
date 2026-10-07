@@ -1495,27 +1495,21 @@ export default function BudgetDashboard() {
     if (!paycheck) return [];
 
     const suggestions: Array<{
-      kind:
-        | "shortfall"
-        | "dealership"
-        | "emergency"
-        | "high-interest"
-        | "bucket"
-        | "future";
+      kind: "shortfall" | "dealership" | "emergency" | "debt";
       title: string;
       detail: string;
       amount: number;
     }> = [];
 
-    let remaining = Math.max(0, availableExtra);
+    // Keep the first $500 unassigned. Extra money above that follows the same
+    // milestone order used by the rolling forecast.
+    let remaining = Math.max(0, availableExtra - 500);
     if (remaining <= 0) return suggestions;
 
     const futureChecks = paychecks.filter(
       (row) => row.paycheck_date > paycheck.paycheck_date
     );
 
-    // Keep near-term paycheck shortfalls visible so the priority ladder never
-    // ignores bills that are already expected to exceed a future check.
     for (const row of futureChecks) {
       if (remaining <= 0) break;
       const projected = num(row.projected_check);
@@ -1529,13 +1523,12 @@ export default function BudgetDashboard() {
         title: `Protect the ${dateLabel(row.paycheck_date)} paycheck`,
         detail: `That paycheck is currently projected ${money(
           shortfall
-        )} short. Holding this amount now keeps the future plan from going negative.`,
+        )} short. Holding this amount prevents the known plan from going negative.`,
         amount,
       });
       remaining -= amount;
     }
 
-    // Finish the deferred dealership down payment before starting the emergency fund.
     const dealershipItems = futurePlanExpenses
       .filter((item) => {
         if (
@@ -1564,13 +1557,12 @@ export default function BudgetDashboard() {
         title: `Finish ${item.line_item || "dealership down payment"}`,
         detail: `This is currently planned for ${dateLabel(
           item.assigned_paycheck
-        )}. The $1,000 emergency-fund goal comes immediately after the dealership balance is covered.`,
+        )}. The emergency-fund milestone comes immediately after it.`,
         amount,
       });
       remaining -= amount;
     }
 
-    // First true savings milestone: $1,000 emergency fund.
     const emergencyFund = futureExpenses.find((item) =>
       (item.event_fund || "").toLowerCase().includes("emergency fund")
     );
@@ -1587,31 +1579,52 @@ export default function BudgetDashboard() {
         .reduce((sum, row) => sum + num(row.planned_amount), 0);
       const spent = num(emergencyFund.actual_funding_spend);
       const availableInFund = funded - spent;
-      const needed = Math.max(
-        0,
-        num(emergencyFund.target_budget) - availableInFund
-      );
+      const target = num(emergencyFund.target_budget);
+      const needed = Math.max(0, target - availableInFund);
 
       if (needed > 0) {
         const amount = Math.min(remaining, needed);
         suggestions.push({
           kind: "emergency",
-          title: "Build the $1,000 emergency fund",
+          title: `Build Emergency Fund to ${money(target)}`,
           detail: `Currently ${money(
             Math.max(0, availableInFund)
-          )} of ${money(
-            num(emergencyFund.target_budget)
-          )} is actually funded. Future planned money does not count until the income is received.`,
+          )} is actually funded. Future planned contributions do not become available until the paycheck is received.`,
           amount,
         });
         remaining -= amount;
       }
     }
 
-    // After the emergency fund, extra debt money follows the household's
-    // explicit drag-and-drop priority order. Required minimums are already
-    // included in planned spending, so this only controls EXTRA payoff money.
-    for (const debtTarget of debtSignals) {
+    const regularDebtTargets = debtSignals.filter(
+      ({ debt }) =>
+        !["auto loan", "mortgage"].includes(
+          (debt.debt_type || "").trim().toLowerCase()
+        )
+    );
+
+    const jeepTarget = debtSignals.find(
+      ({ debt }) =>
+        (debt.debt_type || "").trim().toLowerCase() === "auto loan" &&
+        (debt.name || "").toLowerCase().includes("jeep")
+    );
+
+    const vanTarget = debtSignals.find(
+      ({ debt }) =>
+        (debt.debt_type || "").trim().toLowerCase() === "auto loan" &&
+        ((debt.name || "").toLowerCase().includes("van") ||
+          (debt.name || "").toLowerCase().includes("pacifica"))
+    );
+
+    const debtTargets = regularDebtTargets.length
+      ? regularDebtTargets
+      : jeepTarget
+        ? [jeepTarget]
+        : vanTarget
+          ? [vanTarget]
+          : [];
+
+    for (const debtTarget of debtTargets) {
       if (remaining <= 0) break;
 
       const balance = num(debtTarget.debt.current_balance);
@@ -1619,88 +1632,11 @@ export default function BudgetDashboard() {
 
       const amount = Math.min(remaining, balance);
       suggestions.push({
-        kind: "high-interest",
-        title: `Priority #${num(debtTarget.debt.priority_rank) || "—"}: ${
-          debtTarget.debt.name
-        }`,
-        detail: `Extra debt payoff follows your saved priority order. ${
+        kind: "debt",
+        title: `Extra payment — ${debtTarget.debt.name}`,
+        detail:
           debtTarget.reasons[0] ||
-          "Minimum payment remains in the regular paycheck plan."
-        }`,
-        amount,
-      });
-      remaining -= amount;
-    }
-
-    const bucketsByDeadline = [...futureExpenses]
-      .filter(
-        (item) =>
-          !isClosedFundStatus(item.status) &&
-          !(item.event_fund || "").toLowerCase().includes("emergency fund")
-      )
-      .sort((a, b) =>
-        (a.funding_deadline || a.due_date || "9999-12-31").localeCompare(
-          b.funding_deadline || b.due_date || "9999-12-31"
-        )
-      );
-
-    for (const bucket of bucketsByDeadline) {
-      if (remaining <= 0) break;
-
-      const funded = bucketFundedThrough(bucket.id, "9999-12-31");
-
-      const needed = Math.max(0, num(bucket.target_budget) - funded);
-      if (needed <= 0) continue;
-
-      const amount = Math.min(remaining, needed);
-      suggestions.push({
-        kind: "bucket",
-        title: `Add more to ${bucket.event_fund || "sinking fund"}`,
-        detail: `Currently accumulated ${money(funded)} of ${money(
-          num(bucket.target_budget)
-        )}. Extra funding now reduces what later paychecks need to contribute.`,
-        amount,
-      });
-      remaining -= amount;
-    }
-
-    const futureRequired = futurePlanExpenses
-      .filter((item) => {
-        if (
-          !item.assigned_paycheck ||
-          item.assigned_paycheck <= paycheck.paycheck_date
-        ) {
-          return false;
-        }
-        if (item.status === "Cancelled" || item.status === "Deferred") {
-          return false;
-        }
-        if (num(item.planned_amount) <= 0) return false;
-        const type = (item.expense_type || "").toLowerCase();
-        const name = (item.line_item || "").toLowerCase();
-        return (
-          !type.includes("sinking") &&
-          !type.includes("optional") &&
-          !name.includes("dealership deferred down payment")
-        );
-      })
-      .sort((a, b) => {
-        const dateCompare = (a.assigned_paycheck || "").localeCompare(
-          b.assigned_paycheck || ""
-        );
-        if (dateCompare !== 0) return dateCompare;
-        return num(b.planned_amount) - num(a.planned_amount);
-      });
-
-    for (const item of futureRequired.slice(0, 4)) {
-      if (remaining <= 0) break;
-      const amount = Math.min(remaining, num(item.planned_amount));
-      suggestions.push({
-        kind: "future",
-        title: `Prepay or set aside for ${item.line_item || "future expense"}`,
-        detail: `This is currently planned for ${dateLabel(
-          item.assigned_paycheck
-        )} at ${money(num(item.planned_amount))}.`,
+          "Minimum payment remains in the regular paycheck plan; this is extra principal/payoff money.",
         amount,
       });
       remaining -= amount;
