@@ -1702,7 +1702,12 @@ export default function BudgetDashboard() {
 
         return { debt, score, reasons };
       })
-      .sort((a, b) => b.score - a.score || num(b.debt.current_balance) - num(a.debt.current_balance));
+      .sort(
+        (a, b) =>
+          (num(a.debt.priority_rank) || 9999) -
+            (num(b.debt.priority_rank) || 9999) ||
+          a.debt.name.localeCompare(b.debt.name)
+      );
   }, [debts]);
 
   const fundedPaycheckDates = useMemo(
@@ -1865,42 +1870,25 @@ export default function BudgetDashboard() {
       }
     }
 
-    // After the emergency fund, use the structured debt details instead of
-    // guessing from the bill name. Interest, settlement offers, and deadlines
-    // can all change which balance deserves extra money first.
-    const debtTarget = debtSignals.find(({ debt }) => {
-      const apr =
-        debt.apr == null || String(debt.apr).trim() === ""
-          ? null
-          : num(debt.apr);
-      const settlement =
-        num(debt.settlement_offer_amount) > 0 &&
-        num(debt.settlement_offer_amount) < num(debt.current_balance);
-      const urgentTerm =
-        !!debt.term_end_date && debt.term_end_date <= addDays(todayIso(), 180);
-      const urgentPromo =
-        !!debt.promo_end_date && debt.promo_end_date <= addDays(todayIso(), 90);
+    // After the emergency fund, extra debt money follows the household's
+    // explicit drag-and-drop priority order. Required minimums are already
+    // included in planned spending, so this only controls EXTRA payoff money.
+    for (const debtTarget of debtSignals) {
+      if (remaining <= 0) break;
 
-      return (
-        debt.priority_override === "High" ||
-        (apr != null && apr > 0) ||
-        settlement ||
-        urgentTerm ||
-        urgentPromo
-      );
-    });
+      const balance = num(debtTarget.debt.current_balance);
+      if (balance <= 0) continue;
 
-    if (remaining > 0 && debtTarget) {
-      const amount = Math.min(
-        remaining,
-        num(debtTarget.debt.current_balance)
-      );
+      const amount = Math.min(remaining, balance);
       suggestions.push({
         kind: "high-interest",
-        title: `Extra payment: ${debtTarget.debt.name}`,
-        detail:
+        title: `Priority #${num(debtTarget.debt.priority_rank) || "—"}: ${
+          debtTarget.debt.name
+        }`,
+        detail: `Extra debt payoff follows your saved priority order. ${
           debtTarget.reasons[0] ||
-          "This debt currently ranks above lower-cost balances for extra payments.",
+          "Minimum payment remains in the regular paycheck plan."
+        }`,
         amount,
       });
       remaining -= amount;
