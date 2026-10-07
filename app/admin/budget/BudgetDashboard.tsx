@@ -12,11 +12,9 @@ import {
   FutureExpense,
   IncomeEntry,
   Paycheck,
-  Person,
   PlanTab,
   RecurringBill,
   View,
-  PERSONAL_SPENDING_CATEGORIES,
   addDays,
   addMonths,
   coalesceFundDeadline,
@@ -46,12 +44,10 @@ import {
 } from "./BudgetEditors";
 import {
   ActualExpenseRow,
-  ApprovalButton,
   BudgetMeter,
   ExpenseRow,
   CountCard,
   MiniStat,
-  PersonCard,
   PlanExpenseSection,
   RecurringRow,
   ReviewStat,
@@ -79,7 +75,6 @@ export default function BudgetDashboard() {
   const [planTab, setPlanTab] = useState<PlanTab>("all");
   const [moreTab, setMoreTab] = useState<"debts" | "recurring" | "future">("debts");
   const [expandedBucketId, setExpandedBucketId] = useState<string | null>(null);
-  const [people, setPeople] = useState<Person[]>([]);
   const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([]);
   const [bucketContributions, setBucketContributions] = useState<BucketContribution[]>([]);
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
@@ -89,8 +84,6 @@ export default function BudgetDashboard() {
   const [debts, setDebts] = useState<Debt[]>([]);
   const [draggedDebtId, setDraggedDebtId] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
-  const [chrisApproved, setChrisApproved] = useState(false);
-  const [jenApproved, setJenApproved] = useState(false);
 
   async function loadData(showSpinner = false) {
     if (showSpinner) setLoading(true);
@@ -157,80 +150,66 @@ export default function BudgetDashboard() {
 
     const [
       expenseResult,
-      peopleResult,
       futureResult,
       recurringResult,
       actualResult,
-      categoryResult,
       bucketContributionResult,
       incomeResult,
       futurePlanResult,
       debtResult,
     ] = await Promise.all([
-        supabase
-          .from("budget_expenses")
-          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
-          .eq("assigned_paycheck", selected.paycheck_date)
-          .order("due_date", { ascending: true, nullsFirst: false })
-          .order("planned_amount", { ascending: false, nullsFirst: false }),
-        supabase
-          .from("budget_people")
-          .select("name,default_discretionary")
-          .eq("active", true)
-          .order("name", { ascending: true }),
-        supabase
-          .from("budget_future_expenses")
-          .select("id,event_fund,due_date,target_budget,planned_funding,actual_funding_spend,remaining_to_plan,remaining_actual,status,notes,funding_start_paycheck,funding_deadline,auto_fund,repeat_annually,funding_deadline_rule,closed_at,closeout_amount,closeout_destination,closeout_destination_fund_id,closeout_assigned_paycheck")
-          .order("due_date", { ascending: true, nullsFirst: false }),
-        supabase
-          .from("budget_recurring_bills")
-          .select("id,category,item,amount,frequency,monthly_equivalent,due_timing,payment_grace_days,active,notes,linked_debt_id")
-          .eq("active", true)
-          .order("category", { ascending: true })
-          .order("item", { ascending: true }),
-        supabase
-          .from("budget_actual_expenses")
-          .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,planned_expense_id,debt_id,created_at")
-          .eq("assigned_paycheck", selected.paycheck_date)
-          .order("spent_date", { ascending: false })
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("budget_categories")
-          .select("name")
-          .eq("active", true)
-          .order("name", { ascending: true }),
-        supabase
-          .from("budget_expenses")
-          .select("future_expense_id,assigned_paycheck,planned_amount,status")
-          .not("future_expense_id", "is", null)
-          .order("assigned_paycheck", { ascending: true }),
-        supabase
-          .from("budget_income_entries")
-          .select("id,received_date,assigned_paycheck,source,amount,note,income_type")
-          .eq("assigned_paycheck", selected.paycheck_date)
-          .order("received_date", { ascending: false }),
-        supabase
-          .from("budget_expenses")
-          .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
-          .gte("assigned_paycheck", selected.paycheck_date)
-          .neq("status", "Cancelled")
-          .order("assigned_paycheck", { ascending: true })
-          .order("due_date", { ascending: true, nullsFirst: false })
-          .order("planned_amount", { ascending: false, nullsFirst: false }),
-        supabase
-          .from("budget_debts")
-          .select("id,name,creditor,debt_type,current_balance,original_balance,apr,minimum_payment,payment_frequency,due_timing,payment_grace_days,term_end_date,promo_end_date,settlement_offer_amount,settlement_offer_expires,settlement_notes,linked_budget_line_item,priority_override,notes,active,payoff_status,paid_off_at,priority_rank,balance_estimated")
-          .eq("active", true)
-          .order("name", { ascending: true }),
-      ]);
+      supabase
+        .from("budget_expenses")
+        .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
+        .eq("assigned_paycheck", selected.paycheck_date)
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .order("planned_amount", { ascending: false, nullsFirst: false }),
+      supabase
+        .from("budget_future_expenses")
+        .select("id,event_fund,due_date,target_budget,planned_funding,actual_funding_spend,remaining_to_plan,remaining_actual,status,notes,funding_start_paycheck,funding_deadline,auto_fund,repeat_annually,funding_deadline_rule,closed_at,closeout_amount,closeout_destination,closeout_destination_fund_id,closeout_assigned_paycheck")
+        .order("due_date", { ascending: true, nullsFirst: false }),
+      supabase
+        .from("budget_recurring_bills")
+        .select("id,category,item,amount,frequency,monthly_equivalent,due_timing,payment_grace_days,active,notes,linked_debt_id")
+        .eq("active", true)
+        .order("category", { ascending: true })
+        .order("item", { ascending: true }),
+      supabase
+        .from("budget_actual_expenses")
+        .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,planned_expense_id,debt_id,created_at")
+        .eq("assigned_paycheck", selected.paycheck_date)
+        .order("spent_date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("budget_expenses")
+        .select("future_expense_id,assigned_paycheck,planned_amount,status")
+        .not("future_expense_id", "is", null)
+        .order("assigned_paycheck", { ascending: true }),
+      supabase
+        .from("budget_income_entries")
+        .select("id,received_date,assigned_paycheck,source,amount,note,income_type")
+        .eq("assigned_paycheck", selected.paycheck_date)
+        .order("received_date", { ascending: false }),
+      supabase
+        .from("budget_expenses")
+        .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id")
+        .gte("assigned_paycheck", selected.paycheck_date)
+        .neq("status", "Cancelled")
+        .order("assigned_paycheck", { ascending: true })
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .order("planned_amount", { ascending: false, nullsFirst: false }),
+      supabase
+        .from("budget_debts")
+        .select("id,name,creditor,debt_type,current_balance,original_balance,apr,minimum_payment,payment_frequency,due_timing,payment_grace_days,term_end_date,promo_end_date,settlement_offer_amount,settlement_offer_expires,settlement_notes,linked_budget_line_item,priority_override,notes,active,payoff_status,paid_off_at,priority_rank,balance_estimated")
+        .eq("active", true)
+        .order("name", { ascending: true }),
+    ]);
 
     const firstError =
       expenseResult.error ||
-      peopleResult.error ||
       futureResult.error ||
       recurringResult.error ||
       actualResult.error ||
-      categoryResult.error ||
       bucketContributionResult.error ||
       incomeResult.error ||
       futurePlanResult.error ||
@@ -250,7 +229,6 @@ export default function BudgetDashboard() {
     setPaychecks(visiblePaychecks);
     setPaycheckDates(visiblePaychecks.map((row) => row.paycheck_date));
     setExpenses((expenseResult.data || []) as Expense[]);
-    setPeople((peopleResult.data || []) as Person[]);
     setFutureExpenses((futureResult.data || []) as FutureExpense[]);
     setBucketContributions((bucketContributionResult.data || []) as BucketContribution[]);
     setRecurringBills((recurringResult.data || []) as RecurringBill[]);
@@ -262,17 +240,11 @@ export default function BudgetDashboard() {
       new Set(
         ((expenseResult.data || []) as Expense[])
           .map(spendingCategoryForExpense)
-          .filter(
-            (category) =>
-              !!category &&
-              !PERSONAL_SPENDING_CATEGORIES.includes(
-                category as (typeof PERSONAL_SPENDING_CATEGORIES)[number]
-              )
-          )
+          .filter(Boolean)
       )
     ).sort((a, b) => a.localeCompare(b));
 
-    setCategories([...PERSONAL_SPENDING_CATEGORIES, ...currentBudgetItems]);
+    setCategories(currentBudgetItems);
     setLoading(false);
   }
 
@@ -417,9 +389,7 @@ export default function BudgetDashboard() {
         ? `${editor.item.event_fund || "Sinking fund"} closed with ${money(
             leftover
           )} moved ${
-            result.destination === "discretionary"
-              ? "evenly to Chris and Jennifer discretionary spending"
-              : result.destination === "buffer"
+            result.destination === "buffer"
                 ? "to the forgotten / unplanned expense buffer"
                 : result.destination === "next_fund"
                   ? `to ${result.destination_fund_name || "the next sinking fund"}`
@@ -1301,17 +1271,6 @@ export default function BudgetDashboard() {
     [futureExpenses, paycheck?.paycheck_date]
   );
 
-  const discretionaryCloseoutBonus = useMemo(() => {
-    const total = currentCloseoutTransfers
-      .filter((item) => item.closeout_destination === "discretionary")
-      .reduce((sum, item) => sum + num(item.closeout_amount), 0);
-    const chris = Math.floor((total * 100) / 2) / 100;
-    return {
-      chris,
-      jen: Math.round((total - chris) * 100) / 100,
-    };
-  }, [currentCloseoutTransfers]);
-
   const bufferCloseoutBonus = useMemo(
     () =>
       currentCloseoutTransfers
@@ -1341,13 +1300,7 @@ export default function BudgetDashboard() {
         (expense) =>
           spendingCategoryForExpense(expense) === spendingCategory
       );
-      const isPersonalSpending = PERSONAL_SPENDING_CATEGORIES.includes(
-        spendingCategory as (typeof PERSONAL_SPENDING_CATEGORIES)[number]
-      );
-      const category =
-        matchingPlan?.category ||
-        (isPersonalSpending ? "Personal" : item.category) ||
-        "Other";
+      const category = matchingPlan?.category || item.category || "Other";
       const row = map.get(category) || { category, planned: 0, actual: 0 };
       row.actual += num(item.amount);
       map.set(category, row);
@@ -1373,23 +1326,6 @@ export default function BudgetDashboard() {
       map.set(category, row);
     }
 
-    for (const person of people) {
-      const category = `${person.name} spending`;
-      if (!map.has(category)) {
-        map.set(category, {
-          category,
-          planned: num(person.default_discretionary),
-          actual: 0,
-        });
-      }
-    }
-
-    for (const category of PERSONAL_SPENDING_CATEGORIES) {
-      if (!map.has(category)) {
-        map.set(category, { category, planned: 0, actual: 0 });
-      }
-    }
-
     for (const item of actualExpenses) {
       const category =
         normalizeSpendingCategory(item.category) || "Other";
@@ -1405,51 +1341,8 @@ export default function BudgetDashboard() {
       map.set(category, row);
     }
 
-    if (discretionaryCloseoutBonus.chris > 0) {
-      const category = "Chris spending";
-      const row = map.get(category) || { category, planned: 0, actual: 0 };
-      row.planned += discretionaryCloseoutBonus.chris;
-      map.set(category, row);
-    }
-
-    if (discretionaryCloseoutBonus.jen > 0) {
-      const category = "Jen spending";
-      const row = map.get(category) || { category, planned: 0, actual: 0 };
-      row.planned += discretionaryCloseoutBonus.jen;
-      map.set(category, row);
-    }
-
     return Array.from(map.values());
-  }, [
-    expenses,
-    people,
-    actualExpenses,
-    bufferCloseoutBonus,
-    discretionaryCloseoutBonus,
-  ]);
-
-  const personalSpendingByName = useMemo(() => {
-    const totals = new Map<string, number>();
-
-    for (const person of people) {
-      totals.set(person.name.toLowerCase(), 0);
-    }
-
-    for (const item of actualExpenses) {
-      const category = normalizeSpendingCategory(item.category).toLowerCase();
-
-      for (const person of people) {
-        if (category === `${person.name.toLowerCase()} spending`) {
-          totals.set(
-            person.name.toLowerCase(),
-            (totals.get(person.name.toLowerCase()) || 0) + num(item.amount)
-          );
-        }
-      }
-    }
-
-    return totals;
-  }, [people, actualExpenses]);
+  }, [expenses, actualExpenses, bufferCloseoutBonus]);
 
   const debtSignals = useMemo(() => {
     const today = todayIso();
@@ -1823,69 +1716,24 @@ export default function BudgetDashboard() {
       ?.event_fund ||
     "Other sinking fund";
 
-  const discretionaryRows = expenses.filter((expense) =>
-    (expense.line_item || "").toLowerCase().includes("discretionary spending")
-  );
-  const discretionaryTotal = discretionaryRows.reduce(
-    (sum, expense) => sum + num(expense.planned_amount),
-    0
-  );
-  const currentEach =
-    people.length > 0
-      ? people.reduce(
-          (sum, person) => sum + num(person.default_discretionary),
-          0
-        ) / people.length
-      : 200;
-
-  const basePlanWithoutDiscretionary = planned - discretionaryTotal;
-  const baseExtra = cashAvailable - basePlanWithoutDiscretionary;
-  const suggestedEach =
-    availableExtra >= 0
-      ? currentEach
-      : Math.max(
-          0,
-          Math.min(currentEach, Math.floor(baseExtra / 2 / 25) * 25)
-        );
-  const suggestedExtra =
-    cashAvailable - basePlanWithoutDiscretionary - suggestedEach * 2;
-
   const reviewText = useMemo(() => {
     if (!paycheck) return "";
     if (availableExtra >= 250) {
       return `This paycheck leaves ${money(
         availableExtra
-      )} after the current plan, including ${money(
-        currentEach
-      )} each for Chris and Jen. No discretionary cut is needed based on the current numbers.`;
+      )} after the current plan. That gives you room to strengthen the buffer, fund an upcoming need early, or follow your debt priority order.`;
     }
     if (availableExtra >= 0) {
-      return `The plan fits, but only ${money(
+      return `The plan fits, with ${money(
         availableExtra
-      )} remains. The current ${money(
-        currentEach
-      )} each is possible, but the review should consider whether some of that would be better held as cushion.`;
-    }
-    if (baseExtra < 0) {
-      return `The current plan is ${money(
-        Math.abs(availableExtra)
-      )} short. Even reducing both discretionary allowances to $0 would still leave the core plan ${money(
-        Math.abs(baseExtra)
-      )} short, so another planned expense also needs to move, shrink, or be deferred.`;
+      )} left after planned spending. Keeping that amount as cushion is reasonable unless a higher-priority need comes up.`;
     }
     return `The current plan is ${money(
       Math.abs(availableExtra)
-    )} short with ${money(
-      currentEach
-    )} each in discretionary spending. A temporary allowance of about ${money(
-      suggestedEach
-    )} each would bring this paycheck back inside the available income.`;
-  }, [availableExtra, baseExtra, currentEach, paycheck, suggestedEach]);
+    )} short, so at least one planned expense needs to move, shrink, or be deferred before this paycheck is finalized.`;
+  }, [availableExtra, paycheck]);
 
-  const normalExpenses = expenses.filter(
-    (expense) =>
-      !(expense.line_item || "").toLowerCase().includes("discretionary spending")
-  );
+  const normalExpenses = expenses;
 
   if (loading) {
     return (
@@ -2002,7 +1850,7 @@ export default function BudgetDashboard() {
                     Base {money(basePaycheckIncome)}
                     {additionalIncome > 0
                       ? ` + ${money(additionalIncome)} additional income`
-                      : ""} · Includes {money(currentEach)} each for Chris + Jen
+                      : ""}
                     {checkingBalance == null
                       ? " · Checking not reconciled yet"
                       : ` · Reconciliation ${money(reconciliationAdjustment)}`}
@@ -2025,33 +1873,6 @@ export default function BudgetDashboard() {
                     ? "Update paycheck & checking balance"
                     : "Enter paycheck & checking balance"}
                 </button>
-              </section>
-
-              <section>
-                <div className="mb-2 px-1">
-                  <h2 className="text-lg font-black">Personal spending</h2>
-                  <p className="text-xs text-slate-500">
-                    Remaining this pay period. Spending logged to Chris or Jen
-                    reduces that person&apos;s balance.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {people.map((person) => (
-                    <PersonCard
-                      key={person.name}
-                      name={person.name.toLowerCase() === "jen" ? "Jennifer" : person.name}
-                      allowance={
-                        num(person.default_discretionary) +
-                        (person.name.toLowerCase() === "chris"
-                          ? discretionaryCloseoutBonus.chris
-                          : person.name.toLowerCase() === "jen"
-                            ? discretionaryCloseoutBonus.jen
-                            : 0)
-                      }
-                      spent={personalSpendingByName.get(person.name.toLowerCase()) || 0}
-                    />
-                  ))}
-                </div>
               </section>
 
               <button
@@ -2215,7 +2036,7 @@ export default function BudgetDashboard() {
               {(planTab === "spending" || planTab === "all") && (
                 <PlanExpenseSection
                   title="Spending"
-                  subtitle="Chris and Jennifer discretionary, forgotten/unplanned buffer, vehicle fuel, and food."
+                  subtitle="Forgotten/unplanned buffer, vehicle fuel, and food."
                   expenses={planSpending}
                   onEdit={(expense) =>
                     setEditor({ type: "expense", item: expense })
@@ -2496,67 +2317,6 @@ export default function BudgetDashboard() {
                       ))}
                     </div>
                   </div>
-
-                  <div className="flex items-end justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-bold text-slate-500">
-                        Suggested allowance
-                      </p>
-                      <p className="mt-1 text-3xl font-black">
-                        {money(suggestedEach)}
-                        <span className="ml-1 text-xs font-bold text-slate-500">
-                          each
-                        </span>
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-slate-500">
-                        Extra after suggestion
-                      </p>
-                      <p
-                        className={`text-xl font-black ${
-                          suggestedExtra < 0
-                            ? "text-rose-600"
-                            : "text-slate-950"
-                        }`}
-                      >
-                        {money(suggestedExtra)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-                    A discretionary change is not applied until{" "}
-                    <strong>both Chris and Jen</strong> approve the same amount.
-                  </p>
-
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <ApprovalButton
-                      name="Chris"
-                      approved={chrisApproved}
-                      onClick={() => setChrisApproved((value) => !value)}
-                    />
-                    <ApprovalButton
-                      name="Jen"
-                      approved={jenApproved}
-                      onClick={() => setJenApproved((value) => !value)}
-                    />
-                  </div>
-
-                  <button
-                    disabled={
-                      !chrisApproved ||
-                      !jenApproved ||
-                      suggestedEach === currentEach
-                    }
-                    className="mt-3 w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:bg-slate-300 disabled:text-slate-500"
-                  >
-                    {suggestedEach === currentEach
-                      ? "No change recommended"
-                      : chrisApproved && jenApproved
-                        ? `Ready to apply ${money(suggestedEach)} each`
-                        : "Waiting for both approvals"}
-                  </button>
 
                   {paycheck.review_required && (
                     <button

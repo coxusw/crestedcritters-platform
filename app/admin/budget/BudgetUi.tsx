@@ -134,37 +134,6 @@ export function Stat({
   );
 }
 
-export function PersonCard({
-  name,
-  allowance,
-  spent,
-}: {
-  name: string;
-  allowance: number;
-  spent: number;
-}) {
-  const remaining = allowance - spent;
-  const over = remaining < 0;
-
-  return (
-    <article className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-      <p className="text-xs font-bold text-slate-500">{name}</p>
-      <p
-        className={`mt-1 text-xl font-black ${
-          over ? "text-rose-600" : "text-slate-950"
-        }`}
-      >
-        {over
-          ? `${money(Math.abs(remaining))} over`
-          : `${money(remaining)} remaining`}
-      </p>
-      <p className="mt-1 text-[10px] text-slate-400">
-        {money(spent)} spent of {money(allowance)}
-      </p>
-    </article>
-  );
-}
-
 export function PlanExpenseSection({
   title,
   subtitle,
@@ -420,32 +389,6 @@ export function ReviewStat({ label, value }: { label: string; value: string }) {
       <span className="block text-[10px] text-slate-500">{label}</span>
       <strong className="mt-1 block text-sm">{value}</strong>
     </div>
-  );
-}
-
-export function ApprovalButton({
-  name,
-  approved,
-  onClick,
-}: {
-  name: string;
-  approved: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-xl border p-3 text-left ${
-        approved
-          ? "border-emerald-300 bg-emerald-50"
-          : "border-slate-200 bg-white"
-      }`}
-    >
-      <span className="block text-xs text-slate-500">{name}</span>
-      <strong className={approved ? "text-emerald-700" : "text-slate-950"}>
-        {approved ? "Approved ✓" : "Approve"}
-      </strong>
-    </button>
   );
 }
 
