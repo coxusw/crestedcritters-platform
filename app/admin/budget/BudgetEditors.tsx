@@ -537,7 +537,11 @@ export function PaycheckEditor({
       ? ""
       : String(paycheck.reconciled_checking_balance);
   const defaultBalanceTiming =
-    paycheck.paycheck_date > todayIso() ? "before" : "after";
+    num(paycheck.actual_check) > 0
+      ? "after"
+      : paycheck.paycheck_date > todayIso()
+        ? "before"
+        : "after";
 
   return (
     <Modal
