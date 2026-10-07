@@ -631,6 +631,13 @@ export default function BudgetDashboard() {
     const actualCheck = Number(data.get("actual_check") || 0);
     const checkingBalanceRaw = String(data.get("reconciled_checking_balance") ?? "").trim();
     const checkingBalance = Number(checkingBalanceRaw);
+    const checkingBalanceTiming = String(
+      data.get("checking_balance_timing") || "after"
+    );
+    const reconciledCheckingBalance =
+      checkingBalanceTiming === "before"
+        ? checkingBalance + actualCheck
+        : checkingBalance;
 
     if (
       actualCheck <= 0 ||
@@ -646,10 +653,13 @@ export default function BudgetDashboard() {
       .from("budget_paychecks")
       .update({
         actual_check: actualCheck,
-        reconciled_checking_balance: checkingBalance,
+        reconciled_checking_balance: reconciledCheckingBalance,
         period_status: "Received",
         review_required: true,
-        review_reason: "Paycheck received and checking balance reconciled",
+        review_reason:
+          checkingBalanceTiming === "before"
+            ? "Paycheck confirmed before deposit; current checking balance projected forward with the deposit"
+            : "Paycheck received and checking balance reconciled",
         review_triggered_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -689,7 +699,9 @@ export default function BudgetDashboard() {
     setEditor(null);
     setView("reviews");
     setNotice(
-      "Paycheck and current checking balance saved. Budget review refreshed from the real bank balance."
+      checkingBalanceTiming === "before"
+        ? "Paycheck saved. The budget added the paycheck to the current pre-deposit checking balance."
+        : "Paycheck and current checking balance saved. Budget review refreshed from the real bank balance."
     );
     await loadData();
     setSaving(false);
@@ -706,6 +718,9 @@ export default function BudgetDashboard() {
     const data = new FormData(event.currentTarget);
     const checkingBalanceRaw = String(data.get("reconciled_checking_balance") ?? "").trim();
     const checkingBalance = Number(checkingBalanceRaw);
+    const checkingBalanceTiming = String(
+      data.get("checking_balance_timing") || "after"
+    );
     const payload = {
       received_date: String(data.get("received_date") || todayIso()),
       assigned_paycheck: String(
@@ -716,6 +731,10 @@ export default function BudgetDashboard() {
       note: String(data.get("note") || "").trim() || null,
       income_type: "Additional",
     };
+    const reconciledCheckingBalance =
+      checkingBalanceTiming === "before"
+        ? checkingBalance + payload.amount
+        : checkingBalance;
 
     if (
       !payload.source ||
@@ -746,7 +765,7 @@ export default function BudgetDashboard() {
     const { error: balanceError } = await supabase
       .from("budget_paychecks")
       .update({
-        reconciled_checking_balance: checkingBalance,
+        reconciled_checking_balance: reconciledCheckingBalance,
         updated_at: new Date().toISOString(),
       })
       .eq("paycheck_date", payload.assigned_paycheck);
@@ -764,7 +783,9 @@ export default function BudgetDashboard() {
     setNotice(
       editor.item
         ? "Additional income and checking balance updated. Budget review refreshed."
-        : "Additional income logged with the current checking balance. Budget review triggered."
+        : checkingBalanceTiming === "before"
+          ? "Additional income logged. The budget added it to the pre-deposit checking balance."
+          : "Additional income logged with the current checking balance. Budget review triggered."
     );
     await loadData();
     setSaving(false);
