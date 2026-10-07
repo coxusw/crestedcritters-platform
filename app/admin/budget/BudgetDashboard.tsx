@@ -332,6 +332,7 @@ export default function BudgetDashboard() {
   const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>([]);
   const [futurePlanExpenses, setFuturePlanExpenses] = useState<Expense[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [draggedDebtId, setDraggedDebtId] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [chrisApproved, setChrisApproved] = useState(false);
   const [jenApproved, setJenApproved] = useState(false);
@@ -1061,6 +1062,72 @@ export default function BudgetDashboard() {
       await loadData();
     }
     setSaving(false);
+  }
+
+  const orderedActiveDebts = () =>
+    debts
+      .filter(
+        (debt) =>
+          debt.active &&
+          debt.payoff_status === "Active" &&
+          num(debt.current_balance) > 0
+      )
+      .slice()
+      .sort(
+        (a, b) =>
+          (num(a.priority_rank) || 9999) - (num(b.priority_rank) || 9999) ||
+          a.name.localeCompare(b.name)
+      );
+
+  async function persistDebtPriority(nextOrder: Debt[]) {
+    const ids = nextOrder.map((debt) => debt.id);
+    const rankById = new Map(ids.map((id, index) => [id, index + 1]));
+
+    setDebts((current) =>
+      current.map((debt) =>
+        rankById.has(debt.id)
+          ? { ...debt, priority_rank: rankById.get(debt.id)! }
+          : debt
+      )
+    );
+
+    const { error: priorityError } = await supabase.rpc(
+      "set_budget_debt_priority",
+      { p_debt_ids: ids }
+    );
+
+    if (priorityError) {
+      setError(
+        `Debt priority could not be saved: ${priorityError.message}`
+      );
+      await loadData();
+      return;
+    }
+
+    setNotice("Debt payoff priority updated.");
+    await loadData();
+  }
+
+  function reorderDebtPriority(sourceId: string, targetId: string) {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const ordered = orderedActiveDebts();
+    const sourceIndex = ordered.findIndex((debt) => debt.id === sourceId);
+    const targetIndex = ordered.findIndex((debt) => debt.id === targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+
+    const [moved] = ordered.splice(sourceIndex, 1);
+    ordered.splice(targetIndex, 0, moved);
+    void persistDebtPriority(ordered);
+  }
+
+  function moveDebtPriorityStep(debtId: string, direction: -1 | 1) {
+    const ordered = orderedActiveDebts();
+    const index = ordered.findIndex((debt) => debt.id === debtId);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= ordered.length) return;
+
+    [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
+    void persistDebtPriority(ordered);
   }
 
   async function saveActualExpense(event: FormEvent<HTMLFormElement>) {
