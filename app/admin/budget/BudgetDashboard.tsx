@@ -484,9 +484,13 @@ export default function BudgetDashboard() {
       return;
     }
 
+    const visiblePaychecks = paychecks.filter(
+      (row) => !!row.rolling_generated || num(row.actual_check) > 0
+    );
+
     setPaycheck(selected);
-    setPaychecks(paychecks);
-    setPaycheckDates(paychecks.map((row) => row.paycheck_date));
+    setPaychecks(visiblePaychecks);
+    setPaycheckDates(visiblePaychecks.map((row) => row.paycheck_date));
     setExpenses((expenseResult.data || []) as Expense[]);
     setPeople((peopleResult.data || []) as Person[]);
     setFutureExpenses((futureResult.data || []) as FutureExpense[]);
@@ -742,6 +746,19 @@ export default function BudgetDashboard() {
       return;
     }
 
+    const { error: horizonError } = await supabase.rpc(
+      "refresh_budget_rolling_horizon",
+      { p_reference_date: paycheck.paycheck_date }
+    );
+
+    if (horizonError) {
+      setError(
+        `Paycheck was saved, but the next rolling forecast period could not be generated: ${horizonError.message}`
+      );
+      setSaving(false);
+      return;
+    }
+
     const { error: recalcError } = await supabase.rpc(
       "recalculate_budget_paychecks"
     );
@@ -925,9 +942,24 @@ export default function BudgetDashboard() {
       settlement_notes: textOrNull("settlement_notes"),
       linked_budget_line_item: textOrNull("linked_budget_line_item"),
       priority_override: String(data.get("priority_override") || "Auto"),
+      priority_rank:
+        editor.item?.priority_rank == null
+          ? debts.filter((debt) => debt.active).length + 1
+          : num(editor.item.priority_rank),
       notes: textOrNull("notes"),
       active: true,
       updated_at: new Date().toISOString(),
+      ...(!editor.item ||
+      Math.abs(
+        Number(data.get("current_balance") || 0) -
+          num(editor.item.current_balance)
+      ) > 0.005
+        ? {
+            tracking_start_balance: Number(data.get("current_balance") || 0),
+            tracking_start_date: todayIso(),
+            balance_estimated: false,
+          }
+        : {}),
     };
 
     if (!payload.name || payload.current_balance < 0) {
@@ -1037,9 +1069,36 @@ export default function BudgetDashboard() {
     setError("");
 
     const data = new FormData(event.currentTarget);
-    const category = String(data.get("category") || "Other").trim() || "Other";
+    const plannedExpenseId =
+      String(data.get("planned_expense_id") || "").trim() || null;
+    const linkedPlan = plannedExpenseId
+      ? expenses.find((expense) => expense.id === plannedExpenseId) || null
+      : null;
+    const category =
+      String(
+        data.get("category") ||
+          (linkedPlan ? spendingCategoryForExpense(linkedPlan) || linkedPlan.category : "") ||
+          "Other"
+      ).trim() || "Other";
     const futureExpenseId =
-      String(data.get("future_expense_id") || "").trim() || null;
+      String(data.get("future_expense_id") || linkedPlan?.future_expense_id || "").trim() ||
+      null;
+    const linkedRecurring = linkedPlan?.id
+      ? recurringBills.find((bill) =>
+          futurePlanExpenses.some(
+            (expense) =>
+              expense.id === linkedPlan.id &&
+              expense.line_item === bill.item
+          )
+        )
+      : null;
+    const linkedDebt = linkedPlan
+      ? debts.find(
+          (debt) =>
+            debt.linked_budget_line_item === linkedPlan.line_item ||
+            linkedRecurring?.item === debt.linked_budget_line_item
+        ) || null
+      : null;
 
     const payload = {
       spent_date: String(data.get("spent_date") || todayIso()),
@@ -1047,10 +1106,15 @@ export default function BudgetDashboard() {
         data.get("assigned_paycheck") || paycheck.paycheck_date
       ),
       category,
-      description: String(data.get("description") || "").trim(),
+      description:
+        String(data.get("description") || "").trim() ||
+        linkedPlan?.line_item ||
+        "",
       amount: Number(data.get("amount") || 0),
       note: String(data.get("note") || "").trim() || null,
       future_expense_id: futureExpenseId,
+      planned_expense_id: plannedExpenseId,
+      debt_id: linkedDebt?.id || null,
     };
 
     if (!payload.description || payload.amount <= 0) {
