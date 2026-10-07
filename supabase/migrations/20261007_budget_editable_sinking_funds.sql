@@ -7,27 +7,34 @@ set search_path = public
 as $function$
 declare
   v_goal record;
-  v_first date;
+  v_first_unfunded date;
+  v_schedule_start date;
+  v_deadline date;
   v_funded numeric(14,2);
   v_incoming numeric(14,2);
   v_remaining numeric(14,2);
-  v_count integer;
+  v_total_periods integer;
   v_total_cents bigint;
   v_base_cents bigint;
   v_remainder integer;
-  v_index integer;
+  v_period_index integer;
   v_pay date;
   v_amount numeric(14,2);
 begin
   perform pg_advisory_xact_lock(hashtext('budget_auto_fund_plans'));
 
   select min(paycheck_date)
-    into v_first
+    into v_first_unfunded
   from public.budget_paychecks
   where rolling_generated = true
-    and paycheck_date >= p_reference_date;
+    and paycheck_date >= p_reference_date
+    and not (
+      coalesce(actual_check,0) > 0
+      or lower(coalesce(period_status,'')) in
+        ('funded','received','finalized','completed','closed','paid','settled')
+    );
 
-  if v_first is null then
+  if v_first_unfunded is null then
     return;
   end if;
 
@@ -81,33 +88,34 @@ begin
           )
       );
 
-    select count(*)
-      into v_count
-    from public.budget_paychecks p
-    where p.rolling_generated = true
-      and p.paycheck_date >= greatest(v_goal.funding_start_paycheck,v_first)
-      and p.paycheck_date <= coalesce(v_goal.funding_deadline,v_goal.due_date)
-      and not (
-        coalesce(p.actual_check,0) > 0
-        or lower(coalesce(p.period_status,'')) in
-          ('funded','received','finalized','completed','closed','paid','settled')
-      );
+    v_schedule_start := greatest(
+      v_goal.funding_start_paycheck,
+      v_first_unfunded
+    );
+    v_deadline := coalesce(v_goal.funding_deadline,v_goal.due_date);
 
-    if v_remaining <= 0.005 or v_count < 1 then
+    if v_remaining <= 0.005 or v_deadline < v_schedule_start then
+      continue;
+    end if;
+
+    v_total_periods :=
+      floor((v_deadline - v_schedule_start)::numeric / 14.0)::integer + 1;
+
+    if v_total_periods < 1 then
       continue;
     end if;
 
     v_total_cents := round(v_remaining * 100)::bigint;
-    v_base_cents := floor(v_total_cents::numeric / v_count)::bigint;
-    v_remainder := (v_total_cents - (v_base_cents * v_count))::integer;
-    v_index := 0;
+    v_base_cents :=
+      floor(v_total_cents::numeric / v_total_periods)::bigint;
+    v_remainder :=
+      (v_total_cents - (v_base_cents * v_total_periods))::integer;
 
     for v_pay in
       select p.paycheck_date
       from public.budget_paychecks p
       where p.rolling_generated = true
-        and p.paycheck_date >= greatest(v_goal.funding_start_paycheck,v_first)
-        and p.paycheck_date <= coalesce(v_goal.funding_deadline,v_goal.due_date)
+        and p.paycheck_date between v_schedule_start and v_deadline
         and not (
           coalesce(p.actual_check,0) > 0
           or lower(coalesce(p.period_status,'')) in
@@ -115,8 +123,12 @@ begin
         )
       order by p.paycheck_date
     loop
+      v_period_index :=
+        floor((v_pay - v_schedule_start)::numeric / 14.0)::integer;
+
       v_amount := (
-        v_base_cents + case when v_index < v_remainder then 1 else 0 end
+        v_base_cents
+        + case when v_period_index < v_remainder then 1 else 0 end
       )::numeric / 100;
 
       if v_amount > 0 then
@@ -142,8 +154,6 @@ begin
           v_goal.id
         );
       end if;
-
-      v_index := v_index + 1;
     end loop;
   end loop;
 
