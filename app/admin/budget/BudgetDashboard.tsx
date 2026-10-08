@@ -212,7 +212,7 @@ export default function BudgetDashboard() {
         .order("item", { ascending: true }),
       supabase
         .from("budget_actual_expenses")
-        .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,planned_expense_id,debt_id,overage_source,buffer_coverage_amount,created_at")
+        .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,planned_expense_id,debt_id,overage_source,buffer_coverage_amount,overage_amount,created_at")
         .eq("assigned_paycheck", selected.paycheck_date)
         .order("spent_date", { ascending: false })
         .order("created_at", { ascending: false }),
@@ -1254,6 +1254,7 @@ export default function BudgetDashboard() {
       debt_id: linkedDebtId,
       overage_source: null as "buffer" | "carryover" | null,
       buffer_coverage_amount: 0,
+      overage_amount: 0,
     };
 
     if (!payload.description || payload.amount <= 0) {
@@ -1281,6 +1282,7 @@ export default function BudgetDashboard() {
         - Math.max(0, usedBefore - plannedForCategory);
     }
     incrementalOverage = Math.max(0, Math.round(incrementalOverage * 100) / 100);
+    payload.overage_amount = incrementalOverage;
 
     if (incrementalOverage > 0.005) {
       const choice = String(data.get("overage_source") || "");
@@ -1642,7 +1644,14 @@ export default function BudgetDashboard() {
   const reconciliationAdjustment =
     checkingBalance == null ? 0 : checkingBalance - income;
   const cashAvailable = checkingBalance == null ? income : checkingBalance;
-  const availableExtra = cashAvailable - planned;
+  // Every recorded overage is one actual transaction. Only the portion
+  // not assigned to the existing buffer reduces the projected carryover.
+  const cashOverageSpent = actualExpenses.reduce(
+    (total, entry) =>
+      total + Math.max(0, num(entry.overage_amount) - num(entry.buffer_coverage_amount)),
+    0
+  );
+  const availableExtra = cashAvailable - planned - cashOverageSpent;
 
   const currentCloseoutTransfers = useMemo(
     () =>
