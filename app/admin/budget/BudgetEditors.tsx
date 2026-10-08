@@ -818,15 +818,31 @@ export function ActualExpenseEditor({
     item?.description || initialPlan?.line_item || ""
   );
 
-  const selectedPlannedExpenseId = spendTarget.startsWith("plan:")
-    ? spendTarget.slice(5)
-    : "";
   const directBucketId = spendTarget.startsWith("bucket:")
     ? spendTarget.slice(7)
     : "";
   const directCategory = spendTarget.startsWith("category:")
     ? spendTarget.slice(9)
     : "";
+  // A fund chosen via the global Spend button should use its planned line
+  // just like a line-level Spend button, if this paycheck has only one match.
+  // Multiple lines (e.g. a trip's hotel, food, and gas) must stay distinct.
+  const matchingFundLines = directBucketId
+    ? planExpenses.filter(
+        (expense) =>
+          expense.future_expense_id === directBucketId &&
+          expense.assigned_paycheck === currentPaycheck &&
+          expense.status !== "Cancelled" &&
+          expense.status !== "Deferred" &&
+          !expense.forecast_suppressed &&
+          (expense.expense_type || "").toLowerCase() !== "sinking fund"
+      )
+    : [];
+  const selectedPlannedExpenseId = spendTarget.startsWith("plan:")
+    ? spendTarget.slice(5)
+    : matchingFundLines.length === 1
+      ? matchingFundLines[0].id
+      : "";
 
   const selectedPlannedExpense = planExpenses.find(
     (expense) => expense.id === selectedPlannedExpenseId
