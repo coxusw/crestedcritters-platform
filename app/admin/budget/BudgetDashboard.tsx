@@ -363,7 +363,7 @@ export default function BudgetDashboard() {
     } | null;
 
     await loadData();
-    setForecastDate(null);
+    if (forecastDate) await openForecastPaycheck(forecastDate);
     setNotice("Decision saved. The paycheck plan and forward forecast were recalculated.");
 
     const current = result?.current_paycheck;
@@ -2151,35 +2151,6 @@ export default function BudgetDashboard() {
             </div>
           )}
 
-          {(() => {
-            const upcomingShortfall = paychecks
-              .filter((row) => row.paycheck_date >= paycheck.paycheck_date)
-              .slice(0, 4)
-              .find((row) => num(row.running_cash_goal_pool) < -0.005);
-            return upcomingShortfall ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 sm:p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-black text-rose-950">
-                      Budget shortfall: {money(Math.abs(num(upcomingShortfall.running_cash_goal_pool)))}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-rose-800">
-                      {dateLabel(upcomingShortfall.paycheck_date)} paycheck ·
-                      Review your buffer or an eligible unpaid bill before changing the plan.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void openDeficitReviewForDate(upcomingShortfall.paycheck_date)}
-                    className="rounded-xl bg-rose-800 px-4 py-2.5 text-xs font-black text-white"
-                  >
-                    Resolve deficit
-                  </button>
-                </div>
-              </div>
-            ) : null;
-          })()}
-
           {view === "home" && (
             <>
               <section className="rounded-3xl bg-gradient-to-br from-slate-950 to-blue-900 p-5 text-white shadow-xl">
@@ -2339,6 +2310,28 @@ export default function BudgetDashboard() {
                 <MiniStat label="Planned" value={money(planned)} />
                 <MiniStat label="After plan" value={money(availableExtra)} />
               </div>
+
+              {num(paycheck.running_cash_goal_pool) < -0.005 && (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 sm:p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-rose-950">
+                        This paycheck has a {money(Math.abs(num(paycheck.running_cash_goal_pool)))} projected shortfall
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-rose-800">
+                        Review this paycheck's buffer or eligible unpaid bills.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void openDeficitReviewForDate(paycheck.paycheck_date)}
+                      className="rounded-xl bg-rose-800 px-4 py-2.5 text-xs font-black text-white"
+                    >
+                      Resolve deficit
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <PaymentTimingAlerts expenses={upcomingPaymentTiming} />
 
@@ -3452,6 +3445,7 @@ export default function BudgetDashboard() {
           paycheck={paychecks.find((row) => row.paycheck_date === forecastDate) || null}
           expenses={forecastExpenses}
           loading={forecastLoading}
+          onResolveDeficit={() => void openDeficitReviewForDate(forecastDate)}
           onClose={() => setForecastDate(null)}
           onAdd={() => {
             const date = forecastDate;
