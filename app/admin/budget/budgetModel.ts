@@ -92,6 +92,7 @@ export type ActualExpense = {
   debt_id: string | null;
   overage_source: "buffer" | "carryover" | null;
   buffer_coverage_amount: number | string | null;
+  overage_amount: number | string | null;
 };
 
 export type IncomeEntry = {
