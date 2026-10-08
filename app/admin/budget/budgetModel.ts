@@ -274,5 +274,30 @@ export const expensePlanGroup = (expense: Expense): PlanGroup => {
   return "bills";
 };
 
+// Compare the real obligation due date with the paycheck assigned to cover it.
+// A planning grace period is not an extension of the actual due date.
+export const paymentTimingDelayDays = (expense: Expense): number => {
+  if (
+    !expense.due_date ||
+    !expense.assigned_paycheck ||
+    expense.status === "Cancelled" ||
+    expense.status === "Deferred" ||
+    expense.forecast_suppressed ||
+    expensePlanGroup(expense) !== "bills" ||
+    num(expense.planned_amount) - num(expense.actual_amount) <= 0.005
+  ) {
+    return 0;
+  }
+  const parseUtcDay = (date: string) => {
+    const [year, month, day] = date.split("-").map(Number);
+    return Date.UTC(year, month - 1, day);
+  };
+  const due = parseUtcDay(expense.due_date);
+  const assigned = parseUtcDay(expense.assigned_paycheck);
+  return Number.isFinite(assigned - due)
+    ? Math.max(0, Math.round((assigned - due) / 86400000))
+    : 0;
+};
+
 export const expenseDisplayName = (expense: Expense) =>
   expense.line_item || "Unnamed expense";
