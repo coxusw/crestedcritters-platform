@@ -9,6 +9,7 @@ import {
   expenseDisplayName,
   money,
   num,
+  paymentTimingDelayDays,
 } from "./budgetModel";
 
 export function Modal({
@@ -263,6 +264,74 @@ export function PlanExpenseSection({
   );
 }
 
+export function PaymentTimingAlerts({
+  expenses,
+  onEdit,
+}: {
+  expenses: Expense[];
+  onEdit?: (expense: Expense) => void;
+}) {
+  const latePlanned = expenses
+    .filter((expense) => paymentTimingDelayDays(expense) > 0)
+    .sort((a, b) =>
+      (a.due_date || "").localeCompare(b.due_date || "") ||
+      (a.assigned_paycheck || "").localeCompare(b.assigned_paycheck || "")
+    );
+
+  if (latePlanned.length === 0) return null;
+
+  const total = latePlanned.reduce(
+    (sum, expense) =>
+      sum + Math.max(0, num(expense.planned_amount) - num(expense.actual_amount)),
+    0
+  );
+
+  return (
+    <details className="rounded-2xl border border-amber-300 bg-amber-50 text-amber-950">
+      <summary className="cursor-pointer list-none p-3.5">
+        <p className="text-sm font-black">
+          ⚠ {latePlanned.length} payment{latePlanned.length === 1 ? "" : "s"} scheduled after due date
+        </p>
+        <p className="mt-1 text-xs leading-5 text-amber-900">
+          {money(total)} in unpaid planned bills. Tap to check actual due dates.
+          A planning grace period does not guarantee that late fees are waived.
+        </p>
+      </summary>
+      <div className="space-y-2 border-t border-amber-200 px-3.5 py-3">
+        {latePlanned.map((expense) => {
+          const days = paymentTimingDelayDays(expense);
+          return (
+            <div key={expense.id} className="flex items-start justify-between gap-3 rounded-xl bg-white p-2.5">
+              <div className="min-w-0">
+                <p className="text-xs font-black">{expenseDisplayName(expense)}</p>
+                <p className="mt-1 text-[11px] leading-4 text-rose-700">
+                  Due {dateLabel(expense.due_date)} · Planned from {dateLabel(expense.assigned_paycheck)} ({days} day{days === 1 ? "" : "s"} after due)
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <strong className="block text-xs">{money(Math.max(0, num(expense.planned_amount) - num(expense.actual_amount)))}</strong>
+                {onEdit && (
+                  <button
+                    type="button"
+                    onClick={() => onEdit(expense)}
+                    className="mt-1 text-xs font-bold text-blue-700"
+                  >
+                    Review
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        <p className="text-[11px] leading-4 text-amber-900">
+          These are timing alerts, not confirmation of a fee or missed payment.
+          Verify the actual dates with each biller before changing the plan.
+        </p>
+      </div>
+    </details>
+  );
+}
+
 export function ExpenseRow({
   expense,
   onEdit,
@@ -286,6 +355,7 @@ export function ExpenseRow({
               ? "Partial"
               : "Paid");
   const overPlan = spent > planned + 0.005;
+  const plannedAfterDueDays = paymentTimingDelayDays(expense);
 
   return (
     <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-3.5 last:border-0">
@@ -304,6 +374,11 @@ export function ExpenseRow({
             Spent {money(spent)}
           </span>
         </p>
+        {plannedAfterDueDays > 0 && (
+          <p className="mt-1 text-[11px] font-black leading-4 text-rose-700">
+            ⚠ Scheduled {dateLabel(expense.assigned_paycheck)} — {plannedAfterDueDays} day{plannedAfterDueDays === 1 ? "" : "s"} after due date
+          </p>
+        )}
       </div>
       <div className="shrink-0 text-right">
         <strong className={`block text-sm ${
