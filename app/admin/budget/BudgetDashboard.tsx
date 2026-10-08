@@ -42,6 +42,7 @@ import {
   RecurringEditor,
   SinkingFundCloseoutModal,
 } from "./BudgetEditors";
+import DeficitReviewModal, { type DeficitPreview } from "./DeficitReviewModal";
 import {
   ActualExpenseRow,
   BudgetMeter,
@@ -63,6 +64,11 @@ export default function BudgetDashboard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [deficitDate, setDeficitDate] = useState<string | null>(null);
+  const [deficitPreview, setDeficitPreview] = useState<DeficitPreview | null>(null);
+  const [deficitLoading, setDeficitLoading] = useState(false);
+  const [deficitSaving, setDeficitSaving] = useState(false);
+  const [deficitError, setDeficitError] = useState("");
   const [notice, setNotice] = useState("");
   const [editor, setEditor] = useState<Editor>(null);
   const [paycheck, setPaycheck] = useState<Paycheck | null>(null);
@@ -283,6 +289,96 @@ export default function BudgetDashboard() {
   useEffect(() => {
     void loadData(true);
   }, []);
+
+
+  async function openDeficitReviewForDate(date: string) {
+    setDeficitDate(date);
+    setDeficitPreview(null);
+    setDeficitError("");
+    setDeficitLoading(true);
+
+    const { data, error: previewError } = await supabase.rpc(
+      "budget_deficit_review_preview",
+      { p_paycheck_date: date }
+    );
+
+    if (previewError) {
+      setDeficitError(previewError.message);
+    } else {
+      setDeficitPreview((data || null) as DeficitPreview | null);
+    }
+    setDeficitLoading(false);
+  }
+
+  // Look beyond the newly received paycheck; the next paycheck might be short.
+  async function openUpcomingDeficitAfterIncome(startDate: string) {
+    const { data, error: deficitQueryError } = await supabase
+      .from("budget_paychecks")
+      .select("paycheck_date,running_cash_goal_pool")
+      .gte("paycheck_date", startDate)
+      .order("paycheck_date", { ascending: true })
+      .limit(4);
+
+    if (deficitQueryError) {
+      setError("Income saved, but deficit review could not be loaded: " + deficitQueryError.message);
+      return;
+    }
+
+    const firstShortfall = (data || []).find(
+      (row) => num(row.running_cash_goal_pool) < -0.005
+    );
+    if (firstShortfall) {
+      await openDeficitReviewForDate(firstShortfall.paycheck_date);
+    }
+  }
+
+  async function applyDeficitDecision(
+    action: "reduce_buffer" | "move_bill",
+    expenseId: string,
+    newAmount?: number
+  ) {
+    if (!deficitDate) return;
+    setDeficitSaving(true);
+    setDeficitError("");
+
+    const { data, error: decisionError } = await supabase.rpc(
+      "budget_apply_deficit_decision",
+      {
+        p_paycheck_date: deficitDate,
+        p_action: action,
+        p_expense_id: expenseId,
+        p_new_amount: newAmount ?? null,
+      }
+    );
+
+    if (decisionError) {
+      setDeficitError(decisionError.message);
+      setDeficitSaving(false);
+      return;
+    }
+
+    const result = data as {
+      current_paycheck?: DeficitPreview;
+      next_paycheck?: DeficitPreview | null;
+    } | null;
+
+    await loadData();
+    setForecastDate(null);
+    setNotice("Decision saved. The paycheck plan and forward forecast were recalculated.");
+
+    const current = result?.current_paycheck;
+    const following = result?.next_paycheck;
+    if (current?.requires_review) {
+      setDeficitPreview(current);
+    } else if (following?.requires_review) {
+      setDeficitDate(following.paycheck_date);
+      setDeficitPreview(following);
+    } else {
+      setDeficitDate(null);
+      setDeficitPreview(null);
+    }
+    setDeficitSaving(false);
+  }
 
   async function openForecastPaycheck(date: string) {
     setForecastDate(date);
@@ -718,6 +814,7 @@ export default function BudgetDashboard() {
         : "Paycheck and current checking balance saved. Budget review refreshed from the real bank balance."
     );
     await loadData();
+    await openUpcomingDeficitAfterIncome(paycheck.paycheck_date);
     setSaving(false);
   }
 
@@ -827,6 +924,7 @@ export default function BudgetDashboard() {
           : "Additional income logged with the current checking balance. Budget review triggered."
     );
     await loadData();
+    await openUpcomingDeficitAfterIncome(payload.assigned_paycheck);
     setSaving(false);
   }
 
@@ -2052,6 +2150,35 @@ export default function BudgetDashboard() {
               {error}
             </div>
           )}
+
+          {(() => {
+            const upcomingShortfall = paychecks
+              .filter((row) => row.paycheck_date >= paycheck.paycheck_date)
+              .slice(0, 4)
+              .find((row) => num(row.running_cash_goal_pool) < -0.005);
+            return upcomingShortfall ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-black text-rose-950">
+                      Budget shortfall: {money(Math.abs(num(upcomingShortfall.running_cash_goal_pool)))}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-rose-800">
+                      {dateLabel(upcomingShortfall.paycheck_date)} paycheck ·
+                      Review your buffer or an eligible unpaid bill before changing the plan.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void openDeficitReviewForDate(upcomingShortfall.paycheck_date)}
+                    className="rounded-xl bg-rose-800 px-4 py-2.5 text-xs font-black text-white"
+                  >
+                    Resolve deficit
+                  </button>
+                </div>
+              </div>
+            ) : null;
+          })()}
 
           {view === "home" && (
             <>
@@ -3302,6 +3429,23 @@ export default function BudgetDashboard() {
           </button>
         ))}
       </nav>
+
+      {deficitDate && (
+        <DeficitReviewModal
+          preview={deficitPreview}
+          loading={deficitLoading}
+          saving={deficitSaving}
+          error={deficitError}
+          onClose={() => {
+            if (!deficitSaving) {
+              setDeficitDate(null);
+              setDeficitPreview(null);
+              setDeficitError("");
+            }
+          }}
+          onApply={applyDeficitDecision}
+        />
+      )}
 
       {forecastDate && (
         <ForecastPaycheckModal
