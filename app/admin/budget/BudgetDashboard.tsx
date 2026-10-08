@@ -48,6 +48,7 @@ import {
   ExpenseRow,
   CountCard,
   MiniStat,
+  PaymentTimingAlerts,
   PlanExpenseSection,
   RecurringRow,
   ReviewStat,
@@ -1934,6 +1935,18 @@ export default function BudgetDashboard() {
   const planSpending = activePlanExpenses.filter(
     (expense) => expensePlanGroup(expense) === "spending"
   );
+  // Show near-term date mismatches even if the bill is funded from a later paycheck.
+  // Do not silently reassign the obligation: some delayed payments are intentional.
+  const upcomingPaymentTiming = futurePlanExpenses.filter(
+    (expense) =>
+      !!expense.due_date &&
+      !!expense.assigned_paycheck &&
+      expense.due_date <= addDays(paycheck?.paycheck_date || todayIso(), 60) &&
+      expense.assigned_paycheck >= (paycheck?.paycheck_date || todayIso()) &&
+      expense.status !== "Deferred" &&
+      expense.status !== "Cancelled"
+  );
+
   const sinkingFundNameForExpense = (expense: Expense) =>
     expense.event_fund ||
     futureExpenses.find((item) => item.id === expense.future_expense_id)
@@ -2200,6 +2213,8 @@ export default function BudgetDashboard() {
                 <MiniStat label="After plan" value={money(availableExtra)} />
               </div>
 
+              <PaymentTimingAlerts expenses={upcomingPaymentTiming} />
+
               <div className="grid grid-cols-4 gap-1 rounded-2xl bg-slate-200 p-1">
                 {[
                   ["bills", "Bills", planBills.length],
@@ -2360,6 +2375,10 @@ export default function BudgetDashboard() {
                     </div>
                   </div>
                 )}
+
+                <div className="mt-4">
+                  <PaymentTimingAlerts expenses={upcomingPaymentTiming} />
+                </div>
 
                 {additionalIncome > 0 && (
                   <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
