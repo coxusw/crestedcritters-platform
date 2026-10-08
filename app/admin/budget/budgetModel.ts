@@ -90,6 +90,8 @@ export type ActualExpense = {
   future_expense_id: string | null;
   planned_expense_id: string | null;
   debt_id: string | null;
+  overage_source: "buffer" | "carryover" | null;
+  buffer_coverage_amount: number | string | null;
 };
 
 export type IncomeEntry = {
