@@ -13,6 +13,7 @@ export function ForecastPaycheckModal({
   onClose,
   onAdd,
   onEdit,
+  onResolveDeficit,
 }: {
   paycheck: Paycheck | null;
   expenses: Expense[];
@@ -20,6 +21,7 @@ export function ForecastPaycheckModal({
   onClose: () => void;
   onAdd: () => void;
   onEdit: (item: Expense) => void;
+  onResolveDeficit: () => void;
 }) {
   const [tab, setTab] = useState<PlanTab>("all");
 
@@ -54,6 +56,28 @@ export function ForecastPaycheckModal({
           <BudgetMeter label="Planned" value={planned} />
           <BudgetMeter label="Available" value={available} danger={available < 0} />
         </div>
+
+        {num(paycheck.running_cash_goal_pool) < -0.005 && (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-black text-rose-950">
+                  This paycheck has a {money(Math.abs(num(paycheck.running_cash_goal_pool)))} projected shortfall
+                </p>
+                <p className="mt-1 text-xs leading-5 text-rose-800">
+                  Review this paycheck's buffer or eligible unpaid bills.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onResolveDeficit}
+                className="rounded-xl bg-rose-800 px-4 py-2.5 text-xs font-black text-white"
+              >
+                Resolve deficit
+              </button>
+            </div>
+          </div>
+        )}
 
         <button
           onClick={onAdd}
