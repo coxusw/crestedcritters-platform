@@ -791,6 +791,7 @@ export function ActualExpenseEditor({
   paycheckDates,
   categories,
   comparisons,
+  bufferRemaining,
   planExpenses,
   initialPlannedExpenseId,
   initialFutureExpenseId,
@@ -807,6 +808,7 @@ export function ActualExpenseEditor({
   paycheckDates: string[];
   categories: string[];
   comparisons: Array<{ category: string; planned: number; actual: number }>;
+  bufferRemaining: number;
   planExpenses: Expense[];
   initialPlannedExpenseId?: string;
   initialFutureExpenseId?: string;
@@ -838,6 +840,9 @@ export function ActualExpenseEditor({
 
   const [spendTarget, setSpendTarget] = useState(initialTarget);
   const [enteredAmount, setEnteredAmount] = useState(num(item?.amount));
+  const [overageSource, setOverageSource] = useState<"" | "buffer" | "carryover">(
+    item?.overage_source || ""
+  );
   const [description, setDescription] = useState(
     item?.description || initialPlan?.line_item || ""
   );
@@ -930,6 +935,18 @@ export function ActualExpenseEditor({
   const remainingBefore = plannedForCategory - alreadyUsed;
   const remainingAfter = remainingBefore - enteredAmount;
   const overAfter = remainingAfter < 0;
+  const incrementalOverage = selectedBucket
+    ? 0
+    : selectedPlannedExpense
+      ? Math.max(0, plannedLineAfter - num(selectedPlannedExpense.planned_amount))
+        - Math.max(0, plannedLineActualBefore - num(selectedPlannedExpense.planned_amount))
+      : Math.max(0, -remainingAfter) - Math.max(0, -remainingBefore);
+  const overageAmount = Math.max(0, Math.round(incrementalOverage * 100) / 100);
+  const availableBufferForThisEntry = Math.max(
+    0, bufferRemaining + num(item?.buffer_coverage_amount)
+  );
+  const bufferCoverAmount = Math.min(overageAmount, availableBufferForThisEntry);
+  const bufferUncoveredAmount = Math.max(0, overageAmount - bufferCoverAmount);
 
   const openBuckets = futureExpenses.filter(
     (bucket) => !isClosedFundStatus(bucket.status)
@@ -1028,6 +1045,7 @@ export function ActualExpenseEditor({
 
   function changeSpendTarget(nextTarget: string) {
     setSpendTarget(nextTarget);
+    setOverageSource("");
 
     if (nextTarget.startsWith("plan:")) {
       const planned = planExpenses.find(
@@ -1289,6 +1307,62 @@ export function ActualExpenseEditor({
               </strong>
             </div>
           )}
+
+        {enteredAmount > 0 && overageAmount > 0.005 && !selectedBucket && (
+          <fieldset className="space-y-2 rounded-2xl border border-amber-300 bg-amber-50 p-3">
+            <legend className="px-1 text-sm font-black text-amber-950">
+              How do you want to cover the {money(overageAmount)} over plan?
+            </legend>
+            <p className="text-xs leading-5 text-amber-900">
+              This choice tracks where the extra comes from. The full expense is
+              recorded once, and your actual checking balance does not change twice.
+            </p>
+            <label className="flex cursor-pointer gap-2.5 rounded-xl border border-amber-200 bg-white p-3 text-sm text-slate-900">
+              <input
+                type="radio"
+                name="overage_source"
+                value="carryover"
+                checked={overageSource === "carryover"}
+                onChange={() => setOverageSource("carryover")}
+                required
+                className="mt-0.5"
+              />
+              <span>
+                <strong className="block">Use extra paycheck money</strong>
+                <span className="mt-1 block text-xs text-slate-500">
+                  Leave the forgotten/unplanned buffer alone; carry over {money(overageAmount)} less.
+                </span>
+              </span>
+            </label>
+            <label className={`flex gap-2.5 rounded-xl border p-3 text-sm ${
+              bufferCoverAmount > 0
+                ? "cursor-pointer border-amber-200 bg-white text-slate-900"
+                : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+            }`}>
+              <input
+                type="radio"
+                name="overage_source"
+                value="buffer"
+                checked={overageSource === "buffer"}
+                onChange={() => setOverageSource("buffer")}
+                disabled={bufferCoverAmount <= 0}
+                required
+                className="mt-0.5"
+              />
+              <span>
+                <strong className="block">Use forgotten/unplanned buffer</strong>
+                <span className="mt-1 block text-xs">
+                  {bufferCoverAmount > 0
+                    ? `Use ${money(bufferCoverAmount)} of the ${money(availableBufferForThisEntry)} available buffer`
+                    : "No buffer remains for this paycheck"}
+                  {bufferUncoveredAmount > 0 && bufferCoverAmount > 0
+                    ? `; the remaining ${money(bufferUncoveredAmount)} comes from paycheck extra.`
+                    : "."}
+                </span>
+              </span>
+            </label>
+          </fieldset>
+        )}
 
         <p className="text-[11px] text-slate-500">
           Pay period: {dateLabel(item?.assigned_paycheck || currentPaycheck)}
