@@ -1544,9 +1544,9 @@ export function RecurringEditor({
             className="budget-input"
           />
           <p className="mt-1 text-[11px] leading-4 text-slate-500">
-            Allows the forecast to use a paycheck this many days after the due date
-            when that keeps a pay period from being overloaded. This is a planning
-            rule only; it does not change the creditor&apos;s actual late-fee terms.
+            Warning: planning grace can schedule a bill after its real due date.
+            This does not extend the creditor&apos;s deadline or guarantee that
+            late fees are waived. The budget flags these delayed payments for review.
           </p>
         </Field>
 
@@ -1822,7 +1822,9 @@ export function DebtEditor({
             className="budget-input"
           />
           <p className="mt-1 text-[11px] leading-4 text-slate-500">
-            The forecast may use a paycheck this many days after the due date.
+            Planning grace may move this payment AFTER its real due date.
+            That can cause fees or delinquency even when the forecast allows it;
+            delayed payments will be flagged in the plan and review.
             This is only a budget-planning window and does not change the
             lender&apos;s actual late-fee or delinquency rules.
           </p>
