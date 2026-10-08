@@ -212,7 +212,7 @@ export default function BudgetDashboard() {
         .order("item", { ascending: true }),
       supabase
         .from("budget_actual_expenses")
-        .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,planned_expense_id,debt_id,created_at")
+        .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,planned_expense_id,debt_id,overage_source,buffer_coverage_amount,created_at")
         .eq("assigned_paycheck", selected.paycheck_date)
         .order("spent_date", { ascending: false })
         .order("created_at", { ascending: false }),
@@ -1252,6 +1252,8 @@ export default function BudgetDashboard() {
       future_expense_id: futureExpenseId,
       planned_expense_id: plannedExpenseId,
       debt_id: linkedDebtId,
+      overage_source: null as "buffer" | "carryover" | null,
+      buffer_coverage_amount: 0,
     };
 
     if (!payload.description || payload.amount <= 0) {
@@ -1259,52 +1261,47 @@ export default function BudgetDashboard() {
       return;
     }
 
-    const warnings: string[] = [];
-
-    if (linkedPlan) {
-      const currentLinkedAmount =
-        editor.item?.planned_expense_id === linkedPlan.id
-          ? num(editor.item.amount)
-          : 0;
-      const usedBefore =
-        Math.max(0, num(linkedPlan.actual_amount)) - currentLinkedAmount;
+    // Only the incremental amount beyond plan needs a coverage choice.
+    // The full transaction is recorded exactly once.
+    let incrementalOverage = 0;
+    if (!futureExpenseId && linkedPlan) {
+      const previouslyLinked = editor.item?.planned_expense_id === linkedPlan.id
+        ? num(editor.item.amount) : 0;
+      const usedBefore = Math.max(0, num(linkedPlan.actual_amount) - previouslyLinked);
       const plannedAmount = num(linkedPlan.planned_amount);
-      const remainingBefore = plannedAmount - usedBefore;
-
-      if (payload.amount > remainingBefore) {
-        const afterTotal = usedBefore + payload.amount;
-        const overBy = Math.max(0, afterTotal - plannedAmount);
-        warnings.push(
-          `${linkedPlan.line_item || "This planned item"} will be ${money(overBy)} over its ${money(
-            plannedAmount
-          )} planned amount for this pay period.`
-        );
-      }
+      incrementalOverage = Math.max(0, usedBefore + payload.amount - plannedAmount)
+        - Math.max(0, usedBefore - plannedAmount);
     } else if (!futureExpenseId) {
-      const categoryBudget = spendingComparison.find(
-        (row) => row.category === category
-      );
+      const categoryBudget = spendingComparison.find((row) => row.category === category);
       const plannedForCategory = categoryBudget?.planned || 0;
-      const currentItemAmount =
-        editor.item && editor.item.category === category
-          ? num(editor.item.amount)
-          : 0;
-      const usedBefore =
-        Math.max(0, categoryBudget?.actual || 0) - currentItemAmount;
-      const categoryRemainingBefore = plannedForCategory - usedBefore;
-
-      if (payload.amount > categoryRemainingBefore) {
-        const afterTotal = usedBefore + payload.amount;
-        const overBy = Math.max(0, afterTotal - plannedForCategory);
-        warnings.push(
-          plannedForCategory > 0
-            ? `${category} will be ${money(overBy)} over its ${money(
-                plannedForCategory
-              )} budget for this pay period.`
-            : `${category} has no planned budget for this pay period, so this expense will be over budget.`
-        );
-      }
+      const previouslyUsed = editor.item?.category === category
+        ? num(editor.item.amount) : 0;
+      const usedBefore = Math.max(0, num(categoryBudget?.actual) - previouslyUsed);
+      incrementalOverage = Math.max(0, usedBefore + payload.amount - plannedForCategory)
+        - Math.max(0, usedBefore - plannedForCategory);
     }
+    incrementalOverage = Math.max(0, Math.round(incrementalOverage * 100) / 100);
+
+    if (incrementalOverage > 0.005) {
+      const choice = String(data.get("overage_source") || "");
+      if (choice !== "buffer" && choice !== "carryover") {
+        setError("Choose whether the extra comes from your forgotten/unplanned buffer or paycheck carryover.");
+        return;
+      }
+      const availableBuffer = Math.max(0,
+        bufferBudgetAvailable + num(editor.item?.buffer_coverage_amount)
+      );
+      if (choice === "buffer" && availableBuffer < 0.005) {
+        setError("There is no unplanned buffer left for this paycheck. Choose paycheck carryover instead.");
+        return;
+      }
+      payload.overage_source = choice;
+      payload.buffer_coverage_amount = choice === "buffer"
+        ? Math.round(Math.min(incrementalOverage, availableBuffer) * 100) / 100
+        : 0;
+    }
+
+    const warnings: string[] = [];
 
     if (futureExpenseId) {
       const bucket = futureExpenses.find(
@@ -1698,6 +1695,10 @@ export default function BudgetDashboard() {
     );
   }, [expenses, actualExpenses]);
 
+  const bufferCoverageTotal = actualExpenses.reduce(
+    (total, expense) => total + num(expense.buffer_coverage_amount), 0
+  );
+
   const spendingComparison = useMemo(() => {
     const map = new Map<
       string,
@@ -1721,15 +1722,24 @@ export default function BudgetDashboard() {
       map.set(category, row);
     }
 
-    if (bufferCloseoutBonus > 0) {
+    // Virtual buffer usage does not add a second actual cash transaction.
+    if (bufferCloseoutBonus > 0 || bufferCoverageTotal > 0) {
       const category = "Forgotten / unplanned expense buffer";
       const row = map.get(category) || { category, planned: 0, actual: 0 };
       row.planned += bufferCloseoutBonus;
+      row.actual += bufferCoverageTotal;
       map.set(category, row);
     }
 
     return Array.from(map.values());
-  }, [expenses, actualExpenses, bufferCloseoutBonus]);
+  }, [expenses, actualExpenses, bufferCloseoutBonus, bufferCoverageTotal]);
+
+  const bufferBudgetEntry = spendingComparison.find(
+    (row) => row.category.toLowerCase().includes("forgotten / unplanned expense buffer")
+  );
+  const bufferBudgetAvailable = Math.max(
+    0, num(bufferBudgetEntry?.planned) - num(bufferBudgetEntry?.actual)
+  );
 
   const debtSignals = useMemo(() => {
     const today = todayIso();
@@ -2032,6 +2042,14 @@ export default function BudgetDashboard() {
   );
   const planSpending = activePlanExpenses.filter(
     (expense) => expensePlanGroup(expense) === "spending"
+  );
+  const bufferPlanLineId = planSpending.find(
+    (expense) => (expense.line_item || "").toLowerCase().includes("forgotten / unplanned expense buffer")
+  )?.id;
+  const displayedPlanSpending = planSpending.map((expense) =>
+    expense.id === bufferPlanLineId
+      ? { ...expense, actual_amount: num(expense.actual_amount) + bufferCoverageTotal }
+      : expense
   );
   // Show near-term date mismatches even if the bill is funded from a later paycheck.
   // Do not silently reassign the obligation: some delayed payments are intentional.
@@ -2419,7 +2437,7 @@ export default function BudgetDashboard() {
                 <PlanExpenseSection
                   title="Spending"
                   subtitle="Forgotten/unplanned buffer, vehicle fuel, and food."
-                  expenses={planSpending}
+                  expenses={displayedPlanSpending}
                   onEdit={(expense) =>
                     setEditor({ type: "expense", item: expense })
                   }
@@ -3543,6 +3561,7 @@ export default function BudgetDashboard() {
           paycheckDates={paycheckDates}
           categories={categories}
           comparisons={spendingComparison}
+           bufferRemaining={bufferBudgetAvailable}
           planExpenses={expenses}
           initialPlannedExpenseId={editor.plannedExpenseId}
           initialFutureExpenseId={editor.futureExpenseId}
