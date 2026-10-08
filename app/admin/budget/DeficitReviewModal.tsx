@@ -115,7 +115,10 @@ export default function DeficitReviewModal({
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 pb-6 sm:p-5">
           {loading || !preview ? (
-            <p className="py-8 text-center text-sm text-slate-600">Recalculating available cash and options…</p>
+            <div className="py-6 text-center">
+              <p className="text-sm text-slate-600">Checking the budget and available options…</p>
+              {error && <p role="alert" className="mt-3 rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-800">{error}</p>}
+            </div>
           ) : (
             <>
               <div className={"rounded-2xl border p-4 " + (current < -0.005 ? "border-rose-200 bg-rose-50" : "border-emerald-200 bg-emerald-50")}>
@@ -219,9 +222,14 @@ export default function DeficitReviewModal({
                           </div>
                           <div className="rounded-lg bg-white p-2">
                             <span className="block text-slate-500">Next paycheck after change</span>
-                            <strong className={(next + (bill ? -difference : difference) < 0 ? "text-rose-700" : "text-emerald-700") + " text-base"}>{money(next + (bill ? -difference : difference))}</strong>
+                            <strong className={(next + (bill ? 0 : difference) < 0 ? "text-rose-700" : "text-emerald-700") + " text-base"}>{money(next + (bill ? 0 : difference))}</strong>
                           </div>
                         </div>
+                      )}
+                      {bill && (
+                        <p className="mt-2 text-[11px] font-bold leading-4 text-amber-900">
+                          The next paycheck will carry this extra bill, but its cumulative balance after both paychecks should not change solely from the move.
+                        </p>
                       )}
                       <p className="mt-2 text-[11px] leading-4 text-slate-600">These are estimates. Saving will recalculate the entire actual plan and future forecast.</p>
                       <button
