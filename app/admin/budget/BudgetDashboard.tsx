@@ -1652,6 +1652,14 @@ export default function BudgetDashboard() {
     0
   );
   const availableExtra = cashAvailable - planned - cashOverageSpent;
+  const spentThisPeriod = actualExpenses.reduce(
+    (sum, entry) => sum + num(entry.amount),
+    0
+  );
+  // Spending is counted once from the actual transaction ledger. Buffer coverage
+  // is a funding source, not a second spend. This is unspent planned money,
+  // not the checking balance or the unassigned after-plan cushion.
+  const remainingInPlan = planned - spentThisPeriod;
 
   const currentCloseoutTransfers = useMemo(
     () =>
@@ -2332,10 +2340,21 @@ export default function BudgetDashboard() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-900 p-3 text-white">
-                <MiniStat label="Income" value={money(income)} />
-                <MiniStat label="Planned" value={money(planned)} />
-                <MiniStat label="After plan" value={money(availableExtra)} />
+              <div className="rounded-2xl bg-slate-900 p-3 text-white">
+                <div className="grid grid-cols-3 gap-2">
+                  <MiniStat label="Income" value={money(income)} />
+                  <MiniStat label="Planned" value={money(planned)} />
+                  <MiniStat label="After plan" value={money(availableExtra)} />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3 border-t border-white/15 pt-3">
+                  <MiniStat label="Spent so far" value={money(spentThisPeriod)} />
+                  <div>
+                    <span className="block text-[10px] text-slate-400">Remaining in plan</span>
+                    <strong className={`mt-1 block text-sm ${remainingInPlan < -0.005 ? "text-rose-300" : "text-emerald-300"}`}>
+                      {money(remainingInPlan)}
+                    </strong>
+                  </div>
+                </div>
               </div>
 
               {num(paycheck.running_cash_goal_pool) < -0.005 && (
