@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import type { FutureExpense } from "./budgetModel";
-import { dateLabel, money } from "./budgetModel";
+import { dateLabel, money, todayIso } from "./budgetModel";
 import { Modal } from "./BudgetUi";
 
 export default function VaultTransferModal({
@@ -34,7 +34,7 @@ export default function VaultTransferModal({
         </label>
         <label className="block text-sm font-bold text-slate-700">
           Date transferred
-          <input name="transferred_on" type="date" required defaultValue={new Date().toLocaleDateString("en-CA")} className="budget-input mt-1" />
+          <input name="transferred_on" type="date" required defaultValue={todayIso()} className="budget-input mt-1" />
         </label>
         <label className="block text-sm font-bold text-slate-700">
           Note (optional)
