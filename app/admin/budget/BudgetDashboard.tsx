@@ -1211,6 +1211,68 @@ export default function BudgetDashboard() {
     void persistDebtPriority(ordered);
   }
 
+  async function saveVaultTransfer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!paycheck || editor?.type !== "vault-transfer") return;
+    setError("");
+    setNotice("");
+    const fundId = editor.fundId;
+    const fund = futureExpenses.find((item) => item.id === fundId);
+    const data = new FormData(event.currentTarget);
+    const amount = Math.round(Number(data.get("amount") || 0) * 100) / 100;
+    const transferredOn = String(data.get("transferred_on") || todayIso());
+    const plannedForFund = expenses
+      .filter((item) => item.future_expense_id === fundId &&
+        item.status !== "Cancelled" && item.status !== "Deferred")
+      .reduce((sum, item) => sum + num(item.planned_amount), 0);
+    const alreadyTransferred = vaultTransfers
+      .filter((item) => item.future_expense_id === fundId &&
+        item.assigned_paycheck === paycheck.paycheck_date)
+      .reduce((sum, item) => sum + num(item.amount), 0);
+    const remaining = Math.round((plannedForFund - alreadyTransferred) * 100) / 100;
+
+    if (!fund || isClosedFundStatus(fund.status) || !paycheckCountsAsFunded(paycheck)) {
+      setError("Confirm your paycheck has arrived before recording a vault transfer.");
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0 || amount > remaining + 0.005) {
+      setError("Enter the amount already moved into the vault, up to the unpaid planned contribution.");
+      return;
+    }
+    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(transferredOn) || transferredOn > todayIso()) {
+      setError("Choose the actual transfer date, not a future date.");
+      return;
+    }
+    setSaving(true);
+    const { error: transferError } = await supabase
+      .from("budget_vault_transfers")
+      .insert({ future_expense_id: fundId, assigned_paycheck: paycheck.paycheck_date,
+        transferred_on: transferredOn, amount,
+        note: String(data.get("note") || "").trim() || null });
+    if (transferError) {
+      setError(transferError.message);
+    } else {
+      setEditor(null);
+      setNotice(`Recorded ${money(amount)} moved into ${fund.event_fund} vault. The bank transfer itself must be made separately.`);
+      await loadData();
+    }
+    setSaving(false);
+  }
+
+  async function deleteVaultTransfer(item: VaultTransfer) {
+    const fund = futureExpenses.find((row) => row.id === item.future_expense_id);
+    if (!window.confirm(`Remove confirmation of ${money(num(item.amount))} transferred to ${fund?.event_fund || "vault"}? This does not reverse any bank transfer.`)) return;
+    setSaving(true);
+    const { error: deleteError } = await supabase
+      .from("budget_vault_transfers").delete().eq("id", item.id);
+    if (deleteError) setError(deleteError.message);
+    else {
+      setNotice("Vault transfer record removed. Reconcile the vault against your bank.");
+      await loadData();
+    }
+    setSaving(false);
+  }
+
   async function saveActualExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!paycheck || editor?.type !== "actual") return;
@@ -2045,6 +2107,15 @@ export default function BudgetDashboard() {
   const planSinking = activePlanExpenses.filter(
     (expense) => expensePlanGroup(expense) === "sinking"
   );
+  const plannedForVault = (fundId: string) => planSinking
+    .filter((expense) => expense.future_expense_id === fundId)
+    .reduce((sum, expense) => sum + num(expense.planned_amount), 0);
+  const transferredForVault = (fundId: string) => vaultTransfers
+    .filter((entry) => entry.future_expense_id === fundId &&
+      entry.assigned_paycheck === paycheck?.paycheck_date)
+    .reduce((sum, entry) => sum + num(entry.amount), 0);
+  const remainingToTransfer = (fundId: string) =>
+    Math.max(0, Math.round((plannedForVault(fundId) - transferredForVault(fundId)) * 100) / 100);
   const planSpending = activePlanExpenses.filter(
     (expense) => expensePlanGroup(expense) === "spending"
   );
@@ -2420,6 +2491,15 @@ export default function BudgetDashboard() {
                   subtitle="Money being set aside for a specific future goal or event."
                   expenses={planSinking}
                   groupBy={sinkingFundNameForExpense}
+                  groupTransferredBy={(name) => {
+                    const fund = futureExpenses.find((item) => item.event_fund === name);
+                    return fund ? transferredForVault(fund.id) : 0;
+                  }}
+                  onGroupTransfer={paycheckCountsAsFunded(paycheck) ? (name) => {
+                    const fund = futureExpenses.find((item) => item.event_fund === name);
+                    if (fund && remainingToTransfer(fund.id) > 0)
+                      setEditor({ type: "vault-transfer", fundId: fund.id });
+                  } : undefined}
                   onEdit={(expense) =>
                     setEditor({ type: "expense", item: expense })
                   }
@@ -2435,16 +2515,6 @@ export default function BudgetDashboard() {
                       plannedExpenseId: expense.id,
                       futureExpenseId: fundId || undefined,
                     });
-                  }}
-                  groupSpentBy={(group) => {
-                    const fundId = futureExpenses.find(
-                      (item) => item.event_fund === group
-                    )?.id;
-                    if (!fundId) return 0;
-
-                    return actualExpenses
-                      .filter((item) => item.future_expense_id === fundId)
-                      .reduce((sum, item) => sum + num(item.amount), 0);
                   }}
                   emptyText="No sinking-fund contributions are assigned to this paycheck."
                 />
@@ -2970,6 +3040,26 @@ export default function BudgetDashboard() {
                                     </div>
                                   )}
 
+                                  {vaultTransfers.some((entry) => entry.future_expense_id === item.id) && (
+                                    <div className="mt-3 space-y-1 rounded-xl bg-white p-3">
+                                      <p className="text-xs font-black text-slate-700">Confirmed bank-vault transfers</p>
+                                      {vaultTransfers.filter((entry) => entry.future_expense_id === item.id)
+                                        .map((entry) => (
+                                          <div key={entry.id} className="flex items-center justify-between gap-2 border-t border-slate-100 py-2 text-xs">
+                                            <span>{dateLabel(entry.transferred_on)} · {money(num(entry.amount))}</span>
+                                            <button type="button" onClick={() => void deleteVaultTransfer(entry)}
+                                              disabled={saving} className="font-bold text-rose-600">Remove record</button>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  )}
+                                  {paycheckCountsAsFunded(paycheck) && remainingToTransfer(item.id) > 0 && (
+                                    <button type="button" onClick={() => setEditor({ type: "vault-transfer", fundId: item.id })}
+                                      className="mt-3 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white">
+                                      Confirm transfer to vault · {money(remainingToTransfer(item.id))} planned
+                                    </button>
+                                  )}
+
                                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     <button
                                       type="button"
@@ -3492,6 +3582,17 @@ export default function BudgetDashboard() {
             setForecastDate(null);
             setEditor({ type: "expense", item, paycheckDate: date });
           }}
+        />
+      )}
+
+      {editor?.type === "vault-transfer" && (
+        <VaultTransferModal
+          fund={futureExpenses.find((item) => item.id === editor.fundId)!}
+          paycheckDate={paycheck.paycheck_date}
+          remaining={remainingToTransfer(editor.fundId)}
+          saving={saving}
+          onClose={() => setEditor(null)}
+          onSave={saveVaultTransfer}
         />
       )}
 
