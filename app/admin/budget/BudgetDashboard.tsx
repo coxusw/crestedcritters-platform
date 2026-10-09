@@ -11,6 +11,7 @@ import {
   Expense,
   FutureExpense,
   IncomeEntry,
+  VaultTransfer,
   Paycheck,
   PlanTab,
   RecurringBill,
@@ -43,6 +44,7 @@ import {
   SinkingFundCloseoutModal,
 } from "./BudgetEditors";
 import DeficitReviewModal, { type DeficitPreview } from "./DeficitReviewModal";
+import VaultTransferModal from "./VaultTransferModal";
 import {
   ActualExpenseRow,
   BudgetMeter,
@@ -86,6 +88,7 @@ export default function BudgetDashboard() {
   const [bucketContributions, setBucketContributions] = useState<BucketContribution[]>([]);
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
   const [actualExpenses, setActualExpenses] = useState<ActualExpense[]>([]);
+  const [vaultTransfers, setVaultTransfers] = useState<VaultTransfer[]>([]);
   const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>([]);
   const [futurePlanExpenses, setFuturePlanExpenses] = useState<Expense[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
@@ -188,6 +191,7 @@ export default function BudgetDashboard() {
       futureResult,
       recurringResult,
       actualResult,
+      vaultResult,
       bucketContributionResult,
       incomeResult,
       futurePlanResult,
@@ -216,6 +220,10 @@ export default function BudgetDashboard() {
         .eq("assigned_paycheck", selected.paycheck_date)
         .order("spent_date", { ascending: false })
         .order("created_at", { ascending: false }),
+      supabase
+        .from("budget_vault_transfers")
+        .select("id,future_expense_id,assigned_paycheck,transferred_on,amount,note")
+        .order("transferred_on", { ascending: false }),
       supabase
         .from("budget_expenses")
         .select("future_expense_id,assigned_paycheck,planned_amount,status")
@@ -248,6 +256,7 @@ export default function BudgetDashboard() {
       futureResult.error ||
       recurringResult.error ||
       actualResult.error ||
+      vaultResult.error ||
       bucketContributionResult.error ||
       incomeResult.error ||
       futurePlanResult.error ||
@@ -271,6 +280,7 @@ export default function BudgetDashboard() {
     setBucketContributions((bucketContributionResult.data || []) as BucketContribution[]);
     setRecurringBills((recurringResult.data || []) as RecurringBill[]);
     setActualExpenses((actualResult.data || []) as ActualExpense[]);
+    setVaultTransfers((vaultResult.data || []) as VaultTransfer[]);
     setIncomeEntries((incomeResult.data || []) as IncomeEntry[]);
     setFuturePlanExpenses((futurePlanResult.data || []) as Expense[]);
     setDebts((debtResult.data || []) as Debt[]);
@@ -1656,10 +1666,15 @@ export default function BudgetDashboard() {
     (sum, entry) => sum + num(entry.amount),
     0
   );
-  // Spending is counted once from the actual transaction ledger. Buffer coverage
-  // is a funding source, not a second spend. This is unspent planned money,
-  // not the checking balance or the unassigned after-plan cushion.
-  const remainingInPlan = planned - spentThisPeriod;
+  const spendingFromVaults = actualExpenses
+    .filter((expense) => !!expense.future_expense_id)
+    .reduce((sum, expense) => sum + num(expense.amount), 0);
+  const movedToVaults = vaultTransfers
+    .filter((transfer) => transfer.assigned_paycheck === paycheck?.paycheck_date)
+    .reduce((sum, transfer) => sum + num(transfer.amount), 0);
+  // Vault purchases are already funded by earlier transfers, so never deduct
+  // them from checking or this paycheck's still-unspent planned amount twice.
+  const remainingInPlan = planned - (spentThisPeriod - spendingFromVaults) - movedToVaults;
 
   const currentCloseoutTransfers = useMemo(
     () =>
@@ -1840,20 +1855,6 @@ export default function BudgetDashboard() {
       );
   }, [debts]);
 
-  const fundedPaycheckDates = useMemo(
-    () =>
-      new Set(
-        paychecks
-          .filter(paycheckCountsAsFunded)
-          .map((row) => row.paycheck_date)
-      ),
-    [paychecks]
-  );
-
-  const contributionCountsAsFunded = (row: BucketContribution) =>
-    isFundingCompleteStatus(row.status) ||
-    (!!row.assigned_paycheck && fundedPaycheckDates.has(row.assigned_paycheck));
-
   const bucketIncomingCloseouts = (
     bucketId: string,
     throughPaycheck = "9999-12-31"
@@ -1870,17 +1871,12 @@ export default function BudgetDashboard() {
       .reduce((sum, item) => sum + num(item.closeout_amount), 0);
 
   const bucketFundedThrough = (bucketId: string, throughPaycheck: string) =>
-    bucketContributions
-      .filter(
-        (row) =>
-          row.future_expense_id === bucketId &&
-          !!row.assigned_paycheck &&
-          row.assigned_paycheck <= throughPaycheck &&
-          row.status !== "Cancelled" &&
-          row.status !== "Deferred" &&
-          contributionCountsAsFunded(row)
+    vaultTransfers
+      .filter((transfer) =>
+        transfer.future_expense_id === bucketId &&
+        transfer.assigned_paycheck <= throughPaycheck
       )
-      .reduce((sum, row) => sum + num(row.planned_amount), 0) +
+      .reduce((sum, transfer) => sum + num(transfer.amount), 0) +
     bucketIncomingCloseouts(bucketId, throughPaycheck);
 
   const allocationSuggestions = useMemo(() => {
@@ -1960,15 +1956,7 @@ export default function BudgetDashboard() {
     );
 
     if (remaining > 0 && emergencyFund && emergencyFund.status !== "Completed") {
-      const funded = bucketContributions
-        .filter(
-          (row) =>
-            row.future_expense_id === emergencyFund.id &&
-            row.status !== "Cancelled" &&
-            row.status !== "Deferred" &&
-            contributionCountsAsFunded(row)
-        )
-        .reduce((sum, row) => sum + num(row.planned_amount), 0);
+      const funded = bucketFundedThrough(emergencyFund.id, "9999-12-31");
       const spent = num(emergencyFund.actual_funding_spend);
       const availableInFund = funded - spent;
       const target = num(emergencyFund.target_budget);
@@ -2042,7 +2030,7 @@ export default function BudgetDashboard() {
     futurePlanExpenses,
     futureExpenses,
     bucketContributions,
-    fundedPaycheckDates,
+    vaultTransfers,
     debtSignals,
   ]);
 
@@ -2346,10 +2334,11 @@ export default function BudgetDashboard() {
                   <MiniStat label="Planned" value={money(planned)} />
                   <MiniStat label="After plan" value={money(availableExtra)} />
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-3 border-t border-white/15 pt-3">
+                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/15 pt-3">
                   <MiniStat label="Spent so far" value={money(spentThisPeriod)} />
+                  <MiniStat label="Into vaults" value={money(movedToVaults)} />
                   <div>
-                    <span className="block text-[10px] text-slate-400">Remaining in plan</span>
+                    <span className="block text-[10px] text-slate-400">Still in plan</span>
                     <strong className={`mt-1 block text-sm ${remainingInPlan < -0.005 ? "text-rose-300" : "text-emerald-300"}`}>
                       {money(remainingInPlan)}
                     </strong>
@@ -2870,8 +2859,8 @@ export default function BudgetDashboard() {
                     <div>
                       <h3 className="text-lg font-black">Sinking funds</h3>
                       <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Only money from a received/finalized paycheck counts as funded.
-                        Future paycheck allocations stay planned until then.
+                        Funded means you confirmed the money was moved into the named bank vault.
+                        Receiving a paycheck alone does not fund a vault.
                       </p>
                     </div>
                     <button
@@ -3300,7 +3289,7 @@ export default function BudgetDashboard() {
                     <div>
                       <h3 className="font-black">Future expenses</h3>
                       <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Upcoming goals and sinking funds. Funding is still planned until a paycheck is received.
+                        Savings goals stay planned until you confirm each bank-vault transfer.
                       </p>
                     </div>
                     <button
@@ -3595,6 +3584,7 @@ export default function BudgetDashboard() {
           initialFutureExpenseId={editor.futureExpenseId}
           futureExpenses={futureExpenses}
           bucketContributions={bucketContributions}
+          vaultTransfers={vaultTransfers}
           paychecks={paychecks}
           saving={saving}
           onClose={() => setEditor(null)}
