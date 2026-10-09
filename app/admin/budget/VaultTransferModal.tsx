@@ -6,11 +6,12 @@ import { dateLabel, money, todayIso } from "./budgetModel";
 import { Modal } from "./BudgetUi";
 
 export default function VaultTransferModal({
-  fund, paycheckDate, remaining, saving, onClose, onSave,
+  fund, paycheckDate, remaining, error, saving, onClose, onSave,
 }: {
   fund: FutureExpense;
   paycheckDate: string;
   remaining: number;
+  error?: string;
   saving: boolean;
   onClose: () => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
@@ -18,6 +19,11 @@ export default function VaultTransferModal({
   return (
     <Modal title="Confirm vault transfer" onClose={onClose}>
       <form onSubmit={onSave} className="space-y-3">
+        {error ? (
+          <div role="alert" className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm font-bold text-rose-800">
+            {error}
+          </div>
+        ) : null}
         <div className="rounded-xl bg-slate-100 p-3 text-sm leading-5 text-slate-700">
           Move the money in your bank app first. This only records the transfer in your budget; it cannot move bank funds.
         </div>
