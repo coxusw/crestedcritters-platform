@@ -23,7 +23,6 @@ import {
   expenseDisplayName,
   expensePlanGroup,
   isClosedFundStatus,
-  isFundingCompleteStatus,
   money,
   monthlyEquivalent,
   normalizeSpendingCategory,
