@@ -144,6 +144,7 @@ export function PlanExpenseSection({
   groupBy,
   groupSpentBy,
   groupTransferredBy,
+  groupVaultBalanceBy,
   onGroupTransfer,
   emptyText,
 }: {
@@ -155,11 +156,13 @@ export function PlanExpenseSection({
   groupBy?: (expense: Expense) => string;
   groupSpentBy?: (group: string) => number;
   groupTransferredBy?: (group: string) => number;
+  groupVaultBalanceBy?: (group: string) => number;
   onGroupTransfer?: (group: string) => void;
   emptyText: string;
 }) {
   const subtotal = expenses.reduce(
-    (sum, expense) => sum + num(expense.planned_amount),
+    (sum, expense) => sum + num(expense.planned_amount) +
+      (groupTransferredBy ? num(expense.vault_prefund_offset) : 0),
     0
   );
   const groups = new Map<string, Expense[]>();
@@ -191,7 +194,8 @@ export function PlanExpenseSection({
         <div className="space-y-2">
           {Array.from(groups.entries()).map(([group, rows]) => {
             const groupPlanned = rows.reduce(
-              (sum, expense) => sum + num(expense.planned_amount),
+              (sum, expense) => sum + num(expense.planned_amount) +
+                (groupTransferredBy ? num(expense.vault_prefund_offset) : 0),
               0
             );
             const rowSpent = rows.reduce(
@@ -200,6 +204,10 @@ export function PlanExpenseSection({
             );
             const groupSpent = groupSpentBy ? groupSpentBy(group) : rowSpent;
             const groupTransferred = groupTransferredBy ? groupTransferredBy(group) : 0;
+            const groupVaultBalance = groupVaultBalanceBy ? groupVaultBalanceBy(group) : 0;
+            const remainingToTransfer = Math.max(0, rows.reduce(
+              (sum, expense) => sum + num(expense.planned_amount), 0
+            ) - groupTransferred);
             const unassignedGroupSpend = Math.max(0, groupSpent - rowSpent);
 
             return (
@@ -207,22 +215,28 @@ export function PlanExpenseSection({
                 key={group}
                 className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"
               >
-                <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-3.5 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-3.5 py-3">
                   <span className="min-w-0 truncate text-[11px] font-black uppercase tracking-wide text-slate-500">
                     {group}
                   </span>
                   {groupTransferredBy ? (
-                    <div className="flex shrink-0 items-center gap-2">
-                      <div className="text-right">
-                        <strong className="block text-xs text-slate-700">
-                          {money(groupTransferred)} / {money(groupPlanned)}
-                        </strong>
-                        <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-400">
-                          Moved to vault / Plan
-                        </span>
+                    <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0 space-y-1 text-xs">
+                        <p className="font-bold text-slate-800">
+                          Budget {money(groupPlanned)}
+                          <span className="ml-3 text-emerald-700">Spent {money(groupSpent)}</span>
+                        </p>
+                        <p className="text-slate-500">
+                          In vault {money(groupVaultBalance)}
+                          <span className="ml-3">To transfer {money(remainingToTransfer)}</span>
+                        </p>
                       </div>
-                      {onGroupTransfer && groupTransferred < groupPlanned - 0.005 ? (
-                        <button type="button" onClick={() => onGroupTransfer(group)} className="rounded-lg bg-emerald-600 px-2 py-2 text-[11px] font-black text-white">
+                      {onGroupTransfer && remainingToTransfer > 0.005 ? (
+                        <button
+                          type="button"
+                          onClick={() => onGroupTransfer(group)}
+                          className="shrink-0 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black text-white"
+                        >
                           Transfer
                         </button>
                       ) : null}
@@ -371,8 +385,9 @@ export function ExpenseRow({
   vaultMode?: boolean;
 }) {
   const planned = num(expense.planned_amount);
+  const originalBudget = planned + (vaultMode ? num(expense.vault_prefund_offset) : 0);
   const spent = num(expense.actual_amount);
-  const reconciliationStatus = vaultMode ? "Planned bank-vault transfer" :
+  const reconciliationStatus = vaultMode ? "Sinking-fund budget" :
     expense.status === "Cancelled"
       ? "Canceled"
       : expense.status === "Deferred"
@@ -383,7 +398,7 @@ export function ExpenseRow({
             : spent + 0.005 < planned
               ? "Partial"
               : "Paid");
-  const overPlan = spent > planned + 0.005;
+  const overPlan = spent > originalBudget + 0.005;
   const plannedAfterDueDays = paymentTimingDelayDays(expense);
 
   return (
@@ -399,7 +414,15 @@ export function ExpenseRow({
         </p>
         <p className="mt-1 text-[11px] font-bold text-slate-500">
           {vaultMode ? (
-            <>Plan {money(planned)} · <span className="text-slate-600">See confirmed transfers above</span></>
+            <>
+              Budget {money(originalBudget)} ·{" "}
+              <span className={spent > 0 ? "text-emerald-700" : "text-slate-500"}>
+                Spent {money(spent)}
+              </span>
+              <span className="block mt-0.5 text-slate-500">
+                To vault {money(planned)}
+              </span>
+            </>
           ) : (
             <>Plan {money(planned)} ·{" "}
               <span className={overPlan ? "text-rose-600" : "text-emerald-700"}>Spent {money(spent)}</span>
@@ -416,7 +439,7 @@ export function ExpenseRow({
         <strong className={`block text-sm ${
           overPlan ? "text-rose-600" : "text-emerald-700"
         }`}>
-          {vaultMode ? money(planned) : `${money(spent)} / ${money(planned)}`}
+          {vaultMode ? money(originalBudget) : `${money(spent)} / ${money(planned)}`}
         </strong>
         <div className="mt-1 flex items-center justify-end gap-2">
           {onSpend && expense.status !== "Cancelled" && expense.status !== "Deferred" ? (
@@ -425,7 +448,7 @@ export function ExpenseRow({
               onClick={onSpend}
               className="text-xs font-black text-emerald-700"
             >
-              {vaultMode ? "Vault spend" : "Spend"}
+              Spend
             </button>
           ) : null}
           <button
