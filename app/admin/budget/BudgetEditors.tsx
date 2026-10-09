@@ -188,9 +188,9 @@ export function SinkingFundCloseoutModal({
           <p className="text-xs font-bold text-slate-500">Actually available</p>
           <p className="mt-1 text-2xl font-black">{money(available)}</p>
           <p className="mt-1 text-[11px] leading-5 text-slate-500">
-            Only money from received/finalized paychecks counts here. Any future
-            unfunded contributions to this sinking fund will be cancelled when
-            you close it.
+            Only transfers confirmed into this bank vault count here, minus
+            purchases paid from the vault. Future planned transfers will be
+            cancelled when you close it.
           </p>
         </div>
 
@@ -225,10 +225,17 @@ export function SinkingFundCloseoutModal({
             The closest open sinking-fund deadline is{" "}
             <strong>{nextFund.event_fund || "Future expense"}</strong>
             {" · "}
-            {dateLabel(coalesceFundDeadline(nextFund))}. Moving money there
-            immediately counts it as funded and reduces later planned
-            contributions by the same amount.
+            {dateLabel(coalesceFundDeadline(nextFund))}. If you choose that
+            destination, move the leftover between your bank vaults first.
+            The app records that confirmed move; it never moves bank funds.
           </div>
+        )}
+
+        {available > 0 && (
+          <label className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs font-bold leading-5 text-amber-950">
+            <input type="checkbox" name="vault_moved" value="yes" required className="mt-1" />
+            <span>I have already moved this leftover money out of its vault in my bank, to the chosen destination. Closing the fund only records that change.</span>
+          </label>
         )}
 
         <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-600">
