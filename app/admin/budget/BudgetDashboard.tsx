@@ -594,7 +594,7 @@ export default function BudgetDashboard() {
       );
     } else {
       setNotice(
-        `${eventFund} added. Future contributions are planned automatically and remain unfunded until each paycheck is received.`
+        `${eventFund} added. Future contributions are planned automatically, but only confirmed transfers into bank vaults count as funded.`
       );
     }
 
@@ -612,6 +612,13 @@ export default function BudgetDashboard() {
 
     const data = new FormData(event.currentTarget);
     const destination = String(data.get("destination") || "none");
+    const remainingInVault = bucketFundedThrough(editor.item.id, "9999-12-31")
+      - num(editor.item.actual_funding_spend);
+    if (remainingInVault > 0.005 && data.get("vault_moved") !== "yes") {
+      setError("Confirm you moved the leftover money in your bank before closing this vault.");
+      setSaving(false);
+      return;
+    }
 
     const { data: closeout, error: closeError } = await supabase.rpc(
       "close_budget_sinking_fund",
@@ -2030,7 +2037,7 @@ export default function BudgetDashboard() {
           title: `Build Emergency Fund to ${money(target)}`,
           detail: `Currently ${money(
             Math.max(0, availableInFund)
-          )} is actually funded. Future planned contributions do not become available until the paycheck is received.`,
+          )} is actually funded. Future planned contributions do not become available until you confirm moving them into the vault.`,
           amount,
         });
         remaining -= amount;
