@@ -42,6 +42,7 @@ export type FutureExpense = {
   target_budget: number | string | null;
   planned_funding: number | string | null;
   actual_funding_spend: number | string | null;
+  pre_vault_spending: number | string | null;
   remaining_to_plan: number | string | null;
   remaining_actual: number | string | null;
   status: string | null;
@@ -93,6 +94,7 @@ export type ActualExpense = {
   overage_source: "buffer" | "carryover" | null;
   buffer_coverage_amount: number | string | null;
   overage_amount: number | string | null;
+  paid_before_vault_funded: boolean;
 };
 
 export type VaultTransfer = {
