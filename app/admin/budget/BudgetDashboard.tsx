@@ -159,6 +159,15 @@ export default function BudgetDashboard() {
       return;
     }
 
+    // Adjust contributions for purchases paid before bank-vault funding.
+    // Forecast generation runs first; actual paycheck totals recalculate via triggers.
+    const { error: prefundError } = await supabase.rpc("refresh_budget_vault_prefund_offsets");
+    if (prefundError) {
+      setError(prefundError.message);
+      setLoading(false);
+      return;
+    }
+
     const { data: allPaychecks, error: paychecksError } = await supabase
       .from("budget_paychecks")
       .select("paycheck_date,projected_check,actual_check,period_status,planned_spending,actual_spending,reserve_change,running_cash_goal_pool,reconciled_checking_balance,review_required,review_reason,review_triggered_at,rolling_generated")
@@ -205,7 +214,7 @@ export default function BudgetDashboard() {
         .order("planned_amount", { ascending: false, nullsFirst: false }),
       supabase
         .from("budget_future_expenses")
-        .select("id,event_fund,due_date,target_budget,planned_funding,actual_funding_spend,remaining_to_plan,remaining_actual,status,notes,funding_start_paycheck,funding_deadline,auto_fund,repeat_annually,funding_deadline_rule,closed_at,closeout_amount,closeout_destination,closeout_destination_fund_id,closeout_assigned_paycheck")
+        .select("id,event_fund,due_date,target_budget,planned_funding,actual_funding_spend,pre_vault_spending,remaining_to_plan,remaining_actual,status,notes,funding_start_paycheck,funding_deadline,auto_fund,repeat_annually,funding_deadline_rule,closed_at,closeout_amount,closeout_destination,closeout_destination_fund_id,closeout_assigned_paycheck")
         .order("due_date", { ascending: true, nullsFirst: false }),
       supabase
         .from("budget_recurring_bills")
@@ -215,7 +224,7 @@ export default function BudgetDashboard() {
         .order("item", { ascending: true }),
       supabase
         .from("budget_actual_expenses")
-        .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,planned_expense_id,debt_id,overage_source,buffer_coverage_amount,overage_amount,created_at")
+        .select("id,spent_date,assigned_paycheck,category,description,amount,note,future_expense_id,planned_expense_id,debt_id,overage_source,buffer_coverage_amount,overage_amount,paid_before_vault_funded,created_at")
         .eq("assigned_paycheck", selected.paycheck_date)
         .order("spent_date", { ascending: false })
         .order("created_at", { ascending: false }),
@@ -613,7 +622,7 @@ export default function BudgetDashboard() {
     const data = new FormData(event.currentTarget);
     const destination = String(data.get("destination") || "none");
     const remainingInVault = bucketFundedThrough(editor.item.id, "9999-12-31")
-      - num(editor.item.actual_funding_spend);
+      - Math.max(0, num(editor.item.actual_funding_spend) - num(editor.item.pre_vault_spending));
     if (remainingInVault > 0.005 && data.get("vault_moved") !== "yes") {
       setError("Confirm you moved the leftover money in your bank before closing this vault.");
       setSaving(false);
@@ -1397,12 +1406,15 @@ export default function BudgetDashboard() {
           editor.item?.future_expense_id === bucket.id
             ? num(editor.item.amount)
             : 0;
-        const spentBefore =
-          Math.max(0, num(bucket.actual_funding_spend)) -
-          currentBucketAmount;
+        const spentBefore = Math.max(0,
+          num(bucket.actual_funding_spend) - num(bucket.pre_vault_spending)) -
+          (editor.item?.paid_before_vault_funded ? 0 : currentBucketAmount);
         const availableBefore = fundedThrough - spentBefore;
 
-        if (payload.amount > availableBefore) {
+        // Purchases paid before the first transfer are not vault overdrafts.
+        const paidBeforeFunding = editor.item?.future_expense_id === bucket.id
+          ? !!editor.item.paid_before_vault_funded : fundedThrough <= 0;
+        if (!paidBeforeFunding && payload.amount > availableBefore) {
           const negativeBy = payload.amount - availableBefore;
           warnings.push(
             `${bucket.event_fund || "This bucket"} will go ${money(
@@ -2025,7 +2037,7 @@ export default function BudgetDashboard() {
 
     if (remaining > 0 && emergencyFund && emergencyFund.status !== "Completed") {
       const funded = bucketFundedThrough(emergencyFund.id, "9999-12-31");
-      const spent = num(emergencyFund.actual_funding_spend);
+      const spent = Math.max(0, num(emergencyFund.actual_funding_spend) - num(emergencyFund.pre_vault_spending));
       const availableInFund = funded - spent;
       const target = num(emergencyFund.target_budget);
       const needed = Math.max(0, target - availableInFund);
@@ -2969,7 +2981,7 @@ export default function BudgetDashboard() {
                                 0
                               ) + bucketIncomingCloseouts(item.id);
                           const plannedFuture = Math.max(0, totalPlanned - funded);
-                          const spent = num(item.actual_funding_spend);
+                          const spent = Math.max(0, num(item.actual_funding_spend) - num(item.pre_vault_spending));
                           const available = funded - spent;
                           const target = num(item.target_budget);
                           const progress =
@@ -3411,7 +3423,7 @@ export default function BudgetDashboard() {
                               item.id,
                               "9999-12-31"
                             );
-                            const spent = num(item.actual_funding_spend);
+                            const spent = Math.max(0, num(item.actual_funding_spend) - num(item.pre_vault_spending));
                             const available = funded - spent;
 
                             return (
@@ -3635,7 +3647,7 @@ export default function BudgetDashboard() {
           available={Math.max(
             0,
             bucketFundedThrough(editor.item.id, "9999-12-31") -
-              num(editor.item.actual_funding_spend)
+              Math.max(0, num(editor.item.actual_funding_spend) - num(editor.item.pre_vault_spending))
           )}
           nextFund={
             futureExpenses
