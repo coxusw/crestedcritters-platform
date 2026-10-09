@@ -248,6 +248,7 @@ export function PlanExpenseSection({
                     expense={expense}
                     onEdit={() => onEdit(expense)}
                     onSpend={onSpend ? () => onSpend(expense) : undefined}
+                    vaultMode={!!groupTransferredBy}
                   />
                 ))}
                 {groupSpentBy && unassignedGroupSpend > 0.005 ? (
@@ -362,14 +363,16 @@ export function ExpenseRow({
   expense,
   onEdit,
   onSpend,
+  vaultMode = false,
 }: {
   expense: Expense;
   onEdit: () => void;
   onSpend?: () => void;
+  vaultMode?: boolean;
 }) {
   const planned = num(expense.planned_amount);
   const spent = num(expense.actual_amount);
-  const reconciliationStatus =
+  const reconciliationStatus = vaultMode ? "Planned bank-vault transfer" :
     expense.status === "Cancelled"
       ? "Canceled"
       : expense.status === "Deferred"
@@ -395,10 +398,13 @@ export function ExpenseRow({
           {` · ${reconciliationStatus}`}
         </p>
         <p className="mt-1 text-[11px] font-bold text-slate-500">
-          Plan {money(planned)} ·{" "}
-          <span className={overPlan ? "text-rose-600" : "text-emerald-700"}>
-            Spent {money(spent)}
-          </span>
+          {vaultMode ? (
+            <>Plan {money(planned)} · <span className="text-slate-600">See confirmed transfers above</span></>
+          ) : (
+            <>Plan {money(planned)} ·{" "}
+              <span className={overPlan ? "text-rose-600" : "text-emerald-700"}>Spent {money(spent)}</span>
+            </>
+          )}
         </p>
         {plannedAfterDueDays > 0 && (
           <p className="mt-1 text-[11px] font-black leading-4 text-rose-700">
@@ -410,7 +416,7 @@ export function ExpenseRow({
         <strong className={`block text-sm ${
           overPlan ? "text-rose-600" : "text-emerald-700"
         }`}>
-          {money(spent)} / {money(planned)}
+          {vaultMode ? money(planned) : `${money(spent)} / ${money(planned)}`}
         </strong>
         <div className="mt-1 flex items-center justify-end gap-2">
           {onSpend && expense.status !== "Cancelled" && expense.status !== "Deferred" ? (
@@ -419,7 +425,7 @@ export function ExpenseRow({
               onClick={onSpend}
               className="text-xs font-black text-emerald-700"
             >
-              Spend
+              {vaultMode ? "Vault spend" : "Spend"}
             </button>
           ) : null}
           <button
