@@ -1485,9 +1485,16 @@ export default function BudgetDashboard() {
 
     const data = new FormData(event.currentTarget);
     const editorPaycheck = editor.paycheckDate || paycheck.paycheck_date;
+    const requestedBudget = Number(data.get("planned_amount") || 0);
+    const existingPrefundOffset = editor.item?.future_expense_id
+      ? num(editor.item.vault_prefund_offset) : 0;
+    const retainedPrefundOffset = Math.min(
+      Math.max(0, requestedBudget), Math.max(0, existingPrefundOffset)
+    );
     const payload = {
       line_item: String(data.get("line_item") || "").trim(),
-      planned_amount: Number(data.get("planned_amount") || 0),
+      planned_amount: requestedBudget - retainedPrefundOffset,
+      vault_prefund_offset: retainedPrefundOffset,
       due_date: String(data.get("due_date") || editorPaycheck),
       assigned_paycheck: String(
         data.get("assigned_paycheck") || editorPaycheck
@@ -1499,7 +1506,7 @@ export default function BudgetDashboard() {
       notes: String(data.get("notes") || "").trim() || null,
     };
 
-    if (!payload.line_item || payload.planned_amount < 0) {
+    if (!payload.line_item || !Number.isFinite(requestedBudget) || requestedBudget < 0) {
       setError("Enter an expense name and a valid amount.");
       setSaving(false);
       return;
