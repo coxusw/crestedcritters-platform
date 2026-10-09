@@ -1245,7 +1245,7 @@ export default function BudgetDashboard() {
       setError("Enter the amount already moved into the vault, up to the unpaid planned contribution.");
       return;
     }
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(transferredOn) || transferredOn > todayIso()) {
+    if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(transferredOn) || transferredOn > todayIso()) {
       setError("Choose the actual transfer date, not a future date.");
       return;
     }
@@ -3596,6 +3596,7 @@ export default function BudgetDashboard() {
           fund={futureExpenses.find((item) => item.id === editor.fundId)!}
           paycheckDate={paycheck.paycheck_date}
           remaining={remainingToTransfer(editor.fundId)}
+          error={error}
           saving={saving}
           onClose={() => setEditor(null)}
           onSave={saveVaultTransfer}
