@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import {
-  ActualExpense, BucketContribution, Debt, Expense, FutureExpense, IncomeEntry, Paycheck, PlanTab, RecurringBill, addDays, coalesceFundDeadline, dateLabel, expenseDisplayName, expensePlanGroup, isClosedFundStatus, isFundingCompleteStatus, money, monthlyEquivalent, normalizeSpendingCategory, num, paycheckCountsAsFunded, spendingCategoryForExpense, todayIso
+  ActualExpense, BucketContribution, Debt, Expense, FutureExpense, IncomeEntry, Paycheck, PlanTab, RecurringBill, VaultTransfer, addDays, coalesceFundDeadline, dateLabel, expenseDisplayName, expensePlanGroup, isClosedFundStatus, isFundingCompleteStatus, money, monthlyEquivalent, normalizeSpendingCategory, num, paycheckCountsAsFunded, spendingCategoryForExpense, todayIso
 } from "./budgetModel";
 import { BudgetMeter, Field, Modal, PlanExpenseSection } from "./BudgetUi";
 
@@ -797,6 +797,7 @@ export function ActualExpenseEditor({
   initialFutureExpenseId,
   futureExpenses,
   bucketContributions,
+  vaultTransfers,
   paychecks,
   saving,
   onClose,
@@ -814,6 +815,7 @@ export function ActualExpenseEditor({
   initialFutureExpenseId?: string;
   futureExpenses: FutureExpense[];
   bucketContributions: BucketContribution[];
+  vaultTransfers: VaultTransfer[];
   paychecks: Paycheck[];
   saving: boolean;
   onClose: () => void;
@@ -1007,23 +1009,15 @@ export function ActualExpenseEditor({
       return (a.event_fund || "").localeCompare(b.event_fund || "");
     });
 
-  const fundedPaycheckDates = new Set(
-    paychecks
-      .filter(paycheckCountsAsFunded)
-      .map((row) => row.paycheck_date)
-  );
+  // Only completed transfers into the real bank vault count as savings.
   const bucketFunded = selectedBucket
-    ? bucketContributions
-        .filter(
-          (row) =>
-            row.future_expense_id === selectedBucket.id &&
-            row.status !== "Cancelled" &&
-            row.status !== "Deferred" &&
-            (isFundingCompleteStatus(row.status) ||
-              (!!row.assigned_paycheck &&
-                fundedPaycheckDates.has(row.assigned_paycheck)))
-        )
-        .reduce((sum, row) => sum + num(row.planned_amount), 0)
+    ? vaultTransfers
+        .filter((row) => row.future_expense_id === selectedBucket.id)
+        .reduce((sum, row) => sum + num(row.amount), 0)
+      + futureExpenses
+          .filter((fund) => fund.closeout_destination === "next_fund"
+            && fund.closeout_destination_fund_id === selectedBucket.id)
+          .reduce((sum, fund) => sum + num(fund.closeout_amount), 0)
     : 0;
   const currentBucketItemAmount =
     item?.future_expense_id === selectedBucketId ? num(item?.amount) : 0;
