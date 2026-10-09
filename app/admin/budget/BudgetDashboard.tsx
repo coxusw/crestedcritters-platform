@@ -207,7 +207,7 @@ export default function BudgetDashboard() {
     ] = await Promise.all([
       supabase
         .from("budget_expenses")
-        .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id,forecast_generated,forecast_debt_id,forecast_suppressed")
+        .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,vault_prefund_offset,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id,forecast_generated,forecast_debt_id,forecast_suppressed")
         .eq("assigned_paycheck", selected.paycheck_date)
         .eq("forecast_suppressed", false)
         .order("due_date", { ascending: true, nullsFirst: false })
@@ -245,7 +245,7 @@ export default function BudgetDashboard() {
         .order("received_date", { ascending: false }),
       supabase
         .from("budget_expenses")
-        .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id,forecast_generated,forecast_debt_id,forecast_suppressed")
+        .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,vault_prefund_offset,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id,forecast_generated,forecast_debt_id,forecast_suppressed")
         .gte("assigned_paycheck", selected.paycheck_date)
         .neq("status", "Cancelled")
         .eq("forecast_suppressed", false)
@@ -405,7 +405,7 @@ export default function BudgetDashboard() {
 
     const { data, error: forecastError } = await supabase
       .from("budget_expenses")
-      .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id,forecast_generated,forecast_debt_id,forecast_suppressed")
+      .select("id,due_date,assigned_paycheck,category,line_item,expense_type,frequency,planned_amount,vault_prefund_offset,actual_amount,status,reconciliation_status,notes,event_fund,future_expense_id,generated_recurring_id,forecast_generated,forecast_debt_id,forecast_suppressed")
       .eq("assigned_paycheck", date)
       .neq("status", "Cancelled")
       .eq("forecast_suppressed", false)
@@ -2509,6 +2509,17 @@ export default function BudgetDashboard() {
                   subtitle="Money being set aside for a specific future goal or event."
                   expenses={planSinking}
                   groupBy={sinkingFundNameForExpense}
+                  groupSpentBy={(name) => {
+                    const fund = futureExpenses.find((item) => item.event_fund === name);
+                    return fund ? num(fund.actual_funding_spend) : 0;
+                  }}
+                  groupVaultBalanceBy={(name) => {
+                    const fund = futureExpenses.find((item) => item.event_fund === name);
+                    return fund
+                      ? bucketFundedThrough(fund.id, "9999-12-31") -
+                        Math.max(0, num(fund.actual_funding_spend) - num(fund.pre_vault_spending))
+                      : 0;
+                  }}
                   groupTransferredBy={(name) => {
                     const fund = futureExpenses.find((item) => item.event_fund === name);
                     return fund ? transferredForVault(fund.id) : 0;
