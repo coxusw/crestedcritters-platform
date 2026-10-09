@@ -1027,15 +1027,22 @@ export function ActualExpenseEditor({
           .reduce((sum, fund) => sum + num(fund.closeout_amount), 0)
     : 0;
   const currentBucketItemAmount =
-    item?.future_expense_id === selectedBucketId ? num(item?.amount) : 0;
+    item?.future_expense_id === selectedBucketId && !item?.paid_before_vault_funded
+      ? num(item?.amount) : 0;
   const bucketSpentBefore = selectedBucket
-    ? Math.max(0, num(selectedBucket.actual_funding_spend)) -
-      currentBucketItemAmount
+    ? Math.max(0, num(selectedBucket.actual_funding_spend) -
+        num(selectedBucket.pre_vault_spending) - currentBucketItemAmount)
     : 0;
   const bucketAvailableBefore = bucketFunded - bucketSpentBefore;
-  const bucketAvailableAfter = bucketAvailableBefore - enteredAmount;
-  const bucketOverAfter =
-    !!selectedBucket && enteredAmount > 0 && bucketAvailableAfter < 0;
+  // Before a fund receives any bank transfer, the purchase is paid from
+  // checking and reduces future contributions, not the bank-vault balance.
+  const paidBeforeFunding = item?.future_expense_id === selectedBucketId
+    ? !!item?.paid_before_vault_funded
+    : bucketFunded <= 0;
+  const bucketAvailableAfter = bucketAvailableBefore -
+    (paidBeforeFunding ? 0 : enteredAmount);
+  const bucketOverAfter = !!selectedBucket && !paidBeforeFunding &&
+    enteredAmount > 0 && bucketAvailableAfter < 0;
 
   const activePlannedExpenses = planExpenses.filter(
     (expense) =>
