@@ -143,6 +143,8 @@ export function PlanExpenseSection({
   onSpend,
   groupBy,
   groupSpentBy,
+  groupTransferredBy,
+  onGroupTransfer,
   emptyText,
 }: {
   title: string;
@@ -152,6 +154,8 @@ export function PlanExpenseSection({
   onSpend?: (expense: Expense) => void;
   groupBy?: (expense: Expense) => string;
   groupSpentBy?: (group: string) => number;
+  groupTransferredBy?: (group: string) => number;
+  onGroupTransfer?: (group: string) => void;
   emptyText: string;
 }) {
   const subtotal = expenses.reduce(
@@ -195,6 +199,7 @@ export function PlanExpenseSection({
               0
             );
             const groupSpent = groupSpentBy ? groupSpentBy(group) : rowSpent;
+            const groupTransferred = groupTransferredBy ? groupTransferredBy(group) : 0;
             const unassignedGroupSpend = Math.max(0, groupSpent - rowSpent);
 
             return (
@@ -206,7 +211,23 @@ export function PlanExpenseSection({
                   <span className="min-w-0 truncate text-[11px] font-black uppercase tracking-wide text-slate-500">
                     {group}
                   </span>
-                  {groupSpentBy ? (
+                  {groupTransferredBy ? (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <div className="text-right">
+                        <strong className="block text-xs text-slate-700">
+                          {money(groupTransferred)} / {money(groupPlanned)}
+                        </strong>
+                        <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                          Moved to vault / Plan
+                        </span>
+                      </div>
+                      {onGroupTransfer && groupTransferred < groupPlanned - 0.005 ? (
+                        <button type="button" onClick={() => onGroupTransfer(group)} className="rounded-lg bg-emerald-600 px-2 py-2 text-[11px] font-black text-white">
+                          Transfer
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : groupSpentBy ? (
                     <div className="shrink-0 text-right">
                       <strong className="block text-xs text-slate-700">
                         {money(groupSpent)} / {money(groupPlanned)}
