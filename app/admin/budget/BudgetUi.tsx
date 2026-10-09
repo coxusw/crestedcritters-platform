@@ -387,6 +387,9 @@ export function ExpenseRow({
   const planned = num(expense.planned_amount);
   const originalBudget = planned + (vaultMode ? num(expense.vault_prefund_offset) : 0);
   const spent = num(expense.actual_amount);
+  // The right-hand amount for vault-funded expenses is the money still
+  // available to spend, including purchases paid before vault funding.
+  const remaining = originalBudget - spent;
   const reconciliationStatus = vaultMode ? "Sinking-fund budget" :
     expense.status === "Cancelled"
       ? "Canceled"
@@ -439,7 +442,7 @@ export function ExpenseRow({
         <strong className={`block text-sm ${
           overPlan ? "text-rose-600" : "text-emerald-700"
         }`}>
-          {vaultMode ? money(originalBudget) : `${money(spent)} / ${money(planned)}`}
+          {vaultMode ? money(remaining) : `${money(spent)} / ${money(planned)}`}
         </strong>
         <div className="mt-1 flex items-center justify-end gap-2">
           {onSpend && expense.status !== "Cancelled" && expense.status !== "Deferred" ? (
