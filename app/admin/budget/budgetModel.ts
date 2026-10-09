@@ -95,6 +95,15 @@ export type ActualExpense = {
   overage_amount: number | string | null;
 };
 
+export type VaultTransfer = {
+  id: string;
+  future_expense_id: string;
+  assigned_paycheck: string;
+  transferred_on: string;
+  amount: number | string;
+  note: string | null;
+};
+
 export type IncomeEntry = {
   id: string;
   received_date: string;
@@ -142,6 +151,7 @@ export type Editor =
   | { type: "paycheck" }
   | { type: "future"; item?: FutureExpense }
   | { type: "close-fund"; item: FutureExpense }
+  | { type: "vault-transfer"; fundId: string }
   | null;
 
 export const money = (value: number) =>
