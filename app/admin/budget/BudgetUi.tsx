@@ -287,17 +287,22 @@ export function PaymentTimingAlerts({
   );
 
   return (
-    <details className="rounded-2xl border border-amber-300 bg-amber-50 text-amber-950">
-      <summary className="cursor-pointer list-none p-3.5">
-        <p className="text-sm font-black">
-          ⚠ {latePlanned.length} payment{latePlanned.length === 1 ? "" : "s"} scheduled after due date
-        </p>
-        <p className="mt-1 text-xs leading-5 text-amber-900">
-          {money(total)} in unpaid planned bills. Tap to check actual due dates.
-          A planning grace period does not guarantee that late fees are waived.
-        </p>
+    <details className="group rounded-xl border border-slate-200 bg-white text-slate-700">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 items-center gap-2">
+          <span aria-hidden="true" className="text-sm text-amber-600">⚠</span>
+          <span className="text-xs font-bold">
+            {latePlanned.length} payment{latePlanned.length === 1 ? "" : "s"} scheduled after due date
+          </span>
+        </span>
+        <span className="shrink-0 text-[11px] font-bold text-blue-600 group-open:hidden">Review ›</span>
+        <span className="hidden shrink-0 text-[11px] font-bold text-blue-600 group-open:inline">Close ⌃</span>
       </summary>
-      <div className="space-y-2 border-t border-amber-200 px-3.5 py-3">
+      <div className="space-y-2 border-t border-slate-100 px-3 py-3">
+        <p className="text-[11px] leading-4 text-slate-600">
+          {money(total)} still planned for these bills. Check their actual due dates;
+          a planning grace period does not waive late fees.
+        </p>
         {latePlanned.map((expense) => {
           const days = paymentTimingDelayDays(expense);
           return (
@@ -323,7 +328,7 @@ export function PaymentTimingAlerts({
             </div>
           );
         })}
-        <p className="text-[11px] leading-4 text-amber-900">
+        <p className="text-[11px] leading-4 text-slate-500">
           These are timing alerts, not confirmation of a fee or missed payment.
           Verify the actual dates with each biller before changing the plan.
         </p>
