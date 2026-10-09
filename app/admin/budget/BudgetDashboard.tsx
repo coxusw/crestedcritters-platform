@@ -1753,15 +1753,19 @@ export default function BudgetDashboard() {
     (sum, entry) => sum + num(entry.amount),
     0
   );
-  const spendingFromVaults = actualExpenses
-    .filter((expense) => !!expense.future_expense_id)
+  // A purchase made before the first vault transfer came out of checking.
+  // Only purchases paid after vault funding are excluded from checking,
+  // because that cash was already removed when it went into the vault.
+  const spentOutOfVaults = actualExpenses
+    .filter((expense) => !!expense.future_expense_id && !expense.paid_before_vault_funded)
     .reduce((sum, expense) => sum + num(expense.amount), 0);
+  const spentFromChecking = spentThisPeriod - spentOutOfVaults;
   const movedToVaults = vaultTransfers
     .filter((transfer) => transfer.assigned_paycheck === paycheck?.paycheck_date)
     .reduce((sum, transfer) => sum + num(transfer.amount), 0);
-  // Vault purchases are already funded by earlier transfers, so never deduct
-  // them from checking or this paycheck's still-unspent planned amount twice.
-  const remainingInPlan = planned - (spentThisPeriod - spendingFromVaults) - movedToVaults;
+  // Reconciled checking is the cash present AFTER this paycheck and any
+  // reported additional income, but BEFORE the period's logged outflows.
+  const openingChecking = checkingBalance == null ? null : checkingBalance - income;
 
   const currentCloseoutTransfers = useMemo(
     () =>
@@ -1781,6 +1785,13 @@ export default function BudgetDashboard() {
         .reduce((sum, item) => sum + num(item.closeout_amount), 0),
     [currentCloseoutTransfers]
   );
+
+  // Closeouts intentionally moved from a bank vault back into the checking
+  // buffer restore real cash. Reassignments between vaults do not.
+  // This is a tracked balance, not a live bank-feed balance.
+  const trackedCheckingLeft = checkingBalance == null
+    ? null
+    : checkingBalance - spentFromChecking - movedToVaults + bufferCloseoutBonus;
 
   const categoryComparison = useMemo(() => {
     const map = new Map<
@@ -2424,22 +2435,46 @@ export default function BudgetDashboard() {
                 </button>
               </div>
 
-              <div className="rounded-2xl bg-slate-900 p-3 text-white">
-                <div className="grid grid-cols-3 gap-2">
-                  <MiniStat label="Income" value={money(income)} />
-                  <MiniStat label="Planned" value={money(planned)} />
-                  <MiniStat label="After plan" value={money(availableExtra)} />
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/15 pt-3">
-                  <MiniStat label="Spent so far" value={money(spentThisPeriod)} />
-                  <MiniStat label="Into vaults" value={money(movedToVaults)} />
+              <div className="rounded-2xl bg-slate-900 p-4 text-white">
+                <div className="flex flex-wrap items-end justify-between gap-2">
                   <div>
-                    <span className="block text-[10px] text-slate-400">Still in plan</span>
-                    <strong className={`mt-1 block text-sm ${remainingInPlan < -0.005 ? "text-rose-300" : "text-emerald-300"}`}>
-                      {money(remainingInPlan)}
+                    <p className="text-xs font-bold text-slate-300">
+                      Checking left · tracked
+                    </p>
+                    <strong className={`mt-1 block text-3xl font-black tabular-nums ${
+                      trackedCheckingLeft != null && trackedCheckingLeft < -0.005
+                        ? "text-rose-300" : "text-emerald-300"
+                    }`}>
+                      {trackedCheckingLeft == null ? "Not reconciled" : money(trackedCheckingLeft)}
                     </strong>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditor({ type: "paycheck" })}
+                    className="rounded-lg border border-white/20 px-3 py-2 text-[11px] font-bold text-white"
+                  >
+                    Update checking
+                  </button>
                 </div>
+                <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/15 pt-3">
+                  <MiniStat
+                    label="Starting checking"
+                    value={openingChecking == null ? "Not entered" : money(openingChecking)}
+                  />
+                  <MiniStat label="Paycheck + income" value={money(income)} />
+                  <MiniStat label="Spent so far" value={money(spentThisPeriod)} />
+                  <MiniStat label="Into vaults" value={money(movedToVaults)} />
+                </div>
+                {bufferCloseoutBonus > 0 && (
+                  <p className="mt-3 text-xs text-slate-300">
+                    Back from closed vaults: +{money(bufferCloseoutBonus)}
+                  </p>
+                )}
+                <p className="mt-3 border-t border-white/10 pt-3 text-[11px] leading-4 text-slate-300">
+                  Based on the checking balance you entered, logged purchases and confirmed vault transfers.
+                  {spentOutOfVaults > 0 && ` Includes ${money(spentOutOfVaults)} spent from vaults, not deducted from checking twice.`}
+                  {" "}Unpaid planned bills are still included in this checking balance.
+                </p>
               </div>
 
               {num(paycheck.running_cash_goal_pool) < -0.005 && (
