@@ -23,6 +23,7 @@ export type Expense = {
   expense_type: string | null;
   frequency: string | null;
   planned_amount: number | string | null;
+  vault_prefund_offset: number | string | null;
   actual_amount: number | string | null;
   status: string | null;
   reconciliation_status: string | null;
