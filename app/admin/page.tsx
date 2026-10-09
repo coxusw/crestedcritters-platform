@@ -343,18 +343,6 @@ function buildTools(snapshots: Awaited<ReturnType<typeof getAdminSnapshots>>): A
       ],
     },
     {
-      title: "Household Budget",
-      href: "/budget",
-      status: "Live",
-      stats: [
-        { label: "Source", value: "Budget DB" },
-        { label: "Allowance", value: "$200 each" },
-        { label: "Review", value: "Paycheck" },
-        { label: "Approval", value: "Both" },
-      ],
-      links: [],
-    },
-    {
       title: "Bookkeeping",
       href: "/admin/bookkeeping",
       status: "Live",
