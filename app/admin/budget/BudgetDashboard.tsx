@@ -3031,7 +3031,10 @@ export default function BudgetDashboard() {
                                       value={available}
                                       danger={available < 0}
                                     />
-                                    <BudgetMeter label="Spent" value={spent} />
+                                    <BudgetMeter label="Spent (all purchases)" value={num(item.actual_funding_spend)} />
+                                    {num(item.pre_vault_spending) > 0 && (
+                                      <BudgetMeter label="Paid before funding" value={num(item.pre_vault_spending)} />
+                                    )}
                                     <BudgetMeter
                                       label="Planned future"
                                       value={plannedFuture}
