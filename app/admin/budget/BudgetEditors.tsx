@@ -926,13 +926,16 @@ export function ActualExpenseEditor({
             : 0)
       )
     : 0;
-  const plannedLineRemainingBefore = selectedPlannedExpense
-    ? num(selectedPlannedExpense.planned_amount) - plannedLineActualBefore
+  const plannedLineBudget = selectedPlannedExpense
+    ? num(selectedPlannedExpense.planned_amount) +
+      (selectedPlannedExpense.future_expense_id
+        ? num(selectedPlannedExpense.vault_prefund_offset) : 0)
     : 0;
+  const plannedLineRemainingBefore = plannedLineBudget - plannedLineActualBefore;
   const plannedLineAfter = plannedLineActualBefore + enteredAmount;
   const plannedLineOver =
     !!selectedPlannedExpense &&
-    plannedLineAfter > num(selectedPlannedExpense.planned_amount) + 0.005;
+    plannedLineAfter > plannedLineBudget + 0.005;
 
   const summary = comparisons.find(
     (row) => row.category === selectedCategory
@@ -1439,7 +1442,7 @@ export function ExpenseEditor({
         </Field>
 
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Amount">
+          <Field label={item?.future_expense_id ? "Original budget" : "Amount"}>
             <input
               name="planned_amount"
               required
@@ -1447,7 +1450,9 @@ export function ExpenseEditor({
               inputMode="decimal"
               step="0.01"
               min="0"
-              defaultValue={num(item?.planned_amount) || ""}
+              defaultValue={item?.future_expense_id
+                ? (num(item.planned_amount) + num(item.vault_prefund_offset)) || ""
+                : num(item?.planned_amount) || ""}
               className="budget-input"
             />
           </Field>
